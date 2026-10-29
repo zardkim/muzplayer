@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+cd /app
+
+# Started as root: make the data folder writable, then drop to PUID:PGID.
+if [ "$(id -u)" = "0" ]; then
+  PUID="${PUID:-1000}"
+  PGID="${PGID:-1000}"
+  mkdir -p /data
+  chown -R "$PUID:$PGID" /data
+  exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups "$0" "$@"
+fi
+
+alembic upgrade head
+python -m app.bootstrap
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'

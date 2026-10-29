@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Design tokens from the muzplayer design canvas */
+@theme {
+  --color-bg: #0e1013;
+  --color-sidebar: #0b0d10;
+  --color-surface: #171a1f;
+  --color-surface-2: #20242b;
+  --color-line: #2a2f37;
+  --color-line-strong: #3a404a;
+  --color-ink: #f2efe9;
+  --color-muted: #a3a9b3;
+  --color-subtle: #7d848f;
+  --color-accent: #f5a524;
+  --color-accent-strong: #ffc35c;
+  --color-accent-soft: #3a2a10;
+  --color-danger: #f07167;
+  --color-player: #15181d;
+  --font-sans: "IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "IBM Plex Sans KR", sans-serif;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+input[type="range"].seek {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].seek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill, var(--color-accent)) var(--pct, 0%), var(--color-line) var(--pct, 0%));
+}
+input[type="range"].seek::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill, var(--color-accent)) var(--pct, 0%), var(--color-line) var(--pct, 0%));
+}
+input[type="range"].seek::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--color-ink);
+}
+input[type="range"].seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-ink);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
