@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { appConfig } from './config'
 import { useAuth } from './stores/auth'
 
 export const router = createRouter({
@@ -15,6 +16,8 @@ export const router = createRouter({
     { path: '/artists/:id', name: 'artist', component: () => import('./views/ArtistView.vue'), props: true },
     { path: '/charts', name: 'charts', component: () => import('./views/ChartsView.vue') },
     { path: '/charts/:id', name: 'chart', component: () => import('./views/ChartView.vue'), props: true },
+    { path: '/books', name: 'books', component: () => import('./views/BooksView.vue'), meta: { books: true } },
+    { path: '/books/:id', name: 'book', component: () => import('./views/BookView.vue'), props: true, meta: { books: true } },
     { path: '/genres', name: 'genres', component: () => import('./views/GenresView.vue') },
     { path: '/playlists', name: 'playlists', component: () => import('./views/PlaylistsView.vue') },
     { path: '/playlists/:id', name: 'playlist', component: () => import('./views/PlaylistView.vue'), props: true },
@@ -34,5 +37,6 @@ router.beforeEach(async (to) => {
   if (to.meta.public) return auth.user ? { name: 'home' } : true
   if (!auth.user) return { name: 'login', query: to.fullPath !== '/' ? { next: to.fullPath } : {} }
   if (to.meta.admin && !auth.user.is_admin) return { name: 'home' }
+  if (to.meta.books && !appConfig.audiobooks) return { name: 'home' }
   return true
 })

@@ -303,12 +303,13 @@ def _ensure_cover(album: Album, path: Path, cover_tries: dict[int, int]) -> None
         album.cover_path = cover_file(album.id, "thumb").name
 
 
-def _walk(root: Path, on_error, skip_top: set[str]):
+def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(), exts=AUDIO_EXTS):
     """Yields audio files under root, following symlinked folders and mounts.
 
     Folder loops (a link pointing at its own parent) are visited once.
     on_error(path, exc) is called for folders that can't be read and for broken links.
-    Top-level folders named in skip_top (NFC) are not entered.
+    Top-level folders named in skip_top (NFC) are not entered, nor folders in skip_paths
+    (absolute, normalized: the audiobook folder when it sits inside the music folder).
     """
     stack = [root]
     visited: set[tuple[int, int]] = set()
@@ -328,7 +329,9 @@ def _walk(root: Path, on_error, skip_top: set[str]):
                 continue
             try:
                 if entry.is_dir(follow_symlinks=True):
-                    skipped = directory == root and nfc(entry.name) in skip_top
+                    skipped = (directory == root and nfc(entry.name) in skip_top) or (
+                        os.path.normpath(entry.path) in skip_paths
+                    )
                     if not entry.name.startswith("@") and not skipped:  # @: Synology @eaDir etc.
                         stack.append(Path(entry.path))
                     continue
@@ -338,18 +341,20 @@ def _walk(root: Path, on_error, skip_top: set[str]):
             except OSError as exc:
                 on_error(Path(entry.path), exc)
                 continue
-            if os.path.splitext(entry.name)[1].lower() in AUDIO_EXTS:
+            if os.path.splitext(entry.name)[1].lower() in exts:
                 yield Path(entry.path)
 
 
-def _collect(root: Path, existing: dict[str, Track], on_error, skip_top: set[str]) -> list[tuple[str, Path]]:
+def _collect(
+    root: Path, existing: dict[str, Track], on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset()
+) -> list[tuple[str, Path]]:
     """Lists (relative path, path) pairs, one per real file.
 
     The same file reachable through two links is indexed once, preferring the path
     already in the DB so playlists keep pointing at it.
     """
     by_real: dict[str, list[tuple[str, Path]]] = {}
-    for path in _walk(root, on_error, skip_top):
+    for path in _walk(root, on_error, skip_top, skip_paths):
         rel = os.path.relpath(path, root)
         try:
             rel.encode("utf-8")
@@ -365,6 +370,13 @@ def _collect(root: Path, existing: dict[str, Track], on_error, skip_top: set[str
 
 
 def _run(job_id: int) -> None:
+    try:
+        _scan(job_id)
+    finally:
+        _lock.release()
+
+
+def _scan(job_id: int) -> None:
     db = SessionLocal()
     job = db.get(ScanJob, job_id)
     errors: list[str] = []
@@ -387,7 +399,10 @@ def _run(job_id: int) -> None:
             if len(errors) < 50:
                 errors.append(f"cannot read: {path}: {getattr(exc, 'strerror', None) or exc}")
 
-        files = _collect(root, existing, on_error, {p for p, k in kinds.items() if k == "excluded"})
+        # mp3 audiobooks in a folder inside the music folder must not turn into songs
+        books_dir = settings.audiobook_dir
+        skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
+        files = _collect(root, existing, on_error, {p for p, k in kinds.items() if k == "excluded"}, skip_paths)
         if not files and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
             raise RuntimeError(f"library_empty: no audio files found under {root}")
@@ -465,12 +480,24 @@ def _run(job_id: int) -> None:
         job = db.get(ScanJob, job_id)
         job.status = "failed"
         errors.append(str(exc))
-    finally:
+    db.commit()
+    if settings.audiobook_dir is not None:
+        from .books import scan_books  # books imports scanner helpers
+
+        try:
+            scan_books(db, job, errors)
+        except Exception as exc:
+            log.exception("audiobook scan failed")
+            db.rollback()
+            job = db.get(ScanJob, job_id)
+            job.errors += 1
+            errors.append(f"audiobooks: {exc}")
+    try:
         job.finished_at = datetime.now(UTC)
         job.error_summary = "\n".join(errors) or None
         db.commit()
+    finally:
         db.close()
-        _lock.release()
     remove_covers(pruned_albums)
 
 

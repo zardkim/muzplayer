@@ -2,9 +2,11 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api'
+import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { install, installPrompt, isIos, isStandalone } from '../pwa'
 import { useAuth } from '../stores/auth'
+import { SKIPS, usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import LanguageSwitch from '../components/LanguageSwitch.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -12,6 +14,7 @@ import PageHeader from '../components/PageHeader.vue'
 const { t } = useI18n()
 const auth = useAuth()
 const ui = useUi()
+const player = usePlayer()
 const version = (window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ ?? ''
 const current = ref('')
 const next = ref('')
@@ -42,6 +45,25 @@ const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none
     <section class="flex flex-col gap-3">
       <h2 class="text-lg font-bold">{{ t('settings.language') }}</h2>
       <LanguageSwitch />
+    </section>
+
+    <section v-if="appConfig.audiobooks" class="flex flex-col gap-3">
+      <h2 class="text-lg font-bold">{{ t('settings.audiobooks') }}</h2>
+      <div class="flex flex-wrap gap-4">
+        <label class="flex items-center gap-2.5 text-[15px]">
+          {{ t('settings.skipBack') }}
+          <select v-model.number="player.skipBack" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm">
+            <option v-for="s in SKIPS" :key="s" :value="s">{{ t('settings.seconds', { n: s }) }}</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2.5 text-[15px]">
+          {{ t('settings.skipForward') }}
+          <select v-model.number="player.skipForward" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm">
+            <option v-for="s in SKIPS" :key="s" :value="s">{{ t('settings.seconds', { n: s }) }}</option>
+          </select>
+        </label>
+      </div>
+      <p class="text-[13px] font-light text-muted">{{ t('settings.audiobooksHelp') }}</p>
     </section>
 
     <section class="flex flex-col gap-3">

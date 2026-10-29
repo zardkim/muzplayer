@@ -192,3 +192,54 @@ class ScanJob(Base):
     missing: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[int] = mapped_column(Integer, default=0)
     error_summary: Mapped[str | None] = mapped_column(Text)
+    books_added: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    books_updated: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    books_missing: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class Book(Base):
+    """One audiobook: a folder of audio files under AUDIOBOOK_DIR (or a single file at its top)."""
+
+    __tablename__ = "books"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # relative to AUDIOBOOK_DIR, NFC: the book's identity (also matches Audiobookshelf's relPath)
+    folder_path: Mapped[str] = mapped_column(Text, unique=True)
+    title: Mapped[str] = mapped_column(String(1000))
+    subtitle: Mapped[str] = mapped_column(String(1000), default="")
+    authors: Mapped[str] = mapped_column(String(1000), default="")
+    narrators: Mapped[str] = mapped_column(String(1000), default="")
+    series: Mapped[str] = mapped_column(String(500), default="")
+    series_seq: Mapped[str] = mapped_column(String(32), default="")
+    genres: Mapped[list] = mapped_column(JSON, default=list)
+    published_year: Mapped[int | None] = mapped_column(Integer)
+    publisher: Mapped[str] = mapped_column(String(500), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    isbn: Mapped[str] = mapped_column(String(32), default="")
+    asin: Mapped[str] = mapped_column(String(32), default="")
+    language: Mapped[str] = mapped_column(String(64), default="")
+    duration: Mapped[float] = mapped_column(Float, default=0)
+    # [{"start", "end", "title"}], seconds on the whole-book timeline
+    chapters: Mapped[list] = mapped_column(JSON, default=list)
+    # [{"path" (relative, as on disk), "size", "mtime", "duration", "offset"}] in play order
+    files: Mapped[list] = mapped_column(JSON, default=list)
+    cover_sig: Mapped[str] = mapped_column(String(1000), default="")  # folder image it came from
+    has_cover: Mapped[bool] = mapped_column(Boolean, default=False)
+    # field names set by an import or by hand; a rescan never overwrites them from tags
+    locked: Mapped[list] = mapped_column(JSON, default=list)
+    abs_id: Mapped[str | None] = mapped_column(String(64))
+    missing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class BookProgress(Base):
+    __tablename__ = "book_progress"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    book_id: Mapped[int] = mapped_column(ForeignKey("books.id", ondelete="CASCADE"), primary_key=True, index=True)
+    position: Mapped[float] = mapped_column(Float, default=0)  # seconds on the whole-book timeline
+    finished: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

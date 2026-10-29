@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import get_db
-from ..models import LibraryFolder, ScanJob, Track, User
+from ..books import remove_book_covers
+from ..models import Book, LibraryFolder, ScanJob, Track, User
 from ..scanner import FOLDER_KINDS, nfc, prune_orphans, remove_covers, start_scan
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
@@ -29,6 +30,9 @@ def job_out(job: ScanJob) -> dict:
         "missing": job.missing,
         "errors": job.errors,
         "error_summary": job.error_summary,
+        "books_added": job.books_added,
+        "books_updated": job.books_updated,
+        "books_missing": job.books_missing,
     }
 
 
@@ -43,7 +47,9 @@ def scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
 @router.get("/scan/latest")
 def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     job = db.scalars(select(ScanJob).order_by(ScanJob.id.desc()).limit(1)).first()
-    missing = db.scalar(select(Track.id).where(Track.missing_at.is_not(None)).limit(1))
+    missing = db.scalar(select(Track.id).where(Track.missing_at.is_not(None)).limit(1)) or db.scalar(
+        select(Book.id).where(Book.missing_at.is_not(None)).limit(1)
+    )
     return {
         "job": job_out(job) if job else None,
         "has_missing": missing is not None,
@@ -63,13 +69,18 @@ def get_scan(job_id: int, _: User = Depends(admin_user), db: Session = Depends(g
 def purge_missing(
     days: int = Query(30, ge=0, le=3650), _: User = Depends(admin_user), db: Session = Depends(get_db)
 ):
-    """Deletes tracks missing for more than `days`, then unused albums/charts/artists/genres."""
+    """Deletes tracks and audiobooks missing for more than `days`, then unused albums/charts/artists/genres.
+
+    A deleted book takes everyone's listening position with it.
+    """
     cutoff = now() - timedelta(days=days)
     deleted = db.execute(delete(Track).where(Track.missing_at.is_not(None), Track.missing_at <= cutoff)).rowcount
+    books = list(db.scalars(delete(Book).where(Book.missing_at.is_not(None), Book.missing_at <= cutoff).returning(Book.id)))
     orphan_albums = prune_orphans(db)
     db.commit()
     remove_covers(orphan_albums)
-    return {"deleted": deleted}
+    remove_book_covers(books)
+    return {"deleted": deleted, "books_deleted": len(books)}
 
 
 def suggest_kind(name: str) -> str | None:

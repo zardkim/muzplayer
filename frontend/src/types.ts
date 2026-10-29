@@ -78,6 +78,45 @@ export interface Lyrics {
   plain: string | null
 }
 
+export interface BookProgress {
+  position: number // seconds on the whole-book timeline
+  finished: boolean
+  updated_at: string
+}
+
+export interface Book {
+  id: number
+  title: string
+  subtitle: string
+  authors: string
+  narrators: string
+  series: string
+  series_seq: string
+  published_year: number | null
+  duration: number
+  has_cover: boolean
+  chapter_count: number
+  created_at: string
+  progress: BookProgress | null
+}
+
+export interface Chapter {
+  start: number
+  end: number
+  title: string
+}
+
+export interface BookDetail extends Book {
+  description: string
+  genres: string[]
+  publisher: string
+  language: string
+  isbn: string
+  asin: string
+  chapters: Chapter[]
+  files: { duration: number; offset: number }[] // play order; offset = start on the book timeline
+}
+
 export interface Genre {
   id: number
   name: string
@@ -115,6 +154,9 @@ export interface ScanJob {
   missing: number
   errors: number
   error_summary: string | null
+  books_added: number
+  books_updated: number
+  books_missing: number
 }
 
 export interface Page<T> {

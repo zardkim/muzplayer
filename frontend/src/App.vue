@@ -2,14 +2,16 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChartNoAxesColumn, Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
+import { BookHeadphones, ChartNoAxesColumn, Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
 import { setUnauthorizedHandler } from './api'
+import { appConfig } from './config'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
 import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
+import BookPlayer from './components/BookPlayer.vue'
 import LanguageSwitch from './components/LanguageSwitch.vue'
 import NowPlaying from './components/NowPlaying.vue'
 import PlayerBar from './components/PlayerBar.vue'
@@ -65,24 +67,27 @@ function search() {
   if (q) router.push({ name: 'search', query: { q } })
 }
 
-const sideNav = [
+const books = { to: '/books', label: 'nav.audiobooks', icon: BookHeadphones }
+const sideNav = computed(() => [
   { to: '/', label: 'nav.home', icon: House },
   { to: '/albums', label: 'nav.albums', icon: Disc3 },
   { to: '/artists', label: 'nav.artists', icon: MicVocal },
   { to: '/tracks', label: 'nav.songs', icon: Music },
   { to: '/genres', label: 'nav.genres', icon: Tag },
   { to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
+  ...(appConfig.audiobooks ? [books] : []),
   { to: '/favorites', label: 'nav.favorites', icon: Heart },
   { to: '/history', label: 'nav.history', icon: History },
   { to: '/library', label: 'nav.myMusic', icon: User },
-]
-const tabs = [
+])
+const tabs = computed(() => [
   { to: '/', label: 'nav.home', icon: House },
   { to: '/albums', label: 'nav.albums', icon: Disc3 },
+  ...(appConfig.audiobooks ? [books] : []),
   { to: '/library', label: 'nav.myMusic', icon: User },
   { to: '/search', label: 'nav.explore', icon: Search },
   { to: '/tracks', label: 'nav.songs', icon: Music },
-]
+])
 const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/settings', '/admin']
 function active(to: string) {
   if (to === '/') return route.path === '/'
@@ -158,7 +163,7 @@ function active(to: string) {
       <!-- phone: floating mini player + tab bar -->
       <div class="bottom-safe pointer-events-none fixed inset-x-3 z-30 flex flex-col gap-2.5 md:hidden">
         <div class="pointer-events-auto"><PlayerBar mobile /></div>
-        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] grid-cols-5 items-center rounded-full px-1.5">
+        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] items-center rounded-full px-1.5" :class="tabs.length > 5 ? 'grid-cols-6' : 'grid-cols-5'">
           <RouterLink
             v-for="tab in tabs"
             :key="tab.to"
@@ -173,7 +178,8 @@ function active(to: string) {
       </div>
     </div>
 
-    <NowPlaying v-if="ui.playerOpen" />
+    <BookPlayer v-if="ui.playerOpen && player.mode === 'book'" />
+    <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
   </div>

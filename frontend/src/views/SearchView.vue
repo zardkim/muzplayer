@@ -4,8 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Search } from '@lucide/vue'
 import { api, query } from '../api'
-import type { Album, Artist, Chart, Genre, Page, Track } from '../types'
+import { appConfig } from '../config'
+import type { Album, Artist, Book, Chart, Genre, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import BookGrid from '../components/BookGrid.vue'
 import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import TrackList from '../components/TrackList.vue'
@@ -20,6 +22,7 @@ const albums = ref<Album[]>([])
 const artists = ref<Artist[]>([])
 const genres = ref<Genre[]>([])
 const charts = ref<Chart[]>([])
+const books = ref<Book[]>([])
 const loaded = ref(false)
 
 // stable colour per artist tile, dark enough for white text
@@ -36,6 +39,7 @@ onMounted(async () => {
     tracks.value = tr.items
     albums.value = al.items
     artists.value = ar.items
+    if (appConfig.audiobooks) books.value = (await api<Page<Book>>(`/books${query({ q, limit: 12 })}`).catch(() => ({ items: [] }))).items
   } else {
     const [g, ar, ch] = await Promise.all([
       api<{ items: Genre[] }>('/genres').catch(() => ({ items: [] })),
@@ -65,13 +69,17 @@ function submit() {
 
     <template v-if="q">
       <h2 class="text-[22px] font-bold">{{ t('search.resultsFor', { q }) }}</h2>
-      <p v-if="loaded && !tracks.length && !albums.length && !artists.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
+      <p v-if="loaded && !tracks.length && !albums.length && !artists.length && !books.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
       <section v-if="artists.length" class="flex flex-wrap gap-2.5">
         <RouterLink v-for="a in artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex h-11 items-center rounded-full border border-line-strong px-[18px] font-light">{{ a.name }}</RouterLink>
       </section>
       <section v-if="albums.length" class="flex flex-col gap-3">
         <h3 class="text-lg font-bold">{{ t('albums.title') }}</h3>
         <AlbumGrid :albums="albums" row />
+      </section>
+      <section v-if="books.length" class="flex flex-col gap-3">
+        <RouterLink :to="{ name: 'books', query: { q } }" class="flex items-center gap-1 text-lg font-bold">{{ t('books.title') }} <ChevronRight :size="18" :stroke-width="1.6" /></RouterLink>
+        <BookGrid :books="books" row />
       </section>
       <section v-if="tracks.length" class="flex flex-col gap-1">
         <h3 class="text-lg font-bold">{{ t('tracks.title') }}</h3>

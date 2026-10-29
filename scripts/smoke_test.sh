@@ -47,6 +47,20 @@ curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-t
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlist list empty" "$(curl -s -b "$U" "$BASE/playlists" | j 'len(d["items"])')" 0
 
+# audiobooks (only when AUDIOBOOK_PATH is set): stream, and positions kept per user
+if [ "$(curl -s "$BASE/config" | j 'd["audiobooks"]')" = True ]; then
+  bid=$(curl -s -b "$A" "$BASE/books?sort=title" | j 'd["items"][0]["id"] if d["items"] else ""')
+  if [ -n "$bid" ]; then
+    check "book stream range 206" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-99' "$BASE/books/$bid/files/0/stream")" 206
+    curl -s -b "$A" -o /dev/null -X PUT "$BASE/books/$bid/progress" -H 'content-type: application/json' -d '{"position":3}'
+    check "book position saved" "$(curl -s -b "$A" "$BASE/books/$bid" | j 'd["progress"]["position"]')" 3.0
+    check "other user's book position separate" "$(curl -s -b "$U" "$BASE/books/$bid" | j 'd["progress"]')" None
+    curl -s -b "$A" -o /dev/null -X DELETE "$BASE/books/$bid/progress"
+  else
+    echo "FAIL audiobooks on but no books indexed"; fail=1
+  fi
+fi
+
 # removing a file hides it but keeps it in playlists
 path=$(find "$MUSIC" -type f -name '*.mp3' | head -1)
 MOVED="$path"

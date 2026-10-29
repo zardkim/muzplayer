@@ -39,7 +39,12 @@ def user_out(user: User) -> dict:
 @router.get("/config")
 def get_config():
     locale = settings.default_locale if settings.default_locale in SUPPORTED_LOCALES else "ko"
-    return {"default_locale": locale, "locales": list(SUPPORTED_LOCALES), "version": settings.version}
+    return {
+        "default_locale": locale,
+        "locales": list(SUPPORTED_LOCALES),
+        "version": settings.version,
+        "audiobooks": settings.audiobook_dir is not None,
+    }
 
 
 class LoginIn(BaseModel):

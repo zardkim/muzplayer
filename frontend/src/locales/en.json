@@ -19,7 +19,8 @@
     "myMusic": "My music",
     "explore": "Explore",
     "songs": "Songs",
-    "charts": "Charts"
+    "charts": "Charts",
+    "audiobooks": "Audiobooks"
   },
   "search": {
     "label": "Search",
@@ -52,7 +53,12 @@
     "unknown": "Something went wrong.",
     "playback": "This song can't be played. Skipping to the next one.",
     "invalid_folder": "Invalid folder name.",
-    "playbackStopped": "Playback stopped. Check the connection and press play again."
+    "playbackStopped": "Playback stopped. Check the connection and press play again.",
+    "audiobooks_off": "Audiobooks are turned off (AUDIOBOOK_PATH in .env).",
+    "abs_invalid": "Check the Audiobookshelf address (http://…) and the API key.",
+    "abs_unauthorized": "The API key is wrong or does not belong to an admin account.",
+    "abs_unreachable": "Cannot reach Audiobookshelf. Check the address and port.",
+    "abs_bad_response": "Unexpected response from Audiobookshelf. Check its version."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -180,7 +186,18 @@
     "lyrics": "Lyrics",
     "noLyrics": "No lyrics for this track.",
     "showArtwork": "Show artwork",
-    "showLyrics": "Show lyrics"
+    "showLyrics": "Show lyrics",
+    "skipBack": "Back {n} seconds",
+    "skipForward": "Forward {n} seconds",
+    "prevChapter": "Previous chapter",
+    "nextChapter": "Next chapter",
+    "speed": "Playback speed",
+    "sleep": "Sleep timer",
+    "sleepMinutes": "Stop in {n} minutes",
+    "sleepChapter": "End of this chapter",
+    "sleepOff": "Turn off timer",
+    "sleepAtChapterEnd": "Stops at chapter end",
+    "bookLeft": "{time} left in book"
   },
   "settings": {
     "title": "Settings",
@@ -196,7 +213,12 @@
     "installApp": "Install app",
     "installTitle": "Add to home screen",
     "installIos": "In Safari, tap Share → ‘Add to Home Screen’.",
-    "installed": "Running as an installed app."
+    "installed": "Running as an installed app.",
+    "audiobooks": "Audiobooks",
+    "skipBack": "Skip back",
+    "skipForward": "Skip forward",
+    "seconds": "{n} s",
+    "audiobooksHelp": "Used by the skip buttons in the player and on the lock screen. Saved in this browser only."
   },
   "admin": {
     "title": "Admin",
@@ -250,7 +272,31 @@
     "folderMissing": "Folder not found",
     "folderSaved": "Saved. Applies from the next scan.",
     "noFolders": "There are no folders under the music folder.",
-    "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)"
+    "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)",
+    "bookScanResult": "Audiobooks: {added} added · {updated} changed · {missing} missing",
+    "audiobooks": "Audiobooks",
+    "audiobooksFolder": "Audiobook folder: {folder}",
+    "booksCount": "{n} books",
+    "booksImported": "{n} imported from Audiobookshelf",
+    "booksMissing": "{n} missing",
+    "absTitle": "Import from Audiobookshelf",
+    "absDesc": "Copies book details, chapters and covers edited in Audiobookshelf, plus each user's listening position, once. Both must use the same audiobook folder and Audiobookshelf must be running. Afterwards Audiobookshelf can be turned off. Run a scan first so the books exist here.",
+    "absUrl": "Audiobookshelf address",
+    "absKey": "API key (admin account)",
+    "absKeyHelp": "Create one in Audiobookshelf Settings → API Keys. It is not stored; delete it in Audiobookshelf after the import.",
+    "absPreview": "Check connection",
+    "absMatched": "{matched} of {items} books matched (Audiobookshelf {version})",
+    "absUnmatched": "{n} books not found",
+    "absUnmatchedHelp": "No book with the same folder was found here. Check that AUDIOBOOK_PATH is the Audiobookshelf library folder and that a scan has finished.",
+    "absUsers": "Whose listening positions to import",
+    "absUsersHelp": "Pick a muzplayer user for each Audiobookshelf user. Same usernames are matched automatically.",
+    "absUserFor": "muzplayer user for {name}",
+    "absUserSkip": "Don't import",
+    "absStart": "Import {n} books",
+    "absRunning": "Importing… {done}/{total}",
+    "absDone": "Import done: {books} books · {covers} covers · {progress} positions",
+    "absFailed": "Import failed:",
+    "absFailedItems": "{n} books could not be imported"
   },
   "library": {
     "title": "My music",
@@ -271,5 +317,40 @@
     "all": "All",
     "empty": "No charts yet. Mark a chart folder on the admin page and scan.",
     "copyToPlaylist": "Add to my playlist"
+  },
+  "books": {
+    "title": "Audiobooks",
+    "count": "{n} books",
+    "continue": "Continue listening",
+    "recent": "Recently added",
+    "all": "All books",
+    "sortTitle": "Title",
+    "sortAuthor": "Author",
+    "sortRecent": "Recently added",
+    "searchPlaceholder": "Search title, author, narrator, series",
+    "filterAuthor": "Author: {name}",
+    "filterSeries": "Series: {name}",
+    "clearFilter": "Clear filter",
+    "empty": "No audiobooks yet.",
+    "emptyAdmin": "Scan from the admin page",
+    "unknownAuthor": "Unknown author",
+    "narratedBy": "Narrated by {name}",
+    "seriesSeq": "{name} #{n}",
+    "chapters": "Chapters",
+    "chapterCount": "{n} chapters",
+    "chapterOf": "{n} / {total}",
+    "left": "{time} left",
+    "finished": "Finished",
+    "resume": "Resume ({time})",
+    "listen": "Listen from the start",
+    "markFinished": "Mark as finished",
+    "restart": "Start over",
+    "restartConfirm": "Clear your position and start over?",
+    "notStarted": "Not started yet.",
+    "more": "More",
+    "less": "Less",
+    "hoursMinutes": "{h}h {m}m",
+    "hours": "{h}h",
+    "minutes": "{m}m"
   }
 }

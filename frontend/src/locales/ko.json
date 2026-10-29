@@ -19,7 +19,8 @@
     "myMusic": "내 음악",
     "explore": "탐색",
     "songs": "곡",
-    "charts": "차트"
+    "charts": "차트",
+    "audiobooks": "오디오북"
   },
   "search": {
     "label": "검색",
@@ -52,7 +53,12 @@
     "unknown": "알 수 없는 오류가 발생했습니다.",
     "playback": "이 곡을 재생할 수 없어 다음 곡으로 넘어갑니다.",
     "invalid_folder": "잘못된 폴더 이름입니다.",
-    "playbackStopped": "재생할 수 없어 멈췄습니다. 연결 상태를 확인한 뒤 다시 재생하세요."
+    "playbackStopped": "재생할 수 없어 멈췄습니다. 연결 상태를 확인한 뒤 다시 재생하세요.",
+    "audiobooks_off": "오디오북 기능이 꺼져 있습니다(.env의 AUDIOBOOK_PATH).",
+    "abs_invalid": "Audiobookshelf 주소(http://…)와 API 키를 확인하세요.",
+    "abs_unauthorized": "API 키가 올바르지 않거나 관리자 계정의 키가 아닙니다.",
+    "abs_unreachable": "Audiobookshelf에 연결할 수 없습니다. 주소와 포트를 확인하세요.",
+    "abs_bad_response": "Audiobookshelf 응답을 이해할 수 없습니다. 버전을 확인하세요."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -180,7 +186,18 @@
     "lyrics": "가사",
     "noLyrics": "가사가 없습니다.",
     "showArtwork": "앨범 아트 보기",
-    "showLyrics": "가사 보기"
+    "showLyrics": "가사 보기",
+    "skipBack": "{n}초 뒤로",
+    "skipForward": "{n}초 앞으로",
+    "prevChapter": "이전 챕터",
+    "nextChapter": "다음 챕터",
+    "speed": "재생 속도",
+    "sleep": "취침 타이머",
+    "sleepMinutes": "{n}분 후 정지",
+    "sleepChapter": "이 챕터 끝까지",
+    "sleepOff": "타이머 끄기",
+    "sleepAtChapterEnd": "챕터 끝에서 정지",
+    "bookLeft": "책 남은 시간 {time}"
   },
   "settings": {
     "title": "설정",
@@ -196,7 +213,12 @@
     "installApp": "앱으로 설치",
     "installTitle": "홈 화면에 추가",
     "installIos": "Safari 하단의 공유 버튼 → ‘홈 화면에 추가’를 누르세요.",
-    "installed": "앱으로 실행 중입니다."
+    "installed": "앱으로 실행 중입니다.",
+    "audiobooks": "오디오북",
+    "skipBack": "뒤로 건너뛰기",
+    "skipForward": "앞으로 건너뛰기",
+    "seconds": "{n}초",
+    "audiobooksHelp": "재생 화면·잠금화면의 건너뛰기 버튼 길이입니다. 이 브라우저에만 저장됩니다."
   },
   "admin": {
     "title": "관리자",
@@ -250,7 +272,31 @@
     "folderMissing": "폴더 없음",
     "folderSaved": "저장했습니다. 다음 스캔부터 반영됩니다.",
     "noFolders": "음악 폴더 아래에 하위 폴더가 없습니다.",
-    "foldersHelp": "앨범: 아티스트/앨범 폴더 (아티스트 아래 \"비정규\" 폴더는 비정규로 표시) · 컴필레이션: 앨범 아티스트 태그가 없으면 Various Artists로 묶음 · 차트: 하위 폴더 하나가 차트 하나, 앨범 목록에서 제외 · 제외: 스캔하지 않음 (이미 등록된 곡은 누락으로 바뀌고, 누락 곡 정리 때 플레이리스트·즐겨찾기에서도 사라짐)"
+    "foldersHelp": "앨범: 아티스트/앨범 폴더 (아티스트 아래 \"비정규\" 폴더는 비정규로 표시) · 컴필레이션: 앨범 아티스트 태그가 없으면 Various Artists로 묶음 · 차트: 하위 폴더 하나가 차트 하나, 앨범 목록에서 제외 · 제외: 스캔하지 않음 (이미 등록된 곡은 누락으로 바뀌고, 누락 곡 정리 때 플레이리스트·즐겨찾기에서도 사라짐)",
+    "bookScanResult": "오디오북: 추가 {added} · 변경 {updated} · 누락 {missing}",
+    "audiobooks": "오디오북",
+    "audiobooksFolder": "오디오북 폴더: {folder}",
+    "booksCount": "책 {n}권",
+    "booksImported": "Audiobookshelf에서 가져온 책 {n}권",
+    "booksMissing": "누락 {n}권",
+    "absTitle": "Audiobookshelf에서 가져오기",
+    "absDesc": "Audiobookshelf에서 편집한 책 정보·챕터·커버와 사용자별 듣던 위치를 한 번 가져옵니다. 같은 오디오북 폴더를 보고 있어야 하며, Audiobookshelf가 켜져 있을 때만 가능합니다. 가져온 뒤에는 Audiobookshelf를 꺼도 됩니다. 먼저 스캔해서 책 목록을 만든 뒤 실행하세요.",
+    "absUrl": "Audiobookshelf 주소",
+    "absKey": "API 키 (관리자 계정)",
+    "absKeyHelp": "Audiobookshelf 설정 → API Keys에서 만듭니다. 저장하지 않으며, 가져오기가 끝나면 Audiobookshelf에서 지워도 됩니다.",
+    "absPreview": "연결 확인",
+    "absMatched": "{items}권 중 {matched}권 일치 (Audiobookshelf {version})",
+    "absUnmatched": "찾지 못한 책 {n}권",
+    "absUnmatchedHelp": "muzplayer 오디오북 폴더에서 같은 경로의 책을 찾지 못했습니다. AUDIOBOOK_PATH가 Audiobookshelf 라이브러리 폴더와 같은지, 스캔을 마쳤는지 확인하세요.",
+    "absUsers": "듣던 위치 가져올 사용자",
+    "absUsersHelp": "Audiobookshelf 사용자마다 muzplayer 사용자를 고르세요. 아이디가 같으면 자동으로 골라집니다.",
+    "absUserFor": "{name}의 muzplayer 사용자",
+    "absUserSkip": "가져오지 않음",
+    "absStart": "{n}권 가져오기",
+    "absRunning": "가져오는 중… {done}/{total}",
+    "absDone": "가져오기 완료: 책 {books}권 · 커버 {covers}개 · 듣던 위치 {progress}개",
+    "absFailed": "가져오기 실패:",
+    "absFailedItems": "가져오지 못한 책 {n}권"
   },
   "library": {
     "title": "내 음악",
@@ -271,5 +317,40 @@
     "all": "전체",
     "empty": "차트가 없습니다. 관리자 화면에서 차트 폴더를 지정하고 스캔하세요.",
     "copyToPlaylist": "내 플레이리스트에 담기"
+  },
+  "books": {
+    "title": "오디오북",
+    "count": "{n}권",
+    "continue": "이어 듣기",
+    "recent": "최근 추가",
+    "all": "전체",
+    "sortTitle": "제목순",
+    "sortAuthor": "저자순",
+    "sortRecent": "최근 추가순",
+    "searchPlaceholder": "제목·저자·내레이터·시리즈 검색",
+    "filterAuthor": "저자: {name}",
+    "filterSeries": "시리즈: {name}",
+    "clearFilter": "필터 해제",
+    "empty": "오디오북이 없습니다.",
+    "emptyAdmin": "관리자 화면에서 스캔하세요",
+    "unknownAuthor": "저자 미상",
+    "narratedBy": "낭독 {name}",
+    "seriesSeq": "{name} #{n}",
+    "chapters": "챕터",
+    "chapterCount": "챕터 {n}개",
+    "chapterOf": "{n} / {total}",
+    "left": "{time} 남음",
+    "finished": "다 들음",
+    "resume": "이어 듣기 ({time})",
+    "listen": "처음부터 듣기",
+    "markFinished": "다 들은 책으로 표시",
+    "restart": "처음부터 다시",
+    "restartConfirm": "듣던 위치를 지우고 처음부터 듣습니다. 계속할까요?",
+    "notStarted": "아직 듣지 않은 책입니다.",
+    "more": "더 보기",
+    "less": "접기",
+    "hoursMinutes": "{h}시간 {m}분",
+    "hours": "{h}시간",
+    "minutes": "{m}분"
   }
 }

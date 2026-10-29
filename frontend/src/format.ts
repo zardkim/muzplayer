@@ -15,3 +15,14 @@ export function dateTime(value: string | null | undefined): string {
     new Date(value),
   )
 }
+
+/** "3시간 12분" / "3h 12m": for book lengths and time left. */
+export function longDuration(seconds: number | null | undefined): string {
+  const t = i18n.global.t
+  const total = Math.max(0, Math.round((seconds ?? 0) / 60))
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h && m) return t('books.hoursMinutes', { h, m })
+  if (h) return t('books.hours', { h })
+  return t('books.minutes', { m: Math.max(m, seconds && seconds > 0 ? 1 : 0) })
+}

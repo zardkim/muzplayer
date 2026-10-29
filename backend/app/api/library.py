@@ -21,6 +21,7 @@ AUDIO_TYPES = {
     "mp3": "audio/mpeg",
     "flac": "audio/flac",
     "m4a": "audio/mp4",
+    "m4b": "audio/mp4",
     "mp4": "audio/mp4",
     "aac": "audio/aac",
     "ogg": "audio/ogg",

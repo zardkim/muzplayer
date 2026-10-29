@@ -12,12 +12,18 @@ def _bool(name: str, default: bool) -> bool:
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _path(name: str) -> Path | None:
+    value = os.getenv(name, "").strip()
+    return Path(value) if value else None
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = os.getenv(
         "DATABASE_URL", "postgresql+psycopg://muzplayer:muzplayer@localhost:5432/muzplayer"
     )
     music_dir: Path = Path(os.getenv("MUSIC_DIR", "/music"))
+    audiobook_dir: Path | None = _path("AUDIOBOOK_DIR")  # unset: audiobooks are off
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))
     static_dir: Path = Path(os.getenv("STATIC_DIR", "/app/static"))
     cookie_secure: bool = _bool("COOKIE_SECURE", True)

@@ -18,6 +18,8 @@ services:
       SCAN_INTERVAL_MINUTES: ${SCAN_INTERVAL_MINUTES:-60}
       # the library is mounted at the same path as on the NAS so absolute symlinks resolve
       MUSIC_DIR: ${MUSIC_PATH:?set MUSIC_PATH in .env}
+      # empty = audiobooks off
+      AUDIOBOOK_DIR: ${AUDIOBOOK_PATH:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       PUID: ${PUID:-1000}
@@ -32,6 +34,8 @@ services:
           # rslave: shares mounted into the library after start show up without a restart
           propagation: ${MUSIC_MOUNT_PROPAGATION:-rprivate}
       - ${DATA_PATH:-./data}/app:/data
+      # audiobooks, read-only at the same path; without AUDIOBOOK_PATH an empty placeholder is mounted
+      - ${AUDIOBOOK_PATH:-./no-audiobooks}:${AUDIOBOOK_PATH:-/no-audiobooks}:ro
 
   db:
     image: postgres:17-alpine

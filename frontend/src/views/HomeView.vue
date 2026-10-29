@@ -3,11 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, ListMusic } from '@lucide/vue'
 import { api } from '../api'
+import { appConfig } from '../config'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
-import type { Album, Page, Track } from '../types'
+import type { Album, Book, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import BookGrid from '../components/BookGrid.vue'
 import CoverArt from '../components/CoverArt.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
@@ -18,6 +20,7 @@ const library = useLibrary()
 const player = usePlayer()
 const history = ref<Track[]>([])
 const albums = ref<Album[]>([])
+const listening = ref<Book[]>([])
 const loaded = ref(false)
 const tab = ref<'recent' | 'new' | 'playlists'>('recent')
 
@@ -29,6 +32,7 @@ onMounted(async () => {
   history.value = h.items
   albums.value = a.items
   loaded.value = true
+  if (appConfig.audiobooks) listening.value = (await api<{ items: Book[] }>('/books/continue').catch(() => ({ items: [] }))).items
 })
 
 // chart tracks sit in hidden cover-only albums: treat them as single songs
@@ -112,6 +116,11 @@ const tabs = computed(() => [
           <span class="text-sm font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
         </span>
       </RouterLink>
+    </section>
+
+    <section v-if="listening.length" class="mt-3 flex flex-col gap-4">
+      <RouterLink to="/books" class="flex items-center gap-1 text-[22px] font-bold">{{ t('books.continue') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+      <BookGrid :books="listening" row />
     </section>
 
     <section v-if="albums.length && tab !== 'new'" class="mt-3 flex flex-col gap-4">

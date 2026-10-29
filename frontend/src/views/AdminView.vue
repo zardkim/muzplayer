@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, RefreshCw } from '@lucide/vue'
 import { api } from '../api'
+import { appConfig } from '../config'
 import { dateTime } from '../format'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
@@ -30,7 +31,76 @@ async function loadScan() {
   autoScan.value = r.auto_scan_minutes
   clearTimeout(poll)
   if (r.job?.status === 'running') poll = window.setTimeout(loadScan, 1500)
-  else if (wasRunning) loadFolders().catch(() => {}) // track counts changed
+  else if (wasRunning) {
+    loadFolders().catch(() => {}) // track counts changed
+    loadBooks().catch(() => {})
+  }
+}
+
+// ---- audiobooks ----
+interface ImportState {
+  status: 'idle' | 'running' | 'done' | 'failed'
+  total?: number
+  done?: number
+  books?: number
+  covers?: number
+  progress?: number
+  failed?: string[]
+  error?: string | null
+}
+interface BookStatus {
+  folder: string
+  books: number
+  missing: number
+  imported: number
+  import: ImportState
+}
+interface AbsPreview {
+  server_version: string
+  items: number
+  matched: number
+  unmatched: string[]
+  unmatched_count: number
+  users: { id: string; username: string; suggested_user_id: number | null }[]
+}
+const bookStatus = ref<BookStatus | null>(null)
+const abs = ref({ url: '', api_key: '' })
+const absPreview = ref<AbsPreview | null>(null)
+const userMap = ref<Record<string, number | ''>>({})
+const absBusy = ref(false)
+let importPoll: number | undefined
+
+async function loadBooks() {
+  if (!appConfig.audiobooks) return
+  bookStatus.value = await api<BookStatus>('/admin/books/status')
+  clearTimeout(importPoll)
+  if (bookStatus.value.import.status === 'running') importPoll = window.setTimeout(() => loadBooks().catch(() => {}), 1500)
+}
+
+async function previewAbs() {
+  absBusy.value = true
+  try {
+    absPreview.value = await api<AbsPreview>('/admin/books/abs-import/preview', { method: 'POST', body: abs.value })
+    userMap.value = Object.fromEntries(absPreview.value.users.map((u) => [u.id, u.suggested_user_id ?? '']))
+  } catch (e) {
+    absPreview.value = null
+    ui.notify(errorMessage(e), true)
+  } finally {
+    absBusy.value = false
+  }
+}
+
+async function startImport() {
+  const user_map = Object.fromEntries(Object.entries(userMap.value).filter(([, v]) => v !== ''))
+  try {
+    await api('/admin/books/abs-import', { method: 'POST', body: { ...abs.value, user_map } })
+    // the key is needed only for this run: don't keep it on screen
+    abs.value.api_key = ''
+    absPreview.value = null
+    await loadBooks()
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
 }
 
 async function loadFolders() {
@@ -57,8 +127,12 @@ onMounted(() => {
   loadScan().catch((e) => ui.notify(errorMessage(e), true))
   loadUsers().catch((e) => ui.notify(errorMessage(e), true))
   loadFolders().catch((e) => ui.notify(errorMessage(e), true))
+  loadBooks().catch((e) => ui.notify(errorMessage(e), true))
 })
-onUnmounted(() => clearTimeout(poll))
+onUnmounted(() => {
+  clearTimeout(poll)
+  clearTimeout(importPoll)
+})
 
 async function startScan() {
   try {
@@ -117,6 +191,7 @@ function submitReset() {
 
 const avatarColors = ['#3D5A80', '#2F7D6D', '#6B5B95', '#8A6516', '#A34A6E']
 const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink'
+const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey import panel
 </script>
 
 <template>
@@ -158,6 +233,9 @@ const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none
         <div class="flex flex-col gap-1 rounded-xl bg-surface px-4 py-3.5"><span class="text-[13px] text-muted">{{ t('admin.missing') }}</span><span class="font-display text-[22px] font-bold text-accent">{{ job.missing }}</span></div>
         <div class="flex flex-col gap-1 rounded-xl bg-surface px-4 py-3.5"><span class="text-[13px] text-muted">{{ t('admin.errors') }}</span><span class="font-display text-[22px] font-bold text-danger">{{ job.errors }}</span></div>
       </div>
+      <p v-if="job && appConfig.audiobooks && job.status !== 'running'" class="text-[13px] text-muted">
+        {{ t('admin.bookScanResult', { added: job.books_added, updated: job.books_updated, missing: job.books_missing }) }}
+      </p>
       <details v-if="job?.error_summary" class="text-[13px] text-muted">
         <summary class="cursor-pointer">{{ t('admin.errorDetails') }}</summary>
         <pre class="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-xs">{{ job.error_summary }}</pre>
@@ -194,6 +272,67 @@ const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none
         </li>
       </ul>
       <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
+    </section>
+
+    <section v-if="appConfig.audiobooks && bookStatus" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
+      <div>
+        <h2 class="text-xl font-bold">{{ t('admin.audiobooks') }}</h2>
+        <p class="mt-1 break-all text-sm font-light text-muted">{{ t('admin.audiobooksFolder', { folder: bookStatus.folder }) }}</p>
+        <p class="mt-1 text-[13px] text-muted">
+          {{ t('admin.booksCount', { n: bookStatus.books }) }} · {{ t('admin.booksImported', { n: bookStatus.imported }) }}<template v-if="bookStatus.missing"> · {{ t('admin.booksMissing', { n: bookStatus.missing }) }}</template>
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 rounded-xl bg-surface p-4">
+        <h3 class="font-medium">{{ t('admin.absTitle') }}</h3>
+        <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.absDesc') }}</p>
+
+        <template v-if="bookStatus.import.status === 'running'">
+          <p class="text-[14px]">{{ t('admin.absRunning', { done: bookStatus.import.done ?? 0, total: bookStatus.import.total ?? 0 }) }}</p>
+          <div class="h-1.5 overflow-hidden rounded-full bg-line"><div class="h-1.5 w-2/5 animate-pulse rounded-full bg-accent" /></div>
+        </template>
+        <template v-else>
+          <p v-if="bookStatus.import.status === 'done'" class="text-[14px] text-ink">
+            {{ t('admin.absDone', { books: bookStatus.import.books ?? 0, covers: bookStatus.import.covers ?? 0, progress: bookStatus.import.progress ?? 0 }) }}
+          </p>
+          <p v-else-if="bookStatus.import.status === 'failed'" class="text-[14px] text-danger">{{ t('admin.absFailed') }} {{ errorMessage({ code: bookStatus.import.error }) }}</p>
+          <details v-if="bookStatus.import.failed?.length" class="text-[13px] text-muted">
+            <summary class="cursor-pointer">{{ t('admin.absFailedItems', { n: bookStatus.import.failed.length }) }}</summary>
+            <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{{ bookStatus.import.failed.join('\n') }}</pre>
+          </details>
+
+          <form class="flex flex-col gap-3" @submit.prevent="previewAbs">
+            <label class="flex flex-col gap-1.5 text-[13px] text-muted">{{ t('admin.absUrl') }}<input v-model.trim="abs.url" type="url" required placeholder="http://192.168.0.10:13378" autocapitalize="none" :class="cardField" /></label>
+            <label class="flex flex-col gap-1.5 text-[13px] text-muted">
+              {{ t('admin.absKey') }}
+              <input v-model.trim="abs.api_key" type="password" required autocomplete="off" :class="cardField" />
+              <span class="text-[12px] leading-relaxed">{{ t('admin.absKeyHelp') }}</span>
+            </label>
+            <button type="submit" class="h-11 self-start rounded-full border border-ink px-5 text-sm disabled:opacity-50" :disabled="absBusy">{{ absBusy ? t('common.loading') : t('admin.absPreview') }}</button>
+          </form>
+
+          <div v-if="absPreview" class="flex flex-col gap-3 border-t border-line pt-3">
+            <p class="text-[14px]">{{ t('admin.absMatched', { matched: absPreview.matched, items: absPreview.items, version: absPreview.server_version }) }}</p>
+            <details v-if="absPreview.unmatched_count" class="text-[13px] text-muted">
+              <summary class="cursor-pointer text-danger">{{ t('admin.absUnmatched', { n: absPreview.unmatched_count }) }}</summary>
+              <p class="mt-1">{{ t('admin.absUnmatchedHelp') }}</p>
+              <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{{ absPreview.unmatched.join('\n') }}</pre>
+            </details>
+            <h4 class="mt-1 text-[14px] font-medium">{{ t('admin.absUsers') }}</h4>
+            <p class="text-[13px] text-muted">{{ t('admin.absUsersHelp') }}</p>
+            <div v-for="u in absPreview.users" :key="u.id" class="flex items-center justify-between gap-3">
+              <span class="truncate text-[15px]">{{ u.username }}</span>
+              <select v-model="userMap[u.id]" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" :aria-label="t('admin.absUserFor', { name: u.username })">
+                <option value="">{{ t('admin.absUserSkip') }}</option>
+                <option v-for="m in users" :key="m.id" :value="m.id">{{ m.display_name }} ({{ m.username }})</option>
+              </select>
+            </div>
+            <button type="button" class="h-11 self-start rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50" :disabled="!absPreview.matched || job?.status === 'running'" @click="startImport">
+              {{ t('admin.absStart', { n: absPreview.matched }) }}
+            </button>
+          </div>
+        </template>
+      </div>
     </section>
 
     <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
