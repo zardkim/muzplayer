@@ -23,7 +23,10 @@ const player = usePlayer()
         <CoverArt :album-id="a.id" :has-cover="a.has_cover" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-base">{{ a.title || t('common.unknownAlbum') }}</span>
-          <span class="truncate text-sm font-light text-muted">{{ a.artist || t('common.unknownArtist') }}</span>
+          <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">
+            <span v-if="a.kind === 'unofficial' || a.kind === 'compilation'" class="flex-none rounded border border-line-strong px-1 text-[11px] leading-[18px]">{{ t(`albums.kind_${a.kind}`) }}</span>
+            <span class="truncate">{{ a.artist || t('common.unknownArtist') }}</span>
+          </span>
         </span>
       </RouterLink>
       <button

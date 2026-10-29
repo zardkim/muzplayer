@@ -5,6 +5,7 @@ export interface Track {
   artist_id: number | null
   album: string
   album_id: number | null
+  album_kind?: AlbumKind
   has_cover: boolean
   track_no: number | null
   disc_no: number | null
@@ -12,13 +13,17 @@ export interface Track {
   format: string
   is_favorite: boolean
   missing: boolean
+  chart_position?: number | null // only in chart lists
 }
+
+export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'chart'
 
 export interface Album {
   id: number
   title: string
   artist: string
   artist_id: number | null
+  kind: AlbumKind
   year: number | null
   has_cover: boolean
   track_count: number
@@ -40,6 +45,37 @@ export interface ArtistDetail {
   name: string
   albums: Album[]
   tracks: Track[]
+}
+
+export interface Chart {
+  id: number
+  title: string
+  source: string
+  track_count: number
+  cover_album_id: number | null
+}
+
+export interface ChartDetail {
+  id: number
+  title: string
+  source: string
+  track_count: number
+  tracks: Track[]
+}
+
+export type FolderKind = 'album' | 'compilation' | 'chart' | 'excluded'
+
+export interface LibraryFolder {
+  path: string
+  kind: FolderKind
+  suggested: FolderKind | null
+  track_count: number
+  present: boolean
+}
+
+export interface Lyrics {
+  synced: [number, string][] | null // [seconds, line], sorted
+  plain: string | null
 }
 
 export interface Genre {

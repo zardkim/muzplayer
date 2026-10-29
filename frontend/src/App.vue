@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
+import { ChartNoAxesColumn, Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
 import { setUnauthorizedHandler } from './api'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
@@ -71,6 +71,7 @@ const sideNav = [
   { to: '/artists', label: 'nav.artists', icon: MicVocal },
   { to: '/tracks', label: 'nav.songs', icon: Music },
   { to: '/genres', label: 'nav.genres', icon: Tag },
+  { to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   { to: '/favorites', label: 'nav.favorites', icon: Heart },
   { to: '/history', label: 'nav.history', icon: History },
   { to: '/library', label: 'nav.myMusic', icon: User },
@@ -86,7 +87,7 @@ const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/sett
 function active(to: string) {
   if (to === '/') return route.path === '/'
   if (to === '/library') return myMusicPaths.some((p) => route.path.startsWith(p))
-  if (to === '/search') return route.path.startsWith('/search') || route.path.startsWith('/genres') || route.path.startsWith('/artists')
+  if (to === '/search') return ['/search', '/genres', '/artists', '/charts'].some((p) => route.path.startsWith(p))
   return route.path.startsWith(to)
 }
 </script>
@@ -180,8 +181,12 @@ function active(to: string) {
   <div
     v-if="ui.toast"
     role="status"
-    class="fixed bottom-[calc(env(safe-area-inset-bottom)+180px)] left-1/2 z-[80] -translate-x-1/2 rounded-full px-5 py-2.5 text-sm text-white shadow-xl md:bottom-28"
-    :class="ui.toast.error ? 'bg-danger' : 'bg-ink'"
+    class="fixed left-1/2 z-[80] w-max max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-2xl px-5 py-2.5 text-sm text-white shadow-xl"
+    :class="[
+      ui.toast.error ? 'bg-danger' : 'bg-ink',
+      // the full player covers the bottom with its controls: show it at the top instead
+      ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
+    ]"
   >
     {{ ui.toast.text }}
   </div>

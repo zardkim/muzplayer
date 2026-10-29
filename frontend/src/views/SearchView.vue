@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Search } from '@lucide/vue'
 import { api, query } from '../api'
-import type { Album, Artist, Genre, Page, Track } from '../types'
+import type { Album, Artist, Chart, Genre, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import TrackList from '../components/TrackList.vue'
 
@@ -18,6 +19,7 @@ const tracks = ref<Track[]>([])
 const albums = ref<Album[]>([])
 const artists = ref<Artist[]>([])
 const genres = ref<Genre[]>([])
+const charts = ref<Chart[]>([])
 const loaded = ref(false)
 
 // stable colour per artist tile, dark enough for white text
@@ -35,10 +37,12 @@ onMounted(async () => {
     albums.value = al.items
     artists.value = ar.items
   } else {
-    const [g, ar] = await Promise.all([
+    const [g, ar, ch] = await Promise.all([
       api<{ items: Genre[] }>('/genres').catch(() => ({ items: [] })),
       api<Page<Artist>>('/artists?limit=500').catch(() => ({ items: [], total: 0 })),
+      api<Page<Chart>>('/charts?limit=12').catch(() => ({ items: [], total: 0 })),
     ])
+    charts.value = ch.items
     genres.value = [...g.items].sort((a, b) => b.track_count - a.track_count).slice(0, 16)
     artists.value = [...ar.items].sort((a, b) => b.track_count - a.track_count).slice(0, 8)
   }
@@ -76,6 +80,10 @@ function submit() {
     </template>
 
     <template v-else>
+      <section v-if="charts.length" class="flex flex-col gap-3.5">
+        <RouterLink to="/charts" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.charts') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+        <ChartGrid :charts="charts" row />
+      </section>
       <section v-if="genres.length" class="flex flex-col gap-3.5">
         <RouterLink to="/genres" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.genres') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
         <div class="flex flex-wrap gap-2.5">

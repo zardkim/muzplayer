@@ -7,7 +7,7 @@ import { dateTime } from '../format'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
-import type { ScanJob, User } from '../types'
+import type { FolderKind, LibraryFolder, ScanJob, User } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import PageHeader from '../components/PageHeader.vue'
 
@@ -19,15 +19,34 @@ const job = ref<ScanJob | null>(null)
 const hasMissing = ref(false)
 const autoScan = ref(0)
 const users = ref<User[]>([])
+const folders = ref<LibraryFolder[]>([])
 let poll: number | undefined
 
 async function loadScan() {
   const r = await api<{ job: ScanJob | null; has_missing: boolean; auto_scan_minutes: number }>('/admin/scan/latest')
+  const wasRunning = job.value?.status === 'running'
   job.value = r.job
   hasMissing.value = r.has_missing
   autoScan.value = r.auto_scan_minutes
   clearTimeout(poll)
   if (r.job?.status === 'running') poll = window.setTimeout(loadScan, 1500)
+  else if (wasRunning) loadFolders().catch(() => {}) // track counts changed
+}
+
+async function loadFolders() {
+  folders.value = (await api<{ items: LibraryFolder[] }>('/admin/folders')).items
+}
+
+const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'excluded']
+async function setKind(folder: LibraryFolder, kind: FolderKind) {
+  try {
+    await api('/admin/folders', { method: 'PUT', body: { path: folder.path, kind } })
+    folder.kind = kind
+    ui.notify(t('admin.folderSaved'))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+    loadFolders()
+  }
 }
 
 async function loadUsers() {
@@ -37,6 +56,7 @@ async function loadUsers() {
 onMounted(() => {
   loadScan().catch((e) => ui.notify(errorMessage(e), true))
   loadUsers().catch((e) => ui.notify(errorMessage(e), true))
+  loadFolders().catch((e) => ui.notify(errorMessage(e), true))
 })
 onUnmounted(() => clearTimeout(poll))
 
@@ -142,6 +162,38 @@ const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none
         <summary class="cursor-pointer">{{ t('admin.errorDetails') }}</summary>
         <pre class="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-xs">{{ job.error_summary }}</pre>
       </details>
+    </section>
+
+    <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
+      <div>
+        <h2 class="text-xl font-bold">{{ t('admin.folders') }}</h2>
+        <p class="mt-1 text-sm font-light text-muted">{{ t('admin.foldersDesc') }}</p>
+      </div>
+      <p v-if="!folders.length" class="text-sm text-muted">{{ t('admin.noFolders') }}</p>
+      <ul v-else class="flex flex-col">
+        <li v-for="f in folders" :key="f.path" class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-surface py-3 last:border-0">
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-[15px]" :class="f.present ? '' : 'text-muted line-through'">{{ f.path }}</span>
+            <span class="text-[13px] text-muted">
+              {{ f.present ? t('common.tracks', f.track_count) : t('admin.folderMissing') }}
+              <template v-if="f.suggested && f.suggested !== f.kind">
+                · {{ t('admin.suggested', { kind: t(`admin.folderKind_${f.suggested}`) }) }}
+                <button type="button" class="ml-1 text-accent underline" @click="setKind(f, f.suggested)">{{ t('admin.applySuggestion') }}</button>
+              </template>
+            </span>
+          </span>
+          <label class="sr-only" :for="`kind-${f.path}`">{{ t('admin.kindCol') }}</label>
+          <select
+            :id="`kind-${f.path}`"
+            class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm"
+            :value="f.kind"
+            @change="setKind(f, ($event.target as HTMLSelectElement).value as FolderKind)"
+          >
+            <option v-for="k in folderKinds" :key="k" :value="k">{{ t(`admin.folderKind_${k}`) }}</option>
+          </select>
+        </li>
+      </ul>
+      <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
     </section>
 
     <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">

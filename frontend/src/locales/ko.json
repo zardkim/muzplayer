@@ -18,7 +18,8 @@
     "accountMenu": "계정 메뉴",
     "myMusic": "내 음악",
     "explore": "탐색",
-    "songs": "곡"
+    "songs": "곡",
+    "charts": "차트"
   },
   "search": {
     "label": "검색",
@@ -49,7 +50,9 @@
     "validation": "입력값을 확인하세요.",
     "network": "서버에 연결할 수 없습니다.",
     "unknown": "알 수 없는 오류가 발생했습니다.",
-    "playback": "이 곡을 재생할 수 없어 다음 곡으로 넘어갑니다."
+    "playback": "이 곡을 재생할 수 없어 다음 곡으로 넘어갑니다.",
+    "invalid_folder": "잘못된 폴더 이름입니다.",
+    "playbackStopped": "재생할 수 없어 멈췄습니다. 연결 상태를 확인한 뒤 다시 재생하세요."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -111,7 +114,12 @@
     "sortRecent": "최근 추가",
     "sortTitle": "이름순",
     "sortArtist": "아티스트순",
-    "sortYear": "연도순"
+    "sortYear": "연도순",
+    "kindAll": "전체",
+    "kind_album": "정규",
+    "kind_unofficial": "비정규",
+    "kind_compilation": "컴필레이션",
+    "empty": "해당하는 앨범이 없습니다."
   },
   "tracks": {
     "title": "곡",
@@ -123,7 +131,8 @@
     "title": "아티스트",
     "albums": "앨범",
     "tracks": "곡",
-    "count": "아티스트 {n}명"
+    "count": "아티스트 {n}명",
+    "unofficial": "비정규"
   },
   "genres": {
     "title": "장르",
@@ -167,7 +176,11 @@
     "clearQueue": "대기열 비우기",
     "nothing": "재생 중인 곡이 없습니다.",
     "upNextButton": "다음 곡",
-    "notPlaying": "지금 재생 중인 곡이 없습니다."
+    "notPlaying": "지금 재생 중인 곡이 없습니다.",
+    "lyrics": "가사",
+    "noLyrics": "가사가 없습니다.",
+    "showArtwork": "앨범 아트 보기",
+    "showLyrics": "가사 보기"
   },
   "settings": {
     "title": "설정",
@@ -222,7 +235,22 @@
     "resetPasswordFor": "{name}의 새 비밀번호",
     "passwordReset": "비밀번호를 초기화했습니다.",
     "autoScan": "자동 스캔: {n}분마다",
-    "autoScanOff": "자동 스캔 꺼짐 (.env의 SCAN_INTERVAL_MINUTES)"
+    "autoScanOff": "자동 스캔 꺼짐 (.env의 SCAN_INTERVAL_MINUTES)",
+    "folders": "라이브러리 폴더",
+    "foldersDesc": "음악 폴더 바로 아래 폴더마다 종류를 정합니다. 바꾼 내용은 다음 스캔부터 반영됩니다.",
+    "folderCol": "폴더",
+    "kindCol": "종류",
+    "tracksCol": "곡 수",
+    "folderKind_album": "앨범",
+    "folderKind_compilation": "컴필레이션",
+    "folderKind_chart": "차트",
+    "folderKind_excluded": "제외",
+    "suggested": "추천: {kind}",
+    "applySuggestion": "적용",
+    "folderMissing": "폴더 없음",
+    "folderSaved": "저장했습니다. 다음 스캔부터 반영됩니다.",
+    "noFolders": "음악 폴더 아래에 하위 폴더가 없습니다.",
+    "foldersHelp": "앨범: 아티스트/앨범 폴더 (아티스트 아래 \"비정규\" 폴더는 비정규로 표시) · 컴필레이션: 앨범 아티스트 태그가 없으면 Various Artists로 묶음 · 차트: 하위 폴더 하나가 차트 하나, 앨범 목록에서 제외 · 제외: 스캔하지 않음 (이미 등록된 곡은 누락으로 바뀌고, 누락 곡 정리 때 플레이리스트·즐겨찾기에서도 사라짐)"
   },
   "library": {
     "title": "내 음악",
@@ -234,6 +262,14 @@
   "explore": {
     "title": "탐색",
     "genres": "장르",
-    "artists": "아티스트"
+    "artists": "아티스트",
+    "charts": "차트"
+  },
+  "charts": {
+    "title": "차트",
+    "count": "차트 {n}개",
+    "all": "전체",
+    "empty": "차트가 없습니다. 관리자 화면에서 차트 폴더를 지정하고 스캔하세요.",
+    "copyToPlaylist": "내 플레이리스트에 담기"
   }
 }

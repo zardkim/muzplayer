@@ -1,14 +1,16 @@
+import os
+import re
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, Genre, ScanJob, Track, TrackGenre, User
-from ..scanner import cover_file, start_scan
+from ..models import LibraryFolder, ScanJob, Track, User
+from ..scanner import FOLDER_KINDS, nfc, prune_orphans, remove_covers, start_scan
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
 
@@ -61,23 +63,79 @@ def get_scan(job_id: int, _: User = Depends(admin_user), db: Session = Depends(g
 def purge_missing(
     days: int = Query(30, ge=0, le=3650), _: User = Depends(admin_user), db: Session = Depends(get_db)
 ):
-    """Deletes tracks missing for more than `days`, then unused albums/artists/genres."""
+    """Deletes tracks missing for more than `days`, then unused albums/charts/artists/genres."""
     cutoff = now() - timedelta(days=days)
     deleted = db.execute(delete(Track).where(Track.missing_at.is_not(None), Track.missing_at <= cutoff)).rowcount
-    orphan_albums = list(db.scalars(select(Album.id).where(~exists().where(Track.album_id == Album.id))))
-    if orphan_albums:
-        db.execute(delete(Album).where(Album.id.in_(orphan_albums)))
-    db.execute(
-        delete(Artist).where(
-            ~exists().where(Track.artist_id == Artist.id), ~exists().where(Album.album_artist_id == Artist.id)
-        )
-    )
-    db.execute(delete(Genre).where(~exists().where(TrackGenre.genre_id == Genre.id)))
+    orphan_albums = prune_orphans(db)
     db.commit()
-    for album_id in orphan_albums:
-        for size in ("thumb", "large"):
-            cover_file(album_id, size).unlink(missing_ok=True)
+    remove_covers(orphan_albums)
     return {"deleted": deleted}
+
+
+def suggest_kind(name: str) -> str | None:
+    """Guess from the folder name; only shown as a suggestion, never applied by itself."""
+    n = name.casefold()
+    if "차트" in n or "chart" in n:
+        return "chart"
+    if any(w in n for w in ("컴필", "옴니버스", "compilation", "various", "omnibus", "soundtrack")) or re.search(
+        r"(?<![a-z])ost(?![a-z])", n
+    ):
+        return "compilation"
+    return None
+
+
+@router.get("/folders")
+def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Top-level folders of the library with their kind and how many tracks they hold."""
+    kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder))}
+    names: set[str] = set()
+    try:
+        for entry in os.scandir(settings.music_dir):
+            if not entry.name.startswith((".", "@")) and entry.is_dir(follow_symlinks=True):
+                names.add(nfc(entry.name))
+    except OSError:
+        pass  # library not mounted: still show the stored kinds
+    counts: dict[str, int] = {}
+    top = func.split_part(Track.file_path, "/", 1)
+    rows = db.execute(
+        select(top, func.count()).where(Track.missing_at.is_(None), Track.file_path.contains("/")).group_by(top)
+    )
+    for name, count in rows:
+        counts[nfc(name)] = counts.get(nfc(name), 0) + count
+    items = [
+        {
+            "path": name,
+            "kind": kinds.get(name, "album"),
+            "suggested": suggest_kind(name),
+            "track_count": counts.get(name, 0),
+            "present": name in names,
+        }
+        for name in sorted(names | set(kinds), key=str.casefold)
+    ]
+    return {"items": items}
+
+
+class FolderKind(BaseModel):
+    path: str = Field(min_length=1, max_length=500)
+    kind: str = Field(pattern="^(" + "|".join(FOLDER_KINDS) + ")$")
+
+
+@router.put("/folders")
+def set_folder_kind(body: FolderKind, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Takes effect on the next scan."""
+    path = nfc(body.path)
+    if not path or "/" in path or "\\" in path or path in (".", ".."):
+        raise api_error(400, "invalid_folder")
+    row = db.get(LibraryFolder, path)
+    if body.kind == "album":
+        if row is not None:
+            db.delete(row)
+    elif row is None:
+        db.add(LibraryFolder(path=path, kind=body.kind))
+    else:
+        row.kind = body.kind
+    db.commit()
+    return {"path": path, "kind": body.kind}
 
 
 class UserCreate(BaseModel):

@@ -38,7 +38,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
     <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
       <CoverArt :album-id="album.id" :has-cover="album.has_cover" size="large" rounded="rounded-xl" class="w-full shadow-[0_16px_40px_rgba(17,17,19,0.18)] sm:w-60" />
       <div class="flex min-w-0 flex-col gap-2.5">
-        <span class="text-sm font-light text-muted"><template v-if="album.year">{{ album.year }} · </template>{{ t('common.tracks', album.tracks.length) }} · <span class="font-display">{{ duration(totalTime) }}</span></span>
+        <span class="text-sm font-light text-muted"><template v-if="album.kind === 'unofficial' || album.kind === 'compilation'">{{ t(`albums.kind_${album.kind}`) }} · </template><template v-if="album.year">{{ album.year }} · </template>{{ t('common.tracks', album.tracks.length) }} · <span class="font-display">{{ duration(totalTime) }}</span></span>
         <h1 class="text-[30px] font-extrabold leading-tight tracking-tight md:text-[40px]">{{ album.title || t('common.unknownAlbum') }}</h1>
         <RouterLink v-if="album.artist_id" :to="{ name: 'artist', params: { id: album.artist_id } }" class="flex items-center text-lg font-medium">{{ album.artist }}<ChevronRight :size="18" :stroke-width="1.6" /></RouterLink>
         <span v-else class="text-lg text-muted">{{ t('common.unknownArtist') }}</span>

@@ -14,6 +14,7 @@ export const useUi = defineStore('ui', () => {
   const playerOpen = ref(false) // full-screen player (mobile)
   const queueOpen = ref(false) // queue panel
   const playlistPicker = ref<Track[] | null>(null) // tracks waiting to be added to a playlist
+  const lyricsOpen = ref(false) // full player shows lyrics instead of the artwork
 
-  return { toast, notify, playerOpen, queueOpen, playlistPicker }
+  return { toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen }
 })

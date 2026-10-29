@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
@@ -15,6 +15,9 @@ const { t } = useI18n()
 const player = usePlayer()
 const artist = ref<ArtistDetail | null>(null)
 const error = ref('')
+
+const official = computed(() => artist.value?.albums.filter((a) => a.kind !== 'unofficial') ?? [])
+const unofficial = computed(() => artist.value?.albums.filter((a) => a.kind === 'unofficial') ?? [])
 
 onMounted(async () => {
   try {
@@ -35,9 +38,13 @@ onMounted(async () => {
       </button>
       <button type="button" class="h-11 rounded-full border border-line-strong px-5 text-[15px]" @click="player.playTracks(artist.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
     </div>
-    <section v-if="artist.albums.length" class="flex flex-col gap-4">
+    <section v-if="official.length" class="flex flex-col gap-4">
       <h2 class="text-[22px] font-bold">{{ t('artists.albums') }}</h2>
-      <AlbumGrid :albums="artist.albums" />
+      <AlbumGrid :albums="official" />
+    </section>
+    <section v-if="unofficial.length" class="flex flex-col gap-4">
+      <h2 class="text-[22px] font-bold">{{ t('artists.unofficial') }}</h2>
+      <AlbumGrid :albums="unofficial" />
     </section>
     <section v-if="artist.tracks.length" class="flex flex-col gap-1">
       <h2 class="text-[22px] font-bold">{{ t('artists.tracks') }}</h2>

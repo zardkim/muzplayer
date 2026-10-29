@@ -55,9 +55,13 @@ class Artist(Base):
 
 class Album(Base):
     __tablename__ = "albums"
-    __table_args__ = (UniqueConstraint("album_artist_id", "title", postgresql_nulls_not_distinct=True),)
+    __table_args__ = (
+        UniqueConstraint("kind", "album_artist_id", "title", postgresql_nulls_not_distinct=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # album | unofficial | compilation | chart (chart albums only hold covers for chart tracks)
+    kind: Mapped[str] = mapped_column(String(16), default="album", server_default="album")
     title: Mapped[str] = mapped_column(String(500))
     album_artist_id: Mapped[int | None] = mapped_column(ForeignKey("artists.id", ondelete="SET NULL"))
     year: Mapped[int | None] = mapped_column(Integer)
@@ -82,7 +86,37 @@ class Track(Base):
     file_mtime: Mapped[float] = mapped_column(Float)
     format: Mapped[str] = mapped_column(String(16))
     tag_json: Mapped[dict | None] = mapped_column(JSON)
+    chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
+    chart_position: Mapped[int | None] = mapped_column(Integer)
+    # set on a duplicate copy (e.g. the same song in an older chart week): lists show only the canonical one
+    canonical_track_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tracks.id", ondelete="SET NULL"), index=True
+    )
     missing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LibraryFolder(Base):
+    """Kind of a top-level folder of the library. Folders without a row are "album"."""
+
+    __tablename__ = "library_folders"
+
+    path: Mapped[str] = mapped_column(String(500), primary_key=True)  # folder name, NFC
+    kind: Mapped[str] = mapped_column(String(16))  # compilation | chart | excluded
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Chart(Base):
+    """One chart week: a folder with audio files under a "chart" top-level folder."""
+
+    __tablename__ = "charts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    folder_path: Mapped[str] = mapped_column(Text, unique=True)  # relative, as on disk
+    source: Mapped[str] = mapped_column(String(200), default="")  # e.g. 멜론, 벅스
+    title: Mapped[str] = mapped_column(String(500))  # folder name
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

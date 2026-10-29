@@ -16,6 +16,7 @@ const props = withDefaults(
     showCover?: boolean
     showAlbum?: boolean
     numbered?: boolean // show track_no instead of the list position
+    ranked?: boolean // chart: show chart_position (list position when missing)
     editable?: boolean // playlist mode: remove / move up / move down
   }>(),
   { showCover: true, showAlbum: true },
@@ -111,10 +112,10 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           @change="toggleSelect(i)"
         />
         <span
-          v-if="!showCover || numbered"
+          v-if="!showCover || numbered || ranked"
           class="w-7 flex-none text-center font-display text-[15px]"
-          :class="isCurrent(track) ? 'text-accent' : 'text-muted'"
-        >{{ numbered ? (track.track_no ?? '–') : i + 1 }}</span>
+          :class="isCurrent(track) ? 'text-accent' : ranked ? 'font-medium text-ink' : 'text-muted'"
+        >{{ ranked ? (track.chart_position ?? i + 1) : numbered ? (track.track_no ?? '–') : i + 1 }}</span>
 
         <button
           type="button"
@@ -165,7 +166,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
               </template>
-              <RouterLink v-if="track.album_id" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
+              <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
               <RouterLink v-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
               <template v-if="editable">
                 <div class="my-1 border-t border-line" />

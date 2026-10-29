@@ -18,7 +18,8 @@
     "accountMenu": "Account menu",
     "myMusic": "My music",
     "explore": "Explore",
-    "songs": "Songs"
+    "songs": "Songs",
+    "charts": "Charts"
   },
   "search": {
     "label": "Search",
@@ -49,7 +50,9 @@
     "validation": "Please check your input.",
     "network": "Can't reach the server.",
     "unknown": "Something went wrong.",
-    "playback": "This song can't be played. Skipping to the next one."
+    "playback": "This song can't be played. Skipping to the next one.",
+    "invalid_folder": "Invalid folder name.",
+    "playbackStopped": "Playback stopped. Check the connection and press play again."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -111,7 +114,12 @@
     "sortRecent": "Recently added",
     "sortTitle": "Name",
     "sortArtist": "Artist",
-    "sortYear": "Year"
+    "sortYear": "Year",
+    "kindAll": "All",
+    "kind_album": "Official",
+    "kind_unofficial": "Unofficial",
+    "kind_compilation": "Compilations",
+    "empty": "No albums here."
   },
   "tracks": {
     "title": "Songs",
@@ -123,7 +131,8 @@
     "title": "Artists",
     "albums": "Albums",
     "tracks": "Songs",
-    "count": "{n} artist | {n} artists"
+    "count": "{n} artist | {n} artists",
+    "unofficial": "Unofficial"
   },
   "genres": {
     "title": "Genres",
@@ -167,7 +176,11 @@
     "clearQueue": "Clear queue",
     "nothing": "Nothing is playing.",
     "upNextButton": "Up next",
-    "notPlaying": "Nothing is playing."
+    "notPlaying": "Nothing is playing.",
+    "lyrics": "Lyrics",
+    "noLyrics": "No lyrics for this track.",
+    "showArtwork": "Show artwork",
+    "showLyrics": "Show lyrics"
   },
   "settings": {
     "title": "Settings",
@@ -222,7 +235,22 @@
     "resetPasswordFor": "New password for {name}",
     "passwordReset": "Password reset.",
     "autoScan": "Auto scan: every {n} min",
-    "autoScanOff": "Auto scan off (SCAN_INTERVAL_MINUTES in .env)"
+    "autoScanOff": "Auto scan off (SCAN_INTERVAL_MINUTES in .env)",
+    "folders": "Library folders",
+    "foldersDesc": "Set a kind for each folder directly under the music folder. Changes apply from the next scan.",
+    "folderCol": "Folder",
+    "kindCol": "Kind",
+    "tracksCol": "Tracks",
+    "folderKind_album": "Albums",
+    "folderKind_compilation": "Compilations",
+    "folderKind_chart": "Charts",
+    "folderKind_excluded": "Excluded",
+    "suggested": "Suggested: {kind}",
+    "applySuggestion": "Apply",
+    "folderMissing": "Folder not found",
+    "folderSaved": "Saved. Applies from the next scan.",
+    "noFolders": "There are no folders under the music folder.",
+    "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)"
   },
   "library": {
     "title": "My music",
@@ -234,6 +262,14 @@
   "explore": {
     "title": "Explore",
     "genres": "Genres",
-    "artists": "Artists"
+    "artists": "Artists",
+    "charts": "Charts"
+  },
+  "charts": {
+    "title": "Charts",
+    "count": "{n} charts",
+    "all": "All",
+    "empty": "No charts yet. Mark a chart folder on the admin page and scan.",
+    "copyToPlaylist": "Add to my playlist"
   }
 }

@@ -31,12 +31,15 @@ onMounted(async () => {
   loaded.value = true
 })
 
+// chart tracks sit in hidden cover-only albums: treat them as single songs
+const albumOf = (tr: Track) => (tr.album_kind === 'chart' ? null : tr.album_id)
+
 // recently played, grouped by album so the list reads like "what was I listening to"
 const recentAlbums = computed(() => {
   const seen = new Set<number>()
   const out: Track[] = []
   for (const tr of history.value) {
-    const key = tr.album_id ?? -tr.id
+    const key = albumOf(tr) ?? -tr.id
     if (seen.has(key)) continue
     seen.add(key)
     out.push(tr)
@@ -80,18 +83,18 @@ const tabs = computed(() => [
     <section v-if="tab === 'recent'" class="flex flex-col gap-3.5">
       <p v-if="loaded && !recentAlbums.length" class="font-light text-muted">{{ t('home.nothingRecent') }}</p>
       <div v-for="tr in recentAlbums" :key="tr.id" class="flex items-center gap-3.5">
-        <RouterLink :to="tr.album_id ? { name: 'album', params: { id: tr.album_id } } : { name: 'history' }" class="flex min-w-0 flex-1 items-center gap-3.5">
+        <RouterLink :to="albumOf(tr) ? { name: 'album', params: { id: albumOf(tr)! } } : { name: 'history' }" class="flex min-w-0 flex-1 items-center gap-3.5">
           <CoverArt :album-id="tr.album_id" :has-cover="tr.has_cover" rounded="rounded-lg" class="size-[60px] flex-none" />
           <span class="flex min-w-0 flex-col">
-            <span class="truncate text-[17px]">{{ tr.album || tr.title }}</span>
+            <span class="truncate text-[17px]">{{ albumOf(tr) ? tr.album || tr.title : tr.title }}</span>
             <span class="truncate text-sm font-light text-muted">{{ tr.artist || t('common.unknownArtist') }}</span>
           </span>
         </RouterLink>
         <button
           type="button"
           class="grid size-11 place-items-center"
-          :aria-label="`${t('common.play')}: ${tr.album || tr.title}`"
-          @click="tr.album_id ? player.playAlbum(tr.album_id) : player.playTracks([tr])"
+          :aria-label="`${t('common.play')}: ${albumOf(tr) ? tr.album || tr.title : tr.title}`"
+          @click="albumOf(tr) ? player.playAlbum(albumOf(tr)!) : player.playTracks([tr])"
         >
           <PlayerIcons name="play" :size="26" :stroke="1.3" />
         </button>

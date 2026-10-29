@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { api, coverUrl, streamUrl } from '../api'
 import { errorMessage, i18n } from '../i18n'
 import type { Track } from '../types'
@@ -52,6 +52,7 @@ export const usePlayer = defineStore('player', () => {
   let loadedId: number | null = null // track whose src is set on the audio element
   let reported = false // history already recorded for the current play
   let originalOrder: Track[] | null = null // queue order before shuffle
+  let failures = 0 // playback errors in a row, reset once something plays
 
   const current = computed<Track | null>(() => queue.value[index.value] ?? null)
 
@@ -135,8 +136,9 @@ export const usePlayer = defineStore('player', () => {
 
   function toggle() {
     if (!current.value) return
-    if (audio.paused) startCurrent()
-    else audio.pause()
+    // go by our own state: after a load error the element is stuck with paused === false
+    if (playing.value) audio.pause()
+    else startCurrent()
   }
 
   function jump(i: number) {
@@ -185,9 +187,10 @@ export const usePlayer = defineStore('player', () => {
       queue.value = [cur, ...shuffled(rest)]
       index.value = 0
     } else if (originalOrder) {
-      const kept = new Set(queue.value)
-      queue.value = originalOrder.filter((t) => kept.has(t))
-      index.value = queue.value.indexOf(cur)
+      // compare raw objects: the queue hands out reactive proxies of the same tracks
+      const kept = new Set(queue.value.map(toRaw))
+      queue.value = originalOrder.filter((t) => kept.has(toRaw(t)))
+      index.value = queue.value.findIndex((t) => toRaw(t) === toRaw(cur))
       originalOrder = null
     }
   }
@@ -206,6 +209,12 @@ export const usePlayer = defineStore('player', () => {
 
   function playNext(tracks: Track[]) {
     const playable = tracks.filter((t) => !t.missing)
+    if (originalOrder) {
+      // keep them when shuffle is turned off again
+      const cur = current.value && toRaw(current.value)
+      const at = originalOrder.findIndex((t) => toRaw(t) === cur)
+      originalOrder.splice(at + 1, 0, ...playable)
+    }
     queue.value.splice(index.value + 1, 0, ...playable)
     if (index.value === -1 && queue.value.length) index.value = 0
   }
@@ -245,6 +254,7 @@ export const usePlayer = defineStore('player', () => {
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = value ? 'playing' : 'paused'
   }
   audio.addEventListener('play', () => setPlaying(true))
+  audio.addEventListener('playing', () => (failures = 0))
   audio.addEventListener('pause', () => setPlaying(false))
   audio.addEventListener('ended', () => next(true))
   audio.addEventListener('loadedmetadata', () => {
@@ -272,8 +282,19 @@ export const usePlayer = defineStore('player', () => {
   })
   audio.addEventListener('error', () => {
     if (!audio.getAttribute('src')) return
-    useUi().notify(errorMessage({ code: 'playback' }), true)
-    if (index.value + 1 < queue.value.length) jump(index.value + 1)
+    failures++
+    // skip a file the browser can't play, but stop instead of running through the whole
+    // queue when nothing plays (network down, session expired)
+    const network = audio.error?.code === MediaError.MEDIA_ERR_NETWORK || !navigator.onLine
+    if (!network && failures < 3 && index.value + 1 < queue.value.length) {
+      useUi().notify(errorMessage({ code: 'playback' }), true)
+      jump(index.value + 1)
+    } else {
+      useUi().notify(errorMessage({ code: 'playbackStopped' }), true)
+      loadedId = null // retry from the start of this track on the next play
+      audio.pause()
+      setPlaying(false)
+    }
   })
 
   // ---- lock screen / headset controls ----
