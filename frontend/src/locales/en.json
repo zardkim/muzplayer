@@ -15,7 +15,10 @@
     "more": "More",
     "logout": "Log out",
     "mainMenu": "Main menu",
-    "accountMenu": "Account menu"
+    "accountMenu": "Account menu",
+    "myMusic": "My music",
+    "explore": "Explore",
+    "songs": "Songs"
   },
   "search": {
     "label": "Search",
@@ -81,14 +84,26 @@
     "favoriteRemove": "Remove from favorites",
     "number": "No.",
     "titleCol": "Title",
-    "duration": "Length"
+    "duration": "Length",
+    "selected": "{n} selected",
+    "selectAll": "Select all",
+    "select": "Select",
+    "clearSelection": "Clear",
+    "playSelected": "Play",
+    "listenAll": "Play all",
+    "addShort": "Add to playlist",
+    "playAlbum": "Play album"
   },
   "home": {
     "recent": "Recently played",
     "newAlbums": "Recently added albums",
     "myPlaylists": "My playlists",
     "emptyLibrary": "The library is empty.",
-    "emptyLibraryAdmin": "Run a library scan from the Admin page."
+    "emptyLibraryAdmin": "Run a library scan from the Admin page.",
+    "tabRecent": "Recently played",
+    "tabNew": "New albums",
+    "tabPlaylists": "My playlists",
+    "nothingRecent": "Nothing played yet."
   },
   "albums": {
     "title": "Albums",
@@ -150,7 +165,9 @@
     "upNext": "Up next",
     "queueEmpty": "The queue is empty.",
     "clearQueue": "Clear queue",
-    "nothing": "Nothing is playing."
+    "nothing": "Nothing is playing.",
+    "upNextButton": "Up next",
+    "notPlaying": "Nothing is playing."
   },
   "settings": {
     "title": "Settings",
@@ -162,7 +179,11 @@
     "confirmPassword": "Confirm new password",
     "mismatch": "The new passwords don't match.",
     "changed": "Password changed.",
-    "version": "Version {v}"
+    "version": "Version {v}",
+    "installApp": "Install app",
+    "installTitle": "Add to home screen",
+    "installIos": "In Safari, tap Share → ‘Add to Home Screen’.",
+    "installed": "Running as an installed app."
   },
   "admin": {
     "title": "Admin",
@@ -199,6 +220,20 @@
     "disable": "Disable",
     "resetPassword": "Reset password",
     "resetPasswordFor": "New password for {name}",
-    "passwordReset": "Password reset."
+    "passwordReset": "Password reset.",
+    "autoScan": "Auto scan: every {n} min",
+    "autoScanOff": "Auto scan off (SCAN_INTERVAL_MINUTES in .env)"
+  },
+  "library": {
+    "title": "My music",
+    "playFavorites": "Play all favorites",
+    "artistsCount": "{n}",
+    "genresCount": "{n}",
+    "tracksCount": "{n}"
+  },
+  "explore": {
+    "title": "Explore",
+    "genres": "Genres",
+    "artists": "Artists"
   }
 }

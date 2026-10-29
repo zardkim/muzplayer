@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..db import get_db
 from ..models import Album, Artist, Genre, ScanJob, Track, TrackGenre, User
 from ..scanner import cover_file, start_scan
@@ -41,7 +42,11 @@ def scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
 def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     job = db.scalars(select(ScanJob).order_by(ScanJob.id.desc()).limit(1)).first()
     missing = db.scalar(select(Track.id).where(Track.missing_at.is_not(None)).limit(1))
-    return {"job": job_out(job) if job else None, "has_missing": missing is not None}
+    return {
+        "job": job_out(job) if job else None,
+        "has_missing": missing is not None,
+        "auto_scan_minutes": settings.scan_interval_minutes,
+    }
 
 
 @router.get("/scan/{job_id}")

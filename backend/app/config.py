@@ -22,6 +22,7 @@ class Settings:
     static_dir: Path = Path(os.getenv("STATIC_DIR", "/app/static"))
     cookie_secure: bool = _bool("COOKIE_SECURE", True)
     session_days: int = int(os.getenv("SESSION_DAYS", "30"))
+    scan_interval_minutes: int = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))  # 0 = manual only
     default_locale: str = os.getenv("DEFAULT_LOCALE", "ko")
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")

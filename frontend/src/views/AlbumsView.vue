@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, query } from '../api'
 import type { Album, Page } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -35,27 +36,22 @@ const sorts = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-7">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-[32px] font-bold tracking-tight">{{ t('albums.title') }}</h1>
-        <p class="mt-1 text-sm text-muted">{{ t('albums.count', total) }}</p>
-      </div>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="s in sorts"
-          :key="s.key"
-          type="button"
-          class="h-9 rounded-full px-3.5 text-[13px]"
-          :class="sort === s.key ? 'bg-ink font-semibold text-bg' : 'bg-surface-2 text-ink'"
-          @click="router.replace({ query: { sort: s.key } })"
-        >
-          {{ t(s.label) }}
-        </button>
-      </div>
+  <div class="flex flex-col gap-6">
+    <PageHeader :title="t('albums.title')" :sub="t('albums.count', total)" />
+    <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
+      <button
+        v-for="s in sorts"
+        :key="s.key"
+        type="button"
+        class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
+        :class="sort === s.key ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg'"
+        @click="router.replace({ query: { sort: s.key } })"
+      >
+        {{ t(s.label) }}
+      </button>
     </div>
     <AlbumGrid :albums="items" />
-    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full bg-surface-2 px-6 text-sm" :disabled="loading" @click="load">
+    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
       {{ loading ? t('common.loading') : t('common.loadMore') }}
     </button>
   </div>

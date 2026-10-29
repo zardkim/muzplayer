@@ -15,13 +15,22 @@ services:
       DEFAULT_LOCALE: ${DEFAULT_LOCALE:-ko}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       SESSION_DAYS: ${SESSION_DAYS:-30}
+      SCAN_INTERVAL_MINUTES: ${SCAN_INTERVAL_MINUTES:-60}
+      # the library is mounted at the same path as on the NAS so absolute symlinks resolve
+      MUSIC_DIR: ${MUSIC_PATH:?set MUSIC_PATH in .env}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-Asia/Seoul}
     volumes:
-      - ${MUSIC_PATH:?set MUSIC_PATH in .env}:/music:ro
+      - type: bind
+        source: ${MUSIC_ROOT:?set MUSIC_ROOT in .env}
+        target: ${MUSIC_ROOT:?set MUSIC_ROOT in .env}
+        read_only: true
+        bind:
+          # rslave: shares mounted into the library after start show up without a restart
+          propagation: ${MUSIC_MOUNT_PROPAGATION:-rprivate}
       - ${DATA_PATH:-./data}/app:/data
 
   db:

@@ -128,6 +128,11 @@ export const usePlayer = defineStore('player', () => {
     startCurrent()
   }
 
+  async function playAlbum(albumId: number) {
+    const album = await api<{ tracks: Track[] }>(`/albums/${albumId}`)
+    playTracks(album.tracks, 0)
+  }
+
   function toggle() {
     if (!current.value) return
     if (audio.paused) startCurrent()
@@ -151,7 +156,7 @@ export const usePlayer = defineStore('player', () => {
     if (index.value + 1 < queue.value.length) jump(index.value + 1)
     else if (repeat.value === 'all') jump(0)
     else if (auto) {
-      playing.value = false
+      setPlaying(false)
     }
   }
 
@@ -235,8 +240,12 @@ export const usePlayer = defineStore('player', () => {
   }
 
   // ---- audio events ----
-  audio.addEventListener('play', () => (playing.value = true))
-  audio.addEventListener('pause', () => (playing.value = false))
+  function setPlaying(value: boolean) {
+    playing.value = value
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = value ? 'playing' : 'paused'
+  }
+  audio.addEventListener('play', () => setPlaying(true))
+  audio.addEventListener('pause', () => setPlaying(false))
   audio.addEventListener('ended', () => next(true))
   audio.addEventListener('loadedmetadata', () => {
     if (isFinite(audio.duration)) duration.value = audio.duration
@@ -317,6 +326,7 @@ export const usePlayer = defineStore('player', () => {
     restore,
     reset,
     playTracks,
+    playAlbum,
     toggle,
     jump,
     next,

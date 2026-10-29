@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import { router } from './router'
 import { i18n, initLocale } from './i18n'
+import { registerServiceWorker } from './pwa'
 import './style.css'
 
 async function start() {
@@ -14,6 +15,7 @@ async function start() {
   ;(window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ = config?.version
 
   createApp(App).use(createPinia()).use(i18n).use(router).mount('#app')
+  registerServiceWorker()
 }
 
 start()

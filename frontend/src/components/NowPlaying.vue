@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, Heart, ListMusic, Plus } from '@lucide/vue'
+import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListPlus } from '@lucide/vue'
+import { coverUrl } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -8,12 +10,16 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import CoverArt from './CoverArt.vue'
 import PlayerControls from './PlayerControls.vue'
+import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
 
 const { t } = useI18n()
 const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
+const preview = ref<number | null>(null)
+const menu = ref(false)
+const glow = ref('#C9D6E3')
 
 async function fav() {
   if (!player.current) return
@@ -23,6 +29,40 @@ async function fav() {
     ui.notify(errorMessage(e), true)
   }
 }
+
+// soft background tint from the album art's average colour
+watch(
+  () => player.current?.album_id,
+  (albumId) => {
+    glow.value = '#C9D6E3'
+    if (!albumId || !player.current?.has_cover) return
+    const img = new Image()
+    img.onload = () => {
+      const c = document.createElement('canvas')
+      c.width = c.height = 8
+      const ctx = c.getContext('2d')
+      if (!ctx) return
+      ctx.drawImage(img, 0, 0, 8, 8)
+      const d = ctx.getImageData(0, 0, 8, 8).data
+      let r = 0, g = 0, b = 0
+      for (let i = 0; i < d.length; i += 4) (r += d[i]), (g += d[i + 1]), (b += d[i + 2])
+      const n = d.length / 4
+      glow.value = `rgb(${Math.round(r / n)} ${Math.round(g / n)} ${Math.round(b / n)})`
+    }
+    img.src = coverUrl(albumId, 'thumb')
+  },
+  { immediate: true },
+)
+
+// swipe down on the artwork to close
+let startY: number | null = null
+function touchStart(e: TouchEvent) {
+  startY = e.touches[0].clientY
+}
+function touchEnd(e: TouchEvent) {
+  if (startY !== null && e.changedTouches[0].clientY - startY > 90) ui.playerOpen = false
+  startY = null
+}
 </script>
 
 <template>
@@ -31,67 +71,78 @@ async function fav() {
     role="dialog"
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
-    class="pb-safe fixed inset-0 z-40 overflow-y-auto bg-[#14202E]"
+    class="fixed inset-0 z-50 overflow-y-auto bg-[#F7F6F2] text-ink"
   >
-    <div class="mx-auto flex min-h-full max-w-md flex-col gap-7 px-6 pb-8 pt-4">
-      <div class="flex items-center justify-between">
-        <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.close')" @click="ui.playerOpen = false">
-          <ChevronDown :size="26" />
-        </button>
-        <div class="flex min-w-0 flex-col items-center">
-          <span class="text-[11px] tracking-widest text-muted">{{ t('player.nowPlaying') }}</span>
-          <span class="truncate text-[13px] font-semibold">{{ player.current.album || t('common.unknownAlbum') }}</span>
-        </div>
-        <span class="size-11" />
-      </div>
-
-      <CoverArt
-        :album-id="player.current.album_id"
-        :has-cover="player.current.has_cover"
-        size="large"
-        rounded="rounded-[18px]"
-        class="w-full shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+    <div class="relative mx-auto flex min-h-full max-w-md flex-col md:my-6 md:min-h-0 md:overflow-hidden md:rounded-3xl md:shadow-2xl">
+      <div
+        class="pointer-events-none absolute inset-x-[-80px] bottom-[-80px] top-[40%] opacity-50"
+        :style="{ background: `radial-gradient(60% 45% at 15% 20%, ${glow} 0%, transparent 70%), radial-gradient(55% 40% at 95% 15%, ${glow} 0%, transparent 70%)` }"
       />
 
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="text-2xl font-bold tracking-tight">{{ player.current.title }}</span>
-          <RouterLink
-            v-if="player.current.artist_id"
-            :to="{ name: 'artist', params: { id: player.current.artist_id } }"
-            class="truncate text-base text-[#B7BCC5]"
-            @click="ui.playerOpen = false"
-          >{{ player.current.artist }}</RouterLink>
-          <span v-else class="text-base text-[#B7BCC5]">{{ player.current.artist || t('common.unknownArtist') }}</span>
-        </div>
+      <div class="relative" @touchstart.passive="touchStart" @touchend="touchEnd">
+        <!-- full width, but capped on short screens so the controls stay visible -->
+        <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" size="large" rounded="rounded-none" class="mx-auto w-full max-w-[min(100%,50dvh)]" />
         <button
           type="button"
-          class="grid size-11 flex-none place-items-center"
-          :class="library.isFavorite(player.current) ? 'text-accent' : 'text-[#B7BCC5]'"
-          :aria-label="library.isFavorite(player.current) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
-          @click="fav"
+          class="absolute right-3 grid size-11 place-items-center rounded-full bg-white/70 backdrop-blur"
+          style="top: calc(env(safe-area-inset-top) + 10px)"
+          :aria-label="t('player.close')"
+          @click="ui.playerOpen = false"
         >
-          <Heart :size="26" :fill="library.isFavorite(player.current) ? 'currentColor' : 'none'" />
+          <ChevronDown :size="24" :stroke-width="1.4" />
         </button>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" />
-        <div class="flex justify-between font-display text-[13px] text-[#B7BCC5]">
-          <span>{{ duration(player.currentTime) }}</span>
-          <span>-{{ duration(Math.max(0, player.duration - player.currentTime)) }}</span>
+      <div class="relative -mt-3">
+        <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" track="rgb(17 17 19 / 0.12)" @change="player.seek" @preview="(v) => (preview = v)" />
+      </div>
+
+      <div class="pb-safe relative flex flex-1 flex-col px-5 pb-6">
+        <div class="flex justify-between font-display text-sm text-[#52525B]">
+          <span>{{ duration(preview ?? player.currentTime) }}</span>
+          <span>{{ duration(player.duration) }}</span>
         </div>
-      </div>
 
-      <PlayerControls large />
+        <div class="mt-1 flex items-center justify-between">
+          <button type="button" class="grid size-11 place-items-center" :aria-label="t('common.addToPlaylist')" @click="ui.playlistPicker = [player.current]">
+            <ListPlus :size="24" :stroke-width="1.3" />
+          </button>
+          <button
+            type="button"
+            class="grid size-11 place-items-center"
+            :class="library.isFavorite(player.current) ? 'text-accent' : ''"
+            :aria-label="library.isFavorite(player.current) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
+            @click="fav"
+          >
+            <Heart :size="26" :stroke-width="1.3" :fill="library.isFavorite(player.current) ? 'currentColor' : 'none'" />
+          </button>
+          <div class="relative">
+            <button type="button" class="grid size-11 place-items-center" :aria-label="t('common.moreActions')" @click="menu = !menu">
+              <EllipsisVertical :size="22" :stroke-width="1.3" />
+            </button>
+            <div v-if="menu" class="absolute bottom-12 right-0 z-10 flex w-52 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl">
+              <RouterLink v-if="player.current.album_id" :to="{ name: 'album', params: { id: player.current.album_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToAlbum') }}</RouterLink>
+              <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToArtist') }}</RouterLink>
+            </div>
+          </div>
+        </div>
 
-      <div class="mt-auto flex justify-between gap-3">
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink/10 px-4 text-sm" @click="ui.playlistPicker = [player.current]">
-          <Plus :size="18" />{{ t('common.addToPlaylist') }}
-        </button>
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink/10 px-4 text-sm" @click="ui.queueOpen = true">
-          <ListMusic :size="18" />{{ t('player.queue') }}
-        </button>
+        <div class="mt-3 flex flex-col items-center gap-1 text-center">
+          <span class="line-clamp-2 text-2xl font-medium">{{ player.current.title }}</span>
+          <span class="text-[17px] font-light text-[#52525B]">{{ player.current.artist || t('common.unknownArtist') }}</span>
+        </div>
+
+        <div class="mt-6"><PlayerControls large /></div>
+
+        <div class="mt-auto flex items-center justify-between pt-4">
+          <span class="w-11 font-display text-[13px] uppercase text-[#52525B]">{{ player.current.format }}</span>
+          <button type="button" class="flex h-11 items-center gap-1.5 px-3 text-[15px]" @click="ui.queueOpen = true">
+            {{ t('player.upNextButton') }} <ChevronUp :size="16" :stroke-width="1.6" />
+          </button>
+          <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.queue')" @click="ui.queueOpen = true">
+            <QueueIcon />
+          </button>
+        </div>
       </div>
     </div>
   </div>

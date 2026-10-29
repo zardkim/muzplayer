@@ -1,7 +1,6 @@
 import mimetypes
 import os
 import unicodedata
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
@@ -258,9 +257,13 @@ def stream(track_id: int, _: User = Depends(current_user), db: Session = Depends
     track = db.get(Track, track_id)
     if track is None or track.missing_at is not None:
         raise api_error(404, "not_found")
-    root = os.path.realpath(settings.music_dir)
-    path = os.path.realpath(Path(root) / track.file_path)
-    if os.path.commonpath([root, path]) != root or not os.path.isfile(path):
+    # file_path comes from the scanner and may go through symlinked folders, so check the
+    # path as written (no "..") rather than where it finally resolves
+    rel = os.path.normpath(track.file_path)
+    if os.path.isabs(rel) or rel.startswith(".."):
+        raise api_error(404, "not_found")
+    path = os.path.join(settings.music_dir, rel)
+    if not os.path.isfile(path):
         raise api_error(404, "not_found")
     media_type = AUDIO_TYPES.get(track.format) or mimetypes.guess_type(path)[0] or "application/octet-stream"
     return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})

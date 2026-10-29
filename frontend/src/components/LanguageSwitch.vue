@@ -7,20 +7,16 @@ const { locale, t } = useI18n()
 </script>
 
 <template>
-  <div
-    role="group"
-    :aria-label="t('settings.language')"
-    class="inline-flex gap-1 rounded-full border border-line bg-surface p-1"
-  >
+  <div role="group" :aria-label="t('settings.language')" class="inline-flex gap-1.5">
     <button
       v-for="l in LOCALES"
       :key="l.code"
       type="button"
       :aria-pressed="locale === l.code"
-      class="rounded-full font-medium transition-colors"
+      class="rounded-full border transition-colors"
       :class="[
-        compact ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2 text-sm',
-        locale === l.code ? 'bg-ink text-bg' : 'text-muted hover:text-ink',
+        compact ? 'h-8 px-3 text-[13px]' : 'h-10 px-4 text-[15px]',
+        locale === l.code ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg text-ink hover:border-ink',
       ]"
       @click="setLocale(l.code)"
     >

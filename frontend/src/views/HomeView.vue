@@ -1,68 +1,119 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ListMusic } from '@lucide/vue'
+import { ChevronRight, ListMusic } from '@lucide/vue'
 import { api } from '../api'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
+import { usePlayer } from '../stores/player'
 import type { Album, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
-import TrackList from '../components/TrackList.vue'
+import CoverArt from '../components/CoverArt.vue'
+import PageHeader from '../components/PageHeader.vue'
+import PlayerIcons from '../components/PlayerIcons.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
 const library = useLibrary()
-const recent = ref<Track[]>([])
+const player = usePlayer()
+const history = ref<Track[]>([])
 const albums = ref<Album[]>([])
 const loaded = ref(false)
+const tab = ref<'recent' | 'new' | 'playlists'>('recent')
 
 onMounted(async () => {
   const [h, a] = await Promise.all([
-    api<{ items: Track[] }>('/history?limit=50').catch(() => ({ items: [] })),
+    api<{ items: Track[] }>('/history?limit=100').catch(() => ({ items: [] })),
     api<Page<Album>>('/albums?sort=recent&limit=12').catch(() => ({ items: [], total: 0 })),
   ])
-  // one entry per track, most recent first
-  const seen = new Set<number>()
-  recent.value = h.items.filter((x) => !seen.has(x.id) && seen.add(x.id)).slice(0, 8)
+  history.value = h.items
   albums.value = a.items
   loaded.value = true
 })
+
+// recently played, grouped by album so the list reads like "what was I listening to"
+const recentAlbums = computed(() => {
+  const seen = new Set<number>()
+  const out: Track[] = []
+  for (const tr of history.value) {
+    const key = tr.album_id ?? -tr.id
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(tr)
+    if (out.length === 6) break
+  }
+  return out
+})
+
+const tabs = computed(() => [
+  { key: 'recent' as const, label: t('home.tabRecent') },
+  { key: 'new' as const, label: t('home.tabNew') },
+  { key: 'playlists' as const, label: t('home.tabPlaylists') },
+])
 </script>
 
 <template>
-  <div class="flex flex-col gap-10">
-    <div v-if="loaded && !albums.length" class="rounded-2xl border border-line bg-surface p-8 text-center">
-      <p class="font-semibold">{{ t('home.emptyLibrary') }}</p>
-      <p v-if="auth.user?.is_admin" class="mt-2 text-sm text-muted">
-        <RouterLink to="/admin" class="text-accent hover:text-accent-strong">{{ t('home.emptyLibraryAdmin') }}</RouterLink>
+  <div class="flex flex-col gap-7">
+    <PageHeader :title="t('nav.home')" />
+
+    <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
+      <button
+        v-for="x in tabs"
+        :key="x.key"
+        type="button"
+        class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
+        :class="tab === x.key ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg'"
+        @click="tab = x.key"
+      >
+        {{ x.label }}
+      </button>
+    </div>
+
+    <div v-if="loaded && !albums.length" class="rounded-2xl bg-surface p-8 text-center">
+      <p class="font-medium">{{ t('home.emptyLibrary') }}</p>
+      <p v-if="auth.user?.is_admin" class="mt-2 text-sm">
+        <RouterLink to="/admin" class="text-accent underline">{{ t('home.emptyLibraryAdmin') }}</RouterLink>
       </p>
     </div>
 
-    <section v-if="albums.length" class="flex flex-col gap-4">
-      <div class="flex items-baseline justify-between">
-        <h2 class="text-xl font-bold">{{ t('home.newAlbums') }}</h2>
-        <RouterLink to="/albums" class="text-[13px] text-muted hover:text-ink">{{ t('common.viewAll') }}</RouterLink>
+    <!-- quick list -->
+    <section v-if="tab === 'recent'" class="flex flex-col gap-3.5">
+      <p v-if="loaded && !recentAlbums.length" class="font-light text-muted">{{ t('home.nothingRecent') }}</p>
+      <div v-for="tr in recentAlbums" :key="tr.id" class="flex items-center gap-3.5">
+        <RouterLink :to="tr.album_id ? { name: 'album', params: { id: tr.album_id } } : { name: 'history' }" class="flex min-w-0 flex-1 items-center gap-3.5">
+          <CoverArt :album-id="tr.album_id" :has-cover="tr.has_cover" rounded="rounded-lg" class="size-[60px] flex-none" />
+          <span class="flex min-w-0 flex-col">
+            <span class="truncate text-[17px]">{{ tr.album || tr.title }}</span>
+            <span class="truncate text-sm font-light text-muted">{{ tr.artist || t('common.unknownArtist') }}</span>
+          </span>
+        </RouterLink>
+        <button
+          type="button"
+          class="grid size-11 place-items-center"
+          :aria-label="`${t('common.play')}: ${tr.album || tr.title}`"
+          @click="tr.album_id ? player.playAlbum(tr.album_id) : player.playTracks([tr])"
+        >
+          <PlayerIcons name="play" :size="26" :stroke="1.3" />
+        </button>
       </div>
-      <AlbumGrid :albums="albums" row />
     </section>
-
-    <section v-if="recent.length" class="flex flex-col gap-2">
-      <div class="flex items-baseline justify-between">
-        <h2 class="text-xl font-bold">{{ t('home.recent') }}</h2>
-        <RouterLink to="/history" class="text-[13px] text-muted hover:text-ink">{{ t('common.viewAll') }}</RouterLink>
-      </div>
-      <TrackList :tracks="recent" />
+    <section v-else-if="tab === 'new'">
+      <AlbumGrid :albums="albums" />
     </section>
-
-    <section v-if="library.playlists.length" class="flex flex-col gap-1 md:hidden">
-      <h2 class="mb-2 text-xl font-bold">{{ t('home.myPlaylists') }}</h2>
-      <RouterLink v-for="p in library.playlists.slice(0, 5)" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex min-h-[60px] items-center gap-3.5">
-        <span class="grid size-[52px] flex-none place-items-center rounded-[10px] bg-surface-2 text-accent"><ListMusic :size="22" /></span>
+    <section v-else class="flex flex-col gap-3">
+      <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
+      <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
+        <span class="grid size-[60px] flex-none place-items-center rounded-lg bg-surface"><ListMusic :size="24" :stroke-width="1.3" /></span>
         <span class="flex flex-col">
-          <span class="text-[15px] font-semibold">{{ p.name }}</span>
-          <span class="text-[13px] text-muted">{{ t('common.tracks', p.track_count) }}</span>
+          <span class="text-[17px]">{{ p.name }}</span>
+          <span class="text-sm font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
         </span>
       </RouterLink>
+    </section>
+
+    <section v-if="albums.length && tab !== 'new'" class="mt-3 flex flex-col gap-4">
+      <RouterLink to="/albums" class="flex items-center gap-1 text-[22px] font-bold">{{ t('home.newAlbums') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+      <AlbumGrid :albums="albums" row />
     </section>
   </div>
 </template>

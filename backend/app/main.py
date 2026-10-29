@@ -1,4 +1,6 @@
 import logging
+import mimetypes
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -8,7 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from .api import admin, auth, library, me
 from .config import settings
 from .db import SessionLocal
-from .scanner import mark_interrupted_jobs
+from .scanner import mark_interrupted_jobs, start_auto_scan
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -17,7 +21,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         mark_interrupted_jobs(db)
+    stop = threading.Event()
+    start_auto_scan(stop)
     yield
+    stop.set()
 
 
 app = FastAPI(title="muzplayer", version=settings.version, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -46,5 +53,6 @@ if index_file.exists():
     def spa(path: str):
         candidate = (settings.static_dir / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(settings.static_dir.resolve()):
-            return FileResponse(candidate)
+            no_cache = path in ("sw.js", "manifest.webmanifest")
+            return FileResponse(candidate, headers={"Cache-Control": "no-cache"} if no_cache else None)
         return FileResponse(index_file, headers={"Cache-Control": "no-cache"})

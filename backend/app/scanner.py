@@ -226,13 +226,62 @@ def _apply_tags(db: Session, cache: _Cache, track: Track, path: Path, cover_trie
 
 
 def _walk(root: Path, on_error):
-    for dirpath, dirnames, filenames in os.walk(root, onerror=on_error):
-        dirnames[:] = [d for d in dirnames if not d.startswith((".", "@"))]  # skip @eaDir etc.
-        for name in filenames:
-            if name.startswith("."):
+    """Yields audio files under root, following symlinked folders and mounts.
+
+    Folder loops (a link pointing at its own parent) are visited once.
+    on_error(path, exc) is called for folders that can't be read and for broken links.
+    """
+    stack = [root]
+    visited: set[tuple[int, int]] = set()
+    while stack:
+        directory = stack.pop()
+        try:
+            st = os.stat(directory)
+            if (st.st_dev, st.st_ino) in visited:
                 continue
-            if os.path.splitext(name)[1].lower() in AUDIO_EXTS:
-                yield Path(dirpath) / name
+            visited.add((st.st_dev, st.st_ino))
+            entries = sorted(os.scandir(directory), key=lambda e: e.name)
+        except OSError as exc:
+            on_error(directory, exc)
+            continue
+        for entry in entries:
+            if entry.name.startswith("."):
+                continue
+            try:
+                if entry.is_dir(follow_symlinks=True):
+                    if not entry.name.startswith("@"):  # Synology @eaDir etc.
+                        stack.append(Path(entry.path))
+                    continue
+                if entry.is_symlink() and not os.path.exists(entry.path):
+                    on_error(Path(entry.path), FileNotFoundError(2, "broken link"))
+                    continue
+            except OSError as exc:
+                on_error(Path(entry.path), exc)
+                continue
+            if os.path.splitext(entry.name)[1].lower() in AUDIO_EXTS:
+                yield Path(entry.path)
+
+
+def _collect(root: Path, existing: dict[str, Track], on_error) -> list[tuple[str, Path]]:
+    """Lists (relative path, path) pairs, one per real file.
+
+    The same file reachable through two links is indexed once, preferring the path
+    already in the DB so playlists keep pointing at it.
+    """
+    by_real: dict[str, list[tuple[str, Path]]] = {}
+    for path in _walk(root, on_error):
+        rel = os.path.relpath(path, root)
+        try:
+            rel.encode("utf-8")
+        except UnicodeEncodeError:
+            on_error(path, ValueError("invalid file name encoding"))
+            continue
+        by_real.setdefault(os.path.realpath(path), []).append((rel, path))
+    files = []
+    for candidates in by_real.values():
+        known = [c for c in candidates if c[0] in existing]
+        files.append(min(known or candidates))
+    return files
 
 
 def _run(job_id: int) -> None:
@@ -245,25 +294,24 @@ def _run(job_id: int) -> None:
             raise RuntimeError(f"music_dir_not_found: {root}")
         cache = _Cache(db)
         existing = {t.file_path: t for t in db.scalars(select(Track).options(defer(Track.tag_json)))}
-        seen: set[str] = set()
+        unavailable: list[str] = []  # folders we could not read: keep their tracks as they are
         cover_tries: dict[int, int] = {}
         pending = 0
 
-        def unreadable(exc: OSError) -> None:
-            # usually PUID/PGID lacking read permission on a folder
+        def on_error(path: Path, exc: Exception) -> None:
+            # usually PUID/PGID lacking permission, an unmounted share or a broken link
             job.errors += 1
+            unavailable.append(os.path.relpath(path, root))
             if len(errors) < 50:
-                errors.append(f"cannot read folder: {exc.filename}: {exc.strerror}")
+                errors.append(f"cannot read: {path}: {getattr(exc, 'strerror', None) or exc}")
 
-        for path in _walk(root, unreadable):
-            rel = str(path.relative_to(root))
-            try:
-                rel.encode("utf-8")
-            except UnicodeEncodeError:
-                job.errors += 1
-                errors.append(f"invalid file name encoding: {rel.encode('utf-8', 'replace').decode()}")
-                continue
-            seen.add(rel)
+        files = _collect(root, existing, on_error)
+        if not files and any(t.missing_at is None for t in existing.values()):
+            # an empty library is almost always an unmounted folder; don't hide everything
+            raise RuntimeError(f"library_empty: no audio files found under {root}")
+        seen = {rel for rel, _ in files}
+
+        for rel, path in files:
             job.scanned += 1
             try:
                 st = path.stat()
@@ -303,8 +351,15 @@ def _run(job_id: int) -> None:
                 db.commit()
                 pending = 0
 
+        def reachable(rel: str) -> bool:
+            return not any(u == "." or rel == u or rel.startswith(u + os.sep) for u in unavailable)
+
         now = datetime.now(UTC)
-        gone = [t.id for path_key, t in existing.items() if path_key not in seen and t.missing_at is None]
+        gone = [
+            t.id
+            for path_key, t in existing.items()
+            if path_key not in seen and t.missing_at is None and reachable(path_key)
+        ]
         for i in range(0, len(gone), 1000):
             db.execute(update(Track).where(Track.id.in_(gone[i : i + 1000])).values(missing_at=now))
         job.missing = len(gone)
@@ -332,6 +387,27 @@ def start_scan(db: Session) -> ScanJob | None:
     db.commit()
     threading.Thread(target=_run, args=(job.id,), daemon=True, name="scan").start()
     return job
+
+
+def start_auto_scan(stop: threading.Event) -> None:
+    """Rescans every SCAN_INTERVAL_MINUTES (first run one minute after start).
+
+    Polling works the same for local folders, symlinked folders and network mounts,
+    where file-change notifications are unreliable.
+    """
+    minutes = settings.scan_interval_minutes
+    if minutes <= 0:
+        return
+
+    def loop() -> None:
+        delay = 60
+        while not stop.wait(delay):
+            with SessionLocal() as db:
+                if start_scan(db) is None:
+                    log.info("auto scan skipped: a scan is already running")
+            delay = minutes * 60
+
+    threading.Thread(target=loop, daemon=True, name="auto-scan").start()
 
 
 def mark_interrupted_jobs(db: Session) -> None:

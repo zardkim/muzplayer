@@ -50,19 +50,19 @@ async function createAndAdd() {
         v-model="newName"
         maxlength="200"
         :placeholder="t('playlists.new')"
-        class="h-11 min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 text-base outline-none focus:border-accent"
+        class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink"
       />
-      <button type="submit" class="grid size-11 place-items-center rounded-xl bg-accent text-bg disabled:opacity-40" :disabled="!newName.trim()" :aria-label="t('common.create')">
+      <button type="submit" class="grid size-11 place-items-center rounded-full bg-ink text-white disabled:opacity-40" :disabled="!newName.trim()" :aria-label="t('common.create')">
         <Plus :size="20" />
       </button>
     </form>
     <ul class="flex flex-col">
       <li v-for="p in library.playlists" :key="p.id">
-        <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface-2" :disabled="busy" @click="add(p.id)">
-          <span class="grid size-11 place-items-center rounded-lg bg-surface-2 text-accent"><ListMusic :size="20" /></span>
+        <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface" :disabled="busy" @click="add(p.id)">
+          <span class="grid size-11 place-items-center rounded-lg bg-surface text-ink"><ListMusic :size="20" :stroke-width="1.3" /></span>
           <span class="flex flex-col">
-            <span class="font-semibold">{{ p.name }}</span>
-            <span class="text-[13px] text-muted">{{ t('common.tracks', p.track_count) }}</span>
+            <span>{{ p.name }}</span>
+            <span class="text-[13px] font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
           </span>
         </button>
       </li>

@@ -15,7 +15,10 @@
     "more": "더보기",
     "logout": "로그아웃",
     "mainMenu": "주 메뉴",
-    "accountMenu": "계정 메뉴"
+    "accountMenu": "계정 메뉴",
+    "myMusic": "내 음악",
+    "explore": "탐색",
+    "songs": "곡"
   },
   "search": {
     "label": "검색",
@@ -81,14 +84,26 @@
     "favoriteRemove": "즐겨찾기 해제",
     "number": "번호",
     "titleCol": "제목",
-    "duration": "길이"
+    "duration": "길이",
+    "selected": "{n}곡 선택",
+    "selectAll": "전체 선택",
+    "select": "선택",
+    "clearSelection": "선택 해제",
+    "playSelected": "재생",
+    "listenAll": "전체 듣기",
+    "addShort": "담기",
+    "playAlbum": "앨범 재생"
   },
   "home": {
     "recent": "최근 재생",
     "newAlbums": "새로 추가된 앨범",
     "myPlaylists": "내 플레이리스트",
     "emptyLibrary": "아직 라이브러리가 비어 있습니다.",
-    "emptyLibraryAdmin": "관리자 화면에서 라이브러리 스캔을 실행하세요."
+    "emptyLibraryAdmin": "관리자 화면에서 라이브러리 스캔을 실행하세요.",
+    "tabRecent": "최근 재생",
+    "tabNew": "새 앨범",
+    "tabPlaylists": "내 플레이리스트",
+    "nothingRecent": "아직 재생한 곡이 없습니다."
   },
   "albums": {
     "title": "앨범",
@@ -150,7 +165,9 @@
     "upNext": "다음 곡",
     "queueEmpty": "대기열이 비어 있습니다.",
     "clearQueue": "대기열 비우기",
-    "nothing": "재생 중인 곡이 없습니다."
+    "nothing": "재생 중인 곡이 없습니다.",
+    "upNextButton": "다음 곡",
+    "notPlaying": "지금 재생 중인 곡이 없습니다."
   },
   "settings": {
     "title": "설정",
@@ -162,7 +179,11 @@
     "confirmPassword": "새 비밀번호 확인",
     "mismatch": "새 비밀번호가 서로 다릅니다.",
     "changed": "비밀번호를 변경했습니다.",
-    "version": "버전 {v}"
+    "version": "버전 {v}",
+    "installApp": "앱으로 설치",
+    "installTitle": "홈 화면에 추가",
+    "installIos": "Safari 하단의 공유 버튼 → ‘홈 화면에 추가’를 누르세요.",
+    "installed": "앱으로 실행 중입니다."
   },
   "admin": {
     "title": "관리자",
@@ -199,6 +220,20 @@
     "disable": "비활성화",
     "resetPassword": "비밀번호 초기화",
     "resetPasswordFor": "{name}의 새 비밀번호",
-    "passwordReset": "비밀번호를 초기화했습니다."
+    "passwordReset": "비밀번호를 초기화했습니다.",
+    "autoScan": "자동 스캔: {n}분마다",
+    "autoScanOff": "자동 스캔 꺼짐 (.env의 SCAN_INTERVAL_MINUTES)"
+  },
+  "library": {
+    "title": "내 음악",
+    "playFavorites": "즐겨찾기한 곡 전체 재생",
+    "artistsCount": "{n}명",
+    "genresCount": "{n}개",
+    "tracksCount": "{n}곡"
+  },
+  "explore": {
+    "title": "탐색",
+    "genres": "장르",
+    "artists": "아티스트"
   }
 }

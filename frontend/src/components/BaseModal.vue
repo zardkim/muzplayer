@@ -15,17 +15,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" @click.self="emit('close')">
+  <div class="fixed inset-0 z-[70] flex items-end justify-center bg-black/30 sm:items-center" @click.self="emit('close')">
     <div
       role="dialog"
       aria-modal="true"
       :aria-label="title"
-      class="pb-safe max-h-[85vh] w-full overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 sm:max-w-md sm:rounded-2xl"
+      class="pb-safe max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-bg p-5 shadow-2xl sm:max-w-md sm:rounded-3xl"
     >
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-bold">{{ title }}</h2>
-        <button type="button" class="grid size-11 place-items-center text-muted hover:text-ink" :aria-label="t('common.close')" @click="emit('close')">
-          <X :size="20" />
+        <h2 class="text-xl font-bold">{{ title }}</h2>
+        <button type="button" class="grid size-11 place-items-center text-ink" :aria-label="t('common.close')" @click="emit('close')">
+          <X :size="22" :stroke-width="1.4" />
         </button>
       </div>
       <slot />

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Pencil, Play, Shuffle, Trash2 } from '@lucide/vue'
+import { Pencil, Trash2 } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -10,6 +10,8 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { PlaylistDetail } from '../types'
 import BaseModal from '../components/BaseModal.vue'
+import PageHeader from '../components/PageHeader.vue'
+import PlayerIcons from '../components/PlayerIcons.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
@@ -74,36 +76,31 @@ async function destroy() {
 </script>
 
 <template>
-  <p v-if="error" class="text-muted">{{ error }}</p>
-  <div v-else-if="playlist" class="flex flex-col gap-7">
-    <div class="flex flex-col gap-3">
-      <h1 class="text-4xl font-bold tracking-tight">{{ playlist.name }}</h1>
-      <p class="text-sm text-muted">{{ t('common.tracks', playlist.entries.length) }}</p>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-semibold text-bg disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
-          <Play :size="18" fill="currentColor" />{{ t('common.playAll') }}
-        </button>
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full border border-line-strong px-5 font-semibold disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: true })">
-          <Shuffle :size="18" />{{ t('common.shuffleAll') }}
-        </button>
-        <button type="button" class="grid size-11 place-items-center rounded-full bg-surface-2" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
-          <Pencil :size="18" />
-        </button>
-        <button type="button" class="grid size-11 place-items-center rounded-full bg-surface-2 text-danger" :aria-label="t('common.delete')" @click="destroy">
-          <Trash2 :size="18" />
-        </button>
-      </div>
+  <p v-if="error" class="font-light text-muted">{{ error }}</p>
+  <div v-else-if="playlist" class="flex flex-col gap-5">
+    <PageHeader :title="playlist.name" :sub="t('common.tracks', playlist.entries.length)" />
+    <div class="flex flex-wrap gap-2">
+      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
+        <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
+      </button>
+      <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+      <button type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
+        <Pencil :size="16" :stroke-width="1.4" />
+      </button>
+      <button type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
+        <Trash2 :size="16" :stroke-width="1.4" />
+      </button>
     </div>
-    <p v-if="!tracks.length" class="text-muted">{{ t('playlists.emptyTracks') }}</p>
+    <p v-if="!tracks.length" class="font-light text-muted">{{ t('playlists.emptyTracks') }}</p>
     <TrackList :tracks="tracks" editable @remove="remove" @move="move" />
 
     <BaseModal v-if="renaming" :title="t('common.rename')" @close="renaming = false">
       <form class="flex flex-col gap-4" @submit.prevent="rename">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('playlists.name') }}
-          <input v-model="newName" maxlength="200" class="h-11 rounded-xl border border-line bg-bg px-3.5 text-base text-ink outline-none focus:border-accent" />
+          <input v-model="newName" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
         </label>
-        <button type="submit" class="h-11 rounded-full bg-accent font-semibold text-bg">{{ t('common.save') }}</button>
+        <button type="submit" class="h-12 rounded-full bg-ink text-white">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
   </div>

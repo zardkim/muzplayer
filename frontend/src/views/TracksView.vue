@@ -2,10 +2,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { usePlayer } from '../stores/player'
 import type { Genre, Page, Track } from '../types'
+import PageHeader from '../components/PageHeader.vue'
+import PlayerIcons from '../components/PlayerIcons.vue'
 import TrackList from '../components/TrackList.vue'
 
 const { t } = useI18n()
@@ -46,35 +47,29 @@ const sorts = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-[32px] font-bold tracking-tight">{{ genreName || t('tracks.title') }}</h1>
-        <p class="mt-1 text-sm text-muted">{{ t('common.tracks', total) }}</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-semibold text-bg" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
-          <Play :size="18" fill="currentColor" />{{ t('common.playAll') }}
-        </button>
-        <button type="button" class="flex h-11 items-center gap-2 rounded-full border border-line-strong px-5 font-semibold" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: true })">
-          <Shuffle :size="18" />{{ t('common.shuffleAll') }}
-        </button>
-      </div>
-    </div>
-    <div v-if="!genreId" class="flex gap-1.5">
-      <button
-        v-for="s in sorts"
-        :key="s.key"
-        type="button"
-        class="h-9 rounded-full px-3.5 text-[13px]"
-        :class="sort === s.key ? 'bg-ink font-semibold text-bg' : 'bg-surface-2 text-ink'"
-        @click="router.replace({ query: { ...route.query, sort: s.key } })"
-      >
-        {{ t(s.label) }}
+  <div class="flex flex-col gap-5">
+    <PageHeader :title="genreName ? `#${genreName}` : t('tracks.title')" :sub="t('common.tracks', total)" />
+    <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
+      <button type="button" class="flex h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
+        <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
+      <button type="button" class="h-[38px] flex-none rounded-full border border-line-strong px-4 text-[15px]" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+      <template v-if="!genreId">
+        <span class="mx-1 w-px flex-none bg-line" />
+        <button
+          v-for="s in sorts"
+          :key="s.key"
+          type="button"
+          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
+          :class="sort === s.key ? 'border-ink' : 'border-line-strong text-muted'"
+          @click="router.replace({ query: { ...route.query, sort: s.key } })"
+        >
+          {{ t(s.label) }}
+        </button>
+      </template>
     </div>
     <TrackList :tracks="items" />
-    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full bg-surface-2 px-6 text-sm" :disabled="loading" @click="load">
+    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
       {{ loading ? t('common.loading') : t('common.loadMore') }}
     </button>
   </div>
