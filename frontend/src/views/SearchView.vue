@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ChevronRight, Search } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
-import type { Album, Artist, Book, Chart, Genre, Page, Track } from '../types'
+import type { Album, Artist, Book, Chart, CollectionsHome, Genre, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import BookGrid from '../components/BookGrid.vue'
 import ChartGrid from '../components/ChartGrid.vue'
@@ -44,9 +44,11 @@ onMounted(async () => {
     const [g, ar, ch] = await Promise.all([
       api<{ items: Genre[] }>('/genres').catch(() => ({ items: [] })),
       api<Page<Artist>>('/artists?limit=500').catch(() => ({ items: [], total: 0 })),
-      api<Page<Chart>>('/charts?limit=12').catch(() => ({ items: [], total: 0 })),
+      api<CollectionsHome>('/collections/home').catch(() => null),
     ])
-    charts.value = ch.items
+    // the newest week of each chart source and today's themes
+    const seen = new Set<number>()
+    charts.value = ch ? [...ch.hero, ...ch.picks].filter((c) => !seen.has(c.id) && seen.add(c.id)).slice(0, 12) : []
     genres.value = [...g.items].sort((a, b) => b.track_count - a.track_count).slice(0, 16)
     artists.value = [...ar.items].sort((a, b) => b.track_count - a.track_count).slice(0, 8)
   }

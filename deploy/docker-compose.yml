@@ -20,6 +20,12 @@ services:
       MUSIC_DIR: ${MUSIC_PATH:?set MUSIC_PATH in .env}
       # empty = audiobooks off
       AUDIOBOOK_DIR: ${AUDIOBOOK_PATH:-}
+      # AI banners for charts/themes; no key = the AI buttons are hidden
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_IMAGE_MODEL: ${GEMINI_IMAGE_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       PUID: ${PUID:-1000}

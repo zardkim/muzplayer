@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import ai_banner
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -44,6 +45,7 @@ def get_config():
         "locales": list(SUPPORTED_LOCALES),
         "version": settings.version,
         "audiobooks": settings.audiobook_dir is not None,
+        "ai_banners": ai_banner.configured(),
     }
 
 

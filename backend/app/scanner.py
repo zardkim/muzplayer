@@ -26,11 +26,14 @@ FOLDER_COVERS = ("cover", "folder", "front", "album")
 COVER_SIZES = {"thumb": 300, "large": 1000}
 BATCH = 200
 
-FOLDER_KINDS = ("album", "compilation", "chart", "excluded")
+FOLDER_KINDS = ("album", "compilation", "chart", "theme", "excluded")
+COLLECTION_KINDS = ("chart", "theme")  # folders of collections: each folder with audio files is one
 UNOFFICIAL_DIRS = {"비정규", "unofficial"}  # compared casefolded, at any depth
 VARIOUS_ARTISTS = "Various Artists"
 # "001 Artist - Title.mp3": a short number then a separator; "2002.mp3" is a title, not a rank
 RANK_PREFIX = re.compile(r"^\s*(\d{1,3})(?:[\s._\-)\]]+)")
+DISC_DIR = re.compile(r"^(?:cd|disc|disk)\s*[-_.]?\s*(\d+)$", re.IGNORECASE)
+BANNER_NAMES = ("banner.jpg", "banner.jpeg", "banner.png", "banner.webp")
 
 _lock = threading.Lock()
 
@@ -161,17 +164,24 @@ def folder_kinds(db: Session) -> dict[str, str]:
 class Placement:
     """Where a file belongs, decided by its path alone."""
 
-    kind: str  # album kind: album | unofficial | compilation | chart
-    chart_folder: str | None = None  # relative folder of the chart week, as on disk
+    kind: str  # album kind: album | unofficial | compilation | chart (also for themes)
+    chart_folder: str | None = None  # relative folder of the chart week or theme, as on disk
     chart_source: str = ""
+    chart_kind: str = "chart"  # chart | theme
 
 
 def placement(rel: str, kinds: dict[str, str]) -> Placement:
     parts = Path(rel).parts
     folder_kind = kinds.get(nfc(parts[0]), "album") if len(parts) > 1 else "album"
-    if folder_kind == "chart":
+    if folder_kind in COLLECTION_KINDS:
         # 차트/멜론/2026-10-4주/001 x.mp3 -> source 멜론, chart 2026-10-4주
-        return Placement("chart", str(Path(rel).parent), nfc(parts[1]) if len(parts) > 2 else "")
+        # 테마/팝송/TOP100/CD1/001 x.mp3 -> category 팝송, theme TOP100 (disc folders merge)
+        folders = list(parts[:-1])
+        while len(folders) > 2 and DISC_DIR.match(nfc(folders[-1])):
+            folders.pop()
+        # a chart's source is the folder under the chart root; a theme's category needs one more level
+        group = nfc(parts[1]) if len(folders) > (1 if folder_kind == "chart" else 2) else ""
+        return Placement("chart", str(Path(*folders)), group, folder_kind)
     if folder_kind == "compilation":
         return Placement("compilation")
     if any(nfc(p).casefold() in UNOFFICIAL_DIRS for p in parts[:-1]):
@@ -187,8 +197,8 @@ class _Cache:
         self.artists = {a.name: a.id for a in db.scalars(select(Artist))}
         self.albums = {(a.kind, a.album_artist_id, a.title): a for a in db.scalars(select(Album))}
         self.album_kinds = {a.id: a.kind for a in self.albums.values()}
-        self.charts = {c.folder_path: c.id for c in db.scalars(select(Chart))}
-        self.chart_folders = {v: k for k, v in self.charts.items()}
+        self.charts = {c.folder_path: c for c in db.scalars(select(Chart))}
+        self.chart_folders = {c.id: k for k, c in self.charts.items()}
         self.genres = {g.name: g.id for g in db.scalars(select(Genre))}
 
     def matches(self, track: Track, place: Placement) -> bool:
@@ -196,6 +206,11 @@ class _Cache:
         return (
             self.album_kinds.get(track.album_id) == place.kind
             and self.chart_folders.get(track.chart_id) == place.chart_folder
+            and (
+                place.chart_folder is None
+                or (self.charts[place.chart_folder].kind, self.charts[place.chart_folder].source)
+                == (place.chart_kind, place.chart_source[:200])
+            )
         )
 
     def artist(self, name: str) -> int | None:
@@ -221,14 +236,18 @@ class _Cache:
             album.year = year
         return album
 
-    def chart(self, folder: str, source: str) -> int:
+    def chart(self, folder: str, source: str, kind: str) -> int:
         if folder not in self.charts:
-            row = Chart(folder_path=folder, source=source[:200], title=(nfc(Path(folder).name) or source)[:500])
+            row = Chart(
+                folder_path=folder, kind=kind, source=source[:200], title=(nfc(Path(folder).name) or source)[:500]
+            )
             self.db.add(row)
             self.db.flush()
-            self.charts[folder] = row.id
+            self.charts[folder] = row
             self.chart_folders[row.id] = folder
-        return self.charts[folder]
+        row = self.charts[folder]
+        row.kind, row.source = kind, source[:200]  # the folder kind changed between chart and theme
+        return row.id
 
     def genre(self, name: str) -> int:
         if name not in self.genres:
@@ -278,7 +297,7 @@ def _classify(
     album = cache.album(place.kind, album_title[:500], cache.artist(album_artist[:500]), _year(_first(raw, "date")))
     track.album_id = album.id
     if place.chart_folder is not None:
-        track.chart_id = cache.chart(place.chart_folder, place.chart_source)
+        track.chart_id = cache.chart(place.chart_folder, place.chart_source, place.chart_kind)
         rank = RANK_PREFIX.match(rel.stem)
         track.chart_position = int(rank.group(1)) if rank else _number(_first(raw, "tracknumber"))
     else:
@@ -472,6 +491,7 @@ def _scan(job_id: int) -> None:
         job.missing = len(gone)
         _link_chart_duplicates(db)
         pruned_albums = prune_orphans(db)
+        _find_banners(db, root)
         job.status = "done"
     except Exception as exc:
         log.exception("scan failed")
@@ -502,12 +522,13 @@ def _scan(job_id: int) -> None:
 
 
 def _link_chart_duplicates(db: Session) -> None:
-    """The same song in several chart weeks: keep the newest copy, point older ones at it.
+    """The same song in several chart weeks or themes: keep the copy in the newest chart week
+    (a theme copy only when no chart has it), point the others at it.
 
     Lists and search show only tracks without canonical_track_id; each chart still lists its own copy.
     """
     rows = db.execute(
-        select(Track.id, Track.title, Track.artist_text, Chart.title, Chart.folder_path)
+        select(Track.id, Track.title, Track.artist_text, Chart.title, Chart.folder_path, Chart.kind)
         .join(Chart, Chart.id == Track.chart_id)
         .where(Track.missing_at.is_(None))
     ).all()
@@ -516,7 +537,7 @@ def _link_chart_duplicates(db: Session) -> None:
         groups.setdefault((nfc(row[1]).casefold(), nfc(row[2]).casefold()), []).append(row)
     wanted: dict[int, int | None] = {}
     for copies in groups.values():
-        newest = max(copies, key=lambda r: (r[3], r[4], r[0]))[0]
+        newest = max(copies, key=lambda r: (r[5] == "chart", r[3], r[4], r[0]))[0]
         for r in copies:
             wanted[r[0]] = None if r[0] == newest else newest
     current = dict(db.execute(select(Track.id, Track.canonical_track_id).where(Track.canonical_track_id.is_not(None))).all())
@@ -527,6 +548,22 @@ def _link_chart_duplicates(db: Session) -> None:
     ]
     if changes:
         db.execute(update(Track), changes)
+
+
+def _find_banners(db: Session, root: Path) -> None:
+    """Notes a banner.jpg (or .png/.webp) in each chart/theme folder."""
+    for chart in db.scalars(select(Chart)):
+        found = None
+        try:
+            names = {e.name.casefold(): e.name for e in os.scandir(root / chart.folder_path) if e.is_file()}
+        except OSError:
+            continue  # unreadable now: keep what we had
+        for name in BANNER_NAMES:
+            if name in names:
+                found = str(Path(chart.folder_path) / names[name])
+                break
+        if chart.banner_file != found:
+            chart.banner_file = found
 
 
 def prune_orphans(db: Session) -> list[int]:

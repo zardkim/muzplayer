@@ -20,13 +20,12 @@ from sqlalchemy.orm import Session
 
 from .config import settings
 from .models import Book, ScanJob
-from .scanner import AUDIO_EXTS, BATCH, FOLDER_COVERS, _embedded_cover, _first, _pick, _read_tags, _walk, _year, nfc
+from .scanner import AUDIO_EXTS, BATCH, DISC_DIR, FOLDER_COVERS, _embedded_cover, _first, _pick, _read_tags, _walk, _year, nfc
 
 log = logging.getLogger(__name__)
 
 BOOK_EXTS = AUDIO_EXTS | {".m4b"}
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
-DISC_DIR = re.compile(r"^(?:cd|disc|disk)\s*[-_.]?\s*(\d+)$", re.IGNORECASE)
 # covers are usually 2:3 portraits: fit into these boxes, never crop
 BOOK_COVER_SIZES = {"thumb": (300, 450), "large": (1000, 1500)}
 # fields that come from tags/folders and that an import or a manual edit can pin

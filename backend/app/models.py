@@ -109,14 +109,18 @@ class LibraryFolder(Base):
 
 
 class Chart(Base):
-    """One chart week: a folder with audio files under a "chart" top-level folder."""
+    """One collection: a chart week under a "chart" top-level folder, or a theme
+    (e.g. "카페에서 듣기 좋은 노래") under a "theme" one. Either is a folder with audio files."""
 
     __tablename__ = "charts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), default="chart", server_default="chart")  # chart | theme
     folder_path: Mapped[str] = mapped_column(Text, unique=True)  # relative, as on disk
-    source: Mapped[str] = mapped_column(String(200), default="")  # e.g. 멜론, 벅스
+    # chart: where it comes from (멜론, 벅스); theme: its category folder (팝송), may be empty
+    source: Mapped[str] = mapped_column(String(200), default="")
     title: Mapped[str] = mapped_column(String(500))  # folder name
+    banner_file: Mapped[str | None] = mapped_column(Text)  # banner.jpg in the folder, relative to MUSIC_DIR
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -243,3 +247,19 @@ class BookProgress(Base):
     position: Mapped[float] = mapped_column(Float, default=0)  # seconds on the whole-book timeline
     finished: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Banner(Base):
+    """An AI-made banner image, kept by folder (or chart source) rather than by chart row:
+    chart rows go away when their files do, and the banner should be there when they return."""
+
+    __tablename__ = "banners"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(Text, unique=True)  # "folder:<folder_path>" | "source:<chart source>"
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    provider: Mapped[str] = mapped_column(String(32), default="")
+    model: Mapped[str] = mapped_column(String(100), default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

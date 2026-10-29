@@ -47,23 +47,43 @@ export interface ArtistDetail {
   tracks: Track[]
 }
 
+export type CollectionKind = 'chart' | 'theme'
+
+/** Where the banner image comes from; null on a collection means the page draws one from covers. */
+export interface CollectionBanner {
+  url: string
+  kind: 'ai' | 'folder'
+  scope: 'collection' | 'source'
+  id: number | null
+}
+
+/** A chart week or a theme. source: the chart's source (멜론), or the theme's category (may be empty). */
 export interface Chart {
   id: number
+  kind: CollectionKind
   title: string
   source: string
   track_count: number
   cover_album_id: number | null
+  cover_album_ids: number[]
+  banner: CollectionBanner | null
+  created_at: string
 }
 
-export interface ChartDetail {
-  id: number
-  title: string
-  source: string
-  track_count: number
+export interface ChartDetail extends Chart {
   tracks: Track[]
 }
 
-export type FolderKind = 'album' | 'compilation' | 'chart' | 'excluded'
+export interface CollectionsHome {
+  hero: Chart[]
+  sources: { source: string; total: number; items: Chart[] }[]
+  picks: Chart[]
+  categories: { category: string; total: number; items: Chart[] }[]
+  recent: Chart[]
+  counts: { charts: number; themes: number }
+}
+
+export type FolderKind = 'album' | 'compilation' | 'chart' | 'theme' | 'excluded'
 
 export interface LibraryFolder {
   path: string
@@ -71,6 +91,7 @@ export interface LibraryFolder {
   suggested: FolderKind | null
   track_count: number
   present: boolean
+  audiobooks: boolean // the AUDIOBOOK_PATH folder: never scanned as music
 }
 
 export interface Lyrics {

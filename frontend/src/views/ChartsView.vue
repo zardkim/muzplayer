@@ -11,6 +11,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const source = computed(() => (typeof route.query.source === 'string' ? route.query.source : ''))
+const kind = computed(() => (route.query.kind === 'theme' ? 'theme' : 'chart'))
 const items = ref<Chart[]>([])
 const sources = ref<string[]>([])
 const total = ref(0)
@@ -20,7 +21,7 @@ async function load() {
   loading.value = true
   try {
     const page = await api<{ items: Chart[]; total: number; sources: string[] }>(
-      `/charts${query({ source: source.value, limit: 120, offset: items.value.length })}`,
+      `/charts${query({ kind: kind.value, source: source.value, limit: 120, offset: items.value.length })}`,
     )
     items.value.push(...page.items)
     total.value = page.total
@@ -34,7 +35,7 @@ onMounted(load)
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader :title="t('charts.title')" :sub="t('charts.count', total)" />
+    <PageHeader :title="kind === 'theme' ? t('charts.themes') : t('charts.charts')" :sub="t(kind === 'theme' ? 'charts.themeCount' : 'charts.count', total)" />
     <div v-if="sources.length > 1" class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
       <button
         v-for="s in ['', ...sources]"
@@ -42,7 +43,7 @@ onMounted(load)
         type="button"
         class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
         :class="source === s ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg'"
-        @click="router.replace({ query: { source: s || undefined } })"
+        @click="router.replace({ query: { kind: kind === 'theme' ? 'theme' : undefined, source: s || undefined } })"
       >
         {{ s || t('charts.all') }}
       </button>

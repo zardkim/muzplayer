@@ -21,6 +21,7 @@ const hasMissing = ref(false)
 const autoScan = ref(0)
 const users = ref<User[]>([])
 const folders = ref<LibraryFolder[]>([])
+const aiStatus = ref<{ provider: string; model: string; configured: boolean; banners: number; without_banner: number } | null>(null)
 let poll: number | undefined
 
 async function loadScan() {
@@ -107,7 +108,7 @@ async function loadFolders() {
   folders.value = (await api<{ items: LibraryFolder[] }>('/admin/folders')).items
 }
 
-const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'excluded']
+const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'theme', 'excluded']
 async function setKind(folder: LibraryFolder, kind: FolderKind) {
   try {
     await api('/admin/folders', { method: 'PUT', body: { path: folder.path, kind } })
@@ -127,6 +128,7 @@ onMounted(() => {
   loadScan().catch((e) => ui.notify(errorMessage(e), true))
   loadUsers().catch((e) => ui.notify(errorMessage(e), true))
   loadFolders().catch((e) => ui.notify(errorMessage(e), true))
+  api<NonNullable<typeof aiStatus.value>>('/admin/banners/status').then((s) => (aiStatus.value = s), () => {})
   loadBooks().catch((e) => ui.notify(errorMessage(e), true))
 })
 onUnmounted(() => {
@@ -253,15 +255,17 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           <span class="flex min-w-0 flex-1 flex-col">
             <span class="truncate text-[15px]" :class="f.present ? '' : 'text-muted line-through'">{{ f.path }}</span>
             <span class="text-[13px] text-muted">
-              {{ f.present ? t('common.tracks', f.track_count) : t('admin.folderMissing') }}
-              <template v-if="f.suggested && f.suggested !== f.kind">
+              <template v-if="f.audiobooks">{{ t('admin.audiobookFolder') }}</template>
+              <template v-else>{{ f.present ? t('common.tracks', f.track_count) : t('admin.folderMissing') }}</template>
+              <template v-if="!f.audiobooks && f.suggested && f.suggested !== f.kind">
                 · {{ t('admin.suggested', { kind: t(`admin.folderKind_${f.suggested}`) }) }}
                 <button type="button" class="ml-1 text-accent underline" @click="setKind(f, f.suggested)">{{ t('admin.applySuggestion') }}</button>
               </template>
             </span>
           </span>
-          <label class="sr-only" :for="`kind-${f.path}`">{{ t('admin.kindCol') }}</label>
+          <label v-if="!f.audiobooks" class="sr-only" :for="`kind-${f.path}`">{{ t('admin.kindCol') }}</label>
           <select
+            v-if="!f.audiobooks"
             :id="`kind-${f.path}`"
             class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm"
             :value="f.kind"
@@ -272,6 +276,17 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         </li>
       </ul>
       <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
+    </section>
+
+    <section v-if="aiStatus" class="flex flex-col gap-2 rounded-2xl border border-line p-5 md:p-6">
+      <h2 class="text-xl font-bold">{{ t('admin.aiTitle') }}</h2>
+      <p class="text-sm font-light text-muted">{{ t('admin.aiDesc') }}</p>
+      <p class="text-[14px]">
+        <span :class="aiStatus.configured ? 'text-ink' : 'text-muted'">{{ aiStatus.configured ? t('admin.aiOn') : t('admin.aiOff') }}</span>
+        · {{ aiStatus.provider }} / <span class="font-display">{{ aiStatus.model }}</span>
+      </p>
+      <p class="text-[13px] text-muted">{{ t('admin.aiCounts', { banners: aiStatus.banners, without: aiStatus.without_banner }) }}</p>
+      <p v-if="!aiStatus.configured" class="text-[13px] leading-relaxed text-muted">{{ t('admin.aiHelp', { key: aiStatus.provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY' }) }}</p>
     </section>
 
     <section v-if="appConfig.audiobooks && bookStatus" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">

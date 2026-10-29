@@ -19,7 +19,7 @@
     "myMusic": "My music",
     "explore": "Explore",
     "songs": "Songs",
-    "charts": "Charts",
+    "charts": "Charts & Themes",
     "audiobooks": "Audiobooks"
   },
   "search": {
@@ -58,7 +58,15 @@
     "abs_invalid": "Check the Audiobookshelf address (http://…) and the API key.",
     "abs_unauthorized": "The API key is wrong or does not belong to an admin account.",
     "abs_unreachable": "Cannot reach Audiobookshelf. Check the address and port.",
-    "abs_bad_response": "Unexpected response from Audiobookshelf. Check its version."
+    "abs_bad_response": "Unexpected response from Audiobookshelf. Check its version.",
+    "ai_off": "No AI API key is set.",
+    "ai_busy": "Another image is being made. Try again shortly.",
+    "ai_unauthorized": "The AI API key is not valid.",
+    "ai_quota": "The AI usage limit was reached. Try again later.",
+    "ai_rejected": "The AI service did not accept the request. It may be the prompt or the model setting; the server log line \"ai banner\" has the actual reason.",
+    "ai_no_image": "The AI returned no image. Try a different prompt.",
+    "ai_unreachable": "Cannot reach the AI service.",
+    "ai_bad_response": "Could not read the AI service response."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -272,7 +280,7 @@
     "folderMissing": "Folder not found",
     "folderSaved": "Saved. Applies from the next scan.",
     "noFolders": "There are no folders under the music folder.",
-    "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)",
+    "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Themes: each folder of songs is one theme (a folder in between is its category, CD1/CD2 merge), kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)",
     "bookScanResult": "Audiobooks: {added} added · {updated} changed · {missing} missing",
     "audiobooks": "Audiobooks",
     "audiobooksFolder": "Audiobook folder: {folder}",
@@ -296,7 +304,15 @@
     "absRunning": "Importing… {done}/{total}",
     "absDone": "Import done: {books} books · {covers} covers · {progress} positions",
     "absFailed": "Import failed:",
-    "absFailedItems": "{n} books could not be imported"
+    "absFailedItems": "{n} books could not be imported",
+    "folderKind_theme": "Theme",
+    "audiobookFolder": "Audiobook folder (not scanned as music)",
+    "aiTitle": "AI banners",
+    "aiDesc": "Admins make and edit banner images with AI on chart and theme pages.",
+    "aiOn": "Ready",
+    "aiOff": "No API key",
+    "aiCounts": "{banners} AI banners · {without} collections without a banner (covers are used)",
+    "aiHelp": "Add {key} to .env and restart the app to use it. The key stays on the server, never in the page or the database."
   },
   "library": {
     "title": "My music",
@@ -309,14 +325,23 @@
     "title": "Explore",
     "genres": "Genres",
     "artists": "Artists",
-    "charts": "Charts"
+    "charts": "Charts & Themes"
   },
   "charts": {
-    "title": "Charts",
+    "title": "Charts & Themes",
     "count": "{n} charts",
     "all": "All",
-    "empty": "No charts yet. Mark a chart folder on the admin page and scan.",
-    "copyToPlaylist": "Add to my playlist"
+    "empty": "No charts or themes yet. Set chart and theme folders under Library folders in Admin, then scan.",
+    "copyToPlaylist": "Add to my playlist",
+    "charts": "Charts",
+    "themes": "Themes",
+    "chart": "Chart",
+    "theme": "Theme",
+    "themeCount": "{n} theme | {n} themes",
+    "sourceRow": "{source} chart",
+    "picks": "Today's themes",
+    "recent": "Recently added",
+    "featured": "Featured"
   },
   "books": {
     "title": "Audiobooks",
@@ -352,5 +377,28 @@
     "hoursMinutes": "{h}h {m}m",
     "hours": "{h}h",
     "minutes": "{m}m"
+  },
+  "banner": {
+    "button": "AI banner",
+    "title": "AI banner",
+    "working": "Making the image. This takes 10–30 seconds.",
+    "prompt": "Prompt",
+    "useCovers": "Send top song covers as reference",
+    "make": "Make",
+    "again": "Make another",
+    "apply": "Apply",
+    "edit": "Edit",
+    "editCandidate": "Edit this image",
+    "editCurrent": "Edit the current banner",
+    "editPlaceholder": "e.g. warmer colors, no people",
+    "scope": "Apply to",
+    "scopeCollection": "This collection only",
+    "scopeSource": "Every {source} chart week",
+    "applied": "Banner applied.",
+    "reset": "Back to the automatic banner",
+    "resetSource": "Remove the banner of every {source} week",
+    "resetDone": "Banner removed.",
+    "costNote": "Each make or edit is one paid image request. Titles are drawn by the app, not in the image.",
+    "appliedShadowed": "Applied. This week has its own banner, so that one stays visible."
   }
 }

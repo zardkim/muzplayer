@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, aliased
 from ..config import settings
 from ..db import get_db
 from ..lyrics import read_lyrics
-from ..models import Album, Artist, Chart, Favorite, Genre, Track, TrackGenre, User
+from ..models import Album, Artist, Favorite, Genre, Track, TrackGenre, User
 from ..scanner import COVER_SIZES, cover_file
 from ..security import api_error, current_user
 
@@ -272,72 +272,6 @@ def list_genres(_: User = Depends(current_user), db: Session = Depends(get_db)):
         .order_by(func.lower(Genre.name))
     )
     return {"items": [{"id": i, "name": n, "track_count": c} for i, n, c in rows]}
-
-
-def chart_count():
-    return (
-        select(func.count(Track.id)).where(Track.chart_id == Chart.id, present_tracks()).scalar_subquery()
-    )
-
-
-@router.get("/charts")
-def list_charts(
-    source: str = "",
-    limit: int = Query(200, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
-    _: User = Depends(current_user),
-    db: Session = Depends(get_db),
-):
-    """Chart weeks, newest folder name first. cover_album_id is the top-ranked track with a cover."""
-    count = chart_count()
-    conds = [count > 0]
-    if source:
-        conds.append(Chart.source == source)
-    base = select(Chart, count.label("track_count")).where(*conds)
-    total = db.scalar(select(func.count()).select_from(base.subquery()))
-    rows = db.execute(base.order_by(Chart.title.desc(), Chart.source, Chart.id).limit(limit).offset(offset)).all()
-    covers = dict(
-        db.execute(
-            select(Track.chart_id, Track.album_id)
-            .distinct(Track.chart_id)
-            .join(Album, Album.id == Track.album_id)
-            .where(Track.chart_id.in_([c.id for c, _ in rows]), present_tracks(), Album.cover_path.is_not(None))
-            .order_by(Track.chart_id, Track.chart_position.nulls_last(), Track.file_path)
-        ).all()
-    )
-    sources = db.scalars(
-        select(Chart.source).where(chart_count() > 0, Chart.source != "").distinct().order_by(Chart.source)
-    ).all()
-    return {
-        "items": [
-            {
-                "id": c.id,
-                "title": c.title,
-                "source": c.source,
-                "track_count": n,
-                "cover_album_id": covers.get(c.id),
-            }
-            for c, n in rows
-        ],
-        "total": total,
-        "sources": sources,
-    }
-
-
-@router.get("/charts/{chart_id}")
-def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    chart = db.get(Chart, chart_id)
-    if chart is None:
-        raise api_error(404, "not_found")
-    rows = db.execute(
-        track_query(user.id)
-        .where(Track.chart_id == chart_id, present_tracks())
-        .order_by(Track.chart_position.nulls_last(), Track.file_path)
-    )
-    tracks = [{**track_out(r), "chart_position": r[0].chart_position} for r in rows]
-    if not tracks:
-        raise api_error(404, "not_found")
-    return {"id": chart.id, "title": chart.title, "source": chart.source, "track_count": len(tracks), "tracks": tracks}
 
 
 def track_file(db: Session, track_id: int) -> tuple[Track, str]:

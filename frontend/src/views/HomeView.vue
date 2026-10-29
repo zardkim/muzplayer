@@ -7,8 +7,9 @@ import { appConfig } from '../config'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
-import type { Album, Book, Page, Track } from '../types'
+import type { Album, Book, Chart, CollectionsHome, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import BannerCarousel from '../components/BannerCarousel.vue'
 import BookGrid from '../components/BookGrid.vue'
 import CoverArt from '../components/CoverArt.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -21,6 +22,7 @@ const player = usePlayer()
 const history = ref<Track[]>([])
 const albums = ref<Album[]>([])
 const listening = ref<Book[]>([])
+const featured = ref<Chart[]>([])
 const loaded = ref(false)
 const tab = ref<'recent' | 'new' | 'playlists'>('recent')
 
@@ -32,6 +34,7 @@ onMounted(async () => {
   history.value = h.items
   albums.value = a.items
   loaded.value = true
+  api<CollectionsHome>('/collections/home').then((c) => (featured.value = c.hero), () => {})
   if (appConfig.audiobooks) listening.value = (await api<{ items: Book[] }>('/books/continue').catch(() => ({ items: [] }))).items
 })
 
@@ -62,6 +65,8 @@ const tabs = computed(() => [
 <template>
   <div class="flex flex-col gap-7">
     <PageHeader :title="t('nav.home')" />
+
+    <BannerCarousel v-if="featured.length" :items="featured" size="compact" />
 
     <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
       <button

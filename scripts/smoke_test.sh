@@ -35,6 +35,7 @@ curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
 check "charts list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/charts")" 200
+check "charts & themes page" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/collections/home")" 200
 check "folder kinds list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/folders")" 200
 
 # second user cannot see the first user's playlist

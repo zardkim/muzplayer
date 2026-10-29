@@ -1,6 +1,6 @@
 # 개인 NAS 다중 사용자 음악 플레이어 개발 계획서
 
-- **문서 버전:** 1.11
+- **문서 버전:** 1.12
 - **작성일:** 2026-10-29
 - **대상 환경:** Synology DS218+ / DSM 7 / Container Manager
 - **프로젝트명:** muzplayer (화면 표시명·저장소·이미지 이름 모두 동일)
@@ -842,9 +842,9 @@ audiobooks/
 
 ---
 
-## 14. 차트·테마 모음 페이지 (계획)
+## 14. 차트·테마 모음 페이지
 
-> 상태: **계획**. 12장 1단계의 차트 기능을 넓혀 테마 모음을 추가하고, 차트·테마를 배너 슬라이드와 추천 줄로 보여 주는 페이지를 만든다. 배너는 AI(기본 Gemini)로 만들고 고친다.
+> 상태: **구현 완료(0.5.0)**. 실제 AI 키로는 아직 시험하지 않았다(가짜 서버로 요청·응답 형식만 확인). 12장 1단계의 차트 기능을 넓혀 테마 모음을 추가하고, 차트·테마를 배너 슬라이드와 추천 줄로 보여 주는 페이지를 만든다. 배너는 AI(기본 Gemini)로 만들고 고친다.
 
 ### 14.1 목표
 
@@ -883,14 +883,14 @@ music/                         ← MUSIC_PATH
 
 | 대상 | 변경 |
 |---|---|
-| `charts` | `kind`(chart·theme, 기본 chart), `category`(테마 분류, 빈 값 가능) 추가 |
-| `banners` (신규) | `id`, `folder_path`(모음 폴더) 또는 `source`(차트 출처) 중 하나, `prompt`, `provider`, `model`, `created_by`, `created_at`. 이미지는 `covers/banner_{id}.jpg` |
+| `charts` | `kind`(chart·theme, 기본 chart), `banner_file`(폴더의 banner 이미지 경로) 추가. 테마 분류는 새 칸 없이 `source`에 넣는다(차트는 출처, 테마는 분류) |
+| `banners` (신규) | `id`, `key`(`folder:<모음 폴더>` 또는 `source:<차트 출처>`), `prompt`, `provider`, `model`, `updated_at`. 이미지는 `covers/banner_{id}.jpg` |
 | `library_folders.kind` | `theme` 값 추가 |
 
 - 테이블을 새로 만들지 않고 `charts`를 넓힌다. 차트 상세·재생·"내 플레이리스트로 복사"를 그대로 쓴다.
 - 지금의 차트 폴더는 `kind=chart`로 그대로 남는다. 테마 폴더로 지정한 뒤 스캔하면 곡이 다시 분류된다(12.5와 같은 방식, 파일을 다시 읽지 않음).
 - 배너는 `charts` 행이 아니라 **폴더 경로**에 연결한다. 차트 행은 곡이 잠시 없어지면 지워지는데, 그 뒤 폴더가 돌아와도 배너가 그대로 붙어 있게 하기 위해서다.
-- 마이그레이션 `0004`(0.4.0의 `0003` 다음).
+- 마이그레이션 `0004`(0.4.0의 `0003` 다음). 기존 차트 행은 `kind=chart`가 된다.
 
 ### 14.4 배너
 
@@ -898,8 +898,8 @@ music/                         ← MUSIC_PATH
 
 1. 그 모음에 만든 AI 배너
 2. 차트의 경우 **출처 배너**(예: "멜론 차트" 배너 하나를 모든 주차가 같이 씀). 매주 새 주차가 생겨도 배너를 다시 만들 필요가 없다.
-3. 모음 폴더의 `banner.jpg`(·`.png`·`.webp`)
-4. 자동 배너: 상위 곡 커버 4~5장과 1위 커버의 대표 색 그라데이션. 브라우저가 그린다(비용 없음).
+3. 모음 폴더의 `banner.jpg`(·`.png`·`.webp`). 스캔할 때 있는지만 기록하고 원본을 그대로 보낸다.
+4. 자동 배너: 상위 곡 커버 4장과 1위 커버의 대표 색 그라데이션. 브라우저가 그리고, 대표 색도 브라우저가 커버 썸네일에서 계산한다(DB 칸 없음, 비용 없음).
 
 제목·출처·곡 수 글자는 어느 배너든 **이미지 위에 HTML로 얹는다.** AI 이미지에는 글자를 넣지 않도록 지시한다. 한글 글자는 이미지 생성에서 틀리게 나오는 경우가 있고, HTML 글자는 선명하고 한국어·영어가 바뀐다.
 
@@ -955,9 +955,12 @@ music/                         ← MUSIC_PATH
 | 메서드 | 경로 | 기능 |
 |---|---|---|
 | GET | `/collections/home` | 모음 페이지 한 번에: 배너 목록, 출처별 차트 줄, 추천 테마, 분류별 줄, 최근 추가 |
-| GET | `/charts?kind=&source=&category=` | 목록(기존에 kind·category 거르기 추가). 항목에 배너 URL 또는 자동 배너용 커버 앨범 id 5개·대표 색 |
+| GET | `/charts?kind=&source=` | 목록(kind 거르기 추가, 테마는 source가 분류). 항목에 배너 정보와 자동 배너용 커버 앨범 id 5개 |
 | GET | `/charts/{id}` | 상세(기존 + kind·category·배너 정보) |
-| GET | `/banners/{id}` | 배너 이미지 |
+| GET | `/banners/{id}` | AI 배너 이미지 |
+| GET | `/charts/{id}/folder-banner` | 폴더의 banner 이미지 |
+| GET | `/admin/banners/status` | 제공자·모델·키 유무·배너 없는 모음 수 |
+| GET | `/admin/banners/candidates/{token}` | 적용 전 후보 이미지 |
 | GET | `/admin/banners/prompt?chart_id=` | 프롬프트 초안 |
 | POST | `/admin/banners/generate` | `{chart_id, prompt, use_covers, edit_from?, instruction?}` → 후보 이미지 id |
 | POST | `/admin/banners` | 후보 적용 `{candidate, chart_id, scope: collection·source}` |
@@ -985,6 +988,7 @@ music/                         ← MUSIC_PATH
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| 1.12 | 2026-10-29 | 14장 구현(0.5.0): 테마 폴더 종류·분류·CD 합치기, 대표 곡은 차트 우선, 차트·테마 페이지(배너 슬라이드·출처별·추천·분류별·최근), 홈 배너, AI 배너(Gemini 기본·OpenAI, 만들기·말로 고치기·출처 전체 적용·되돌리기), 폴더 `banner.jpg`. 계획과 다른 점: 분류는 `charts.source`에 저장, 대표 색은 브라우저에서 계산, `banner.jpg`는 원본 그대로 |
 | 1.11 | 2026-10-29 | 차트·테마 모음 계획 추가(14장): 최상위 폴더 종류 `테마`(`chart music`·`theme music` 폴더에 종류 지정), `charts`에 kind·분류, 배너 슬라이드 모음 페이지. 배너는 관리자가 AI(기본 Gemini, OpenAI 선택)로 만들고 말로 고침, 차트는 출처 배너 공용, 없으면 `banner.jpg` → 커버 자동 배너. 글자는 HTML로 얹음 |
 | 1.10 | 2026-10-29 | 13장 1단계(0.4.0) 구현: 오디오북 스캔·재생·이어 듣기, 책 모드 플레이어(건너뛰기·챕터·속도·취침 타이머·잠금화면 ±초), Audiobookshelf 가져오기. 설정 이름은 `AUDIOBOOK_PATH` 하나. 완료 판정은 끝에서 30초 이내이되 책 길이의 2% 이하 |
 | 1.9 | 2026-10-29 | 오디오북 계획 추가(13장): ABS를 대체하는 방향. `AUDIOBOOK_PATH` 읽기 전용 마운트와 직접 스캔·재생(태그·내장 챕터·폴더 규칙), ABS 메타데이터·챕터·커버·사용자별 위치 일회성 가져오기, `books`·`book_progress`, 책 모드 플레이어(±건너뛰기·챕터·속도·취침 타이머·잠금화면), ABS 2.37.2 실측 결과 |

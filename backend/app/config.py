@@ -33,6 +33,12 @@ class Settings:
     admin_username: str = os.getenv("ADMIN_USERNAME", "")
     admin_password: str = os.getenv("ADMIN_PASSWORD", "")
     version: str = os.getenv("APP_VERSION", "dev")
+    # AI banner images for charts/themes; without a key the AI buttons are hidden
+    ai_provider: str = os.getenv("AI_PROVIDER", "gemini").strip().lower() or "gemini"
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
+    gemini_image_model: str = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-nano-banana-2.1"
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
+    openai_image_model: str = os.getenv("OPENAI_IMAGE_MODEL", "").strip() or "gpt-image-2.5-flare"
 
     @property
     def cover_dir(self) -> Path:

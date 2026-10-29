@@ -88,6 +88,8 @@ def suggest_kind(name: str) -> str | None:
     n = name.casefold()
     if "차트" in n or "chart" in n:
         return "chart"
+    if any(w in n for w in ("테마", "theme", "모음", "playlist")):
+        return "theme"
     if any(w in n for w in ("컴필", "옴니버스", "compilation", "various", "omnibus", "soundtrack")) or re.search(
         r"(?<![a-z])ost(?![a-z])", n
     ):
@@ -113,6 +115,10 @@ def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     )
     for name, count in rows:
         counts[nfc(name)] = counts.get(nfc(name), 0) + count
+    books = settings.audiobook_dir
+    books_top = None  # the audiobook folder when it sits right inside the music folder (never scanned as music)
+    if books is not None and os.path.normpath(books.parent) == os.path.normpath(settings.music_dir):
+        books_top = nfc(books.name)
     items = [
         {
             "path": name,
@@ -120,6 +126,7 @@ def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db)):
             "suggested": suggest_kind(name),
             "track_count": counts.get(name, 0),
             "present": name in names,
+            "audiobooks": name == books_top,
         }
         for name in sorted(names | set(kinds), key=str.casefold)
     ]
