@@ -236,5 +236,5 @@ docker compose start app
 
 ## 개발
 
-개발 환경, 구조, 빌드·릴리스, 테스트는 이 저장소의 **위키**에 있습니다. 기능 계획과 변경 이력은
+개발 환경, 구조, 빌드·릴리스, 테스트는 [위키](https://gitea.nurilab.pe.kr/nuricom/muzplayer/wiki)에 있습니다. 기능 계획과 변경 이력은
 [music_player_plan.md](music_player_plan.md), 화면 디자인 기준은 [docs/design.md](docs/design.md)에 있습니다.
