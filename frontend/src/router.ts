@@ -1,6 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationRaw } from 'vue-router'
 import { appConfig } from './config'
 import { useAuth } from './stores/auth'
+
+// the library menu's tabs (LibraryHeader.vue), in order
+export const LIBRARY_ROUTES = ['albums', 'artists', 'tracks', 'genres', 'folders'] as const
+export type LibraryRoute = (typeof LIBRARY_ROUTES)[number]
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +24,8 @@ export const router = createRouter({
     { path: '/books', name: 'books', component: () => import('./views/BooksView.vue'), meta: { books: true } },
     { path: '/books/:id', name: 'book', component: () => import('./views/BookView.vue'), props: true, meta: { books: true } },
     { path: '/genres', name: 'genres', component: () => import('./views/GenresView.vue') },
+    { path: '/folders', name: 'folders', component: () => import('./views/FoldersView.vue') },
+    { path: '/playing', name: 'playing', component: () => import('./views/PlayingView.vue') },
     { path: '/playlists', name: 'playlists', component: () => import('./views/PlaylistsView.vue') },
     { path: '/playlists/:id', name: 'playlist', component: () => import('./views/PlaylistView.vue'), props: true },
     { path: '/mixes/:mixKey', name: 'mix', component: () => import('./views/MixView.vue'), props: true },
@@ -42,3 +48,9 @@ router.beforeEach(async (to) => {
   if (to.meta.books && !appConfig.audiobooks) return { name: 'home' }
   return true
 })
+
+// Back within the app; a page opened directly (a link, a reload with no earlier page) goes to fallback.
+export function goBack(fallback: RouteLocationRaw = '/') {
+  if (window.history.state?.back) router.back()
+  else router.push(fallback)
+}

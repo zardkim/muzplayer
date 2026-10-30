@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { BookHeadphones, ChartNoAxesColumn, ChevronUp, Disc3, Heart, History, House, ListMusic, MicVocal, Music, PanelLeftClose, PanelLeftOpen, Search, Tag, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
+import { useOverlayHistory } from './overlayHistory'
+import { openPlayer } from './playerNav'
+import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
@@ -12,10 +15,8 @@ import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
-import LanguageSwitch from './components/LanguageSwitch.vue'
 import CoverArt from './components/CoverArt.vue'
 import NowPlaying from './components/NowPlaying.vue'
-import NowPlayingDesktop from './components/NowPlayingDesktop.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import PlaylistPicker from './components/PlaylistPicker.vue'
@@ -43,8 +44,8 @@ setUnauthorizedHandler(() => {
 // Lists stay alive when you go into an album and come back: no reload, same scroll position.
 // They are dropped when the library changed (a scan, a banner), checked at most once a minute.
 // (home is left out: its recently played row changes as you listen)
-const KEPT = ['SearchView', 'AlbumsView', 'ArtistsView', 'TracksView', 'GenresView', 'CollectionsView', 'ChartsView', 'BooksView', 'MixView']
-const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'genres', 'charts', 'chart-list', 'books', 'mix']
+const KEPT = ['SearchView', 'AlbumsView', 'ArtistsView', 'TracksView', 'GenresView', 'FoldersView', 'CollectionsView', 'ChartsView', 'BooksView', 'MixView']
+const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'genres', 'folders', 'charts', 'chart-list', 'books', 'mix']
 const mainEl = ref<HTMLElement | null>(null)
 const keepKey = ref(0)
 const scrolls = new Map<string, number>()
@@ -81,7 +82,22 @@ watch(
 router.beforeEach((_to, from) => {
   if (mainEl.value) scrolls.set(from.fullPath, mainEl.value.scrollTop)
 })
-router.afterEach(async (to) => {
+useOverlayHistory(router, [
+  { open: () => ui.playerOpen, close: () => (ui.playerOpen = false) },
+  { open: () => ui.queueOpen, close: () => (ui.queueOpen = false) },
+  { open: () => !!ui.playlistPicker, close: () => (ui.playlistPicker = null) },
+  { open: () => !!ui.videoTarget, close: () => (ui.videoTarget = null) },
+])
+
+router.afterEach(async (to, from, failure) => {
+  // a link to the page already showing (e.g. the album, from the player over it) still closes the sheets
+  if (isNavigationFailure(failure, NavigationFailureType.duplicated)) {
+    ui.playerOpen = false
+    ui.queueOpen = false
+  }
+  if (failure || to.fullPath === from.fullPath) return // e.g. back closing a sheet: the page stays as it is
+  // (a genre's songs is a page of its own, without the tabs: not a place to come back to)
+  if (LIBRARY_ROUTES.includes(to.name as (typeof LIBRARY_ROUTES)[number]) && !to.query.genre) ui.views = { ...ui.views, library: to.fullPath }
   await nextTick()
   if (mainEl.value) mainEl.value.scrollTop = KEPT_ROUTES.includes(String(to.name)) ? scrolls.get(to.fullPath) ?? 0 : 0
   if (!auth.user || Date.now() - ui.libraryCheckedAt < 60_000) return
@@ -99,34 +115,56 @@ function search() {
   if (q) router.push({ name: 'search', query: { q } })
 }
 
-const books = { to: '/books', label: 'nav.audiobooks', icon: BookHeadphones }
+// the library menu (albums, artists, songs, genres, folders) opens on the tab used last
+const inLibrary = computed(() => LIBRARY_ROUTES.includes(route.name as (typeof LIBRARY_ROUTES)[number]))
+const libraryItem = computed(() => ({ key: 'library', to: ui.views.library || '/albums', label: 'nav.libraryMenu', icon: LibraryBig }))
+const books = { key: 'books', to: '/books', label: 'nav.audiobooks', icon: BookHeadphones }
 const sideNav = computed(() => [
-  { to: '/', label: 'nav.home', icon: House },
-  { to: '/albums', label: 'nav.albums', icon: Disc3 },
-  { to: '/artists', label: 'nav.artists', icon: MicVocal },
-  { to: '/tracks', label: 'nav.songs', icon: Music },
-  { to: '/genres', label: 'nav.genres', icon: Tag },
-  { to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
+  { key: 'home', to: '/', label: 'nav.home', icon: House },
+  libraryItem.value,
+  { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   ...(appConfig.audiobooks ? [books] : []),
-  { to: '/favorites', label: 'nav.favorites', icon: Heart },
-  { to: '/history', label: 'nav.history', icon: History },
-  { to: '/library', label: 'nav.myMusic', icon: User },
+  { key: 'favorites', to: '/favorites', label: 'nav.favorites', icon: Heart },
+  { key: 'history', to: '/history', label: 'nav.history', icon: History },
+  { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
 ])
 const tabs = computed(() => [
-  { to: '/', label: 'nav.home', icon: House },
-  { to: '/albums', label: 'nav.albums', icon: Disc3 },
+  { key: 'home', to: '/', label: 'nav.home', icon: House },
+  libraryItem.value,
   ...(appConfig.audiobooks ? [books] : []),
-  { to: '/library', label: 'nav.myMusic', icon: User },
-  { to: '/search', label: 'nav.explore', icon: Search },
-  { to: '/tracks', label: 'nav.songs', icon: Music },
+  { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
+  { key: 'explore', to: '/search', label: 'nav.explore', icon: Search },
 ])
 const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/settings', '/admin']
-function active(to: string) {
-  if (to === '/') return route.path === '/'
-  if (to === '/library') return myMusicPaths.some((p) => route.path.startsWith(p))
-  if (to === '/search') return ['/search', '/genres', '/artists', '/charts'].some((p) => route.path.startsWith(p))
+function active(key: string, to: string) {
+  if (key === 'library') return inLibrary.value
+  if (key === 'home') return route.path === '/'
+  if (key === 'mymusic') return myMusicPaths.some((p) => route.path.startsWith(p))
+  if (key === 'explore') return ['/search', '/charts'].some((p) => route.path.startsWith(p))
   return route.path.startsWith(to)
 }
+
+// back / forward: arrows in the PC top bar; on phones a back button above pages below the tabs
+// (an installed app has no browser buttons). Read again on every page change.
+const canBack = computed(() => (route.fullPath, !!window.history.state?.back))
+const canForward = computed(() => (route.fullPath, !!window.history.state?.forward))
+const TOP_PAGES = ['home', 'albums', 'artists', 'tracks', 'genres', 'folders', 'books', 'library', 'search']
+const showBack = computed(
+  () => !TOP_PAGES.includes(String(route.name)) || (route.name === 'folders' && !!route.query.path) || (route.name === 'tracks' && !!route.query.genre),
+)
+// where back goes when there is no earlier page (opened from a link or after a reload)
+function parentPage(): RouteLocationRaw {
+  const path = typeof route.query.path === 'string' ? route.query.path : ''
+  if (route.name === 'folders' && path.includes('/')) return { name: 'folders', query: { path: path.slice(0, path.lastIndexOf('/')) } }
+  const parents: Record<string, string> = {
+    album: '/albums', artist: '/artists', folders: '/folders', tracks: '/genres', playlist: '/playlists', chart: '/charts',
+    'chart-list': '/charts', book: '/books', mix: '/library', playlists: '/library', favorites: '/library', history: '/library',
+    settings: '/library', admin: '/library',
+  }
+  return parents[String(route.name)] ?? '/'
+}
+// the PC player page keeps the bar (it holds the controls)
+const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 </script>
 
 <template>
@@ -155,11 +193,11 @@ function active(to: string) {
       </div>
       <RouterLink
         v-for="item in sideNav"
-        :key="item.to"
+        :key="item.key"
         :to="item.to"
         class="flex h-11 flex-none items-center gap-3 rounded-full text-base"
         :class="[
-          (item.to === '/library' ? route.path === '/library' : active(item.to)) ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface',
+          (item.key === 'mymusic' ? route.path === '/library' : active(item.key, item.to)) ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface',
           ui.sidebarCollapsed ? 'justify-center' : 'px-3.5',
         ]"
         :title="ui.sidebarCollapsed ? t(item.label) : undefined"
@@ -171,7 +209,7 @@ function active(to: string) {
         v-if="ui.sidebarCollapsed"
         to="/playlists"
         class="mt-4 flex h-11 flex-none items-center justify-center rounded-full font-light hover:bg-surface"
-        :class="active('/playlists') ? 'bg-surface-2' : ''"
+        :class="active('playlists', '/playlists') ? 'bg-surface-2' : ''"
         :title="t('nav.playlists')"
         :aria-label="t('nav.playlists')"
       >
@@ -195,7 +233,7 @@ function active(to: string) {
         v-if="auth.user.is_admin"
         to="/admin"
         class="flex h-11 flex-none items-center gap-3 rounded-full text-[15px]"
-        :class="[active('/admin') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
+        :class="[active('admin', '/admin') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
         :title="ui.sidebarCollapsed ? t('nav.admin') : undefined"
         :aria-label="ui.sidebarCollapsed ? t('nav.admin') : undefined"
       >
@@ -206,19 +244,27 @@ function active(to: string) {
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- desktop top bar -->
       <header class="hidden items-center justify-between gap-4 px-12 pb-1 pt-6 md:flex">
+        <div class="flex flex-none items-center gap-1.5">
+          <button type="button" class="grid size-10 place-items-center rounded-full bg-surface disabled:opacity-40" :disabled="!canBack && !showBack" :aria-label="t('nav.back')" :title="t('nav.back')" @click="goBack(parentPage())">
+            <ArrowLeft :size="19" :stroke-width="1.6" />
+          </button>
+          <button type="button" class="grid size-10 place-items-center rounded-full bg-surface disabled:opacity-40" :disabled="!canForward" :aria-label="t('nav.forward')" :title="t('nav.forward')" @click="router.forward()">
+            <ArrowRight :size="19" :stroke-width="1.6" />
+          </button>
+        </div>
         <form role="search" class="flex h-[46px] max-w-[420px] flex-1 items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="search">
           <Search :size="20" :stroke-width="1.4" class="text-muted" aria-hidden="true" />
           <label for="top-search" class="sr-only">{{ t('search.label') }}</label>
           <input id="top-search" v-model="searchText" type="search" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 bg-transparent text-[15px] font-light outline-none placeholder:text-muted" />
         </form>
-        <div class="flex items-center gap-3">
-          <LanguageSwitch compact />
-          <AccountMenu avatar />
-        </div>
+        <AccountMenu avatar />
       </header>
 
       <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
-        :class="ui.barHidden ? 'md:pb-24' : 'md:pb-36'">
+        :class="barHidden ? 'md:pb-24' : 'md:pb-36'">
+        <button v-if="showBack" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
+          <ChevronLeft :size="28" :stroke-width="1.5" />
+        </button>
         <RouterView v-slot="{ Component, route: r }">
           <KeepAlive :key="keepKey" :include="KEPT" :max="8">
             <component :is="Component" :key="r.fullPath" />
@@ -227,12 +273,12 @@ function active(to: string) {
       </main>
 
       <!-- desktop floating player; tucked away, a small button brings it back -->
-      <div v-if="!ui.barHidden" class="pointer-events-none absolute inset-x-0 bottom-5 hidden justify-center px-8 md:flex">
+      <div v-if="!barHidden" class="pointer-events-none absolute inset-x-0 bottom-5 hidden justify-center px-8 md:flex">
         <div class="pointer-events-auto w-full max-w-[1040px]"><PlayerBar /></div>
       </div>
       <div v-else class="absolute bottom-5 right-8 hidden md:block">
         <div class="glass flex h-14 items-center gap-1 rounded-full pl-1.5 pr-1">
-          <button v-if="player.current && player.mode === 'music'" type="button" class="size-11" :aria-label="t('player.open')" @click="ui.playerOpen = true">
+          <button v-if="player.current && player.mode === 'music'" type="button" class="size-11" :aria-label="t('player.open')" @click="openPlayer()">
             <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
           </button>
           <button v-if="player.current || player.book" type="button" class="grid size-11 place-items-center rounded-full hover:bg-surface" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
@@ -247,23 +293,22 @@ function active(to: string) {
       <!-- phone: floating mini player + tab bar -->
       <div class="bottom-safe pointer-events-none fixed inset-x-3 z-30 flex flex-col gap-2.5 md:hidden">
         <div class="pointer-events-auto"><PlayerBar mobile /></div>
-        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] items-center rounded-full px-1.5" :class="tabs.length > 5 ? 'grid-cols-6' : 'grid-cols-5'">
+        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] items-center rounded-full px-1.5" :style="{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }">
           <RouterLink
             v-for="tab in tabs"
-            :key="tab.to"
+            :key="tab.key"
             :to="tab.to"
             class="flex h-[60px] flex-col items-center justify-center gap-[3px] rounded-full text-[11px]"
-            :class="active(tab.to) ? 'bg-surface-2 font-medium' : ''"
-            :aria-current="active(tab.to) ? 'page' : undefined"
+            :class="active(tab.key, tab.to) ? 'bg-surface-2 font-medium' : ''"
+            :aria-current="active(tab.key, tab.to) ? 'page' : undefined"
           >
-            <component :is="tab.icon" :size="24" :stroke-width="active(tab.to) ? 2 : 1.4" />{{ t(tab.label) }}
+            <component :is="tab.icon" :size="24" :stroke-width="active(tab.key, tab.to) ? 2 : 1.4" />{{ t(tab.label) }}
           </RouterLink>
         </nav>
       </div>
     </div>
 
     <BookPlayer v-if="ui.playerOpen && player.mode === 'book'" />
-    <NowPlayingDesktop v-else-if="ui.playerOpen && ui.wide" />
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
@@ -277,7 +322,7 @@ function active(to: string) {
     :class="[
       ui.toast.error ? 'bg-danger' : 'bg-ink',
       // the full player covers the bottom with its controls: show it at the top instead
-      ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : ui.barHidden ? 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
+      ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : barHidden ? 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
     ]"
   >
     {{ ui.toast.text }}

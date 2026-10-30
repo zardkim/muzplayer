@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
-import PageHeader from '../components/PageHeader.vue'
+import LibraryHeader from '../components/LibraryHeader.vue'
 
 // Genres as colour tiles: each genre keeps its own colour (from its name), with the covers of
 // its biggest albums fanned out in the corner. The largest genres get wide tiles up top.
@@ -41,8 +41,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <PageHeader :title="t('genres.title')" :sub="loaded && items.length ? t('genres.count', items.length) : undefined" />
+    <LibraryHeader :sub="loaded && items.length ? t('genres.count', items.length) : undefined">
       <div class="flex gap-1 text-[14px]">
         <button
           v-for="s in (['size', 'name'] as const)"
@@ -55,7 +54,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
           {{ t(`genres.sort_${s}`) }}
         </button>
       </div>
-    </div>
+    </LibraryHeader>
     <p v-if="loaded && !items.length" class="font-light text-muted">{{ t('genres.empty') }}</p>
 
     <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">

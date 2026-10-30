@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, query } from '../api'
 import type { Album, Page } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
-import PageHeader from '../components/PageHeader.vue'
+import LibraryHeader from '../components/LibraryHeader.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
 import type { ViewMode } from '../types'
@@ -57,7 +57,7 @@ const sorts = [
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader :title="t('albums.title')" :sub="t('albums.count', total)" />
+    <LibraryHeader :sub="t('albums.count', total)" />
     <div class="flex flex-col gap-2.5">
       <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
         <button

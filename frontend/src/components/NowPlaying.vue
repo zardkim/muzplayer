@@ -125,8 +125,8 @@ function touchEnd(e: TouchEvent) {
               <EllipsisVertical :size="22" :stroke-width="1.3" />
             </button>
             <div v-if="menu" class="absolute bottom-12 right-0 z-10 flex w-52 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl">
-              <RouterLink v-if="player.current.album_id && player.current.album_kind !== 'chart'" :to="{ name: 'album', params: { id: player.current.album_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToAlbum') }}</RouterLink>
-              <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToArtist') }}</RouterLink>
+              <RouterLink v-if="player.current.album_id && player.current.album_kind !== 'chart'" :to="{ name: 'album', params: { id: player.current.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menu = false">{{ t('common.goToAlbum') }}</RouterLink>
+              <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menu = false">{{ t('common.goToArtist') }}</RouterLink>
               <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos">{{ t('common.watchVideos') }}</button>
             </div>
           </div>

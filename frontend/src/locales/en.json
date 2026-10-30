@@ -22,7 +22,11 @@
     "charts": "Charts & Themes",
     "audiobooks": "Audiobooks",
     "expandMenu": "Expand menu",
-    "collapseMenu": "Collapse menu"
+    "collapseMenu": "Collapse menu",
+    "libraryMenu": "Library",
+    "folders": "Folders",
+    "back": "Back",
+    "forward": "Forward"
   },
   "search": {
     "label": "Search",
@@ -446,8 +450,6 @@
   "library": {
     "title": "My music",
     "playFavorites": "Play all liked songs",
-    "artistsCount": "{n}",
-    "genresCount": "{n}",
     "tracksCount": "{n}",
     "mixes": "Made for you",
     "likedAlbums": "Liked albums"
@@ -643,5 +645,11 @@
     "removeConfirm": "Remove ‘{title}’ from the list?",
     "resumeMusic": "Resume music",
     "minutes": "{m}:{s}"
+  },
+  "folders": {
+    "root": "Music",
+    "path": "Folder path",
+    "count": "{n} folder | {n} folders",
+    "empty": "No songs in this folder."
   }
 }

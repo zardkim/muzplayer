@@ -22,7 +22,11 @@
     "charts": "차트·테마",
     "audiobooks": "오디오북",
     "expandMenu": "메뉴 펼치기",
-    "collapseMenu": "메뉴 접기"
+    "collapseMenu": "메뉴 접기",
+    "libraryMenu": "라이브러리",
+    "folders": "폴더",
+    "back": "뒤로",
+    "forward": "앞으로"
   },
   "search": {
     "label": "검색",
@@ -446,8 +450,6 @@
   "library": {
     "title": "내 음악",
     "playFavorites": "좋아요 표시한 곡 전체 재생",
-    "artistsCount": "{n}명",
-    "genresCount": "{n}개",
     "tracksCount": "{n}곡",
     "mixes": "나를 위한 믹스",
     "likedAlbums": "좋아요 표시한 앨범"
@@ -643,5 +645,11 @@
     "removeConfirm": "‘{title}’ 영상을 목록에서 뺄까요?",
     "resumeMusic": "음악 이어 듣기",
     "minutes": "{m}:{s}"
+  },
+  "folders": {
+    "root": "음악",
+    "path": "폴더 위치",
+    "count": "폴더 {n}개",
+    "empty": "이 폴더에는 곡이 없습니다."
   }
 }

@@ -77,7 +77,7 @@ function touchEnd(e: TouchEvent) {
 
       <div class="mt-4 flex flex-col items-center gap-1 text-center">
         <span class="line-clamp-2 text-[22px] font-medium leading-snug">{{ player.chapter?.title || player.book.title }}</span>
-        <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="line-clamp-1 text-[15px] font-light text-[#52525B]" @click="ui.playerOpen = false">
+        <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="line-clamp-1 text-[15px] font-light text-[#52525B]">
           {{ player.chapter ? player.book.title : player.book.authors || t('books.unknownAuthor') }}
         </RouterLink>
       </div>

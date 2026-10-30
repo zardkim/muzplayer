@@ -69,6 +69,17 @@ check "folder rescan keeps song ids" "$(curl -s -b "$A" "$BASE/tracks?limit=500"
 check "rescan of everything is refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/scan" -H 'content-type: application/json' -d '{"mode":"reset"}')" 400
 check "reset impact counted" "$(curl -s -b "$A" -G --data-urlencode "path=$top" "$BASE/admin/folders/impact" | j 'd["tracks"] > 0')" True
 check "genres carry cover albums" "$(curl -s -b "$A" "$BASE/genres" | j 'all("covers" in g for g in d["items"])')" True
+check "folder view lists the top folders" "$(curl -s -b "$A" "$BASE/folders" | j 'len(d["folders"]) > 0')" True
+# down the first subfolder until a level holds songs
+fpath=""; ftracks=0
+for _ in 1 2 3 4 5 6; do
+  level=$(curl -s -b "$A" -G --data-urlencode "path=$fpath" "$BASE/folders")
+  ftracks=$(echo "$level" | j 'len(d["tracks"])')
+  [ "$ftracks" -gt 0 ] && break
+  fpath=$(echo "$level" | j 'd["folders"][0]["path"] if d["folders"] else ""')
+  [ -z "$fpath" ] && break
+done
+check "folder view reaches songs" "$([ "$ftracks" -gt 0 ] && echo yes)" yes
 check "artist photo status" "$(curl -s -b "$A" "$BASE/admin/artist-images/status" | j '"with_photo" in d')" True
 check "model list needs a saved key" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/integrations/models?provider=gemini")" 400
 

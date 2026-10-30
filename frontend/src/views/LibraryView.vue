@@ -2,14 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Clock, Heart, ListMusic, MicVocal, Plus, Settings, Tag, Users, Zap } from '@lucide/vue'
+import { ChevronRight, Clock, Heart, ListMusic, Plus, Settings, Users, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Genre, Mix, Page, Artist, Track } from '../types'
+import type { Mix, Track } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
@@ -25,22 +25,16 @@ const router = useRouter()
 const favorites = ref<Track[]>([])
 const mixes = ref<Mix[]>([])
 const historyCount = ref(0)
-const artistCount = ref(0)
-const genreCount = ref(0)
 
 onMounted(async () => {
   library.loadPlaylists().catch(() => {})
   api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
-  const [f, h, a, g] = await Promise.all([
+  const [f, h] = await Promise.all([
     api<{ items: Track[] }>('/favorites').catch(() => ({ items: [] })),
     api<{ items: Track[] }>('/history?limit=1000').catch(() => ({ items: [] })),
-    api<Page<Artist>>('/artists?limit=1').catch(() => ({ items: [], total: 0 })),
-    api<{ items: Genre[] }>('/genres').catch(() => ({ items: [] })),
   ])
   favorites.value = f.items
   historyCount.value = new Set(h.items.map((x) => x.id)).size
-  artistCount.value = a.total
-  genreCount.value = g.items.length
 })
 
 const creating = ref(false)
@@ -94,14 +88,6 @@ async function create() {
       <RouterLink to="/history" class="flex h-[58px] items-center gap-4">
         <Clock :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.history') }}</span>
         <span class="text-[15px] font-light text-muted">{{ t('library.tracksCount', { n: historyCount }) }}</span><ChevronRight :size="18" class="text-subtle" />
-      </RouterLink>
-      <RouterLink to="/artists" class="flex h-[58px] items-center gap-4">
-        <MicVocal :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.artists') }}</span>
-        <span class="text-[15px] font-light text-muted">{{ t('library.artistsCount', { n: artistCount }) }}</span><ChevronRight :size="18" class="text-subtle" />
-      </RouterLink>
-      <RouterLink to="/genres" class="flex h-[58px] items-center gap-4">
-        <Tag :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.genres') }}</span>
-        <span class="text-[15px] font-light text-muted">{{ t('library.genresCount', { n: genreCount }) }}</span><ChevronRight :size="18" class="text-subtle" />
       </RouterLink>
       <RouterLink to="/settings" class="flex h-[58px] items-center gap-4">
         <Settings :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.settings') }}</span><ChevronRight :size="18" class="text-subtle" />

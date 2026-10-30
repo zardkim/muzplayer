@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import Select, and_, exists, func, or_, select
+from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, select, text
 from sqlalchemy.orm import Session, aliased
 
 from .. import artist_images
@@ -141,6 +141,51 @@ def list_tracks(
     )
     rows = db.execute(track_query(user.id).where(*conds).order_by(*order, Track.id).limit(limit).offset(offset))
     return {"items": [track_out(r) for r in rows], "total": total}
+
+
+FOLDER_TRACKS_MAX = 3000
+
+
+@router.get("/folders")
+def list_folder(
+    path: str = Query("", max_length=2000),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """One folder of the music library as scanned (from the database, not the disk): its
+    subfolders with their song counts and a cover, and the songs directly in it, by file name."""
+    path = unicodedata.normalize("NFC", path).strip("/")
+    prefix = f"{path}/" if path else ""
+
+    def build():
+        # paths are stored as found on disk, which may be NFD (copied from a Mac): compare in NFC,
+        # normalizing only the paths that need it (a third of the time on 100k songs)
+        is_nfc = Track.file_path.op("IS", is_comparison=True)(literal_column("NFC NORMALIZED"))
+        norm = case((is_nfc, Track.file_path), else_=func.normalize(Track.file_path, text("NFC")))
+        rest = func.substr(norm, len(prefix) + 1)
+        under = [present_tracks()] + ([func.left(norm, len(prefix)) == prefix] if prefix else [])
+        name = func.split_part(rest, "/", 1)
+        rows = db.execute(
+            select(name, func.count(), func.min(Track.album_id).filter(Album.cover_path.is_not(None)))
+            .outerjoin(Album, Album.id == Track.album_id)
+            .where(*under, func.strpos(rest, "/") > 0)
+            .group_by(name)
+        ).all()
+        versions = dict(db.execute(select(Album.id, Album.cover_version).where(Album.id.in_([r[2] for r in rows if r[2]]))).all())
+        folders = [
+            {"name": n, "path": prefix + n, "track_count": c, "cover": {"id": a, "v": versions.get(a, 0)} if a else None}
+            for n, c, a in rows
+        ]
+        folders.sort(key=lambda f: f["name"].casefold())
+        ids = db.scalars(
+            select(Track.id).where(*under, func.strpos(rest, "/") == 0).order_by(norm).limit(FOLDER_TRACKS_MAX)
+        ).all()
+        return {"folders": folders, "track_ids": ids}
+
+    _, listing = cached(db, f"folder:{path}", build)
+    ids = listing["track_ids"]
+    rows = {r[0].id: track_out(r) for r in db.execute(track_query(user.id).where(Track.id.in_(ids)))} if ids else {}
+    return {"path": path, "folders": listing["folders"], "tracks": [rows[i] for i in ids if i in rows]}
 
 
 def album_list_query(conds) -> Select:

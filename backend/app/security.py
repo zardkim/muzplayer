@@ -80,6 +80,11 @@ def current_user(request: Request, db: Session = Depends(get_db, scope="function
     ).scalar_one_or_none()
     if row is None or not row.is_active:
         raise api_error(401, "not_authenticated")
+    # Hand the connection back now: the endpoint runs in another worker thread, and holding a
+    # connection while waiting for a thread deadlocks under load (a page of covers takes every
+    # thread, each waiting for a connection that a request queued behind them holds). The session
+    # stays usable and the user stays in it; the endpoint's first query takes a connection again.
+    db.commit()
     return row
 
 

@@ -165,6 +165,19 @@ export interface Genre {
   covers?: { id: number; v: number }[] // its biggest albums, for the genre tiles
 }
 
+export interface Folder {
+  name: string
+  path: string // from the library root, '/'-separated
+  track_count: number // songs in it and below
+  cover: { id: number; v: number } | null
+}
+
+export interface FolderListing {
+  path: string
+  folders: Folder[]
+  tracks: Track[] // directly in the folder, by file name
+}
+
 export interface Playlist {
   id: number
   name: string

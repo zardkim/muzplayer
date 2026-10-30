@@ -30,25 +30,30 @@ watch(() => lyrics.lyrics, async () => {
 </script>
 
 <template>
-  <div ref="box" class="relative h-full overflow-y-auto overscroll-contain [scrollbar-width:none]" :class="[large ? 'px-2' : 'px-6', lyrics.lyrics?.synced ? 'py-[40%]' : 'py-10']">
+  <div ref="box" class="relative h-full overflow-y-auto overscroll-contain [scrollbar-width:none]" :class="[large ? 'px-2' : 'px-6', lyrics.lyrics?.synced ? '' : 'py-10']">
     <p v-if="lyrics.loading" class="text-center text-[15px] text-muted">{{ t('common.loading') }}</p>
     <p v-else-if="!lyrics.lyrics?.synced && !lyrics.lyrics?.plain" class="text-center text-[15px] text-muted">{{ t('player.noLyrics') }}</p>
-    <ol v-else-if="lyrics.lyrics.synced" class="flex flex-col" :class="large ? 'gap-5' : 'gap-3.5'">
-      <li v-for="([time, line], i) in lyrics.lyrics.synced" :key="i" ref="lines">
-        <button
-          type="button"
-          class="w-full origin-left text-left leading-snug transition-[color,transform] duration-300"
-          :class="[
-            large ? 'text-[28px] font-bold' : 'text-[19px]',
-            i === lyrics.activeIndex ? (large ? 'text-ink' : 'font-semibold text-ink') : 'text-ink/30 hover:text-ink/60',
-            large && i === lyrics.activeIndex ? 'scale-[1.02]' : '',
-          ]"
-          @click="player.seek(time)"
-        >
-          {{ line || '♪' }}
-        </button>
-      </li>
-    </ol>
+    <!-- synced: room above and below (a share of the panel's height) so the first and last lines can sit in the middle -->
+    <template v-else-if="lyrics.lyrics.synced">
+      <div class="h-[40%]" aria-hidden="true" />
+      <ol class="flex flex-col" :class="large ? 'gap-5' : 'gap-3.5'">
+        <li v-for="([time, line], i) in lyrics.lyrics.synced" :key="i" ref="lines">
+          <button
+            type="button"
+            class="w-full origin-left text-left leading-snug transition-[color,transform] duration-300"
+            :class="[
+              large ? 'text-[28px] font-bold' : 'text-[19px]',
+              i === lyrics.activeIndex ? (large ? 'text-ink' : 'font-semibold text-ink') : 'text-ink/30 hover:text-ink/60',
+              large && i === lyrics.activeIndex ? 'scale-[1.02]' : '',
+            ]"
+            @click="player.seek(time)"
+          >
+            {{ line || '♪' }}
+          </button>
+        </li>
+      </ol>
+      <div class="h-[40%]" aria-hidden="true" />
+    </template>
     <p v-else class="whitespace-pre-line leading-relaxed text-ink/80" :class="large ? 'text-[20px]' : 'text-[17px]'">{{ lyrics.lyrics.plain }}</p>
   </div>
 </template>

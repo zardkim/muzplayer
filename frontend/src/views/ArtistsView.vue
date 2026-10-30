@@ -5,7 +5,7 @@ import { ChevronRight } from '@lucide/vue'
 import { api, query } from '../api'
 import type { Artist, Page, ViewMode } from '../types'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
-import PageHeader from '../components/PageHeader.vue'
+import LibraryHeader from '../components/LibraryHeader.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
 
@@ -31,10 +31,9 @@ onMounted(load)
 
 <template>
   <div class="flex flex-col gap-5">
-    <div class="flex items-end justify-between gap-4">
-      <PageHeader :title="t('artists.title')" :sub="t('artists.count', total)" />
-      <ViewToggle page="artists" fallback="grid" class="mb-1" />
-    </div>
+    <LibraryHeader :sub="t('artists.count', total)">
+      <ViewToggle page="artists" fallback="grid" />
+    </LibraryHeader>
     <ul
       v-if="view !== 'list'"
       class="grid gap-x-4 gap-y-6"

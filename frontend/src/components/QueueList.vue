@@ -22,7 +22,9 @@ const rows = computed(() =>
 
 onMounted(async () => {
   await nextTick()
-  box.value?.querySelector('[data-current]')?.scrollIntoView({ block: 'start' })
+  // scroll this list only (scrollIntoView would also move the page around it)
+  const el = box.value?.querySelector('[data-current]')
+  if (box.value && el) box.value.scrollTop += el.getBoundingClientRect().top - box.value.getBoundingClientRect().top
 })
 
 // drag and drop (pointer devices); the drop target is the row under the pointer

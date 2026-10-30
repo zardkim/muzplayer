@@ -5,6 +5,7 @@ import { ChevronDown, MicVocal, Volume2, VolumeX } from '@lucide/vue'
 import { duration } from '../format'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
+import { openPlayer, togglePlayer } from '../playerNav'
 import { useUi } from '../stores/ui'
 import BookCover from './BookCover.vue'
 import CoverArt from './CoverArt.vue'
@@ -23,11 +24,6 @@ const player = usePlayer()
 const lyrics = useLyrics()
 const ui = useUi()
 
-// PC: lyrics and the queue are tabs of the PC player
-function openPlayer(tab: 'lyrics' | 'queue') {
-  ui.playerTab = tab
-  ui.playerOpen = true
-}
 const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
@@ -116,11 +112,11 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
   </div>
 
   <!-- desktop floating player -->
-  <div v-else-if="player.current" :aria-label="t('player.nowPlaying')" class="glass relative flex h-[76px] items-center gap-3 rounded-full px-3.5 lg:gap-4">
-    <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" @click="ui.playerOpen = true">
+  <div v-else-if="player.current" :aria-label="t('player.nowPlaying')" class="glass relative flex h-[76px] items-center gap-3 rounded-full px-3.5 xl:gap-4">
+    <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" :aria-pressed="$route.name === 'playing'" @click="togglePlayer()">
       <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
     </button>
-    <div class="flex w-28 min-w-0 flex-col lg:w-52">
+    <div class="flex w-28 min-w-0 flex-col xl:w-52">
       <span class="truncate text-[15px]">{{ player.current.title }}</span>
       <RouterLink
         v-if="player.current.artist_id"
@@ -141,21 +137,21 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <!-- the line being sung (synced lyrics); click opens the lyrics -->
       <button
         type="button"
-        class="h-[18px] truncate px-2 text-center text-[13px] transition-opacity lg:px-11"
+        class="h-[18px] truncate px-2 text-center text-[13px] transition-opacity xl:px-11"
         :class="lyrics.line ? 'text-accent hover:underline' : 'pointer-events-none opacity-0'"
         :tabindex="lyrics.line ? 0 : -1"
         :aria-label="t('player.showLyrics')"
         @click="openPlayer('lyrics')"
       >{{ lyrics.line || '·' }}</button>
-      <div class="hidden items-center gap-2.5 font-display text-xs text-muted lg:flex">
+      <div class="hidden items-center gap-2.5 font-display text-xs text-muted xl:flex">
         <span class="w-9 text-right">{{ duration(preview ?? player.currentTime) }}</span>
         <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
         <span class="w-9">{{ duration(player.duration) }}</span>
       </div>
-      <span class="text-center font-display text-xs text-muted lg:hidden">{{ duration(preview ?? player.currentTime) }} / {{ duration(player.duration) }}</span>
+      <span class="text-center font-display text-xs text-muted xl:hidden">{{ duration(preview ?? player.currentTime) }} / {{ duration(player.duration) }}</span>
     </div>
     <!-- narrow PC windows: the seek bar runs along the bottom edge instead -->
-    <div class="absolute inset-x-10 -bottom-1.5 lg:hidden">
+    <div class="absolute inset-x-10 -bottom-1.5 xl:hidden">
       <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
     </div>
     <button type="button" class="hidden size-10 place-items-center lg:grid" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
@@ -165,13 +161,13 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     <div class="hidden w-20 lg:block">
       <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="#111113" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
     </div>
-    <button type="button" class="hidden size-10 place-items-center rounded-full hover:bg-surface lg:grid" :aria-label="t('player.lyrics')" :title="t('player.lyrics')" @click="openPlayer('lyrics')">
+    <button type="button" class="hidden size-10 place-items-center rounded-full hover:bg-surface xl:grid" :aria-label="t('player.lyrics')" :title="t('player.lyrics')" @click="openPlayer('lyrics')">
       <MicVocal :size="19" :stroke-width="1.3" />
     </button>
     <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-surface" :aria-label="t('player.queue')" :title="t('player.queue')" @click="openPlayer('queue')">
       <QueueIcon />
     </button>
-    <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
+    <button v-if="$route.name !== 'playing'" type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
       <ChevronDown :size="18" :stroke-width="1.6" />
     </button>
   </div>
