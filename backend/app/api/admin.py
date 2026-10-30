@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from .. import ai_banner, appconf, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -140,7 +141,7 @@ def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     )
     for name, count in rows:
         counts[nfc(name)] = counts.get(nfc(name), 0) + count
-    books = settings.audiobook_dir
+    books = settings.books_root
     books_top = None  # the audiobook folder when it sits right inside the music folder (never scanned as music)
     if books is not None and os.path.normpath(books.parent) == os.path.normpath(settings.music_dir):
         books_top = nfc(books.name)
@@ -239,3 +240,40 @@ def update_user(
         delete_user_sessions(db, user.id)
     db.commit()
     return user_out(user)
+
+
+def integrations_out() -> dict:
+    """Which keys are set (never the keys themselves) and the AI choices."""
+    return {
+        "ai_provider": appconf.provider(),
+        "gemini_image_model": appconf.get("gemini_image_model"),
+        "openai_image_model": appconf.get("openai_image_model"),
+        "default_models": appconf.DEFAULT_MODELS,
+        **{f"{k}_set": bool(appconf.get(k)) for k in appconf.SECRETS},
+        "ai_banners": ai_banner.configured(),
+        "youtube_search": youtube.configured(),
+    }
+
+
+class IntegrationsIn(BaseModel):
+    # None = leave as it is; "" = clear (keys) or back to the default model
+    ai_provider: str | None = Field(default=None, pattern="^(gemini|openai)$")
+    gemini_api_key: str | None = Field(default=None, max_length=500)
+    gemini_image_model: str | None = Field(default=None, max_length=100)
+    openai_api_key: str | None = Field(default=None, max_length=500)
+    openai_image_model: str | None = Field(default=None, max_length=100)
+    youtube_api_key: str | None = Field(default=None, max_length=500)
+
+
+@router.get("/integrations")
+def get_integrations(_: User = Depends(admin_user)):
+    return integrations_out()
+
+
+@router.put("/integrations")
+def put_integrations(body: IntegrationsIn, _: User = Depends(admin_user)):
+    try:
+        appconf.update(body.model_dump(exclude_none=True))
+    except OSError:
+        raise api_error(500, "conf_not_writable") from None
+    return integrations_out()

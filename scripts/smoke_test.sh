@@ -1,6 +1,7 @@
 #!/bin/bash
 # API smoke test against a running instance.
 # Usage: scripts/smoke_test.sh <base-url> <admin-user> <admin-password> <music-dir-on-host>
+# On a fresh install the admin is made here first (the first account is the admin).
 # Use a TEST library only: it temporarily moves one .mp3 out of the music folder and
 # leaves a disabled user named "smokeuser".
 set -u
@@ -22,10 +23,22 @@ scan() {
   echo "$st"
 }
 
+setup() { curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/setup" -H 'content-type: application/json' -d "{\"username\":\"$1\",\"password\":\"$2\"}"; }
+if [ "$(curl -s "$BASE/config" | j 'd["needs_setup"]')" = True ]; then
+  check "first account is made (admin)" "$(setup "$ADMIN" "$ADMIN_PW")" 201
+fi
+check "setup is closed once an account exists" "$(setup intruder intruder-pw)" 409
+check "config no longer asks for setup" "$(curl -s "$BASE/config" | j 'd["needs_setup"]')" False
 check "admin login" "$(login "$A" "$ADMIN" "$ADMIN_PW")" 200
 check "login cookie is HttpOnly" "$(grep -c '#HttpOnly_' "$A")" 1
 check "unauthenticated is 401" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/tracks")" 401
 check "scan finishes" "$(scan)" done
+# service keys: set in the app, never sent back, take effect at once
+put_keys() { curl -s -b "$A" -X PUT "$BASE/admin/integrations" -H 'content-type: application/json' -d "$1"; }
+check "youtube key saved" "$(put_keys '{"youtube_api_key":"smoke-test-key-123"}' | j 'd["youtube_api_key_set"]')" True
+check "key is not sent back" "$(curl -s -b "$A" "$BASE/admin/integrations" | grep -c smoke-test-key-123)" 0
+check "youtube search on without restart" "$(curl -s "$BASE/config" | j 'd["youtube_search"]')" True
+check "youtube key cleared" "$(put_keys '{"youtube_api_key":""}' | j 'd["youtube_search"]')" False
 total=$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]')
 [ "$total" -gt 0 ] && echo "ok   tracks indexed ($total)" || { echo "FAIL no tracks"; fail=1; }
 tid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["id"]')

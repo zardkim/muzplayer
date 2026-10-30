@@ -22,29 +22,33 @@ class Settings:
     database_url: str = os.getenv(
         "DATABASE_URL", "postgresql+psycopg://muzplayer:muzplayer@localhost:5432/muzplayer"
     )
-    music_dir: Path = Path(os.getenv("MUSIC_DIR", "/music"))
-    audiobook_dir: Path | None = _path("AUDIOBOOK_DIR")  # unset: audiobooks are off
+    music_dir: Path = Path(os.getenv("MUSIC_DIR", "/library/music"))
+    # audiobooks are on while this folder exists and holds something (unset: always off)
+    books_root: Path | None = _path("AUDIOBOOK_DIR")
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))
+    # settings changed in the app (API keys): conf/settings.json
+    conf_dir: Path = Path(os.getenv("CONF_DIR", "/conf"))
     static_dir: Path = Path(os.getenv("STATIC_DIR", "/app/static"))
     cookie_secure: bool = _bool("COOKIE_SECURE", True)
     session_days: int = int(os.getenv("SESSION_DAYS", "30"))
     scan_interval_minutes: int = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))  # 0 = manual only
     default_locale: str = os.getenv("DEFAULT_LOCALE", "ko")
-    admin_username: str = os.getenv("ADMIN_USERNAME", "")
-    admin_password: str = os.getenv("ADMIN_PASSWORD", "")
     version: str = os.getenv("APP_VERSION", "dev")
-    # AI banner images for charts/themes; without a key the AI buttons are hidden
-    ai_provider: str = os.getenv("AI_PROVIDER", "gemini").strip().lower() or "gemini"
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
-    gemini_image_model: str = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-nano-banana-2.1"
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
-    openai_image_model: str = os.getenv("OPENAI_IMAGE_MODEL", "").strip() or "gpt-image-2.5-flare"
-    # YouTube Data API: video search when registering music videos; without it, links are pasted
-    youtube_api_key: str = os.getenv("YOUTUBE_API_KEY", "").strip()
 
     @property
     def cover_dir(self) -> Path:
         return self.data_dir / "covers"
+
+    @property
+    def audiobook_dir(self) -> Path | None:
+        root = self.books_root
+        if root is None:
+            return None
+        try:
+            with os.scandir(root) as it:
+                return root if any(not e.name.startswith((".", "@")) for e in it) else None
+        except OSError:
+            return None
 
 
 settings = Settings()

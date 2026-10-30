@@ -21,6 +21,11 @@ export const useAuth = defineStore('auth', () => {
     user.value = await api<User>('/auth/login', { method: 'POST', body: { username, password } })
   }
 
+  // a fresh install: the first account is the admin
+  async function setup(username: string, password: string) {
+    user.value = await api<User>('/auth/setup', { method: 'POST', body: { username, password } })
+  }
+
   async function logout() {
     await api('/auth/logout', { method: 'POST' }).catch(() => {})
     user.value = null
@@ -28,5 +33,5 @@ export const useAuth = defineStore('auth', () => {
     await globalThis.caches?.delete('muz-covers-v1').catch(() => {}) // no Cache API over plain http
   }
 
-  return { user, checked, fetchMe, login, logout }
+  return { user, checked, fetchMe, login, setup, logout }
 })

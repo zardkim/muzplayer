@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from .. import ai_banner, youtube
@@ -37,8 +37,12 @@ def user_out(user: User) -> dict:
     }
 
 
+def has_users(db: Session) -> bool:
+    return bool(db.scalar(select(func.count()).select_from(User)))
+
+
 @router.get("/config")
-def get_config():
+def get_config(db: Session = Depends(get_db)):
     locale = settings.default_locale if settings.default_locale in SUPPORTED_LOCALES else "ko"
     return {
         "default_locale": locale,
@@ -47,6 +51,7 @@ def get_config():
         "audiobooks": settings.audiobook_dir is not None,
         "ai_banners": ai_banner.configured(),
         "youtube_search": youtube.configured(),  # in-app video search; without it links are pasted
+        "needs_setup": not has_users(db),  # a fresh install: the login page makes the first (admin) account
     }
 
 
@@ -77,6 +82,11 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
     user.locked_until = None
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
+    start_session(db, user, response)
+    return user_out(user)
+
+
+def start_session(db: Session, user: User, response: Response) -> None:
     token, expires_at = create_session(db, user.id)
     db.commit()
     response.set_cookie(
@@ -88,6 +98,29 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
         samesite="lax",
         path="/",
     )
+
+
+class SetupIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    password: str = Field(min_length=8, max_length=256)
+
+
+@router.post("/auth/setup", status_code=201)
+def setup(body: SetupIn, response: Response, db: Session = Depends(get_db)):
+    """The first account, made from the login page of a fresh install, is the admin. Once any
+    account exists this is closed; more accounts are added on the admin page."""
+    db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))  # two first visitors: only one wins
+    if has_users(db):
+        raise api_error(409, "already_set_up")
+    user = User(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        display_name=body.username,
+        is_admin=True,
+    )
+    db.add(user)
+    db.flush()
+    start_session(db, user, response)
     return user_out(user)
 
 

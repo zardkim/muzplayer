@@ -98,7 +98,7 @@ export interface LibraryFolder {
   suggested: FolderKind | null
   track_count: number
   present: boolean
-  audiobooks: boolean // the AUDIOBOOK_PATH folder: never scanned as music
+  audiobooks: boolean // the library/audiobook folder: never scanned as music
 }
 
 export interface Lyrics {

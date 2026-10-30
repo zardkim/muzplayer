@@ -10,6 +10,7 @@ import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import type { FolderKind, LibraryFolder, ScanJob, User } from '../types'
 import BaseModal from '../components/BaseModal.vue'
+import IntegrationsCard from '../components/IntegrationsCard.vue'
 import PageHeader from '../components/PageHeader.vue'
 
 const { t } = useI18n()
@@ -315,16 +316,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
     </section>
 
-    <section v-if="aiStatus" class="flex flex-col gap-2 rounded-2xl border border-line p-5 md:p-6">
-      <h2 class="text-xl font-bold">{{ t('admin.aiTitle') }}</h2>
-      <p class="text-sm font-light text-muted">{{ t('admin.aiDesc') }}</p>
-      <p class="text-[14px]">
-        <span :class="aiStatus.configured ? 'text-ink' : 'text-muted'">{{ aiStatus.configured ? t('admin.aiOn') : t('admin.aiOff') }}</span>
-        · {{ aiStatus.provider }} / <span class="font-display">{{ aiStatus.model }}</span>
-      </p>
-      <p class="text-[13px] text-muted">{{ t('admin.aiCounts', { banners: aiStatus.banners, without: aiStatus.without_banner }) }}</p>
-      <p v-if="!aiStatus.configured" class="text-[13px] leading-relaxed text-muted">{{ t('admin.aiHelp', { key: aiStatus.provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY' }) }}</p>
-    </section>
+    <IntegrationsCard :counts="aiStatus" />
 
     <section v-if="appConfig.audiobooks && bookStatus" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
       <div>

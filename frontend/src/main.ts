@@ -8,7 +8,7 @@ import { registerServiceWorker } from './pwa'
 import './style.css'
 
 async function start() {
-  // runtime settings come from the server (.env), not from build-time variables
+  // runtime settings come from the server, not from build-time variables
   const config = await fetch('/api/v1/config')
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null)
@@ -16,6 +16,7 @@ async function start() {
   appConfig.audiobooks = !!config?.audiobooks
   appConfig.aiBanners = !!config?.ai_banners
   appConfig.youtubeSearch = !!config?.youtube_search
+  appConfig.needsSetup = !!config?.needs_setup
   ;(window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ = config?.version
 
   createApp(App).use(createPinia()).use(i18n).use(router).mount('#app')

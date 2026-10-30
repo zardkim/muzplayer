@@ -630,7 +630,7 @@ def _scan(job_id: int) -> None:
             pending = 0
 
         # mp3 audiobooks in a folder inside the music folder must not turn into songs
-        books_dir = settings.audiobook_dir
+        books_dir = settings.books_root
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
         files = _collect(root, existing, on_error, {p for p, k in kinds.items() if k == "excluded"}, skip_paths)
         if not files and any(t.missing_at is None for t in existing.values()):

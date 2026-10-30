@@ -34,7 +34,12 @@
     "password": "Password",
     "submit": "Log in",
     "help": "Accounts are created by the admin.",
-    "help2": "Forgot your password? Ask the admin to reset it."
+    "help2": "Forgot your password? Ask the admin to reset it.",
+    "setupTitle": "Welcome",
+    "setupDesc": "Create the admin account. The first account made here is the admin; add other accounts on the admin page.",
+    "passwordAgain": "Password again",
+    "setupSubmit": "Create admin account",
+    "mismatch": "The passwords don't match."
   },
   "errors": {
     "invalid_credentials": "Incorrect username or password.",
@@ -54,7 +59,7 @@
     "playback": "This song can't be played. Skipping to the next one.",
     "invalid_folder": "Invalid folder name.",
     "playbackStopped": "Playback stopped. Check the connection and press play again.",
-    "audiobooks_off": "Audiobooks are turned off (AUDIOBOOK_PATH in .env).",
+    "audiobooks_off": "Audiobooks are off (the library/audiobook folder is empty or missing).",
     "abs_invalid": "Check the Audiobookshelf address (http://…) and the API key.",
     "abs_unauthorized": "The API key is wrong or does not belong to an admin account.",
     "abs_unreachable": "Cannot reach Audiobookshelf. Check the address and port.",
@@ -68,7 +73,7 @@
     "ai_unreachable": "Cannot reach the AI service.",
     "ai_bad_response": "Could not read the AI service response.",
     "no_scan_running": "No scan is running.",
-    "youtube_not_configured": "YouTube search is not set up (YOUTUBE_API_KEY).",
+    "youtube_not_configured": "YouTube search is not set up (enter an API key on the admin page).",
     "youtube_quota": "YouTube refused the search: today's quota is used up, the key lacks YouTube Data API v3, or the key has an HTTP referrer (website) restriction. You can still paste a link.",
     "youtube_unauthorized": "The YouTube API key is not valid.",
     "youtube_unreachable": "Could not reach YouTube.",
@@ -77,7 +82,9 @@
     "video_not_embeddable": "This video can only be watched on YouTube.",
     "video_exists": "This video is already in the list.",
     "smart_playlist": "Songs cannot be added to a smart playlist by hand.",
-    "not_smart": "Not a smart playlist."
+    "not_smart": "Not a smart playlist.",
+    "already_set_up": "An admin account already exists. Please log in.",
+    "conf_not_writable": "Could not save the settings (check that the conf folder is writable)."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -321,7 +328,7 @@
     "absPreview": "Check connection",
     "absMatched": "{matched} of {items} books matched (Audiobookshelf {version})",
     "absUnmatched": "{n} books not found",
-    "absUnmatchedHelp": "No book with the same folder was found here. Check that AUDIOBOOK_PATH is the Audiobookshelf library folder and that a scan has finished.",
+    "absUnmatchedHelp": "No book with the same folder was found here. Check that library/audiobook holds the Audiobookshelf library folder and that a scan has finished.",
     "absUsers": "Whose listening positions to import",
     "absUsersHelp": "Pick a muzplayer user for each Audiobookshelf user. Same usernames are matched automatically.",
     "absUserFor": "muzplayer user for {name}",
@@ -338,7 +345,6 @@
     "aiOn": "Ready",
     "aiOff": "No API key",
     "aiCounts": "{banners} AI banners · {without} collections without a banner (covers are used)",
-    "aiHelp": "Add {key} to .env and restart the app to use it. The key stays on the server, never in the page or the database.",
     "scanTook": "took {time}",
     "minSec": "{m} min {s} s",
     "rebuildCovers": "Rebuild covers",
@@ -347,7 +353,18 @@
     "stopScan": "Stop scan",
     "stoppingScan": "Stopping…",
     "scanCancelled": "Scan stopped (songs read so far are kept; nothing marked missing)",
-    "scanInterrupted": "Scan interrupted by an app restart (scan again to continue)"
+    "scanInterrupted": "Scan interrupted by an app restart (scan again to continue)",
+    "keysTitle": "Service keys",
+    "keysDesc": "API keys for AI banners and YouTube search. They are stored only in the server's conf folder and never shown again.",
+    "aiProvider": "AI service",
+    "apiKey": "API key",
+    "aiModel": "Image model (empty = default)",
+    "keySaved": "Saved — type a new key to replace it",
+    "keyEmpty": "Paste the key",
+    "keyClear": "Remove key",
+    "keyClearConfirm": "Remove this key?",
+    "ytTitle": "YouTube search",
+    "ytHelp": "Used to search inside the app when adding music videos to albums and songs (free: about 100 searches a day). In the Google Cloud console, enable YouTube Data API v3 and create an API key. Restrictions: API = YouTube Data API v3 only; application = None or the NAS's IP (not 'HTTP referrers'). Without a key, videos are added by pasting a YouTube link."
   },
   "library": {
     "title": "My music",
@@ -540,7 +557,7 @@
     },
     "paste": "Add by YouTube link",
     "pastePlaceholder": "https://youtu.be/...",
-    "noKey": "In-app search needs YOUTUBE_API_KEY in .env (ask the admin). For now, paste the link of a video found on YouTube.",
+    "noKey": "In-app search needs a YouTube API key, set by the admin on the admin page. For now, paste the link of a video found on YouTube.",
     "searchOnYoutube": "Find on YouTube",
     "openYoutube": "Watch on YouTube",
     "notEmbeddable": "This video can only be watched on YouTube.",

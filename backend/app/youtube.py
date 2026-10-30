@@ -1,4 +1,4 @@
-"""YouTube for album/song videos: search (Data API, needs YOUTUBE_API_KEY) and checking a picked
+"""YouTube for album/song videos: search (Data API, needs the key an admin sets in the app) and checking a picked
 or pasted video (oEmbed, no key). The key goes in a header, never in a URL or the logs."""
 
 import html
@@ -9,7 +9,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from .config import settings
+from . import appconf
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class YoutubeError(Exception):
 
 
 def configured() -> bool:
-    return bool(settings.youtube_api_key)
+    return bool(appconf.get("youtube_api_key"))
 
 
 def video_id(text: str) -> str | None:
@@ -44,7 +44,7 @@ def video_id(text: str) -> str | None:
 def _get(url: str, params: dict, key: bool) -> dict:
     headers = {"Accept": "application/json"}
     if key:
-        headers["x-goog-api-key"] = settings.youtube_api_key
+        headers["x-goog-api-key"] = appconf.get("youtube_api_key")
     req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:  # noqa: S310 - fixed API hosts

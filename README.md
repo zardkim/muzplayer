@@ -50,24 +50,44 @@ muzplayer는 NAS의 음악 폴더를 그대로 읽어 스트리밍 앱처럼 보
 
 빌드는 필요 없습니다. 이미지를 받고 `.env`만 채우면 됩니다. 컨테이너는 `app`과 `db`(PostgreSQL) 두 개입니다.
 
-### 1. 파일 준비
+### 1. 폴더 준비
 
-NAS에 폴더를 만들고 이 저장소의 두 파일을 복사합니다.
+NAS에 `muzplayer` 폴더를 만들고 이 저장소의 두 파일을 복사합니다. 나머지 폴더는 그 옆에 둡니다.
 
 ```
 /volume1/docker/muzplayer/
 ├── docker-compose.yml   ← deploy/docker-compose.yml (수정하지 않음)
 ├── .env                 ← deploy/.env.example 을 복사해서 값 입력
-└── data/                ← DATA_PATH. app(커버 캐시)·postgres(DB)는 처음 실행할 때 자동으로 생김
+├── app/                 ← 커버 캐시 등 앱 데이터 (자동 생성)
+├── db/                  ← 데이터베이스 (자동 생성)
+├── conf/                ← 앱에서 입력한 설정(API 키) (자동 생성)
+└── library/             ← 직접 만듦. 읽기 전용으로 연결
+    ├── music/           ← 음악 폴더를 여기에 마운트
+    └── audiobook/       ← 오디오북 폴더를 여기에 마운트 (없거나 비어 있으면 오디오북 메뉴가 숨겨짐)
 ```
 
 ```bash
-sudo mkdir -p /volume1/docker/muzplayer/data
+sudo mkdir -p /volume1/docker/muzplayer/library/music /volume1/docker/muzplayer/library/audiobook
 ```
 
-- 음악 폴더(`MUSIC_ROOT`)와 오디오북 폴더(`AUDIOBOOK_PATH`)는 **이미 있어야 합니다.** 경로를 잘못 적으면 빈 폴더를 만들지 않고
-  `bind source path does not exist` 오류를 내며 시작하지 않습니다.
-- 그 밖에 미리 만들 폴더는 없습니다. 앱은 음악·오디오북 폴더에 아무것도 쓰지 않습니다.
+- `library/`는 **이미 있어야 합니다.** 없으면 빈 폴더를 만들지 않고 `bind source path does not exist` 오류를 내며 시작하지 않습니다.
+- 앱은 `library/`에 아무것도 쓰지 않습니다.
+
+**음악·오디오북 연결하기**
+
+기존 공유 폴더를 `library/music`, `library/audiobook`에 bind 마운트합니다. Synology 작업 스케줄러 → **트리거된 작업 → 부트업**(root)에 등록하면 재부팅 뒤에도 유지됩니다.
+
+```bash
+mount --bind /volume1/music     /volume1/docker/muzplayer/library/music
+mount --bind /volume1/audiobook /volume1/docker/muzplayer/library/audiobook
+# 부팅 때 컨테이너가 마운트보다 먼저 떴을 수 있으므로 다시 시작
+docker compose -f /volume1/docker/muzplayer/docker-compose.yml restart app
+```
+
+- 다른 NAS·PC의 공유(NFS·SMB)를 같은 자리에 마운트해도 됩니다.
+- **심볼릭 링크로는 안 됩니다.** `library/music`을 `/volume1/music`을 가리키는 링크로 만들거나, 라이브러리 안의 링크가 `library/` 밖의 절대 경로를 가리키면
+  컨테이너 안에서 찾을 수 없습니다. 링크 대신 마운트를 쓰세요.
+- 앱을 띄운 뒤에 마운트하면 앱을 다시 시작해야 보입니다(`MUSIC_MOUNT_PROPAGATION=rslave`면 바로 보임, `.env.example` 참고).
 
 ### 2. 레지스트리 로그인 (처음 한 번)
 
@@ -79,34 +99,28 @@ echo '<시크릿>' | docker login harbor.nurilab.pe.kr -u 'robot$muzplayer+deplo
 
 | 항목 | 설명 |
 |---|---|
-| `MUZPLAYER_VERSION` | 실행할 버전. 기본값 `latest`(항상 최신 빌드). 특정 버전에 고정하려면 `0.5.1`처럼 적음 |
-| `HTTP_PORT` | NAS에서 열 포트. 역방향 프록시는 `http://<NAS>:<HTTP_PORT>`로 연결 |
-| `MUSIC_PATH` | 음악 폴더. 안의 심볼릭 링크 폴더와 마운트된 공유 폴더도 스캔 |
-| `MUSIC_ROOT` | 컨테이너에 같은 경로로 읽기 전용 연결할 폴더. 보통 `MUSIC_PATH`와 같게 두고, 링크가 음악 폴더 밖을 가리키면 둘을 포함하는 상위 폴더(예: `/volume1`) |
-| `AUDIOBOOK_PATH` | 오디오북 폴더(읽기 전용). 비워 두면 오디오북 메뉴가 숨겨짐 |
-| `GEMINI_API_KEY` | 차트·테마 배너를 AI로 만들 때만 필요(선택). 비워 두면 AI 버튼이 숨겨짐 |
-| `YOUTUBE_API_KEY` | 앨범·곡 영상을 앱 안에서 검색할 때 필요(선택). 비워 두면 YouTube 주소를 붙여 넣어 등록 |
-| `DATA_PATH` | DB와 커버 캐시를 저장할 폴더 |
-| `PUID` / `PGID` | 앱이 실행될 사용자(`id <사용자>`로 확인). 음악 폴더를 읽을 수 있어야 함 |
+| `MUZPLAYER_VERSION` | 실행할 버전. 기본값 `latest`(항상 최신 빌드). 특정 버전에 고정하려면 `0.8.0`처럼 적음 |
+| `HTTP_PORT` | NAS에서 열 포트(기본 `18150`). 역방향 프록시는 `http://<NAS>:<HTTP_PORT>`로 연결 |
+| `PUID` / `PGID` | 앱이 실행될 사용자(`id <사용자>`로 확인). `library/`를 읽을 수 있어야 함 |
 | `POSTGRES_PASSWORD` | 긴 임의 문자열. 처음 실행한 뒤에는 바꾸지 않음 |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 사용자가 없을 때 만들 첫 관리자. 첫 로그인 뒤 비밀번호 줄은 지워도 됨 |
 | `SCAN_INTERVAL_MINUTES` | 자동 재스캔 주기(기본 60분, `0`이면 수동만) |
 | `COOKIE_SECURE` | HTTPS 뒤에서는 `true`. IP로 직접 테스트할 때만 `false` |
 
-나머지 항목(`AI_PROVIDER`, `OPENAI_API_KEY`, `MUSIC_MOUNT_PROPAGATION` 등)은 `deploy/.env.example`의 설명을 참고하세요.
+관리자 계정과 AI·YouTube API 키는 `.env`가 아니라 앱 안에서 정합니다(아래 4번).
 
-### 4. 실행
+### 4. 실행과 처음 설정
 
 ```bash
 cd /volume1/docker/muzplayer
 docker compose up -d
 ```
 
-DB 준비와 첫 관리자 계정 생성은 시작할 때 자동으로 됩니다. 관리자로 로그인한 뒤 다음 순서로 진행합니다.
-
-1. 관리자 화면 → **라이브러리 폴더**에서 음악 폴더 바로 아래 폴더마다 종류를 고릅니다(아래 "폴더 구조").
-2. **스캔 시작**을 누릅니다.
-3. 관리자 화면 → **사용자**에서 가족·지인 계정을 만듭니다.
+1. 브라우저로 열면 **관리자 계정 만들기** 화면이 나옵니다. **여기서 처음 만든 계정이 관리자**가 되고, 그 뒤로는 이 화면이 닫힙니다.
+   - 먼저 접속한 사람이 관리자가 되므로, 역방향 프록시로 외부에 열기 전에 `http://<NAS>:18150`에서 먼저 만드세요.
+2. 관리자 화면 → **라이브러리 폴더**에서 음악 폴더 바로 아래 폴더마다 종류를 고릅니다(아래 "폴더 구조").
+3. **스캔 시작**을 누릅니다.
+4. 관리자 화면 → **사용자**에서 가족·지인 계정을 만듭니다.
+5. (선택) 관리자 화면 → **외부 서비스 키**에 AI 배너(Gemini·OpenAI)와 YouTube 검색 API 키를 넣습니다. 저장하면 다시 시작하지 않아도 바로 쓰입니다.
 
 ### 5. 휴대폰에서 앱처럼 쓰기
 
@@ -136,6 +150,29 @@ DB 준비와 첫 관리자 계정 생성은 시작할 때 자동으로 됩니다
 | 0.4 → 0.5 | 새 `docker-compose.yml`로 교체. 테마 폴더를 라이브러리 폴더에서 `테마`로 지정하고 스캔. AI 배너를 쓰려면 `GEMINI_API_KEY` 추가(선택) |
 | 0.5.0 → 0.5.1 | 새 `docker-compose.yml`로 교체(경로를 잘못 적으면 시작하지 않도록 바뀜) |
 | 0.5 → 0.7 | 새 `docker-compose.yml`로 교체(`YOUTUBE_API_KEY` 추가, 선택). 업데이트 뒤 첫 스캔에서 앨범 커버를 한 번 다시 만들어서 평소보다 오래 걸림. "즐겨찾기"는 "좋아요"로 이름이 바뀜(데이터 그대로) |
+| 0.7 → 0.8 | **`docker-compose.yml` 교체 필수.** 예전 파일로 받으면 시작은 되지만 `conf/`가 연결되지 않아 앱에서 넣은 키가 컨테이너를 다시 만들 때 사라짐. 폴더 구조와 `.env`도 바뀜. 아래 "0.8로 옮기기" 참고 |
+
+**0.8로 옮기기** (곡·좋아요·별점·재생목록·재생 기록은 그대로 남습니다. 파일 경로를 음악 폴더 기준으로 저장하기 때문입니다.)
+
+먼저 라이브러리 안에 심볼릭 링크가 있는지 확인하세요. 0.8부터는 `library/` 밖을 가리키는 링크를 따라가지 못하므로, 나오는 링크는 마운트로 바꿔야 합니다.
+
+```bash
+find /volume1/music -type l | head
+```
+
+```bash
+cd /volume1/docker/muzplayer
+docker compose down
+sudo mv data/app app && sudo mv data/postgres db && sudo rmdir data     # db는 sudo가 꼭 필요
+sudo mkdir -p library/music library/audiobook
+# 음악·오디오북을 library/music, library/audiobook에 마운트 (위 "음악·오디오북 연결하기")
+```
+
+1. `docker-compose.yml`을 새 파일로 바꿉니다.
+2. `.env`는 새 `deploy/.env.example`을 보고 다시 씁니다. `POSTGRES_PASSWORD`·`PUID`·`PGID`는 **기존 값 그대로** 두고,
+   `MUSIC_PATH`·`MUSIC_ROOT`·`AUDIOBOOK_PATH`·`DATA_PATH`·`ADMIN_*`·`*_API_KEY`·`AI_PROVIDER`·`*_IMAGE_MODEL` 줄은 지웁니다.
+3. 포트 기본값이 `18150`으로 바뀌었습니다. 예전 포트를 계속 쓰려면 `HTTP_PORT`를 그대로 두고, 바꾸면 역방향 프록시 주소도 바꿉니다.
+4. `docker compose pull && docker compose up -d` 후 관리자 화면 → **외부 서비스 키**에 API 키를 다시 넣습니다.
 
 ### 스캔 중 문제가 생기면
 
@@ -162,7 +199,7 @@ DB 준비와 첫 관리자 계정 생성은 시작할 때 자동으로 됩니다
 앨범·아티스트는 파일 태그로 묶습니다. 폴더에서 읽는 것은 **음악 폴더 바로 아래 폴더의 종류**와 **`비정규` 폴더 여부**뿐입니다.
 
 ```
-music/                                      ← MUSIC_PATH
+library/music/                              ← 음악 폴더
 ├── album/                                  ← 종류: 앨범 (기본값)
 │   └── 아티스트/[2017] 앨범명/01 곡.flac
 │       └── 비정규/[2019] 라이브/            ← 비정규 앨범으로 표시 (`비정규` 또는 `Unofficial`)
@@ -172,7 +209,6 @@ music/                                      ← MUSIC_PATH
 │   ├── 팝송/한국인이 좋아하는 팝송 TOP100/   ← 폴더 하나 = 테마 하나, 중간 폴더 = 분류
 │   ├── 카페에서 듣기 좋은 노래/banner.jpg    ← banner.jpg가 있으면 배너로 사용
 │   └── 2020년 걸그룹 노래 모음/CD1, CD2/     ← CD 폴더는 한 모음으로 합침
-└── audiobook/                              ← AUDIOBOOK_PATH (음악 스캔에서 자동 제외)
 ```
 
 **종류**
@@ -227,11 +263,11 @@ music/                                      ← MUSIC_PATH
 
 **AI 배너 만들기**
 
-- `.env`에 `GEMINI_API_KEY`를 넣으면 관리자에게 차트·테마 상세 화면의 **AI 배너** 버튼이 보입니다.
-- OpenAI를 쓰려면 `AI_PROVIDER=openai`와 `OPENAI_API_KEY`를 넣습니다.
+- 관리자 화면 → **외부 서비스 키**에 Gemini API 키를 넣으면 관리자에게 차트·테마 상세 화면의 **AI 배너** 버튼이 보입니다.
+- OpenAI를 쓰려면 같은 곳에서 AI 서비스를 OpenAI로 바꾸고 키를 넣습니다. 이미지 모델은 비워 두면 기본값을 씁니다.
 - 앱이 채워 준 프롬프트로 만든 뒤, "더 따뜻한 색으로"처럼 말로 고치고 적용합니다.
 - 만들기·고치기 한 번마다 유료 이미지 요청이 한 번 나갑니다(Gemini 2K 기준 약 $0.05).
-- 키는 서버에만 있고 화면이나 DB에 남지 않습니다.
+- 키는 서버의 `conf/settings.json`(앱 사용자만 읽을 수 있음)에만 저장되고, 화면에 다시 보이지 않으며 DB·로그에 남지 않습니다.
 - 오류가 나면 `docker compose logs app | grep "ai banner"`에서 이유를 볼 수 있습니다.
 
 ## 믹스·스마트 재생목록
@@ -250,7 +286,7 @@ music/                                      ← MUSIC_PATH
 1. 종류(뮤직비디오·라이브·커버·기타)를 고르고 검색합니다. 검색어는 아티스트·제목으로 미리 채워집니다.
 2. 목록에서 **등록**을 누르면 모든 사용자에게 보입니다. 지우기는 등록한 사람과 관리자만 할 수 있습니다.
 
-- **검색 키:** `.env`의 `YOUTUBE_API_KEY`가 있어야 앱 안에서 검색됩니다.
+- **검색 키:** 관리자 화면 → **외부 서비스 키**에 YouTube API 키를 넣어야 앱 안에서 검색됩니다.
   - Google Cloud 콘솔에서 **YouTube Data API v3**를 켜고 API 키를 만듭니다. 무료 한도로 하루 약 100번 검색할 수 있습니다.
   - 키 제한은 **API 제한: YouTube Data API v3만**, **애플리케이션 제한: 없음 또는 NAS의 IP 주소**로 둡니다. "HTTP 리퍼러(웹사이트)" 제한을 걸면 서버에서 부르는 검색이 거부됩니다.
   - 키가 없으면 YouTube에서 찾은 영상의 주소를 붙여 넣어 등록합니다.
@@ -260,7 +296,7 @@ music/                                      ← MUSIC_PATH
 
 ## 오디오북
 
-`AUDIOBOOK_PATH` 폴더를 직접 읽어 재생합니다. Audiobookshelf 없이도 동작하고, 책을 묶는 규칙은 Audiobookshelf와 같습니다.
+`library/audiobook` 폴더를 직접 읽어 재생합니다. Audiobookshelf 없이도 동작하고, 책을 묶는 규칙은 Audiobookshelf와 같습니다.
 
 ```
 audiobook/
@@ -276,14 +312,14 @@ audiobook/
 
 **Audiobookshelf에서 옮기기**
 
-1. Audiobookshelf와 같은 폴더를 `AUDIOBOOK_PATH`로 지정하고 스캔합니다.
+1. Audiobookshelf와 같은 폴더를 `library/audiobook`에 마운트하고 스캔합니다.
 2. 관리자 화면 → 오디오북 → **Audiobookshelf에서 가져오기**에 주소와 관리자 API 키(Audiobookshelf 설정 → API Keys)를 넣습니다.
 3. 편집한 책 정보·챕터·커버와 사용자별 듣던 위치를 한 번 가져옵니다. 키는 저장하지 않습니다.
 4. 가져온 정보는 다시 스캔해도 태그로 덮어쓰지 않습니다. 이후에는 Audiobookshelf를 꺼도 됩니다.
 
 ## 백업·복구
 
-DB에는 계정·플레이리스트·좋아요·별점·재생 기록·등록한 영상·듣던 위치가 들어 있습니다. 커버 캐시는 다시 스캔하면 새로 만들어집니다.
+DB에는 계정·플레이리스트·좋아요·별점·재생 기록·등록한 영상·듣던 위치가 들어 있습니다. API 키는 `conf/`에 있으니 함께 보관하세요. 커버 캐시는 다시 스캔하면 새로 만들어집니다.
 
 Synology 작업 스케줄러(매일, root)에 등록합니다.
 

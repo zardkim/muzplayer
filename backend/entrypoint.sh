@@ -2,13 +2,13 @@
 set -e
 cd /app
 
-# Started as root: make the data folder writable, then drop to PUID:PGID.
+# Started as root: make the data and settings folders writable, then drop to PUID:PGID.
 if [ "$(id -u)" = "0" ]; then
   PUID="${PUID:-1000}"
   PGID="${PGID:-1000}"
-  mkdir -p /data
+  mkdir -p /data /conf
   # only what isn't owned right (the cover cache can hold tens of thousands of files)
-  find /data \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
+  find /data /conf \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
   exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups "$0" "$@"
 fi
 

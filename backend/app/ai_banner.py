@@ -1,7 +1,8 @@
 """AI banner images for charts and themes (Gemini by default, or OpenAI).
 
-The key stays on the server: the browser only ever talks to muzplayer. Nothing here runs by
-itself; every image is made because an admin pressed a button (each one costs money).
+The key (set by an admin in the app, see appconf) stays on the server: the browser only ever talks
+to muzplayer. Nothing here runs by itself; every image is made because an admin pressed a button
+(each one costs money).
 """
 
 import base64
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from . import appconf
 from .config import settings
 
 log = logging.getLogger(__name__)
@@ -36,15 +38,15 @@ class AiError(Exception):
 
 
 def provider() -> str:
-    return "openai" if settings.ai_provider == "openai" else "gemini"
+    return appconf.provider()
 
 
 def model() -> str:
-    return settings.openai_image_model if provider() == "openai" else settings.gemini_image_model
+    return appconf.image_model()
 
 
 def configured() -> bool:
-    return bool(settings.openai_api_key if provider() == "openai" else settings.gemini_api_key)
+    return bool(appconf.get(f"{provider()}_api_key"))
 
 
 def banner_file(banner_id: int) -> Path:
@@ -108,14 +110,14 @@ def _gemini(prompt: str, images: list[bytes]) -> bytes:
         {"type": "image", "mime_type": "image/jpeg", "data": base64.b64encode(img).decode()} for img in images
     ]
     body = {
-        "model": settings.gemini_image_model,
+        "model": appconf.image_model("gemini"),
         "input": parts,
         "response_format": {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "16:9", "image_size": "2K"},
     }
     data = _post(
         GEMINI_URL,
         json.dumps(body).encode(),
-        {"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
+        {"x-goog-api-key": appconf.get("gemini_api_key"), "Content-Type": "application/json"},
     )
     image = _last_image(data)
     if image is None:
@@ -124,8 +126,8 @@ def _gemini(prompt: str, images: list[bytes]) -> bytes:
 
 
 def _openai(prompt: str, images: list[bytes]) -> bytes:
-    auth = {"Authorization": f"Bearer {settings.openai_api_key}"}
-    fields = {"model": settings.openai_image_model, "prompt": prompt, "size": "1536x864", "output_format": "jpeg"}
+    auth = {"Authorization": f"Bearer {appconf.get('openai_api_key')}"}
+    fields = {"model": appconf.image_model("openai"), "prompt": prompt, "size": "1536x864", "output_format": "jpeg"}
     if not images:
         data = _post(f"{OPENAI_URL}/generations", json.dumps(fields).encode(), {**auth, "Content-Type": "application/json"})
     else:
