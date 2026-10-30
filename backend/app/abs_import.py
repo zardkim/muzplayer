@@ -213,6 +213,7 @@ def _apply_item(db: Session, client: AbsClient, book: Book, item_id: str, progre
             cover = False
         if cover:
             book.has_cover = True
+            book.cover_version = (book.cover_version or 0) + 1
             locked.add("cover")
     book.locked = sorted(locked)
     book.abs_id = item_id[:64]

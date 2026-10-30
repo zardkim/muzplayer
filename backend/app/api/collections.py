@@ -4,17 +4,18 @@ import random
 import shutil
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import ai_banner
+from ..cache import shared_json
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Banner, Chart, Track, User
-from ..scanner import cover_file
+from ..scanner import bump_library, cover_file
 from ..security import admin_user, api_error, current_user
 from .library import present_tracks, track_out, track_query
 
@@ -53,26 +54,31 @@ def banner_out(chart: Chart, banners: dict[str, Banner]) -> dict | None:
     return None
 
 
-def cover_albums(db: Session, chart_ids: list[int]) -> dict[int, list[int]]:
-    """Up to five albums with covers per collection, best ranked first."""
+def cover_albums(db: Session, chart_ids: list[int]) -> dict[int, list[dict]]:
+    """Up to five albums with covers per collection, best ranked first: [{id, v}] (v = cover_v)."""
     if not chart_ids:
         return {}
     rows = db.execute(
-        select(Track.chart_id, Track.album_id, func.min(func.coalesce(Track.chart_position, 9999)).label("pos"))
+        select(
+            Track.chart_id,
+            Track.album_id,
+            Album.cover_version,
+            func.min(func.coalesce(Track.chart_position, 9999)).label("pos"),
+        )
         .join(Album, Album.id == Track.album_id)
         .where(Track.chart_id.in_(chart_ids), present_tracks(), Album.cover_path.is_not(None))
-        .group_by(Track.chart_id, Track.album_id)
+        .group_by(Track.chart_id, Track.album_id, Album.cover_version)
         .order_by(Track.chart_id, "pos", Track.album_id)
     )
-    out: dict[int, list[int]] = {}
-    for chart_id, album_id, _ in rows:
+    out: dict[int, list[dict]] = {}
+    for chart_id, album_id, version, _ in rows:
         albums = out.setdefault(chart_id, [])
         if len(albums) < COVERS_PER_ITEM:
-            albums.append(album_id)
+            albums.append({"id": album_id, "v": version})
     return out
 
 
-def item_out(chart: Chart, count: int, covers: dict[int, list[int]], banners: dict[str, Banner]) -> dict:
+def item_out(chart: Chart, count: int, covers: dict[int, list[dict]], banners: dict[str, Banner]) -> dict:
     albums = covers.get(chart.id, [])
     return {
         "id": chart.id,
@@ -80,8 +86,7 @@ def item_out(chart: Chart, count: int, covers: dict[int, list[int]], banners: di
         "title": chart.title,
         "source": chart.source,
         "track_count": count,
-        "cover_album_id": albums[0] if albums else None,
-        "cover_album_ids": albums,
+        "cover_albums": albums,
         "banner": banner_out(chart, banners),
         "created_at": chart.created_at,
     }
@@ -96,6 +101,7 @@ def ordering(kind: str):
 
 @router.get("/charts")
 def list_charts(
+    request: Request,
     kind: str = Query("chart", pattern="^(chart|theme)$"),
     source: str = "",
     limit: int = Query(200, ge=1, le=1000),
@@ -104,24 +110,36 @@ def list_charts(
     db: Session = Depends(get_db),
 ):
     """Chart weeks or themes. source is the chart source, or the theme category."""
-    count = chart_count()
-    conds = [count > 0, Chart.kind == kind]
-    if source:
-        conds.append(Chart.source == source)
-    base = select(Chart, count.label("track_count")).where(*conds)
-    total = db.scalar(select(func.count()).select_from(base.subquery()))
-    rows = db.execute(base.order_by(*ordering(kind)).limit(limit).offset(offset)).all()
-    covers = cover_albums(db, [c.id for c, _ in rows])
-    banners = load_banners(db)
-    sources = db.scalars(
-        select(Chart.source).where(chart_count() > 0, Chart.kind == kind, Chart.source != "").distinct().order_by(Chart.source)
-    ).all()
-    return {"items": [item_out(c, n, covers, banners) for c, n in rows], "total": total, "sources": sources}
+
+    def build():
+        count = chart_count()
+        conds = [count > 0, Chart.kind == kind]
+        if source:
+            conds.append(Chart.source == source)
+        base = select(Chart, count.label("track_count")).where(*conds)
+        total = db.scalar(select(func.count()).select_from(base.subquery()))
+        rows = db.execute(base.order_by(*ordering(kind)).limit(limit).offset(offset)).all()
+        covers = cover_albums(db, [c.id for c, _ in rows])
+        banners = load_banners(db)
+        sources = db.scalars(
+            select(Chart.source)
+            .where(chart_count() > 0, Chart.kind == kind, Chart.source != "")
+            .distinct()
+            .order_by(Chart.source)
+        ).all()
+        return {"items": [item_out(c, n, covers, banners) for c, n in rows], "total": total, "sources": sources}
+
+    return shared_json(request, db, f"charts:{kind}:{source}:{limit}:{offset}", build)
 
 
 @router.get("/collections/home")
-def collections_home(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    """Everything the collections page shows, in one call."""
+def collections_home(request: Request, _: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Everything the collections page shows, in one call. The picks change daily, so the day is
+    part of the cache key."""
+    return shared_json(request, db, f"collections-home:{date.today().isoformat()}", lambda: _collections_home(db))
+
+
+def _collections_home(db: Session) -> dict:
     rows = db.execute(select(Chart, chart_count().label("n")).where(chart_count() > 0)).all()
     charts = sorted(((c, n) for c, n in rows if c.kind == "chart"), key=lambda r: (r[0].title, r[0].id), reverse=True)
     themes = sorted(((c, n) for c, n in rows if c.kind == "theme"), key=lambda r: (r[0].title.casefold(), r[0].id))
@@ -343,6 +361,7 @@ def apply_banner(body: ApplyIn, _: User = Depends(admin_user), db: Session = Dep
     db.flush()
     settings.cover_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(path, ai_banner.banner_file(banner.id))
+    bump_library(db)
     db.commit()
     db.refresh(chart)
     return {"banner": banner_out(chart, load_banners(db))}
@@ -354,6 +373,7 @@ def delete_banner(banner_id: int, chart_id: int, _: User = Depends(admin_user), 
     banner = db.get(Banner, banner_id)
     if banner is not None:
         db.delete(banner)
+        bump_library(db)
         db.commit()
         ai_banner.banner_file(banner_id).unlink(missing_ok=True)
     chart = get_chart_row(db, chart_id)

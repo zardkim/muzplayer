@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListPlus } from '@lucide/vue'
+import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListPlus, MonitorPlay } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
@@ -14,6 +14,7 @@ import LyricsPanel from './LyricsPanel.vue'
 import PlayerControls from './PlayerControls.vue'
 import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
+import StarRating from './StarRating.vue'
 
 const { t } = useI18n()
 const player = usePlayer()
@@ -22,6 +23,22 @@ const ui = useUi()
 const preview = ref<number | null>(null)
 const menu = ref(false)
 const glow = ref('#C9D6E3')
+
+async function rate(stars: number | null) {
+  if (!player.current) return
+  try {
+    await library.rate(player.current, stars)
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
+function videos() {
+  const tr = player.current
+  if (!tr) return
+  menu.value = false
+  ui.videoTarget = { trackId: tr.id, title: tr.title, artist: tr.artist }
+}
 
 async function fav() {
   if (!player.current) return
@@ -51,7 +68,7 @@ watch(
       const n = d.length / 4
       glow.value = `rgb(${Math.round(r / n)} ${Math.round(g / n)} ${Math.round(b / n)})`
     }
-    img.src = coverUrl(albumId, 'thumb')
+    img.src = coverUrl(albumId, 'thumb', player.current?.cover_v)
   },
   { immediate: true },
 )
@@ -123,7 +140,7 @@ function touchEnd(e: TouchEvent) {
           <LyricsPanel :lyrics="lyrics" :loading="lyricsLoading" />
         </div>
         <button v-else type="button" class="block w-full" :aria-label="t('player.showLyrics')" @click="ui.lyricsOpen = true">
-          <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" size="large" rounded="rounded-none" class="mx-auto w-full max-w-[min(100%,50dvh)]" />
+          <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" size="large" rounded="rounded-none" class="mx-auto w-full max-w-[min(100%,50dvh)]" />
         </button>
         <button
           type="button"
@@ -148,9 +165,14 @@ function touchEnd(e: TouchEvent) {
         </div>
 
         <div class="mt-1 flex items-center justify-between">
-          <button type="button" class="grid size-11 place-items-center" :aria-label="t('common.addToPlaylist')" @click="ui.playlistPicker = [player.current]">
-            <ListPlus :size="24" :stroke-width="1.3" />
-          </button>
+          <span class="flex">
+            <button type="button" class="grid size-11 place-items-center" :aria-label="t('common.addToPlaylist')" @click="ui.playlistPicker = [player.current]">
+              <ListPlus :size="24" :stroke-width="1.3" />
+            </button>
+            <button v-if="player.current.has_video" type="button" class="grid size-11 place-items-center" :aria-label="t('common.watchVideos')" @click="videos">
+              <MonitorPlay :size="23" :stroke-width="1.3" />
+            </button>
+          </span>
           <button
             type="button"
             class="grid size-11 place-items-center"
@@ -167,6 +189,7 @@ function touchEnd(e: TouchEvent) {
             <div v-if="menu" class="absolute bottom-12 right-0 z-10 flex w-52 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl">
               <RouterLink v-if="player.current.album_id && player.current.album_kind !== 'chart'" :to="{ name: 'album', params: { id: player.current.album_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToAlbum') }}</RouterLink>
               <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="(menu = false), (ui.playerOpen = false)">{{ t('common.goToArtist') }}</RouterLink>
+              <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos">{{ t('common.watchVideos') }}</button>
             </div>
           </div>
         </div>
@@ -174,6 +197,7 @@ function touchEnd(e: TouchEvent) {
         <div class="mt-2 flex flex-col items-center gap-1 text-center">
           <span class="line-clamp-2 text-2xl font-medium">{{ player.current.title }}</span>
           <span class="text-[17px] font-light text-[#52525B]">{{ player.current.artist || t('common.unknownArtist') }}</span>
+          <StarRating :value="library.rating(player.current)" :size="18" @rate="rate" />
           <!-- fixed-height slot so the controls don't jump when a line appears -->
           <span class="h-[22px] max-w-full">
             <button

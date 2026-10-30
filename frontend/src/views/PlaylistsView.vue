@@ -2,17 +2,26 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, ListMusic, Plus } from '@lucide/vue'
+import { ChevronRight, ListMusic, Plus, Zap } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import PageHeader from '../components/PageHeader.vue'
+import SmartRulesSheet from '../components/SmartRulesSheet.vue'
+import type { Playlist } from '../types'
 
 const { t } = useI18n()
 const library = useLibrary()
 const ui = useUi()
 const router = useRouter()
 const name = ref('')
+const smartOpen = ref(false)
+
+function smartSaved(p: Playlist) {
+  smartOpen.value = false
+  library.loadPlaylists().catch(() => {})
+  router.push({ name: 'playlist', params: { id: p.id } })
+}
 onMounted(() => library.loadPlaylists().catch(() => {}))
 
 async function create() {
@@ -36,14 +45,18 @@ async function create() {
         <Plus :size="18" :stroke-width="1.6" />{{ t('common.create') }}
       </button>
     </form>
+    <button type="button" class="flex h-11 items-center gap-1.5 self-start rounded-full border border-line-strong px-4 text-[15px]" @click="smartOpen = true">
+      <Zap :size="17" :stroke-width="1.5" />{{ t('smart.new') }}
+    </button>
+    <SmartRulesSheet v-if="smartOpen" @close="smartOpen = false" @saved="smartSaved" />
     <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
     <ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
       <li v-for="p in library.playlists" :key="p.id">
         <RouterLink :to="{ name: 'playlist', params: { id: p.id } }" class="flex min-h-[72px] items-center gap-3.5 border-b border-surface">
-          <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><ListMusic :size="22" :stroke-width="1.3" /></span>
+          <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="22" :stroke-width="1.3" /><ListMusic v-else :size="22" :stroke-width="1.3" /></span>
           <span class="flex min-w-0 flex-1 flex-col">
             <span class="truncate text-[17px]">{{ p.name }}</span>
-            <span class="text-sm font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
+            <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
           </span>
           <ChevronRight :size="18" class="text-subtle" />
         </RouterLink>

@@ -15,6 +15,7 @@ async function start() {
   initLocale(config?.default_locale)
   appConfig.audiobooks = !!config?.audiobooks
   appConfig.aiBanners = !!config?.ai_banners
+  appConfig.youtubeSearch = !!config?.youtube_search
   ;(window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ = config?.version
 
   createApp(App).use(createPinia()).use(i18n).use(router).mount('#app')

@@ -39,6 +39,8 @@ class Settings:
     gemini_image_model: str = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-nano-banana-2.1"
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
     openai_image_model: str = os.getenv("OPENAI_IMAGE_MODEL", "").strip() or "gpt-image-2.5-flare"
+    # YouTube Data API: video search when registering music videos; without it, links are pasted
+    youtube_api_key: str = os.getenv("YOUTUBE_API_KEY", "").strip()
 
     @property
     def cover_dir(self) -> Path:

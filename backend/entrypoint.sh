@@ -7,7 +7,8 @@ if [ "$(id -u)" = "0" ]; then
   PUID="${PUID:-1000}"
   PGID="${PGID:-1000}"
   mkdir -p /data
-  chown -R "$PUID:$PGID" /data
+  # only what isn't owned right (the cover cache can hold tens of thousands of files)
+  find /data \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
   exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups "$0" "$@"
 fi
 

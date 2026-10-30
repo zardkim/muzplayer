@@ -1,11 +1,12 @@
 import { coverUrl } from './api'
 
-// album id -> "r g b" (a darkened average of its cover), shared by every banner on the page
-const cache = new Map<number, Promise<string | null>>()
+// cover URL -> "r g b" (a darkened average of its cover), shared by every banner on the page
+const cache = new Map<string, Promise<string | null>>()
 
 /** The cover's average color, darkened so white text reads on it. Null when there is no cover. */
-export function coverColor(albumId: number): Promise<string | null> {
-  let hit = cache.get(albumId)
+export function coverColor(albumId: number, v?: number): Promise<string | null> {
+  const url = coverUrl(albumId, 'thumb', v)
+  let hit = cache.get(url)
   if (!hit) {
     hit = new Promise((resolve) => {
       const img = new Image()
@@ -31,9 +32,9 @@ export function coverColor(albumId: number): Promise<string | null> {
         }
       }
       img.onerror = () => resolve(null)
-      img.src = coverUrl(albumId)
+      img.src = url
     })
-    cache.set(albumId, hit)
+    cache.set(url, hit)
   }
   return hit
 }

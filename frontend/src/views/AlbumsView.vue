@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api, query } from '../api'
@@ -27,6 +27,13 @@ async function load() {
   }
 }
 onMounted(load)
+// "my rating" changes as albums are rated elsewhere; the kept page reloads that order
+onActivated(() => {
+  if (sort.value === 'rating' && !loading.value) {
+    items.value = []
+    load()
+  }
+})
 
 const kinds = [
   { key: '', label: 'albums.kindAll' },
@@ -37,6 +44,7 @@ const kinds = [
 const sorts = [
   { key: 'recent', label: 'albums.sortRecent' },
   { key: 'title', label: 'albums.sortTitle' },
+  { key: 'rating', label: 'albums.sortRating' },
   { key: 'artist', label: 'albums.sortArtist' },
   { key: 'year', label: 'albums.sortYear' },
 ]

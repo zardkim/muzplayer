@@ -72,7 +72,7 @@ function touchEnd(e: TouchEvent) {
 
       <!-- 2:3 cover: capped by height so the controls below stay on screen -->
       <div class="flex justify-center" @touchstart.passive="touchStart" @touchend="touchEnd">
-        <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" size="large" rounded="rounded-xl" class="w-[min(62%,27dvh)] shadow-[0_12px_40px_rgba(17,17,19,0.18)]" />
+        <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" size="large" rounded="rounded-xl" class="w-[min(62%,27dvh)] shadow-[0_12px_40px_rgba(17,17,19,0.18)]" />
       </div>
 
       <div class="mt-4 flex flex-col items-center gap-1 text-center">

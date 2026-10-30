@@ -42,7 +42,7 @@ async function fav() {
   <div v-if="mobile" class="glass relative flex h-[60px] items-center gap-3 overflow-hidden rounded-full pl-2 pr-1.5">
     <template v-if="isBook && player.book">
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
-        <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" square rounded="rounded-full" class="size-11 flex-none" />
+        <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-[15px]">{{ player.chapter?.title || player.book.title }}</span>
           <span class="truncate text-xs font-light text-muted">{{ player.chapter ? player.book.title : player.book.authors }}</span>
@@ -60,7 +60,7 @@ async function fav() {
     </template>
     <template v-else-if="player.current">
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
-        <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" rounded="rounded-full" class="size-11 flex-none" />
+        <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-[15px]">{{ player.current.title }}</span>
           <span class="truncate text-xs font-light text-muted">{{ player.current.artist || t('common.unknownArtist') }}</span>
@@ -86,7 +86,7 @@ async function fav() {
   <!-- desktop floating player: audiobook -->
   <div v-else-if="isBook && player.book" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
     <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" @click="ui.playerOpen = true">
-      <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" square rounded="rounded-full" />
+      <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" />
     </button>
     <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="flex w-52 min-w-0 flex-col">
       <span class="truncate text-[15px]">{{ player.chapter?.title || player.book.title }}</span>
@@ -117,7 +117,7 @@ async function fav() {
   <!-- desktop floating player -->
   <div v-else-if="player.current" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
     <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" @click="ui.playerOpen = true">
-      <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" rounded="rounded-full" />
+      <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
     </button>
     <div class="flex w-52 min-w-0 flex-col">
       <span class="truncate text-[15px]">{{ player.current.title }}</span>

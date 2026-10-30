@@ -7,11 +7,14 @@ export interface Track {
   album_id: number | null
   album_kind?: AlbumKind
   has_cover: boolean
+  cover_v?: number // the album's cover version: part of the cover URL (missing in queues saved by 0.5)
   track_no: number | null
   disc_no: number | null
   duration: number | null
   format: string
   is_favorite: boolean
+  rating?: number | null // this user's stars (1-5)
+  has_video?: boolean
   missing: boolean
   chart_position?: number | null // only in chart lists
 }
@@ -26,11 +29,16 @@ export interface Album {
   kind: AlbumKind
   year: number | null
   has_cover: boolean
+  cover_v: number
   track_count: number
 }
 
 export interface AlbumDetail extends Album {
   tracks: Track[]
+  rating: number | null // this user's stars for the album itself
+  track_rating_avg: number | null // average of this user's stars for its songs
+  is_favorite: boolean
+  video_count: number
 }
 
 export interface Artist {
@@ -64,8 +72,7 @@ export interface Chart {
   title: string
   source: string
   track_count: number
-  cover_album_id: number | null
-  cover_album_ids: number[]
+  cover_albums: { id: number; v: number }[] // best ranked first, for the cover and the auto banner
   banner: CollectionBanner | null
   created_at: string
 }
@@ -116,6 +123,7 @@ export interface Book {
   published_year: number | null
   duration: number
   has_cover: boolean
+  cover_v?: number
   chapter_count: number
   created_at: string
   progress: BookProgress | null
@@ -147,13 +155,54 @@ export interface Genre {
 export interface Playlist {
   id: number
   name: string
-  track_count: number
+  kind: 'manual' | 'smart'
+  rules: SmartRules | null
+  track_count: number | null // null for a smart playlist until it is opened
   created_at: string
   updated_at: string
 }
 
 export interface PlaylistDetail extends Playlist {
-  entries: { entry_id: number; track: Track }[]
+  entries: { entry_id: number | null; track: Track }[] // no entry_id in a smart playlist
+}
+
+export type RuleField = 'genre' | 'artist' | 'year' | 'rating' | 'favorite' | 'plays' | 'last_played' | 'added' | 'folder' | 'duration'
+export interface SmartRule {
+  field: RuleField
+  op: string
+  value: string | number | boolean | number[] | null
+}
+export interface SmartRules {
+  match: 'all' | 'any'
+  rules: SmartRule[]
+  sort: 'random' | 'plays' | 'recent' | 'title' | 'rating' | 'last_played'
+  limit: number
+}
+
+export interface Mix {
+  key: string
+  track_count: number
+  cover_albums: { id: number; v: number }[]
+}
+
+export type VideoKind = 'mv' | 'live' | 'cover' | 'other'
+export interface Video {
+  id: number
+  youtube_id: string
+  kind: VideoKind
+  title: string
+  channel: string
+  album_id: number | null
+  track_id: number | null
+  can_edit: boolean
+}
+export interface VideoResult {
+  youtube_id: string
+  title: string
+  channel: string
+  published_at: string | null
+  duration: number | null
+  added: boolean
 }
 
 export interface User {

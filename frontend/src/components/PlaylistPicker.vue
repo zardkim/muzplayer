@@ -57,12 +57,12 @@ async function createAndAdd() {
       </button>
     </form>
     <ul class="flex flex-col">
-      <li v-for="p in library.playlists" :key="p.id">
+      <li v-for="p in library.playlists.filter((x) => x.kind !== 'smart')" :key="p.id">
         <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-surface" :disabled="busy" @click="add(p.id)">
           <span class="grid size-11 place-items-center rounded-lg bg-surface text-ink"><ListMusic :size="20" :stroke-width="1.3" /></span>
           <span class="flex flex-col">
             <span>{{ p.name }}</span>
-            <span class="text-[13px] font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
+            <span class="text-[13px] font-light text-muted">{{ t('common.tracks', p.track_count ?? 0) }}</span>
           </span>
         </button>
       </li>

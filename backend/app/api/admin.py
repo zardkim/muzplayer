@@ -4,14 +4,16 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
-from ..models import Book, LibraryFolder, ScanJob, Track, User
-from ..scanner import FOLDER_KINDS, cancel_scan, nfc, prune_orphans, remove_covers, start_scan
+from ..models import Album, Book, LibraryFolder, ScanJob, Track, User
+from ..scanner import (
+    FOLDER_KINDS, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running, start_scan,
+)
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
 
@@ -52,6 +54,20 @@ def stop_scan(_: User = Depends(admin_user)):
     return {"cancelling": True}
 
 
+@router.post("/covers/rebuild", status_code=202)
+def rebuild_covers(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Remakes every album and audiobook cover from the files, as part of a scan."""
+    if scan_running():
+        raise api_error(409, "scan_running")
+    db.execute(update(Album).where(Album.cover_path.is_not(None)).values(cover_source=None))
+    db.execute(update(Book).values(cover_sig="!rebuild"))  # never matches a real signature
+    db.commit()
+    job = start_scan(db)
+    if job is None:
+        raise api_error(409, "scan_running")
+    return job_out(job)
+
+
 @router.get("/scan/latest")
 def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     job = db.scalars(select(ScanJob).order_by(ScanJob.id.desc()).limit(1)).first()
@@ -85,6 +101,7 @@ def purge_missing(
     deleted = db.execute(delete(Track).where(Track.missing_at.is_not(None), Track.missing_at <= cutoff)).rowcount
     books = list(db.scalars(delete(Book).where(Book.missing_at.is_not(None), Book.missing_at <= cutoff).returning(Book.id)))
     orphan_albums = prune_orphans(db)
+    bump_library(db)
     db.commit()
     remove_covers(orphan_albums)
     remove_book_covers(books)

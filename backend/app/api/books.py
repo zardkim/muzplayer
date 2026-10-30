@@ -2,7 +2,7 @@
 
 import os
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import abs_import
 from ..books import BOOK_COVER_SIZES, book_cover_file, book_file
+from ..cache import image_response
 from ..config import settings
 from ..db import get_db
 from ..models import Book, BookProgress, User
@@ -42,6 +43,7 @@ def book_out(book: Book, progress: BookProgress | None) -> dict:
         "published_year": book.published_year,
         "duration": book.duration,
         "has_cover": book.has_cover,
+        "cover_v": book.cover_version if book.has_cover else 0,
         "chapter_count": len(book.chapters or []),
         "created_at": book.created_at,
         "progress": progress_out(progress),
@@ -127,12 +129,16 @@ def get_book(book_id: int, user: User = Depends(current_user), db: Session = Dep
 
 @router.get("/books/{book_id}/cover", dependencies=[Depends(books_enabled)])
 def get_book_cover(
-    book_id: int, size: str = Query("thumb", pattern="^(thumb|large)$"), _: User = Depends(current_user)
+    request: Request,
+    book_id: int,
+    size: str = Query("thumb", pattern="^(thumb|large)$"),
+    v: int | None = None,
+    _: User = Depends(current_user),
 ):
     path = book_cover_file(book_id, size)
     if size not in BOOK_COVER_SIZES or not path.exists():
         raise api_error(404, "not_found")
-    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
+    return image_response(request, path, versioned=v is not None)
 
 
 @router.get("/books/{book_id}/files/{index}/stream", dependencies=[Depends(books_enabled)])

@@ -8,7 +8,7 @@
     "genres": "장르",
     "library": "보관함",
     "playlists": "내 플레이리스트",
-    "favorites": "즐겨찾기",
+    "favorites": "좋아요",
     "history": "최근 재생",
     "admin": "관리자",
     "settings": "설정",
@@ -67,7 +67,17 @@
     "ai_no_image": "AI가 이미지를 만들지 않았습니다. 프롬프트를 바꿔 보세요.",
     "ai_unreachable": "AI 서비스에 연결할 수 없습니다.",
     "ai_bad_response": "AI 서비스 응답을 처리하지 못했습니다.",
-    "no_scan_running": "진행 중인 스캔이 없습니다."
+    "no_scan_running": "진행 중인 스캔이 없습니다.",
+    "youtube_not_configured": "YouTube 검색이 설정되지 않았습니다(YOUTUBE_API_KEY).",
+    "youtube_quota": "YouTube 검색이 거부되었습니다. 오늘 검색 한도를 다 썼거나, API 키에 YouTube Data API v3가 켜져 있지 않거나, 키에 HTTP 리퍼러(웹사이트) 제한이 걸려 있습니다. 주소를 붙여 넣어 등록할 수 있습니다.",
+    "youtube_unauthorized": "YouTube API 키가 올바르지 않습니다.",
+    "youtube_unreachable": "YouTube에 연결할 수 없습니다.",
+    "video_bad_link": "YouTube 영상 주소가 아닙니다.",
+    "video_not_found": "없거나 비공개인 영상입니다.",
+    "video_not_embeddable": "이 영상은 다른 사이트에서 재생할 수 없게 되어 있습니다.",
+    "video_exists": "이미 등록된 영상입니다.",
+    "smart_playlist": "스마트 재생목록에는 곡을 직접 넣을 수 없습니다.",
+    "not_smart": "스마트 재생목록이 아닙니다."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -98,8 +108,8 @@
     "viewAll": "전체 보기",
     "added": "추가했습니다.",
     "saved": "저장했습니다.",
-    "favoriteAdd": "즐겨찾기 추가",
-    "favoriteRemove": "즐겨찾기 해제",
+    "favoriteAdd": "좋아요",
+    "favoriteRemove": "좋아요 취소",
     "number": "번호",
     "titleCol": "제목",
     "duration": "길이",
@@ -110,7 +120,15 @@
     "playSelected": "재생",
     "listenAll": "전체 듣기",
     "addShort": "담기",
-    "playAlbum": "앨범 재생"
+    "playAlbum": "앨범 재생",
+    "rating": "별점",
+    "rateStars": "별 {n}개",
+    "clearRating": "별점 지우기",
+    "videos": "영상",
+    "watchVideos": "영상 보기",
+    "saveAsPlaylist": "플레이리스트로 저장",
+    "reshuffle": "다시 섞기",
+    "empty": "곡이 없습니다."
   },
   "home": {
     "recent": "최근 재생",
@@ -121,7 +139,8 @@
     "tabRecent": "최근 재생",
     "tabNew": "새 앨범",
     "tabPlaylists": "내 플레이리스트",
-    "nothingRecent": "아직 재생한 곡이 없습니다."
+    "nothingRecent": "아직 재생한 곡이 없습니다.",
+    "mixes": "나를 위한 믹스"
   },
   "albums": {
     "title": "앨범",
@@ -134,7 +153,9 @@
     "kind_album": "정규",
     "kind_unofficial": "비정규",
     "kind_compilation": "컴필레이션",
-    "empty": "해당하는 앨범이 없습니다."
+    "empty": "해당하는 앨범이 없습니다.",
+    "sortRating": "내 별점",
+    "trackAvg": "곡 평균 ★{n}"
   },
   "tracks": {
     "title": "곡",
@@ -160,11 +181,15 @@
     "empty": "아직 플레이리스트가 없습니다.",
     "emptyTracks": "곡 목록에서 ⋯ 메뉴로 곡을 추가하세요.",
     "deleteConfirm": "‘{name}’ 플레이리스트를 삭제할까요?",
-    "chooseTitle": "플레이리스트 선택"
+    "chooseTitle": "플레이리스트 선택",
+    "smart": "스마트"
   },
   "favorites": {
-    "title": "즐겨찾기",
-    "empty": "하트를 눌러 곡을 즐겨찾기에 추가하세요."
+    "title": "좋아요",
+    "empty": "하트를 눌러 좋아하는 곡을 모아 보세요.",
+    "songs": "곡",
+    "albums": "앨범",
+    "albumsEmpty": "앨범 화면의 하트를 눌러 좋아하는 앨범을 모아 보세요."
   },
   "history": {
     "title": "최근 재생",
@@ -244,7 +269,7 @@
     "errors": "오류",
     "errorDetails": "오류 내용 보기",
     "purge": "누락 곡 정리 (30일 경과)",
-    "purgeConfirm": "30일 이상 누락된 곡을 삭제합니다. 플레이리스트·즐겨찾기에서도 사라집니다. 계속할까요?",
+    "purgeConfirm": "30일 이상 누락된 곡을 삭제합니다. 플레이리스트·좋아요에서도 사라집니다. 계속할까요?",
     "purged": "{n}곡을 정리했습니다.",
     "users": "사용자",
     "addUser": "사용자 추가",
@@ -314,6 +339,11 @@
     "aiOff": "API 키 없음",
     "aiCounts": "AI 배너 {banners}개 · 배너 없는 모음 {without}개 (커버로 자동 표시)",
     "aiHelp": ".env에 {key}를 넣고 앱을 다시 시작하면 사용할 수 있습니다. 키는 서버에만 있고 화면·DB에 남지 않습니다.",
+    "scanTook": "걸린 시간 {time}",
+    "minSec": "{m}분 {s}초",
+    "rebuildCovers": "커버 다시 만들기",
+    "rebuildCoversConfirm": "모든 앨범·오디오북 커버를 음악 파일에서 다시 만듭니다. 스캔과 함께 진행되며 시간이 걸립니다. 계속할까요?",
+    "rebuildCoversStarted": "커버를 다시 만드는 스캔을 시작했습니다",
     "stopScan": "스캔 중지",
     "stoppingScan": "중지하는 중…",
     "scanCancelled": "스캔을 중지함 (읽은 곡까지 반영, 누락 처리는 하지 않음)",
@@ -321,10 +351,12 @@
   },
   "library": {
     "title": "내 음악",
-    "playFavorites": "즐겨찾기한 곡 전체 재생",
+    "playFavorites": "좋아요 표시한 곡 전체 재생",
     "artistsCount": "{n}명",
     "genresCount": "{n}개",
-    "tracksCount": "{n}곡"
+    "tracksCount": "{n}곡",
+    "mixes": "나를 위한 믹스",
+    "likedAlbums": "좋아요 표시한 앨범"
   },
   "explore": {
     "title": "탐색",
@@ -405,5 +437,117 @@
     "resetDone": "배너를 지웠습니다.",
     "costNote": "만들기·고치기 한 번이 이미지 요청 한 번(유료)입니다. 제목 글자는 이미지가 아니라 화면에서 얹습니다.",
     "appliedShadowed": "적용했습니다. 이 주차는 따로 만든 배너가 있어 그 배너가 계속 보입니다."
+  },
+  "mixes": {
+    "title": "믹스",
+    "names": {
+      "random": "랜덤 100곡",
+      "on-repeat": "자주 듣는 곡",
+      "top": "가장 많이 들은 곡",
+      "rewind": "오랜만에 듣기",
+      "top-rated": "별점 높은 곡",
+      "unplayed": "아직 안 들은 곡",
+      "recent": "최근 추가된 곡",
+      "1990s": "1990년대",
+      "2000s": "2000년대",
+      "2010s": "2010년대",
+      "2020s": "2020년대"
+    },
+    "desc": {
+      "random": "전체에서 무작위 100곡. 열 때마다 새로 고릅니다.",
+      "on-repeat": "최근 30일 동안 많이 들은 곡",
+      "top": "지금까지 가장 많이 들은 곡",
+      "rewind": "자주 들었지만 60일 동안 안 들은 곡",
+      "top-rated": "별 4개 이상 준 곡",
+      "unplayed": "한 번도 듣지 않은 곡",
+      "recent": "라이브러리에 새로 들어온 곡",
+      "decade": "{decade} 앨범의 곡"
+    }
+  },
+  "smart": {
+    "badge": "스마트",
+    "new": "스마트 재생목록 만들기",
+    "edit": "조건 바꾸기",
+    "intro": "조건에 맞는 곡이 열 때마다 새로 정해집니다.",
+    "match": "조건",
+    "matchAll": "모두 만족",
+    "matchAny": "하나라도 만족",
+    "addRule": "조건 추가",
+    "removeRule": "조건 삭제",
+    "noRules": "조건이 없으면 전체 곡에서 고릅니다.",
+    "sort": "정렬",
+    "limit": "최대 곡 수",
+    "yes": "예",
+    "no": "아니오",
+    "days": "일",
+    "minutes": "분",
+    "fields": {
+      "genre": "장르",
+      "artist": "아티스트",
+      "year": "연도",
+      "rating": "별점",
+      "favorite": "좋아요",
+      "plays": "재생 횟수",
+      "last_played": "마지막으로 들은 날",
+      "added": "추가된 날",
+      "folder": "폴더 종류",
+      "duration": "곡 길이"
+    },
+    "ops": {
+      "is": "같음",
+      "is_not": "아님",
+      "contains": "포함",
+      "not_contains": "포함 안 함",
+      "between": "사이",
+      "gte": "이상",
+      "lte": "이하",
+      "none": "없음",
+      "within_days": "최근 N일 안",
+      "not_within_days": "N일 넘게 지남"
+    },
+    "folders": {
+      "album": "앨범",
+      "compilation": "컴필레이션",
+      "chart": "차트",
+      "theme": "테마"
+    },
+    "sorts": {
+      "random": "무작위",
+      "plays": "많이 들은 순",
+      "recent": "최근 추가 순",
+      "title": "제목 순",
+      "rating": "별점 순",
+      "last_played": "최근 들은 순"
+    }
+  },
+  "videos": {
+    "title": "영상",
+    "forAlbum": "앨범 영상",
+    "forTrack": "{title} 영상",
+    "empty": "아직 등록된 영상이 없습니다.",
+    "add": "영상 추가",
+    "search": "YouTube 검색",
+    "searchButton": "검색",
+    "register": "등록",
+    "registered": "등록됨",
+    "added": "영상을 등록했습니다",
+    "kind": "종류",
+    "kinds": {
+      "mv": "뮤직비디오",
+      "live": "라이브",
+      "cover": "커버",
+      "other": "기타"
+    },
+    "paste": "YouTube 주소로 등록",
+    "pastePlaceholder": "https://youtu.be/...",
+    "noKey": "앱 안에서 검색하려면 관리자가 .env에 YOUTUBE_API_KEY를 넣어야 합니다. 지금은 YouTube에서 찾은 영상의 주소를 붙여 넣어 등록하세요.",
+    "searchOnYoutube": "YouTube에서 찾기",
+    "openYoutube": "YouTube에서 보기",
+    "notEmbeddable": "이 영상은 다른 사이트에서 재생할 수 없게 되어 있습니다.",
+    "unavailable": "재생할 수 없는 영상입니다(삭제되었거나 비공개).",
+    "remove": "삭제",
+    "removeConfirm": "‘{title}’ 영상을 목록에서 뺄까요?",
+    "resumeMusic": "음악 이어 듣기",
+    "minutes": "{m}:{s}"
   }
 }

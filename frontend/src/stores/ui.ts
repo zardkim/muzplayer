@@ -15,6 +15,11 @@ export const useUi = defineStore('ui', () => {
   const queueOpen = ref(false) // queue panel
   const playlistPicker = ref<Track[] | null>(null) // tracks waiting to be added to a playlist
   const lyricsOpen = ref(false) // full player shows lyrics instead of the artwork
+  // when App.vue last asked whether the library changed; 0 makes the next page change ask
+  // (after this person changed it, e.g. applied a banner, the kept lists must not wait a minute)
+  const libraryCheckedAt = ref(0)
+  // the video sheet (App.vue): an album's or a song's videos
+  const videoTarget = ref<{ albumId?: number; trackId?: number; title: string; artist: string } | null>(null)
 
-  return { toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen }
+  return { toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget }
 })

@@ -156,6 +156,24 @@ async function stopScan() {
 }
 watch(() => job.value?.status, (s) => s !== 'running' && (stopping.value = false))
 
+// how long the last scan took (to judge auto-scan intervals on a big library)
+function took(j: ScanJob) {
+  if (!j.finished_at) return ''
+  const sec = Math.max(0, Math.round((new Date(j.finished_at).getTime() - new Date(j.started_at).getTime()) / 1000))
+  return t('admin.scanTook', { time: t('admin.minSec', { m: Math.floor(sec / 60), s: sec % 60 }) })
+}
+
+async function rebuildCovers() {
+  if (!confirm(t('admin.rebuildCoversConfirm'))) return
+  try {
+    job.value = await api<ScanJob>('/admin/covers/rebuild', { method: 'POST' })
+    ui.notify(t('admin.rebuildCoversStarted'))
+    poll = window.setTimeout(loadScan, 1000)
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
 async function purge() {
   if (!confirm(t('admin.purgeConfirm'))) return
   try {
@@ -241,7 +259,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <p v-else-if="job" class="text-[13px]" :class="job.status === 'failed' ? 'text-danger' : 'text-muted'">
         <template v-if="job.status === 'failed' && job.error_summary === 'interrupted'">{{ t('admin.scanInterrupted') }} · </template>
         <template v-else-if="job.status === 'failed'">{{ t('admin.scanFailed') }} · </template>
-        <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}
+        <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}<template v-if="took(job)"> · {{ took(job) }}</template>
       </p>
       <p v-else class="text-[13px] text-muted">{{ t('admin.neverScanned') }}</p>
 
@@ -258,6 +276,9 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <summary class="cursor-pointer">{{ t('admin.errorDetails') }}</summary>
         <pre class="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-xs">{{ job.error_summary }}</pre>
       </details>
+      <button type="button" class="self-start text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
+        {{ t('admin.rebuildCovers') }}
+      </button>
     </section>
 
     <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">

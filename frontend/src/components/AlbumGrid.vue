@@ -20,7 +20,7 @@ const player = usePlayer()
   >
     <div v-for="a in albums" :key="a.id" class="group relative flex min-w-0 flex-col gap-2" :class="row ? 'w-[140px] flex-none sm:w-40' : ''">
       <RouterLink :to="{ name: 'album', params: { id: a.id } }" class="flex flex-col gap-2">
-        <CoverArt :album-id="a.id" :has-cover="a.has_cover" />
+        <CoverArt :album-id="a.id" :has-cover="a.has_cover" :version="a.cover_v" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-base">{{ a.title || t('common.unknownAlbum') }}</span>
           <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">

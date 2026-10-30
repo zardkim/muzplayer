@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, ListMusic } from '@lucide/vue'
+import { ChevronRight, ListMusic, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
-import type { Album, Book, Chart, CollectionsHome, Page, Track } from '../types'
+import type { Album, Book, Chart, CollectionsHome, Mix, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import BannerCarousel from '../components/BannerCarousel.vue'
 import BookGrid from '../components/BookGrid.vue'
 import CoverArt from '../components/CoverArt.vue'
+import MixCards from '../components/MixCards.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 
@@ -23,6 +24,7 @@ const history = ref<Track[]>([])
 const albums = ref<Album[]>([])
 const listening = ref<Book[]>([])
 const featured = ref<Chart[]>([])
+const mixes = ref<Mix[]>([])
 const loaded = ref(false)
 const tab = ref<'recent' | 'new' | 'playlists'>('recent')
 
@@ -35,6 +37,7 @@ onMounted(async () => {
   albums.value = a.items
   loaded.value = true
   api<CollectionsHome>('/collections/home').then((c) => (featured.value = c.hero), () => {})
+  api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
   if (appConfig.audiobooks) listening.value = (await api<{ items: Book[] }>('/books/continue').catch(() => ({ items: [] }))).items
 })
 
@@ -68,6 +71,11 @@ const tabs = computed(() => [
 
     <BannerCarousel v-if="featured.length" :items="featured" size="compact" />
 
+    <section v-if="mixes.length" class="flex flex-col gap-3">
+      <h2 class="text-[22px] font-bold">{{ t('home.mixes') }}</h2>
+      <MixCards :mixes="mixes" />
+    </section>
+
     <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
       <button
         v-for="x in tabs"
@@ -93,7 +101,7 @@ const tabs = computed(() => [
       <p v-if="loaded && !recentAlbums.length" class="font-light text-muted">{{ t('home.nothingRecent') }}</p>
       <div v-for="tr in recentAlbums" :key="tr.id" class="flex items-center gap-3.5">
         <RouterLink :to="albumOf(tr) ? { name: 'album', params: { id: albumOf(tr)! } } : { name: 'history' }" class="flex min-w-0 flex-1 items-center gap-3.5">
-          <CoverArt :album-id="tr.album_id" :has-cover="tr.has_cover" rounded="rounded-lg" class="size-[60px] flex-none" />
+          <CoverArt :album-id="tr.album_id" :has-cover="tr.has_cover" :version="tr.cover_v" rounded="rounded-lg" class="size-[60px] flex-none" />
           <span class="flex min-w-0 flex-col">
             <span class="truncate text-[17px]">{{ albumOf(tr) ? tr.album || tr.title : tr.title }}</span>
             <span class="truncate text-sm font-light text-muted">{{ tr.artist || t('common.unknownArtist') }}</span>
@@ -115,10 +123,10 @@ const tabs = computed(() => [
     <section v-else class="flex flex-col gap-3">
       <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
       <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
-        <span class="grid size-[60px] flex-none place-items-center rounded-lg bg-surface"><ListMusic :size="24" :stroke-width="1.3" /></span>
+        <span class="grid size-[60px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="24" :stroke-width="1.3" /><ListMusic v-else :size="24" :stroke-width="1.3" /></span>
         <span class="flex flex-col">
           <span class="text-[17px]">{{ p.name }}</span>
-          <span class="text-sm font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
+          <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
         </span>
       </RouterLink>
     </section>

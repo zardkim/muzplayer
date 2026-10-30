@@ -6,7 +6,7 @@ import { bookCoverUrl } from '../api'
 // Audiobook covers are usually 2:3 portraits: shown whole in a 2:3 box. `square` (small
 // round thumbnails in the player bars) crops instead, as a letterboxed sliver reads badly
 const props = withDefaults(
-  defineProps<{ bookId: number | null; hasCover: boolean; size?: 'thumb' | 'large'; rounded?: string; square?: boolean }>(),
+  defineProps<{ bookId: number | null; hasCover: boolean; version?: number; size?: 'thumb' | 'large'; rounded?: string; square?: boolean }>(),
   { size: 'thumb', rounded: 'rounded-lg' },
 )
 const failed = ref(false)
@@ -17,7 +17,7 @@ watch(() => props.bookId, () => (failed.value = false))
   <div class="relative overflow-hidden bg-surface" :class="[rounded, square ? 'aspect-square' : 'aspect-[2/3]']">
     <img
       v-if="bookId && hasCover && !failed"
-      :src="bookCoverUrl(bookId, size)"
+      :src="bookCoverUrl(bookId, size, version)"
       alt=""
       loading="lazy"
       class="h-full w-full"

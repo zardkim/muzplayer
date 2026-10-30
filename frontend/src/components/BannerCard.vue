@@ -20,12 +20,12 @@ const player = usePlayer()
 const src = computed(() => (props.image !== undefined ? props.image : props.chart.banner?.url ?? null))
 const failed = ref(false)
 watch(src, () => (failed.value = false))
-const covers = computed(() => props.chart.cover_album_ids.slice(0, 4))
+const covers = computed(() => props.chart.cover_albums.slice(0, 4))
 
 const tint = ref<string | null>(null)
 watch(
-  () => props.chart.cover_album_ids[0],
-  async (id) => (tint.value = id ? await coverColor(id) : null),
+  () => props.chart.cover_albums[0],
+  async (c) => (tint.value = c ? await coverColor(c.id, c.v) : null),
   { immediate: true },
 )
 
@@ -55,9 +55,9 @@ async function play() {
       <div class="absolute inset-0 bg-[radial-gradient(120%_120%_at_85%_20%,rgb(var(--tint)/0.65),rgb(var(--tint))_55%,rgb(12_12_14))]" />
       <div class="pointer-events-none absolute inset-y-0 right-[4%] isolate w-[58%]" aria-hidden="true">
         <img
-          v-for="(id, i) in covers"
-          :key="id"
-          :src="coverUrl(id, size === 'small' ? 'thumb' : 'large')"
+          v-for="(c, i) in covers"
+          :key="c.id"
+          :src="coverUrl(c.id, size === 'small' ? 'thumb' : 'large', c.v)"
           alt=""
           loading="lazy"
           class="absolute top-1/2 aspect-square h-[66%] rounded-lg object-cover shadow-[0_14px_36px_rgba(0,0,0,0.45)]"

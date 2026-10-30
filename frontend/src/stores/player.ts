@@ -661,8 +661,8 @@ export const usePlayer = defineStore('player', () => {
         album: b.title,
         artwork: b.has_cover
           ? [
-              { src: bookCoverUrl(b.id, 'thumb'), sizes: '300x450', type: 'image/jpeg' },
-              { src: bookCoverUrl(b.id, 'large'), sizes: '1000x1500', type: 'image/jpeg' },
+              { src: bookCoverUrl(b.id, 'thumb', b.cover_v), sizes: '300x450', type: 'image/jpeg' },
+              { src: bookCoverUrl(b.id, 'large', b.cover_v), sizes: '1000x1500', type: 'image/jpeg' },
             ]
           : [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
       })
@@ -677,8 +677,8 @@ export const usePlayer = defineStore('player', () => {
       artwork:
         track.has_cover && track.album_id
           ? [
-              { src: coverUrl(track.album_id, 'thumb'), sizes: '300x300', type: 'image/jpeg' },
-              { src: coverUrl(track.album_id, 'large'), sizes: '1000x1000', type: 'image/jpeg' },
+              { src: coverUrl(track.album_id, 'thumb', track.cover_v), sizes: '300x300', type: 'image/jpeg' },
+              { src: coverUrl(track.album_id, 'large', track.cover_v), sizes: '1000x1000', type: 'image/jpeg' },
             ]
           : [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
     })

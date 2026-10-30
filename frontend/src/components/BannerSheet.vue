@@ -70,6 +70,7 @@ async function apply() {
     })
     // a source-wide banner stays hidden behind this week's own one
     ui.notify(scope.value === 'source' && r.banner?.scope === 'collection' ? t('banner.appliedShadowed') : t('banner.applied'))
+    ui.libraryCheckedAt = 0 // kept chart/theme lists pick the new banner up on the next page
     emit('applied', r.banner)
   } catch (e) {
     error.value = errorMessage(e)
@@ -84,6 +85,7 @@ async function reset() {
   try {
     const r = await api<{ banner: CollectionBanner | null }>(`/admin/banners/${props.chart.banner.id}?chart_id=${props.chart.id}`, { method: 'DELETE' })
     ui.notify(t('banner.resetDone'))
+    ui.libraryCheckedAt = 0
     emit('applied', r.banner)
   } catch (e) {
     error.value = errorMessage(e)

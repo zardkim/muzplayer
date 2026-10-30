@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { BookHeadphones, ChartNoAxesColumn, Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
-import { setUnauthorizedHandler } from './api'
+import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
@@ -16,6 +16,7 @@ import LanguageSwitch from './components/LanguageSwitch.vue'
 import NowPlaying from './components/NowPlaying.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import PlaylistPicker from './components/PlaylistPicker.vue'
+import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
 
 const { t } = useI18n()
@@ -36,11 +37,23 @@ setUnauthorizedHandler(() => {
   router.push({ name: 'login' })
 })
 
+// Lists stay alive when you go into an album and come back: no reload, same scroll position.
+// They are dropped when the library changed (a scan, a banner), checked at most once a minute.
+// (home is left out: its recently played row changes as you listen)
+const KEPT = ['SearchView', 'AlbumsView', 'ArtistsView', 'TracksView', 'GenresView', 'CollectionsView', 'ChartsView', 'BooksView', 'MixView']
+const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'genres', 'charts', 'chart-list', 'books', 'mix']
+const mainEl = ref<HTMLElement | null>(null)
+const keepKey = ref(0)
+const scrolls = new Map<string, number>()
+let libVersion: number | null = null
+
 // load per-user state when someone logs in, clear it on logout
 watch(
   () => auth.user?.id,
   (id) => {
     library.reset()
+    keepKey.value++ // nothing kept from the previous person
+    scrolls.clear()
     if (id) {
       player.restore(id)
       library.loadPlaylists().catch(() => {})
@@ -61,6 +74,22 @@ watch(
     ui.queueOpen = false
   },
 )
+
+router.beforeEach((_to, from) => {
+  if (mainEl.value) scrolls.set(from.fullPath, mainEl.value.scrollTop)
+})
+router.afterEach(async (to) => {
+  await nextTick()
+  if (mainEl.value) mainEl.value.scrollTop = KEPT_ROUTES.includes(String(to.name)) ? scrolls.get(to.fullPath) ?? 0 : 0
+  if (!auth.user || Date.now() - ui.libraryCheckedAt < 60_000) return
+  ui.libraryCheckedAt = Date.now()
+  const { version } = await api<{ version: number }>('/library/version').catch(() => ({ version: libVersion }))
+  if (libVersion !== null && version !== libVersion) {
+    keepKey.value++ // remounts the open list too, so it shows the change
+    scrolls.clear()
+  }
+  libVersion = version
+})
 
 function search() {
   const q = searchText.value.trim()
@@ -151,8 +180,12 @@ function active(to: string) {
         </div>
       </header>
 
-      <main class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pb-36 md:pt-5">
-        <RouterView :key="route.fullPath" />
+      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pb-36 md:pt-5">
+        <RouterView v-slot="{ Component, route: r }">
+          <KeepAlive :key="keepKey" :include="KEPT" :max="8">
+            <component :is="Component" :key="r.fullPath" />
+          </KeepAlive>
+        </RouterView>
       </main>
 
       <!-- desktop floating player -->
@@ -182,6 +215,7 @@ function active(to: string) {
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
+    <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
   </div>
 
   <div

@@ -22,6 +22,7 @@ export const router = createRouter({
     { path: '/genres', name: 'genres', component: () => import('./views/GenresView.vue') },
     { path: '/playlists', name: 'playlists', component: () => import('./views/PlaylistsView.vue') },
     { path: '/playlists/:id', name: 'playlist', component: () => import('./views/PlaylistView.vue'), props: true },
+    { path: '/mixes/:mixKey', name: 'mix', component: () => import('./views/MixView.vue'), props: true },
     { path: '/favorites', name: 'favorites', component: () => import('./views/FavoritesView.vue') },
     { path: '/history', name: 'history', component: () => import('./views/HistoryView.vue') },
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },

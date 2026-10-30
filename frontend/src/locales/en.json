@@ -8,7 +8,7 @@
     "genres": "Genres",
     "library": "Library",
     "playlists": "My playlists",
-    "favorites": "Favorites",
+    "favorites": "Liked",
     "history": "Recently played",
     "admin": "Admin",
     "settings": "Settings",
@@ -67,7 +67,17 @@
     "ai_no_image": "The AI returned no image. Try a different prompt.",
     "ai_unreachable": "Cannot reach the AI service.",
     "ai_bad_response": "Could not read the AI service response.",
-    "no_scan_running": "No scan is running."
+    "no_scan_running": "No scan is running.",
+    "youtube_not_configured": "YouTube search is not set up (YOUTUBE_API_KEY).",
+    "youtube_quota": "YouTube refused the search: today's quota is used up, the key lacks YouTube Data API v3, or the key has an HTTP referrer (website) restriction. You can still paste a link.",
+    "youtube_unauthorized": "The YouTube API key is not valid.",
+    "youtube_unreachable": "Could not reach YouTube.",
+    "video_bad_link": "That is not a YouTube video link.",
+    "video_not_found": "The video does not exist or is private.",
+    "video_not_embeddable": "This video can only be watched on YouTube.",
+    "video_exists": "This video is already in the list.",
+    "smart_playlist": "Songs cannot be added to a smart playlist by hand.",
+    "not_smart": "Not a smart playlist."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -98,8 +108,8 @@
     "viewAll": "View all",
     "added": "Added.",
     "saved": "Saved.",
-    "favoriteAdd": "Add to favorites",
-    "favoriteRemove": "Remove from favorites",
+    "favoriteAdd": "Like",
+    "favoriteRemove": "Unlike",
     "number": "No.",
     "titleCol": "Title",
     "duration": "Length",
@@ -110,7 +120,15 @@
     "playSelected": "Play",
     "listenAll": "Play all",
     "addShort": "Add to playlist",
-    "playAlbum": "Play album"
+    "playAlbum": "Play album",
+    "rating": "Rating",
+    "rateStars": "{n} stars",
+    "clearRating": "Clear rating",
+    "videos": "Videos",
+    "watchVideos": "Watch videos",
+    "saveAsPlaylist": "Save as playlist",
+    "reshuffle": "Shuffle again",
+    "empty": "No songs."
   },
   "home": {
     "recent": "Recently played",
@@ -121,7 +139,8 @@
     "tabRecent": "Recently played",
     "tabNew": "New albums",
     "tabPlaylists": "My playlists",
-    "nothingRecent": "Nothing played yet."
+    "nothingRecent": "Nothing played yet.",
+    "mixes": "Made for you"
   },
   "albums": {
     "title": "Albums",
@@ -134,7 +153,9 @@
     "kind_album": "Official",
     "kind_unofficial": "Unofficial",
     "kind_compilation": "Compilations",
-    "empty": "No albums here."
+    "empty": "No albums here.",
+    "sortRating": "My rating",
+    "trackAvg": "Songs avg ★{n}"
   },
   "tracks": {
     "title": "Songs",
@@ -160,11 +181,15 @@
     "empty": "No playlists yet.",
     "emptyTracks": "Add songs from any list with the ⋯ menu.",
     "deleteConfirm": "Delete the playlist “{name}”?",
-    "chooseTitle": "Choose a playlist"
+    "chooseTitle": "Choose a playlist",
+    "smart": "Smart"
   },
   "favorites": {
-    "title": "Favorites",
-    "empty": "Tap the heart to add songs to your favorites."
+    "title": "Liked",
+    "empty": "Tap the heart to collect songs you like.",
+    "songs": "Songs",
+    "albums": "Albums",
+    "albumsEmpty": "Tap the heart on an album to collect albums you like."
   },
   "history": {
     "title": "Recently played",
@@ -244,7 +269,7 @@
     "errors": "Errors",
     "errorDetails": "Show errors",
     "purge": "Clean up missing (30+ days)",
-    "purgeConfirm": "Delete songs missing for 30+ days? They will also disappear from playlists and favorites.",
+    "purgeConfirm": "Delete songs missing for 30+ days? They will also disappear from playlists and liked songs.",
     "purged": "Removed {n} songs.",
     "users": "Users",
     "addUser": "Add user",
@@ -314,6 +339,11 @@
     "aiOff": "No API key",
     "aiCounts": "{banners} AI banners · {without} collections without a banner (covers are used)",
     "aiHelp": "Add {key} to .env and restart the app to use it. The key stays on the server, never in the page or the database.",
+    "scanTook": "took {time}",
+    "minSec": "{m} min {s} s",
+    "rebuildCovers": "Rebuild covers",
+    "rebuildCoversConfirm": "Remake every album and audiobook cover from the music files? It runs as a scan and takes a while.",
+    "rebuildCoversStarted": "Started a scan that rebuilds the covers",
     "stopScan": "Stop scan",
     "stoppingScan": "Stopping…",
     "scanCancelled": "Scan stopped (songs read so far are kept; nothing marked missing)",
@@ -321,10 +351,12 @@
   },
   "library": {
     "title": "My music",
-    "playFavorites": "Play all favorites",
+    "playFavorites": "Play all liked songs",
     "artistsCount": "{n}",
     "genresCount": "{n}",
-    "tracksCount": "{n}"
+    "tracksCount": "{n}",
+    "mixes": "Made for you",
+    "likedAlbums": "Liked albums"
   },
   "explore": {
     "title": "Explore",
@@ -405,5 +437,117 @@
     "resetDone": "Banner removed.",
     "costNote": "Each make or edit is one paid image request. Titles are drawn by the app, not in the image.",
     "appliedShadowed": "Applied. This week has its own banner, so that one stays visible."
+  },
+  "mixes": {
+    "title": "Mix",
+    "names": {
+      "random": "Random 100",
+      "on-repeat": "On repeat",
+      "top": "Most played",
+      "rewind": "Rewind",
+      "top-rated": "Top rated",
+      "unplayed": "Not played yet",
+      "recent": "Recently added",
+      "1990s": "1990s",
+      "2000s": "2000s",
+      "2010s": "2010s",
+      "2020s": "2020s"
+    },
+    "desc": {
+      "random": "100 songs at random, new each time.",
+      "on-repeat": "What you played most in the last 30 days",
+      "top": "Your most played songs ever",
+      "rewind": "Played often, not in the last 60 days",
+      "top-rated": "Songs you gave 4 stars or more",
+      "unplayed": "Songs you have never played",
+      "recent": "Newest songs in the library",
+      "decade": "Songs from {decade} albums"
+    }
+  },
+  "smart": {
+    "badge": "Smart",
+    "new": "New smart playlist",
+    "edit": "Edit rules",
+    "intro": "Songs that match the rules, worked out each time you open it.",
+    "match": "Match",
+    "matchAll": "All rules",
+    "matchAny": "Any rule",
+    "addRule": "Add rule",
+    "removeRule": "Remove rule",
+    "noRules": "Without rules, songs come from the whole library.",
+    "sort": "Order",
+    "limit": "Up to",
+    "yes": "Yes",
+    "no": "No",
+    "days": "days",
+    "minutes": "min",
+    "fields": {
+      "genre": "Genre",
+      "artist": "Artist",
+      "year": "Year",
+      "rating": "Rating",
+      "favorite": "Liked",
+      "plays": "Play count",
+      "last_played": "Last played",
+      "added": "Added",
+      "folder": "Folder kind",
+      "duration": "Length"
+    },
+    "ops": {
+      "is": "is",
+      "is_not": "is not",
+      "contains": "contains",
+      "not_contains": "does not contain",
+      "between": "between",
+      "gte": "at least",
+      "lte": "at most",
+      "none": "none",
+      "within_days": "in the last N days",
+      "not_within_days": "more than N days ago"
+    },
+    "folders": {
+      "album": "Album",
+      "compilation": "Compilation",
+      "chart": "Chart",
+      "theme": "Theme"
+    },
+    "sorts": {
+      "random": "Random",
+      "plays": "Most played",
+      "recent": "Recently added",
+      "title": "Title",
+      "rating": "Rating",
+      "last_played": "Recently played"
+    }
+  },
+  "videos": {
+    "title": "Videos",
+    "forAlbum": "Album videos",
+    "forTrack": "Videos of {title}",
+    "empty": "No videos yet.",
+    "add": "Add video",
+    "search": "Search YouTube",
+    "searchButton": "Search",
+    "register": "Add",
+    "registered": "Added",
+    "added": "Video added",
+    "kind": "Kind",
+    "kinds": {
+      "mv": "Music video",
+      "live": "Live",
+      "cover": "Cover",
+      "other": "Other"
+    },
+    "paste": "Add by YouTube link",
+    "pastePlaceholder": "https://youtu.be/...",
+    "noKey": "In-app search needs YOUTUBE_API_KEY in .env (ask the admin). For now, paste the link of a video found on YouTube.",
+    "searchOnYoutube": "Find on YouTube",
+    "openYoutube": "Watch on YouTube",
+    "notEmbeddable": "This video can only be watched on YouTube.",
+    "unavailable": "This video is not available (removed or private).",
+    "remove": "Remove",
+    "removeConfirm": "Remove ‘{title}’ from the list?",
+    "resumeMusic": "Resume music",
+    "minutes": "{m}:{s}"
   }
 }

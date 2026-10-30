@@ -2,16 +2,17 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Pencil, Trash2 } from '@lucide/vue'
+import { Pencil, SlidersHorizontal, Trash2 } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { PlaylistDetail } from '../types'
+import type { Playlist, PlaylistDetail } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
@@ -24,6 +25,8 @@ const playlist = ref<PlaylistDetail | null>(null)
 const error = ref('')
 const renaming = ref(false)
 const newName = ref('')
+const editingRules = ref(false)
+const smart = computed(() => playlist.value?.kind === 'smart')
 
 async function load() {
   try {
@@ -63,6 +66,23 @@ function rename() {
   run(() => api(`/playlists/${props.id}`, { method: 'PATCH', body: { name } }))
 }
 
+function rulesSaved(_p: Playlist) {
+  editingRules.value = false
+  load()
+  library.loadPlaylists().catch(() => {})
+}
+
+// a smart playlist's songs as they are now, kept as an ordinary playlist
+async function snapshot() {
+  try {
+    const p = await library.createPlaylist(`${playlist.value!.name} ${new Date().toLocaleDateString()}`)
+    await library.addToPlaylist(p.id, tracks.value)
+    ui.notify(t('common.saved'))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
 async function destroy() {
   if (!playlist.value || !confirm(t('playlists.deleteConfirm', { name: playlist.value.name }))) return
   try {
@@ -78,21 +98,26 @@ async function destroy() {
 <template>
   <p v-if="error" class="font-light text-muted">{{ error }}</p>
   <div v-else-if="playlist" class="flex flex-col gap-5">
-    <PageHeader :title="playlist.name" :sub="t('common.tracks', playlist.entries.length)" />
+    <PageHeader :title="playlist.name" :sub="smart ? `${t('smart.badge')} · ${t('common.tracks', playlist.entries.length)}` : t('common.tracks', playlist.entries.length)" />
     <div class="flex flex-wrap gap-2">
       <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
       <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
-      <button type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
+      <button v-if="smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
+        <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
+      </button>
+      <button v-if="smart" type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="snapshot">{{ t('common.saveAsPlaylist') }}</button>
+      <button v-else type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
         <Pencil :size="16" :stroke-width="1.4" />
       </button>
       <button type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
         <Trash2 :size="16" :stroke-width="1.4" />
       </button>
     </div>
-    <p v-if="!tracks.length" class="font-light text-muted">{{ t('playlists.emptyTracks') }}</p>
-    <TrackList :tracks="tracks" editable @remove="remove" @move="move" />
+    <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
+    <TrackList :tracks="tracks" :editable="!smart" @remove="remove" @move="move" />
+    <SmartRulesSheet v-if="editingRules" :playlist="playlist" @close="editingRules = false" @saved="rulesSaved" />
 
     <BaseModal v-if="renaming" :title="t('common.rename')" @close="renaming = false">
       <form class="flex flex-col gap-4" @submit.prevent="rename">

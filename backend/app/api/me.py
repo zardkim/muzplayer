@@ -1,13 +1,16 @@
-"""Per-user data: playlists, favorites, play history. Always scoped to the session user."""
+"""Per-user data: playlists (and smart ones), liked songs, play history and counts.
+Always scoped to the session user."""
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Favorite, PlayHistory, Playlist, PlaylistTrack, Track, User
+from ..models import Favorite, PlayCount, PlayHistory, Playlist, PlaylistTrack, Track, User
 from ..security import api_error, current_user
+from ..smart import Rules, apply_rules
 from .library import track_out, track_query
 
 router = APIRouter()
@@ -22,11 +25,13 @@ def own_playlist(db: Session, user: User, playlist_id: int) -> Playlist:
     return playlist
 
 
-def playlist_out(p: Playlist, track_count: int) -> dict:
+def playlist_out(p: Playlist, track_count: int | None) -> dict:
     return {
         "id": p.id,
         "name": p.name,
-        "track_count": track_count,
+        "kind": p.kind,
+        "rules": p.rules,
+        "track_count": track_count,  # None for a smart playlist: known once it is opened
         "created_at": p.created_at,
         "updated_at": p.updated_at,
     }
@@ -34,6 +39,12 @@ def playlist_out(p: Playlist, track_count: int) -> dict:
 
 class PlaylistIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    rules: Rules | None = None  # given: a smart playlist
+
+
+class PlaylistPatch(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=200)
+    rules: Rules | None = None  # smart playlists only
 
 
 class TrackIdsIn(BaseModel):
@@ -53,20 +64,35 @@ def list_playlists(user: User = Depends(current_user), db: Session = Depends(get
         .group_by(Playlist.id)
         .order_by(Playlist.updated_at.desc())
     )
-    return {"items": [playlist_out(p, c) for p, c in rows]}
+    return {"items": [playlist_out(p, None if p.kind == "smart" else c) for p, c in rows]}
 
 
 @router.post("/playlists", status_code=201)
 def create_playlist(body: PlaylistIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
     playlist = Playlist(user_id=user.id, name=body.name.strip())
+    if body.rules is not None:
+        playlist.kind, playlist.rules = "smart", body.rules.model_dump()
     db.add(playlist)
     db.commit()
-    return playlist_out(playlist, 0)
+    return playlist_out(playlist, None if playlist.kind == "smart" else 0)
+
+
+def smart_rules(playlist: Playlist) -> Rules | None:
+    try:
+        return Rules.model_validate(playlist.rules or {})
+    except ValidationError:  # rules this version can't read: show nothing rather than fail
+        return None
 
 
 @router.get("/playlists/{playlist_id}")
 def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     playlist = own_playlist(db, user, playlist_id)
+    if playlist.kind == "smart":
+        # worked out now from the rules; entries have no entry_id (nothing to remove or move)
+        rules = smart_rules(playlist)
+        rows = db.execute(apply_rules(track_query(user.id), rules, user.id)).all() if rules else []
+        entries = [{"entry_id": None, "track": track_out(r)} for r in rows]
+        return {**playlist_out(playlist, len(entries)), "entries": entries}
     rows = db.execute(
         track_query(user.id)
         .add_columns(PlaylistTrack.id)
@@ -79,12 +105,19 @@ def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Sessi
 
 
 @router.patch("/playlists/{playlist_id}")
-def rename_playlist(
-    playlist_id: int, body: PlaylistIn, user: User = Depends(current_user), db: Session = Depends(get_db)
+def update_playlist(
+    playlist_id: int, body: PlaylistPatch, user: User = Depends(current_user), db: Session = Depends(get_db)
 ):
     playlist = own_playlist(db, user, playlist_id)
-    playlist.name = body.name.strip()
+    if body.name is not None:
+        playlist.name = body.name.strip()
+    if body.rules is not None:
+        if playlist.kind != "smart":
+            raise api_error(400, "not_smart")
+        playlist.rules = body.rules.model_dump()
     db.commit()
+    if playlist.kind == "smart":
+        return playlist_out(playlist, None)
     count = db.scalar(select(func.count()).where(PlaylistTrack.playlist_id == playlist.id))
     return playlist_out(playlist, count)
 
@@ -100,6 +133,8 @@ def add_tracks(
     playlist_id: int, body: TrackIdsIn, user: User = Depends(current_user), db: Session = Depends(get_db)
 ):
     playlist = own_playlist(db, user, playlist_id)
+    if playlist.kind == "smart":
+        raise api_error(400, "smart_playlist")  # its songs come from its rules
     valid = set(db.scalars(select(Track.id).where(Track.id.in_(body.track_ids))))
     position = db.scalar(
         select(func.coalesce(func.max(PlaylistTrack.position), -1)).where(PlaylistTrack.playlist_id == playlist.id)
@@ -185,6 +220,15 @@ def add_history(body: HistoryIn, user: User = Depends(current_user), db: Session
     if db.get(Track, body.track_id) is None:
         raise api_error(404, "not_found")
     db.add(PlayHistory(user_id=user.id, track_id=body.track_id))
+    # the count is kept for good; the history below keeps only the latest plays
+    db.execute(
+        insert(PlayCount)
+        .values(user_id=user.id, track_id=body.track_id, plays=1, last_played_at=func.now())
+        .on_conflict_do_update(
+            index_elements=["user_id", "track_id"],
+            set_={"plays": PlayCount.plays + 1, "last_played_at": func.now()},
+        )
+    )
     db.flush()
     keep = (
         select(PlayHistory.id)

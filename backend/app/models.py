@@ -4,15 +4,18 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
     func,
+    literal_column,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,6 +48,9 @@ class UserSession(Base):
 
 class Artist(Base):
     __tablename__ = "artists"
+    __table_args__ = (
+        Index("ix_artists_name_trgm", "name", postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"}),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
@@ -57,20 +63,30 @@ class Album(Base):
     __tablename__ = "albums"
     __table_args__ = (
         UniqueConstraint("kind", "album_artist_id", "title", postgresql_nulls_not_distinct=True),
+        Index("ix_albums_title_trgm", "title", postgresql_using="gin", postgresql_ops={"title": "gin_trgm_ops"}),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # album | unofficial | compilation | chart (chart albums only hold covers for chart tracks)
     kind: Mapped[str] = mapped_column(String(16), default="album", server_default="album")
     title: Mapped[str] = mapped_column(String(500))
-    album_artist_id: Mapped[int | None] = mapped_column(ForeignKey("artists.id", ondelete="SET NULL"))
+    album_artist_id: Mapped[int | None] = mapped_column(ForeignKey("artists.id", ondelete="SET NULL"), index=True)
     year: Mapped[int | None] = mapped_column(Integer)
     cover_path: Mapped[str | None] = mapped_column(String(500))
+    # bumped whenever the cover is remade: it is part of the cover URL, so browsers can keep covers for good
+    cover_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # what the cover was made from ("folder:<rel>" or "file:<rel>", relative to MUSIC_DIR) and its mtime then
+    cover_source: Mapped[str | None] = mapped_column(Text)
+    cover_mtime: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Track(Base):
     __tablename__ = "tracks"
+    __table_args__ = (
+        Index("ix_tracks_search_text", "search_text", postgresql_using="gin", postgresql_ops={"search_text": "gin_trgm_ops"}),
+        Index("ix_tracks_title_lower", func.lower(literal_column("title")), "id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     album_id: Mapped[int | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), index=True)
@@ -85,6 +101,8 @@ class Track(Base):
     file_size: Mapped[int] = mapped_column(BigInteger)
     file_mtime: Mapped[float] = mapped_column(Float)
     format: Mapped[str] = mapped_column(String(16))
+    # "title artist album", NFC and lowercased, with a trigram index: search looks only here
+    search_text: Mapped[str] = mapped_column(Text, default="", server_default="")
     tag_json: Mapped[dict | None] = mapped_column(JSON)
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
     chart_position: Mapped[int | None] = mapped_column(Integer)
@@ -93,7 +111,7 @@ class Track(Base):
         ForeignKey("tracks.id", ondelete="SET NULL"), index=True
     )
     missing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
 class LibraryFolder(Base):
@@ -146,6 +164,9 @@ class Playlist(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200))
+    # manual: tracks put in by hand; smart: rules (see smart.py) worked out each time it is opened
+    kind: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")
+    rules: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -229,6 +250,7 @@ class Book(Base):
     files: Mapped[list] = mapped_column(JSON, default=list)
     cover_sig: Mapped[str] = mapped_column(String(1000), default="")  # folder image it came from
     has_cover: Mapped[bool] = mapped_column(Boolean, default=False)
+    cover_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # field names set by an import or by hand; a rescan never overwrites them from tags
     locked: Mapped[list] = mapped_column(JSON, default=list)
     abs_id: Mapped[str | None] = mapped_column(String(64))
@@ -263,3 +285,92 @@ class Banner(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class LibraryState(Base):
+    """One row. version goes up whenever what the library lists show changes (scan, folder kinds,
+    banners); cached responses and ETags are keyed on it."""
+
+    __tablename__ = "library_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class TrackRating(Base):
+    """A user's 1-5 stars for a song."""
+
+    __tablename__ = "track_ratings"
+    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 5", name="ck_track_ratings_rating"),)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True, index=True)
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AlbumRating(Base):
+    """A user's 1-5 stars for an album (its own, not the average of its songs)."""
+
+    __tablename__ = "album_ratings"
+    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 5", name="ck_album_ratings_rating"),)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    album_id: Mapped[int] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True, index=True)
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AlbumFavorite(Base):
+    """A liked album (liked songs are Favorite)."""
+
+    __tablename__ = "album_favorites"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    album_id: Mapped[int] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlayCount(Base):
+    """How often a user played a song, kept for good (play_history keeps only the latest plays)."""
+
+    __tablename__ = "play_counts"
+    __table_args__ = (
+        Index("ix_play_counts_user_plays", "user_id", "plays"),
+        Index("ix_play_counts_user_last", "user_id", "last_played_at"),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True, index=True)
+    plays: Mapped[int] = mapped_column(Integer, default=0)
+    last_played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Video(Base):
+    """A YouTube video for an album or a song: music video, live, a cover by someone else.
+    Shared by everyone, like the library."""
+
+    __tablename__ = "videos"
+    __table_args__ = (
+        CheckConstraint("num_nonnulls(album_id, track_id) = 1", name="ck_videos_target"),
+        UniqueConstraint("album_id", "youtube_id"),
+        UniqueConstraint("track_id", "youtube_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    album_id: Mapped[int | None] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), index=True)
+    track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
+    youtube_id: Mapped[str] = mapped_column(String(16))
+    kind: Mapped[str] = mapped_column(String(16))  # mv | live | cover | other
+    title: Mapped[str] = mapped_column(String(500))
+    channel: Mapped[str] = mapped_column(String(200), default="")
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

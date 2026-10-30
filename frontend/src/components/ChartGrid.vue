@@ -26,7 +26,7 @@ async function play(id: number) {
   >
     <div v-for="c in charts" :key="c.id" class="group relative flex min-w-0 flex-col gap-2" :class="row ? 'w-[140px] flex-none sm:w-40' : ''">
       <RouterLink :to="{ name: 'chart', params: { id: c.id } }" class="flex flex-col gap-2">
-        <CoverArt :album-id="c.cover_album_id" :has-cover="!!c.cover_album_id">
+        <CoverArt :album-id="c.cover_albums[0]?.id ?? null" :has-cover="c.cover_albums.length > 0" :version="c.cover_albums[0]?.v">
           <span v-if="c.source" class="absolute left-2 top-2 rounded-full bg-ink/80 px-2 py-0.5 text-[12px] font-medium text-white">{{ c.source }}</span>
         </CoverArt>
         <span class="flex min-w-0 flex-col">

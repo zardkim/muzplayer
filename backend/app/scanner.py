@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import threading
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,12 +13,15 @@ from pathlib import Path
 
 import mutagen
 from PIL import Image
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import delete, exists, func, insert, select, update
 from sqlalchemy.orm import Session, defer
 
 from .config import settings
 from .db import SessionLocal
-from .models import Album, Artist, Chart, Genre, LibraryFolder, ScanJob, Track, TrackGenre
+from .models import (
+    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, ScanJob, Track, TrackGenre,
+    Video,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +50,10 @@ class ScanCancelled(Exception):
 def check_cancel() -> None:
     if _cancel.is_set():
         raise ScanCancelled
+
+
+def scan_running() -> bool:
+    return _lock.locked()
 
 
 def cancel_scan() -> bool:
@@ -143,7 +151,7 @@ def _embedded_cover(path: Path) -> bytes | None:
     return None
 
 
-def _folder_cover(directory: Path) -> bytes | None:
+def _folder_cover(directory: Path) -> Path | None:
     try:
         entries = list(directory.iterdir())
     except OSError:
@@ -151,7 +159,7 @@ def _folder_cover(directory: Path) -> bytes | None:
     for name in FOLDER_COVERS:
         for entry in entries:
             if entry.stem.lower() == name and entry.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
-                return entry.read_bytes()
+                return entry
     return None
 
 
@@ -171,6 +179,45 @@ def _save_cover(album_id: int, data: bytes) -> bool:
         copy.thumbnail((COVER_SIZES[size], COVER_SIZES[size]))
         copy.save(cover_file(album_id, size), "JPEG", quality=85)
     return True
+
+
+def _set_album_cover(album: Album, data: bytes, source: str, mtime: float) -> bool:
+    """Saves the cover and records where it came from; a new version gives it a new URL."""
+    if not _save_cover(album.id, data):
+        return False
+    album.cover_path = cover_file(album.id, "thumb").name
+    album.cover_version = (album.cover_version or 0) + 1
+    album.cover_source, album.cover_mtime = source, mtime
+    return True
+
+
+def _cover_from_file(album: Album, path: Path, rel: str) -> bool:
+    """The picture embedded in one audio file."""
+    data = _embedded_cover(path)
+    if not data:
+        return False
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return False
+    return _set_album_cover(album, data, f"file:{rel}", mtime)
+
+
+def _cover_from_folder(album: Album, root: Path, directory: Path) -> bool:
+    """cover.jpg (folder.jpg, ...) next to the audio files."""
+    image = _folder_cover(directory)
+    if image is None:
+        return False
+    try:
+        data, mtime = image.read_bytes(), image.stat().st_mtime
+    except OSError:
+        return False
+    return _set_album_cover(album, data, f"folder:{os.path.relpath(image, root)}", mtime)
+
+
+def search_key(*parts: str | None) -> str:
+    """What search matches against: NFC, lowercased (the query is lowercased the same way)."""
+    return nfc(" ".join(p for p in parts if p)).lower()
 
 
 def folder_kinds(db: Session) -> dict[str, str]:
@@ -210,8 +257,11 @@ def placement(rel: str, kinds: dict[str, str]) -> Placement:
 class _Cache:
     """Keeps artist/album/chart/genre ids in memory during one scan."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, moves: dict[int, int] | None = None):
         self.db = db
+        # old album id -> new one, for songs refiled to an album made anew (tags or folder kind
+        # changed); the old album's stars, likes and videos follow when it is pruned
+        self.moves: dict[int, int] = {} if moves is None else moves
         self.artists = {a.name: a.id for a in db.scalars(select(Artist))}
         self.albums = {(a.kind, a.album_artist_id, a.title): a for a in db.scalars(select(Album))}
         self.album_kinds = {a.id: a.kind for a in self.albums.values()}
@@ -277,9 +327,14 @@ class _Cache:
 
 
 def _apply_tags(
-    db: Session, cache: _Cache, track: Track, path: Path, place: Placement, cover_tries: dict[int, int]
+    cache: _Cache,
+    track: Track,
+    raw: dict[str, list[str]],
+    duration: float | None,
+    path: Path,
+    place: Placement,
+    cover_tries: dict[int, int],
 ) -> None:
-    raw, duration = _read_tags(path)
     track.artist_text = " / ".join(_pick(raw, "artist"))[:1000]
     track.artist_id = cache.artist((_pick(raw, "artist") or [""])[0][:500])
     track.track_no = _number(_first(raw, "tracknumber"))
@@ -287,12 +342,41 @@ def _apply_tags(
     track.duration = duration
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
     _classify(cache, track, raw, path, place, cover_tries)
-    db.flush()
 
-    genre_ids = {cache.genre(g[:200]) for g in _pick(raw, "genre")}
-    db.execute(delete(TrackGenre).where(TrackGenre.track_id == track.id))
-    for genre_id in genre_ids:
-        db.add(TrackGenre(track_id=track.id, genre_id=genre_id))
+
+# one new or changed file, read but not yet written: (rel, path, stat, placement, tags, duration)
+Pending = tuple[str, Path, os.stat_result, Placement, dict[str, list[str]], float | None]
+
+
+def _store(
+    db: Session, cache: _Cache, existing: dict[str, Track], items: list[Pending], cover_tries: dict[int, int]
+) -> list[tuple[str, Track, bool]]:
+    """Writes a batch of read files with a few statements instead of several per file.
+    Returns (rel, track, is_new) for each; existing is left alone until the caller commits."""
+    done: list[tuple[str, Track, bool]] = []
+    genres: list[tuple[Track, set[int]]] = []
+    for rel, path, st, place, raw, duration in items:
+        track = existing.get(rel)
+        is_new = track is None
+        if is_new:
+            track = Track(file_path=rel, title="", file_size=st.st_size, file_mtime=st.st_mtime,
+                          format=path.suffix.lower().lstrip("."))
+            db.add(track)
+        track.file_size, track.file_mtime, track.missing_at = st.st_size, st.st_mtime, None
+        _apply_tags(cache, track, raw, duration, path, place, cover_tries)
+        genres.append((track, {cache.genre(g[:200]) for g in _pick(raw, "genre")}))
+        done.append((rel, track, is_new))
+    db.flush()
+    changed = [t.id for (_, t, is_new) in done if not is_new]
+    if changed:
+        # no ORM bookkeeping: with it, every delete walks every object loaded so far (slower as the scan goes)
+        db.execute(
+            delete(TrackGenre).where(TrackGenre.track_id.in_(changed)).execution_options(synchronize_session=False)
+        )
+    rows = [{"track_id": t.id, "genre_id": g} for t, ids in genres for g in ids]
+    if rows:
+        db.execute(insert(TrackGenre), rows)
+    return done
 
 
 def _classify(
@@ -313,7 +397,10 @@ def _classify(
         VARIOUS_ARTISTS if place.kind == "compilation" else (_pick(raw, "artist") or [""])[0]
     )
     album = cache.album(place.kind, album_title[:500], cache.artist(album_artist[:500]), _year(_first(raw, "date")))
+    if track.album_id is not None and track.album_id != album.id:
+        cache.moves.setdefault(track.album_id, album.id)
     track.album_id = album.id
+    track.search_text = search_key(track.title, track.artist_text, album.title)
     if place.chart_folder is not None:
         track.chart_id = cache.chart(place.chart_folder, place.chart_source, place.chart_kind)
         rank = RANK_PREFIX.match(rel.stem)
@@ -321,27 +408,81 @@ def _classify(
     else:
         track.chart_id = None
         track.chart_position = None
-    _ensure_cover(album, path, cover_tries)
+    _ensure_cover(album, path, track.file_path, cover_tries)
 
 
-def _ensure_cover(album: Album, path: Path, cover_tries: dict[int, int]) -> None:
+def _ensure_cover(album: Album, path: Path, rel: str, cover_tries: dict[int, int]) -> None:
+    """A new album gets its cover from the first of its files that has one (a later change to
+    that source is picked up by _refresh_covers)."""
     # try a few tracks per album: the first one may simply have no embedded art
     tries = cover_tries.get(album.id, 0)
-    if tries >= 3:
-        return
-    if cover_file(album.id, "thumb").exists():
-        cover_tries[album.id] = 3
-        album.cover_path = cover_file(album.id, "thumb").name
+    if tries >= 3 or album.cover_path:
         return
     cover_tries[album.id] = tries + 1
-    data = _embedded_cover(path) or _folder_cover(path.parent)
-    if data and _save_cover(album.id, data):
+    root = settings.music_dir
+    if _cover_from_file(album, path, rel) or _cover_from_folder(album, root, path.parent):
         cover_tries[album.id] = 3
-        album.cover_path = cover_file(album.id, "thumb").name
+
+
+def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, int]) -> int:
+    """Keeps covers in step with their files. Returns how many covers changed.
+
+    - a cover whose source (cover.jpg, or the audio file it was embedded in) changed or went
+      away is made again, from the album's files as for a new album
+    - a cover from before 0.6 (source unknown) is made again once
+    - an album without a cover looks for a cover.jpg added since
+    Albums under folders that can't be read now are left alone.
+    """
+    work: list[Album] = []
+    for album in db.scalars(select(Album)):
+        if cover_tries.get(album.id, 0) >= 3 and album.cover_source:
+            continue  # made during this scan
+        if album.cover_path is None:
+            work.append(album)
+        elif album.cover_source is None:
+            work.append(album)
+        else:
+            try:
+                mtime = os.stat(root / album.cover_source.split(":", 1)[1]).st_mtime
+            except OSError:
+                mtime = None
+            if mtime != album.cover_mtime:
+                work.append(album)
+    if not work:
+        return 0
+    files: dict[int, list[str]] = {}
+    rows = db.execute(
+        select(Track.album_id, Track.file_path)
+        .where(Track.album_id.in_([a.id for a in work]), Track.missing_at.is_(None))
+        .order_by(Track.album_id, Track.disc_no.nulls_first(), Track.track_no.nulls_last(), Track.file_path)
+    )
+    for album_id, rel in rows:
+        files.setdefault(album_id, []).append(rel)
+    changed = 0
+    for album in work:
+        check_cancel()
+        rels = [r for r in files.get(album.id, []) if reachable(r)]
+        if not rels:
+            continue
+        before = album.cover_version
+        if album.cover_path is None:
+            # only a new cover.jpg can have appeared: changed audio files were already tried
+            _cover_from_folder(album, root, (root / rels[0]).parent)
+        elif not (
+            any(_cover_from_file(album, root / r, r) for r in rels[:3])
+            or _cover_from_folder(album, root, (root / rels[0]).parent)
+        ):
+            # the cover is gone from the files: drop it so the placeholder shows
+            remove_covers([album.id])
+            album.cover_path, album.cover_source, album.cover_mtime = None, None, None
+            album.cover_version += 1
+        if album.cover_version != before:
+            changed += 1
+    return changed
 
 
 def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(), exts=AUDIO_EXTS):
-    """Yields audio files under root, following symlinked folders and mounts.
+    """Yields (path, is_symlink) for audio files under root, following symlinked folders and mounts.
 
     Folder loops (a link pointing at its own parent) are visited once.
     on_error(path, exc) is called for folders that can't be read and for broken links.
@@ -380,30 +521,41 @@ def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] =
                 on_error(Path(entry.path), exc)
                 continue
             if os.path.splitext(entry.name)[1].lower() in exts:
-                yield Path(entry.path)
+                yield Path(entry.path), entry.is_symlink()  # from the directory listing: no extra call
 
 
 def _collect(
     root: Path, existing: dict[str, Track], on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset()
-) -> list[tuple[str, Path]]:
-    """Lists (relative path, path) pairs, one per real file.
+) -> list[tuple[str, Path, os.stat_result]]:
+    """Lists (relative path, path, stat) for each real file. The one stat per file is reused
+    for the size/mtime check, which on a NAS share is most of the cost of a rescan.
 
-    The same file reachable through two links is indexed once, preferring the path
-    already in the DB so playlists keep pointing at it.
+    A file and symlinks to it are indexed once, preferring the path already in the DB so
+    playlists keep pointing at it. Hard links stay separate files (a chart folder may hard-link
+    album files), as when files were told apart by their real path.
     """
-    by_real: dict[str, list[tuple[str, Path]]] = {}
-    for path in _walk(root, on_error, skip_top, skip_paths):
+    by_inode: dict[tuple[int, int], list[tuple[str, Path, os.stat_result, bool]]] = {}
+    for path, is_link in _walk(root, on_error, skip_top, skip_paths):
         rel = os.path.relpath(path, root)
         try:
             rel.encode("utf-8")
         except UnicodeEncodeError:
             on_error(path, ValueError("invalid file name encoding"))
             continue
-        by_real.setdefault(os.path.realpath(path), []).append((rel, path))
+        try:
+            st = os.stat(path)
+        except OSError as exc:
+            on_error(path, exc)
+            continue
+        by_inode.setdefault((st.st_dev, st.st_ino), []).append((rel, path, st, is_link))
     files = []
-    for candidates in by_real.values():
+    for candidates in by_inode.values():
+        real = [c[:3] for c in candidates if not c[3]]
+        if len(real) > 1:
+            files.extend(real)  # hard links: one track per path (symlinks to them are dropped)
+            continue
         known = [c for c in candidates if c[0] in existing]
-        files.append(min(known or candidates))
+        files.append(min(known or candidates, key=lambda c: c[0])[:3])
     return files
 
 
@@ -428,7 +580,17 @@ def _scan(job_id: int) -> None:
         existing = {t.file_path: t for t in db.scalars(select(Track).options(defer(Track.tag_json)))}
         unavailable: list[str] = []  # folders we could not read: keep their tracks as they are
         cover_tries: dict[int, int] = {}
-        pending = 0
+        pending = 0  # unchanged files whose row changed (came back, refiled) since the last commit
+        batch: list[Pending] = []
+        bumped = time.monotonic()
+
+        def commit(changed: bool) -> None:
+            """Commits, and now and then lets cached lists see the new songs while a long scan runs."""
+            nonlocal bumped
+            if changed and time.monotonic() - bumped > 20:
+                bump_library(db)
+                bumped = time.monotonic()
+            db.commit()
 
         def on_error(path: Path, exc: Exception) -> None:
             # usually PUID/PGID lacking permission, an unmounted share or a broken link
@@ -437,6 +599,36 @@ def _scan(job_id: int) -> None:
             if len(errors) < 50:
                 errors.append(f"cannot read: {path}: {getattr(exc, 'strerror', None) or exc}")
 
+        def file_error(rel: str, exc: Exception) -> None:
+            job.errors += 1
+            if len(errors) < 50:
+                errors.append(f"{rel}: {exc}")
+
+        def store(items: list[Pending]) -> None:
+            """Writes read files in one savepoint; if that fails, one by one to find the bad file."""
+            nonlocal cache, pending
+            try:
+                with db.begin_nested():
+                    done = _store(db, cache, existing, items, cover_tries)
+            except Exception:
+                cache = _Cache(db, cache.moves)  # rows made inside the rolled-back savepoint are gone
+                done = []
+                for item in items:
+                    try:
+                        with db.begin_nested():
+                            done += _store(db, cache, existing, [item], cover_tries)
+                    except Exception as exc:  # one bad file must not stop the scan
+                        file_error(item[0], exc)
+                        cache = _Cache(db, cache.moves)
+            for rel, track, is_new in done:
+                existing[rel] = track
+                if is_new:
+                    job.added += 1
+                else:
+                    job.updated += 1
+            commit(bool(done))
+            pending = 0
+
         # mp3 audiobooks in a folder inside the music folder must not turn into songs
         books_dir = settings.audiobook_dir
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
@@ -444,16 +636,19 @@ def _scan(job_id: int) -> None:
         if not files and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
             raise RuntimeError(f"library_empty: no audio files found under {root}")
-        seen = {rel for rel, _ in files}
+        seen = {rel for rel, _, _ in files}
 
-        for rel, path in files:
+        places: dict[str, Placement] = {}  # placement depends only on the folder: work it out once per folder
+        for rel, path, st in files:
             check_cancel()
             job.scanned += 1
-            place = placement(rel, kinds)
-            try:
-                st = path.stat()
-                track = existing.get(rel)
-                if track and track.file_size == st.st_size and track.file_mtime == st.st_mtime:
+            folder = os.path.dirname(rel)
+            place = places.get(folder)
+            if place is None:
+                place = places[folder] = placement(rel, kinds)
+            track = existing.get(rel)
+            if track and track.file_size == st.st_size and track.file_mtime == st.st_mtime:
+                try:
                     changed = track.missing_at is not None
                     track.missing_at = None
                     if not cache.matches(track, place):
@@ -466,36 +661,25 @@ def _scan(job_id: int) -> None:
                     if changed:
                         job.updated += 1
                         pending += 1
-                    continue
-                is_new = track is None
-                with db.begin_nested():
-                    if is_new:
-                        track = Track(
-                            file_path=rel, title="", file_size=st.st_size, file_mtime=st.st_mtime,
-                            format=path.suffix.lower().lstrip("."),
-                        )
-                        db.add(track)
-                        db.flush()
-                    else:
-                        track.file_size = st.st_size
-                        track.file_mtime = st.st_mtime
-                        track.missing_at = None
-                    _apply_tags(db, cache, track, path, place, cover_tries)
-                existing[rel] = track
-                if is_new:
-                    job.added += 1
-                else:
-                    job.updated += 1
-            except Exception as exc:  # one bad file must not stop the scan
-                job.errors += 1
-                if len(errors) < 50:
-                    errors.append(f"{rel}: {exc}")
-                # rows created inside the rolled-back savepoint are gone; reload ids
-                cache = _Cache(db)
-            pending += 1
-            if pending >= BATCH:
-                db.commit()
-                pending = 0
+                except Exception as exc:
+                    file_error(rel, exc)
+                    cache = _Cache(db, cache.moves)
+                if pending >= BATCH:
+                    commit(True)
+                    pending = 0
+                continue
+            # new or changed: read it now, write it with the next batch
+            try:
+                raw, duration = _read_tags(path)
+            except Exception as exc:
+                file_error(rel, exc)
+                continue
+            batch.append((rel, path, st, place, raw, duration))
+            if len(batch) >= BATCH:
+                store(batch)
+                batch = []
+        if batch:
+            store(batch)
 
         def reachable(rel: str) -> bool:
             return not any(u == "." or rel == u or rel.startswith(u + os.sep) for u in unavailable)
@@ -509,14 +693,22 @@ def _scan(job_id: int) -> None:
         for i in range(0, len(gone), 1000):
             db.execute(update(Track).where(Track.id.in_(gone[i : i + 1000])).values(missing_at=now))
         job.missing = len(gone)
-        _link_chart_duplicates(db)
-        pruned_albums = prune_orphans(db)
-        _find_banners(db, root)
+        changed = bool(job.added or job.updated or job.missing)
+        # a scan that stopped early skipped these, so the next one does them even with nothing new
+        last = db.scalar(select(ScanJob.status).where(ScanJob.id < job_id).order_by(ScanJob.id.desc()).limit(1))
+        if changed or last != "done":
+            _link_chart_duplicates(db)
+            pruned_albums = prune_orphans(db, cache.moves)
+        covers = _refresh_covers(db, root, reachable, cover_tries)
+        banners = _find_banners(db, root)
+        if changed or pruned_albums or covers or banners:
+            bump_library(db)
         job.status = "done"
     except ScanCancelled:
         # keep what was read so far; nothing is marked missing or pruned on a partial pass
-        job.status = "cancelled"
-        pruned_albums = []
+        job.status = "cancelled"  # pruned_albums stays: a stop during the cover refresh comes after pruning
+        if job.added or job.updated:
+            bump_library(db)
     except Exception as exc:
         log.exception("scan failed")
         db.rollback()
@@ -524,6 +716,7 @@ def _scan(job_id: int) -> None:
         job = db.get(ScanJob, job_id)
         job.status = "failed"
         errors.append(str(exc))
+        bump_library(db)  # earlier batches were committed
     db.commit()
     if settings.audiobook_dir is not None and job.status != "cancelled":
         from .books import scan_books  # books imports scanner helpers
@@ -577,8 +770,9 @@ def _link_chart_duplicates(db: Session) -> None:
         db.execute(update(Track), changes)
 
 
-def _find_banners(db: Session, root: Path) -> None:
-    """Notes a banner.jpg (or .png/.webp) in each chart/theme folder."""
+def _find_banners(db: Session, root: Path) -> bool:
+    """Notes a banner.jpg (or .png/.webp) in each chart/theme folder. Returns whether one changed."""
+    changed = False
     for chart in db.scalars(select(Chart)):
         found = None
         try:
@@ -591,14 +785,29 @@ def _find_banners(db: Session, root: Path) -> None:
                 break
         if chart.banner_file != found:
             chart.banner_file = found
+            changed = True
+    return changed
 
 
-def prune_orphans(db: Session) -> list[int]:
+def carry_album_marks(db: Session, moves: dict[int, int]) -> None:
+    """Stars, likes and videos of albums about to be pruned move to the album their songs went to.
+    Where the user already marked the new album, that mark stays (and the old one goes with the album)."""
+    for old, new in moves.items():
+        for model in (AlbumRating, AlbumFavorite):
+            taken = select(model.user_id).where(model.album_id == new)
+            db.execute(update(model).where(model.album_id == old, model.user_id.not_in(taken)).values(album_id=new))
+        taken = select(Video.youtube_id).where(Video.album_id == new)
+        db.execute(update(Video).where(Video.album_id == old, Video.youtube_id.not_in(taken)).values(album_id=new))
+
+
+def prune_orphans(db: Session, moves: dict[int, int] | None = None) -> list[int]:
     """Deletes albums, charts, artists and genres no track uses any more. Returns deleted album ids.
 
     Missing tracks still count as users, so they get their album back when they reappear.
     """
     albums = list(db.scalars(select(Album.id).where(~exists().where(Track.album_id == Album.id))))
+    if albums and moves:
+        carry_album_marks(db, {old: new for old, new in moves.items() if old in set(albums) and new not in albums})
     if albums:
         db.execute(delete(Album).where(Album.id.in_(albums)))
     db.execute(delete(Chart).where(~exists().where(Track.chart_id == Chart.id)))
@@ -615,6 +824,11 @@ def remove_covers(album_ids: list[int]) -> None:
     for album_id in album_ids:
         for size in COVER_SIZES:
             cover_file(album_id, size).unlink(missing_ok=True)
+
+
+def bump_library(db: Session) -> None:
+    """Marks the library as changed: cached lists and ETags keyed on the old version go stale."""
+    db.execute(update(LibraryState).values(version=LibraryState.version + 1, updated_at=func.now()))
 
 
 def start_scan(db: Session) -> ScanJob | None:

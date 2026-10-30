@@ -243,9 +243,12 @@ def _refresh_cover(book: Book, root: Path, cover_sig: str, image: Path | None) -
             data = None
     if data is None and book.files:
         data = _embedded_cover(root / book.files[0]["path"])
+    had = book.has_cover
     book.has_cover = bool(data) and save_book_cover(book.id, data)
     if not book.has_cover:
         remove_book_covers([book.id])
+    if book.has_cover or had:
+        book.cover_version = (book.cover_version or 0) + 1  # new cover URL
     book.cover_sig = cover_sig
 
 
@@ -265,7 +268,7 @@ def scan_books(db: Session, job: ScanJob, errors: list[str]) -> None:
             errors.append(f"audiobooks: cannot read: {path}: {getattr(exc, 'strerror', None) or exc}")
 
     groups: dict[str, tuple[str, list[tuple[str, int | None]]]] = {}  # NFC key -> (key as on disk, files)
-    for path in _walk(root, on_error, set(), exts=BOOK_EXTS):
+    for path, _ in _walk(root, on_error, set(), exts=BOOK_EXTS):
         rel = os.path.relpath(path, root)
         try:
             rel.encode("utf-8")

@@ -26,7 +26,7 @@ const pct = (b: Book) => (b.progress && b.duration ? Math.min(100, (b.progress.p
       class="flex min-w-0 flex-col gap-2"
       :class="row ? 'w-[124px] flex-none sm:w-36' : ''"
     >
-      <BookCover :book-id="b.id" :has-cover="b.has_cover">
+      <BookCover :book-id="b.id" :has-cover="b.has_cover" :version="b.cover_v">
         <span v-if="b.progress && !b.progress.finished" class="absolute inset-x-0 bottom-0 h-1 bg-black/20">
           <span class="block h-full bg-accent" :style="{ width: `${pct(b)}%` }" />
         </span>

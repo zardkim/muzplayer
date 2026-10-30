@@ -2,16 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Clock, Heart, ListMusic, MicVocal, Plus, Settings, Tag, Users } from '@lucide/vue'
+import { ChevronRight, Clock, Heart, ListMusic, MicVocal, Plus, Settings, Tag, Users, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Genre, Page, Artist, Track } from '../types'
+import type { Genre, Mix, Page, Artist, Track } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
+import MixCards from '../components/MixCards.vue'
 import PageHeader from '../components/PageHeader.vue'
 
 const { t } = useI18n()
@@ -22,12 +23,14 @@ const ui = useUi()
 const router = useRouter()
 
 const favorites = ref<Track[]>([])
+const mixes = ref<Mix[]>([])
 const historyCount = ref(0)
 const artistCount = ref(0)
 const genreCount = ref(0)
 
 onMounted(async () => {
   library.loadPlaylists().catch(() => {})
+  api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
   const [f, h, a, g] = await Promise.all([
     api<{ items: Track[] }>('/favorites').catch(() => ({ items: [] })),
     api<{ items: Track[] }>('/history?limit=1000').catch(() => ({ items: [] })),
@@ -58,6 +61,11 @@ async function create() {
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('library.title')" />
 
+    <section v-if="mixes.length" class="flex flex-col gap-3">
+      <h2 class="text-[22px] font-bold">{{ t('library.mixes') }}</h2>
+      <MixCards :mixes="mixes" />
+    </section>
+
     <button
       type="button"
       class="flex h-[84px] items-center justify-between rounded-2xl bg-bg px-5 text-left shadow-[0_4px_20px_rgba(17,17,19,0.08)] disabled:opacity-60"
@@ -70,7 +78,7 @@ async function create() {
           v-for="(f, i) in favorites.slice(0, 3)"
           :key="f.id"
           :album-id="f.album_id"
-          :has-cover="f.has_cover"
+          :has-cover="f.has_cover" :version="f.cover_v"
           rounded="rounded-full"
           class="size-10 border-2 border-white"
           :class="i ? '-ml-3' : ''"
@@ -112,10 +120,10 @@ async function create() {
       </div>
       <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
       <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
-        <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><ListMusic :size="22" :stroke-width="1.3" /></span>
+        <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="22" :stroke-width="1.3" /><ListMusic v-else :size="22" :stroke-width="1.3" /></span>
         <span class="flex flex-col">
           <span class="text-[17px]">{{ p.name }}</span>
-          <span class="text-sm font-light text-muted">{{ t('common.tracks', p.track_count) }}</span>
+          <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
         </span>
       </RouterLink>
     </section>

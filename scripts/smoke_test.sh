@@ -31,6 +31,16 @@ total=$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]')
 tid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["id"]')
 check "range request returns 206" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-99' "$BASE/tracks/$tid/stream")" 206
 check "cover available" "$(curl -s -b "$A" "$BASE/albums" | j 'any(a["has_cover"] for a in d["items"])')" True
+cov=$(curl -s -b "$A" "$BASE/albums?limit=500" | j 'next(str(a["id"]) + "&v=" + str(a["cover_v"]) for a in d["items"] if a["has_cover"])')
+cover_url="$BASE/albums/${cov%%&*}/cover?size=thumb&${cov#*&}"
+check "versioned cover cached for a year" "$(curl -s -b "$A" -o /dev/null -D - "$cover_url" | grep -ci 'immutable')" 1
+etag=$(curl -s -b "$A" -o /dev/null -D - "$cover_url" | awk -F': ' 'tolower($1)=="etag"{print $2}' | tr -d '\r')
+check "unchanged cover is 304" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" "$cover_url")" 304
+list_etag() { curl -s -b "$A" -o /dev/null -D - "$BASE/albums" | awk -F': ' 'tolower($1)=="etag"{print $2}' | tr -d '\r'; }
+etag1=$(list_etag)
+check "unchanged album list is 304" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag1" "$BASE/albums")" 304
+word=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["title"].split()[0][:4]')
+check "search finds a song" "$(curl -s -b "$A" -G --data-urlencode "q=$word" "$BASE/tracks" | j 'd["total"] > 0')" True
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
@@ -47,6 +57,24 @@ pid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/js
 curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}"
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlist list empty" "$(curl -s -b "$U" "$BASE/playlists" | j 'len(d["items"])')" 0
+
+# stars, likes, play counts, mixes and smart playlists are each user's own
+aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/tracks/$tid" -H 'content-type: application/json' -d '{"rating":5}'
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":4}'
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/albums/$aid"
+check "song stars saved" "$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["rating"]')" 5
+check "other user's song stars separate" "$(curl -s -b "$U" "$BASE/tracks?sort=title" | j 'd["items"][0]["rating"]')" None
+check "album stars and like" "$(curl -s -b "$A" "$BASE/albums/$aid" | j '(d["rating"], d["is_favorite"])')" "(4, True)"
+check "other user's album marks separate" "$(curl -s -b "$U" "$BASE/albums/$aid" | j '(d["rating"], d["is_favorite"])')" "(None, False)"
+curl -s -b "$A" -o /dev/null -X POST "$BASE/history" -H 'content-type: application/json' -d "{\"track_id\":$tid}"
+check "play counted in most played mix" "$(curl -s -b "$A" "$BASE/mixes/top" | j "$tid in [t['id'] for t in d['tracks']]")" True
+check "random mix" "$(curl -s -b "$A" "$BASE/mixes/random" | j 'len(d["tracks"]) > 0')" True
+sid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke smart","rules":{"match":"all","rules":[{"field":"rating","op":"gte","value":5}],"sort":"title","limit":50}}' | j 'd["id"]')
+check "smart playlist follows its rules" "$(curl -s -b "$A" "$BASE/playlists/$sid" | j "$tid in [e['track']['id'] for e in d['entries']]")" True
+check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$sid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}")" 400
+check "video needs a YouTube link" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"not a youtube link\",\"kind\":\"mv\",\"album_id\":$aid}")" 400
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
 
 # audiobooks (only when AUDIOBOOK_PATH is set): stream, and positions kept per user
 if [ "$(curl -s "$BASE/config" | j 'd["audiobooks"]')" = True ]; then
@@ -69,6 +97,7 @@ mv "$path" "$TMP/moved.mp3"
 check "rescan after delete" "$(scan)" done
 # the job count, not the list total: the file may be a duplicate chart copy that lists never showed
 check "missing track detected" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["missing"]')" 1
+check "lists change after a scan with changes" "$([ "$(list_etag)" != "$etag1" ] && echo changed)" changed
 check "playlist keeps entry" "$(curl -s -b "$A" "$BASE/playlists/$pid" | j 'len(d["entries"])')" 1
 mv "$TMP/moved.mp3" "$path"
 MOVED=""

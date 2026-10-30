@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, EllipsisVertical, Heart } from '@lucide/vue'
+import { ArrowDown, ArrowUp, EllipsisVertical, Heart, MonitorPlay, Star } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { duration } from '../format'
 import { useLibrary } from '../stores/library'
@@ -9,6 +9,7 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Track } from '../types'
 import CoverArt from './CoverArt.vue'
+import StarRating from './StarRating.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -28,6 +29,7 @@ const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
 const menuOpen = ref<number | null>(null)
+const menuUp = ref(false) // rows low on the screen open their menu upwards, clear of the player bar
 
 // ---- multi-select (checkbox column on wider screens) ----
 const selected = ref(new Set<number>())
@@ -61,7 +63,25 @@ async function fav(track: Track) {
   }
 }
 
+async function rate(track: Track, stars: number | null) {
+  try {
+    await library.rate(track, stars)
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
+function videos(track: Track) {
+  menuOpen.value = null
+  ui.videoTarget = { trackId: track.id, title: track.title, artist: track.artist }
+}
+
 const isCurrent = (track: Track) => player.current?.id === track.id
+
+function openMenu(e: MouseEvent, i: number) {
+  menuUp.value = (e.currentTarget as HTMLElement).getBoundingClientRect().top > window.innerHeight / 2
+  menuOpen.value = menuOpen.value === i ? null : i
+}
 
 function action(fn: () => void) {
   menuOpen.value = null
@@ -124,9 +144,12 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           :aria-label="`${t('common.play')}: ${track.title}`"
           @click="play(i)"
         >
-          <CoverArt v-if="showCover" :album-id="track.album_id" :has-cover="track.has_cover" rounded="rounded-md" class="size-[52px] flex-none" />
+          <CoverArt v-if="showCover" :album-id="track.album_id" :has-cover="track.has_cover" :version="track.cover_v" rounded="rounded-md" class="size-[52px] flex-none" />
           <span class="flex min-w-0 flex-col">
-            <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
+            <span class="flex min-w-0 items-center gap-1.5">
+              <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
+              <MonitorPlay v-if="track.has_video" :size="15" :stroke-width="1.5" class="flex-none text-muted" :aria-label="t('common.videos')" />
+            </span>
             <span class="truncate text-[14px] font-light text-muted">
               <template v-if="track.missing">{{ t('common.missingFile') }}</template>
               <template v-else>{{ track.artist || t('common.unknownArtist') }}<template v-if="showAlbum"> · {{ track.album || t('common.unknownAlbum') }}</template></template>
@@ -134,6 +157,9 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           </span>
         </button>
 
+        <span class="hidden w-10 flex-none items-center gap-0.5 text-[13px] text-muted md:flex">
+          <template v-if="library.rating(track)"><Star :size="13" fill="currentColor" class="text-accent" />{{ library.rating(track) }}</template>
+        </span>
         <span class="hidden w-14 flex-none font-display text-[14px] text-muted md:block">{{ duration(track.duration) }}</span>
 
         <span class="flex flex-none items-center">
@@ -153,18 +179,22 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
               class="grid size-11 place-items-center text-ink"
               :aria-label="t('common.moreActions')"
               :aria-expanded="menuOpen === i"
-              @click="menuOpen = menuOpen === i ? null : i"
+              @click="(e) => openMenu(e, i)"
             >
               <EllipsisVertical :size="20" :stroke-width="1.3" />
             </button>
             <div
               v-if="menuOpen === i"
-              class="absolute right-0 top-11 z-30 flex w-56 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl"
+              class="absolute right-0 z-30 flex w-56 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl"
+              :class="menuUp ? 'bottom-11' : 'top-11'"
             >
               <template v-if="!track.missing">
+                <StarRating :value="library.rating(track)" :size="18" class="px-2.5" @rate="(n) => rate(track, n)" />
+                <div class="my-1 border-t border-line" />
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
+                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
               </template>
               <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
               <RouterLink v-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>

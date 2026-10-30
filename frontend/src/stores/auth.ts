@@ -24,6 +24,8 @@ export const useAuth = defineStore('auth', () => {
   async function logout() {
     await api('/auth/logout', { method: 'POST' }).catch(() => {})
     user.value = null
+    // covers kept by sw.js: the next person on this device shouldn't see what was browsed
+    await globalThis.caches?.delete('muz-covers-v1').catch(() => {}) // no Cache API over plain http
   }
 
   return { user, checked, fetchMe, login, logout }
