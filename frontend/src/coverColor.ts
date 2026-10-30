@@ -1,10 +1,9 @@
 import { coverUrl } from './api'
 
-// cover URL -> "r g b" (a darkened average of its cover), shared by every banner on the page
-const cache = new Map<string, Promise<string | null>>()
+// cover URL -> its average color [r, g, b], shared by every banner and player on the page
+const cache = new Map<string, Promise<number[] | null>>()
 
-/** The cover's average color, darkened so white text reads on it. Null when there is no cover. */
-export function coverColor(albumId: number, v?: number): Promise<string | null> {
+function average(albumId: number, v?: number): Promise<number[] | null> {
   const url = coverUrl(albumId, 'thumb', v)
   let hit = cache.get(url)
   if (!hit) {
@@ -24,9 +23,7 @@ export function coverColor(albumId: number, v?: number): Promise<string | null> 
             b += px[i + 2]
           }
           const n = px.length / 4
-          // keep the hue, cap the brightness
-          const scale = Math.min(1, 110 / Math.max(1, Math.max(r, g, b) / n))
-          resolve([r, g, b].map((v) => Math.round((v / n) * scale)).join(' '))
+          resolve([r / n, g / n, b / n])
         } catch {
           resolve(null)
         }
@@ -37,4 +34,18 @@ export function coverColor(albumId: number, v?: number): Promise<string | null> 
     cache.set(url, hit)
   }
   return hit
+}
+
+/** The cover's average color, darkened so white text reads on it ("r g b"). Null when there is no cover. */
+export async function coverColor(albumId: number, v?: number): Promise<string | null> {
+  const avg = await average(albumId, v)
+  if (!avg) return null
+  const scale = Math.min(1, 110 / Math.max(1, ...avg)) // keep the hue, cap the brightness
+  return avg.map((c) => Math.round(c * scale)).join(' ')
+}
+
+/** The cover's plain average color (CSS rgb()), for the players' soft background glow. */
+export async function coverGlow(albumId: number, v?: number): Promise<string | null> {
+  const avg = await average(albumId, v)
+  return avg ? `rgb(${avg.map(Math.round).join(' ')})` : null
 }

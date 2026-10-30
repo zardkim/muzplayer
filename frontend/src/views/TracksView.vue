@@ -8,11 +8,17 @@ import type { Genre, Page, Track } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 import TrackList from '../components/TrackList.vue'
+import TrackTiles from '../components/TrackTiles.vue'
+import ViewToggle from '../components/ViewToggle.vue'
+import { useUi } from '../stores/ui'
+import type { ViewMode } from '../types'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const player = usePlayer()
+const ui = useUi()
+const view = computed(() => (ui.views.tracks as ViewMode) || 'list')
 const sort = computed(() => (typeof route.query.sort === 'string' ? route.query.sort : 'title'))
 const genreId = typeof route.query.genre === 'string' ? Number(route.query.genre) : undefined
 const genreName = ref('')
@@ -49,7 +55,8 @@ const sorts = [
 <template>
   <div class="flex flex-col gap-5">
     <PageHeader :title="genreName ? `#${genreName}` : t('tracks.title')" :sub="t('common.tracks', total)" />
-    <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
+    <div class="flex items-center gap-2">
+    <div class="-mr-5 flex min-w-0 flex-1 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
       <button type="button" class="flex h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
@@ -68,7 +75,10 @@ const sorts = [
         </button>
       </template>
     </div>
-    <TrackList :tracks="items" />
+    <ViewToggle page="tracks" fallback="list" />
+    </div>
+    <TrackList v-if="view === 'list'" :tracks="items" />
+    <TrackTiles v-else :tracks="items" :dense="view === 'grid'" />
     <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
       {{ loading ? t('common.loading') : t('common.loadMore') }}
     </button>

@@ -20,7 +20,9 @@
     "explore": "Explore",
     "songs": "Songs",
     "charts": "Charts & Themes",
-    "audiobooks": "Audiobooks"
+    "audiobooks": "Audiobooks",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu"
   },
   "search": {
     "label": "Search",
@@ -84,7 +86,14 @@
     "smart_playlist": "Songs cannot be added to a smart playlist by hand.",
     "not_smart": "Not a smart playlist.",
     "already_set_up": "An admin account already exists. Please log in.",
-    "conf_not_writable": "Could not save the settings (check that the conf folder is writable)."
+    "conf_not_writable": "Could not save the settings (check that the conf folder is writable).",
+    "folder_required": "Pick a folder.",
+    "folder_not_found": "Folder not found.",
+    "ai_not_configured": "No AI API key is set.",
+    "lookup_running": "Already looking for photos.",
+    "image_unreachable": "Could not reach Wikipedia.",
+    "image_bad_source": "This photo can't be used.",
+    "image_bad_file": "Could not read the photo file."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -135,7 +144,11 @@
     "watchVideos": "Watch videos",
     "saveAsPlaylist": "Save as playlist",
     "reshuffle": "Shuffle again",
-    "empty": "No songs."
+    "empty": "No songs.",
+    "viewMode": "View",
+    "view_list": "List",
+    "view_cover": "Covers",
+    "view_grid": "Grid"
   },
   "home": {
     "recent": "Recently played",
@@ -175,11 +188,20 @@
     "albums": "Albums",
     "tracks": "Songs",
     "count": "{n} artist | {n} artists",
-    "unofficial": "Unofficial"
+    "unofficial": "Unofficial",
+    "label": "Artist",
+    "photoTitle": "Change artist photo",
+    "photoHelp": "Pick a photo from Wikipedia articles. An artist.jpg in the artist's folder takes precedence.",
+    "photoNone": "No article with a photo found. Try another name.",
+    "photoRemove": "Remove photo (not looked up again)",
+    "photoCredit": "Photo: Wikipedia '{title}'"
   },
   "genres": {
     "title": "Genres",
-    "empty": "No songs have genre tags."
+    "empty": "No songs have genre tags.",
+    "count": "{n} genres",
+    "sort_size": "Most songs",
+    "sort_name": "Name"
   },
   "playlists": {
     "title": "My playlists",
@@ -238,7 +260,13 @@
     "sleepChapter": "End of this chapter",
     "sleepOff": "Turn off timer",
     "sleepAtChapterEnd": "Stops at chapter end",
-    "bookLeft": "{time} left in book"
+    "bookLeft": "{time} left in book",
+    "hideBar": "Hide player",
+    "showBar": "Show player",
+    "playedCount": "{n} played",
+    "upNextCount": "Up next · {n}",
+    "nowPlayingShort": "Playing",
+    "queueEnd": "This is the last song in the queue."
   },
   "settings": {
     "title": "Settings",
@@ -300,7 +328,7 @@
     "autoScan": "Auto scan: every {n} min",
     "autoScanOff": "Auto scan off (SCAN_INTERVAL_MINUTES in .env)",
     "folders": "Library folders",
-    "foldersDesc": "Set a kind for each folder directly under the music folder. Changes apply from the next scan.",
+    "foldersDesc": "Pick a kind for each folder right inside the music folder. Changing it refiles that folder right away. Each folder can be scanned, rescanned or reset on its own.",
     "folderCol": "Folder",
     "kindCol": "Kind",
     "tracksCol": "Tracks",
@@ -311,7 +339,7 @@
     "suggested": "Suggested: {kind}",
     "applySuggestion": "Apply",
     "folderMissing": "Folder not found",
-    "folderSaved": "Saved. Applies from the next scan.",
+    "folderSaved": "Saved. When the running scan ends, press 'Scan' on this folder to apply it.",
     "noFolders": "There are no folders under the music folder.",
     "foldersHelp": "Albums: artist/album folders (an \"Unofficial\" or \"비정규\" folder under an artist is marked unofficial) · Compilations: grouped as Various Artists when the album artist tag is missing · Charts: each subfolder is one chart, kept out of the album list · Themes: each folder of songs is one theme (a folder in between is its category, CD1/CD2 merge), kept out of the album list · Excluded: not scanned (tracks already in the library turn missing and are removed, with their playlist and favorite entries, by the missing-track cleanup)",
     "bookScanResult": "Audiobooks: {added} added · {updated} changed · {missing} missing",
@@ -364,8 +392,56 @@
     "keyClear": "Remove key",
     "keyClearConfirm": "Remove this key?",
     "ytTitle": "YouTube search",
-    "ytHelp": "Used to search inside the app when adding music videos to albums and songs (free: about 100 searches a day). In the Google Cloud console, enable YouTube Data API v3 and create an API key. Restrictions: API = YouTube Data API v3 only; application = None or the NAS's IP (not 'HTTP referrers'). Without a key, videos are added by pasting a YouTube link.",
-    "noLibrary": "No music found. On the NAS, mount (or copy) the music folder to muzplayer/library/music, then scan again."
+    "noLibrary": "No music found. On the NAS, mount (or copy) the music folder to muzplayer/library/music, then scan again.",
+    "folderSavedScanning": "Saved. Refiling this folder now.",
+    "folderScan": "Scan",
+    "folderRescan": "Rescan",
+    "folderReset": "Reset",
+    "folderScanHelp": "Reads only new and changed files in this folder.",
+    "folderRescanHelp": "Reads every file's tags in this folder again. Stars, likes and plays stay.",
+    "folderResetHelp": "Forgets this folder's songs and reads them again as new. Their stars, likes, plays and playlist places are lost.",
+    "resetConfirm": "Reset the folder '{folder}'?\n\n{tracks} songs are forgotten and read again as new. Lost with them:\n· {ratings} star ratings\n· {favorites} likes\n· {playlists} playlist places\n· {plays} play counts\n\nTo just read the tags again, use 'Rescan'.",
+    "scanScope_scan": "Scan of '{folder}'",
+    "scanScope_rescan": "Rescan of '{folder}'",
+    "scanScope_reset": "Reset of '{folder}'",
+    "keyHelp": "How to get a key",
+    "modelDefault": "Default ({model})",
+    "modelCustom": "Type a name…",
+    "modelPick": "Pick from the list",
+    "modelAfterKey": "Save the API key to see the models it can use.",
+    "ytDesc": "Searches inside the app when adding music videos to albums and songs (free: about 100 searches a day). Without a key, videos are added by pasting a YouTube link.",
+    "help_gemini_title": "Getting a Google Gemini API key",
+    "help_gemini_steps": [
+      "Sign in to Google AI Studio (aistudio.google.com/apikey) with a Google account.",
+      "Press 'Create API key' and pick a project (one is made if you have none).",
+      "Copy the key, paste it into 'API key' above and save.",
+      "After saving, 'Image model' lists the image models this key can use."
+    ],
+    "help_gemini_note": "Image generation is billed (about $0.05 per banner). If image models are blocked on the free tier, link billing in AI Studio.",
+    "help_openai_title": "Getting an OpenAI API key",
+    "help_openai_steps": [
+      "Sign in to the OpenAI Platform (platform.openai.com/api-keys).",
+      "Press 'Create new secret key' and give it a name.",
+      "The key is shown only once: copy it now, paste it into 'API key' above and save.",
+      "Add a payment method or credits under Settings → Billing."
+    ],
+    "help_openai_note": "gpt-image models may need a verified organization (Settings → Organization → Verify). Check this if the model list is empty.",
+    "help_youtube_title": "Getting a YouTube Data API key",
+    "help_youtube_steps": [
+      "Sign in to the Google Cloud console (console.cloud.google.com) and create or pick a project.",
+      "Under 'APIs & Services → Library', find 'YouTube Data API v3' and press 'Enable'.",
+      "Create a key under 'APIs & Services → Credentials → Create credentials → API key'.",
+      "Open the key and restrict it: API restriction 'YouTube Data API v3' only; application restriction 'None' or 'IP addresses' (the NAS's public IP).",
+      "Copy the key, paste it into 'API key' below and save."
+    ],
+    "help_youtube_note": "Don't use the 'HTTP referrers (websites)' restriction: the server does the searching, so such a key is refused. The free quota is 10,000 units a day and a search costs 100.",
+    "photosTitle": "Artist photos",
+    "photosDesc": "An artist.jpg in an artist's folder (the parent of the album folders) is used at each scan. Otherwise the photo of the musician's Wikipedia article (Korean, then English) is fetched. Change or remove a photo on the artist's page.",
+    "photosFind": "Find photos for artists without one",
+    "photosRunning": "Searching {done}/{total}",
+    "photosCount": "{n} of {total} artists have a photo",
+    "photosDone": "last run found {found} of {total}",
+    "photosFailed": "Could not reach Wikipedia. Try again later."
   },
   "library": {
     "title": "My music",

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import mutagen
 from PIL import Image
-from sqlalchemy import delete, exists, func, insert, select, update
+from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import Session, defer
 
 from .config import settings
@@ -481,15 +481,19 @@ def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, i
     return changed
 
 
-def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(), exts=AUDIO_EXTS):
+def _walk(
+    root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(), exts=AUDIO_EXTS,
+    start: Path | None = None,
+):
     """Yields (path, is_symlink) for audio files under root, following symlinked folders and mounts.
 
     Folder loops (a link pointing at its own parent) are visited once.
     on_error(path, exc) is called for folders that can't be read and for broken links.
     Top-level folders named in skip_top (NFC) are not entered, nor folders in skip_paths
     (absolute, normalized: the audiobook folder when it sits inside the music folder).
+    start: walk only this folder under root (a per-folder scan).
     """
-    stack = [root]
+    stack = [start or root]
     visited: set[tuple[int, int]] = set()
     while stack:
         check_cancel()  # listing a large share can take a while by itself
@@ -525,7 +529,8 @@ def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] =
 
 
 def _collect(
-    root: Path, existing: dict[str, Track], on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset()
+    root: Path, existing: dict[str, Track], on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(),
+    start: Path | None = None,
 ) -> list[tuple[str, Path, os.stat_result]]:
     """Lists (relative path, path, stat) for each real file. The one stat per file is reused
     for the size/mtime check, which on a NAS share is most of the cost of a rescan.
@@ -535,7 +540,7 @@ def _collect(
     album files), as when files were told apart by their real path.
     """
     by_inode: dict[tuple[int, int], list[tuple[str, Path, os.stat_result, bool]]] = {}
-    for path, is_link in _walk(root, on_error, skip_top, skip_paths):
+    for path, is_link in _walk(root, on_error, skip_top, skip_paths, start=start):
         rel = os.path.relpath(path, root)
         try:
             rel.encode("utf-8")
@@ -571,13 +576,33 @@ def _scan(job_id: int) -> None:
     job = db.get(ScanJob, job_id)
     errors: list[str] = []
     pruned_albums: list[int] = []
+    reset_albums: list[int] = []  # gone with a folder reset: their covers go even if the scan then fails
     try:
         root = settings.music_dir
         if not root.is_dir():
             raise RuntimeError(f"music_dir_not_found: {root}")
-        cache = _Cache(db)
         kinds = folder_kinds(db)
-        existing = {t.file_path: t for t in db.scalars(select(Track).options(defer(Track.tag_json)))}
+        scope = job.folder  # one top-level folder (NFC), or None for the whole library
+        start = None
+        if scope is not None:
+            # stored names are NFC; on disk the folder may be spelled NFD (made on a Mac)
+            start = next((root / e.name for e in os.scandir(root) if e.is_dir() and nfc(e.name) == scope), None)
+            if start is None:
+                raise RuntimeError(f"folder_not_found: {scope}")
+            if job.mode == "reset":
+                # forget the folder's songs (and with them their stars, likes, plays and playlist places)
+                ids = list(db.scalars(select(Track.id).where(in_folder(scope))))
+                for i in range(0, len(ids), 1000):
+                    db.execute(delete(Track).where(Track.id.in_(ids[i : i + 1000])))
+                reset_albums = prune_orphans(db)
+                bump_library(db)
+                db.commit()
+        cache = _Cache(db)
+        query = select(Track).options(defer(Track.tag_json))
+        if scope is not None:
+            query = query.where(in_folder(scope))
+        existing = {t.file_path: t for t in db.scalars(query)}
+        reread = job.mode == "rescan"  # read every tag again, even of unchanged files
         unavailable: list[str] = []  # folders we could not read: keep their tracks as they are
         cover_tries: dict[int, int] = {}
         pending = 0  # unchanged files whose row changed (came back, refiled) since the last commit
@@ -632,10 +657,11 @@ def _scan(job_id: int) -> None:
         # mp3 audiobooks in a folder inside the music folder must not turn into songs
         books_dir = settings.books_root
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
-        files = _collect(root, existing, on_error, {p for p, k in kinds.items() if k == "excluded"}, skip_paths)
-        if not files and any(t.missing_at is None for t in existing.values()):
+        excluded = {p for p, k in kinds.items() if k == "excluded"}
+        files = [] if scope in excluded else _collect(root, existing, on_error, excluded, skip_paths, start)
+        if not files and scope not in excluded and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
-            raise RuntimeError(f"library_empty: no audio files found under {root}")
+            raise RuntimeError(f"library_empty: no audio files found under {start or root}")
         seen = {rel for rel, _, _ in files}
 
         places: dict[str, Placement] = {}  # placement depends only on the folder: work it out once per folder
@@ -647,7 +673,7 @@ def _scan(job_id: int) -> None:
             if place is None:
                 place = places[folder] = placement(rel, kinds)
             track = existing.get(rel)
-            if track and track.file_size == st.st_size and track.file_mtime == st.st_mtime:
+            if track and not reread and track.file_size == st.st_size and track.file_mtime == st.st_mtime:
                 try:
                     changed = track.missing_at is not None
                     track.missing_at = None
@@ -695,13 +721,21 @@ def _scan(job_id: int) -> None:
         job.missing = len(gone)
         changed = bool(job.added or job.updated or job.missing)
         # a scan that stopped early skipped these, so the next one does them even with nothing new
-        last = db.scalar(select(ScanJob.status).where(ScanJob.id < job_id).order_by(ScanJob.id.desc()).limit(1))
-        if changed or last != "done":
+        last = db.scalar(
+            select(ScanJob.status)
+            .where(ScanJob.id < job_id, ScanJob.folder.is_(None))
+            .order_by(ScanJob.id.desc())
+            .limit(1)
+        )
+        if changed or last != "done" or scope is not None:
             _link_chart_duplicates(db)
             pruned_albums = prune_orphans(db, cache.moves)
         covers = _refresh_covers(db, root, reachable, cover_tries)
         banners = _find_banners(db, root)
-        if changed or pruned_albums or covers or banners:
+        from .artist_images import folder_images  # imports scanner helpers
+
+        artists = folder_images(db, root)
+        if changed or pruned_albums or covers or banners or artists:
             bump_library(db)
         job.status = "done"
     except ScanCancelled:
@@ -718,7 +752,7 @@ def _scan(job_id: int) -> None:
         errors.append(str(exc))
         bump_library(db)  # earlier batches were committed
     db.commit()
-    if settings.audiobook_dir is not None and job.status != "cancelled":
+    if settings.audiobook_dir is not None and job.status != "cancelled" and job.folder is None:
         from .books import scan_books  # books imports scanner helpers
 
         try:
@@ -738,7 +772,7 @@ def _scan(job_id: int) -> None:
         db.commit()
     finally:
         db.close()
-    remove_covers(pruned_albums)
+    remove_covers(pruned_albums + reset_albums)
 
 
 def _link_chart_duplicates(db: Session) -> None:
@@ -811,11 +845,14 @@ def prune_orphans(db: Session, moves: dict[int, int] | None = None) -> list[int]
     if albums:
         db.execute(delete(Album).where(Album.id.in_(albums)))
     db.execute(delete(Chart).where(~exists().where(Track.chart_id == Chart.id)))
-    db.execute(
-        delete(Artist).where(
-            ~exists().where(Track.artist_id == Artist.id), ~exists().where(Album.album_artist_id == Artist.id)
-        )
-    )
+    gone_artists = db.scalars(
+        delete(Artist)
+        .where(~exists().where(Track.artist_id == Artist.id), ~exists().where(Album.album_artist_id == Artist.id))
+        .returning(Artist.id)
+    ).all()
+    for artist_id in gone_artists:  # their photos (artist_images.SIZES)
+        for size in ("thumb", "large"):
+            (settings.cover_dir / f"artist_{artist_id}_{size}.jpg").unlink(missing_ok=True)
     db.execute(delete(Genre).where(~exists().where(TrackGenre.genre_id == Genre.id)))
     return albums
 
@@ -831,12 +868,20 @@ def bump_library(db: Session) -> None:
     db.execute(update(LibraryState).values(version=LibraryState.version + 1, updated_at=func.now()))
 
 
-def start_scan(db: Session) -> ScanJob | None:
-    """Starts a background scan. Returns None when one is already running."""
+def in_folder(folder: str):
+    """Tracks under one top-level folder, whatever Unicode form the path is stored in."""
+    top = func.split_part(Track.file_path, "/", 1)
+    return func.normalize(top, text("NFC")) == folder
+
+
+def start_scan(db: Session, folder: str | None = None, mode: str = "scan") -> ScanJob | None:
+    """Starts a background scan of the library, or of one top-level folder (scan: new and changed
+    files; rescan: every file's tags again, ids kept; reset: the folder's songs are forgotten and
+    read again as new). Returns None when one is already running."""
     if not _lock.acquire(blocking=False):
         return None
     _cancel.clear()
-    job = ScanJob(status="running")
+    job = ScanJob(status="running", folder=folder, mode=mode)
     db.add(job)
     db.commit()
     threading.Thread(target=_run, args=(job.id,), daemon=True, name="scan").start()

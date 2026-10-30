@@ -1,40 +1,38 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Heart, Volume2, VolumeX } from '@lucide/vue'
+import { ChevronDown, MicVocal, Volume2, VolumeX } from '@lucide/vue'
 import { duration } from '../format'
-import { errorMessage } from '../i18n'
-import { useLibrary } from '../stores/library'
+import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import BookCover from './BookCover.vue'
 import CoverArt from './CoverArt.vue'
+import LikeButton from './LikeButton.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
 import SkipIcon from './SkipIcon.vue'
 
-// Desktop: floating pill at the bottom of the content column.
+// Desktop: floating pill at the bottom of the content column, with the line being sung;
+// it can be tucked away (App.vue then shows a small button to bring it back).
 // Phone: floating mini player above the tab bar (see App.vue for placement).
 defineProps<{ mobile?: boolean }>()
 const { t } = useI18n()
 const player = usePlayer()
-const library = useLibrary()
+const lyrics = useLyrics()
 const ui = useUi()
+
+// PC: lyrics and the queue are tabs of the PC player
+function openPlayer(tab: 'lyrics' | 'queue') {
+  ui.playerTab = tab
+  ui.playerOpen = true
+}
 const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
 const segLength = computed(() => Math.max(0, player.segment.end - player.segment.start))
 const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookPos - player.segment.start)))
-
-async function fav() {
-  if (!player.current) return
-  try {
-    await library.toggleFavorite(player.current)
-  } catch (e) {
-    ui.notify(errorMessage(e), true)
-  }
-}
 </script>
 
 <template>
@@ -112,14 +110,17 @@ async function fav() {
     <div class="w-20">
       <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="#111113" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
     </div>
+    <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
+      <ChevronDown :size="18" :stroke-width="1.6" />
+    </button>
   </div>
 
   <!-- desktop floating player -->
-  <div v-else-if="player.current" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
+  <div v-else-if="player.current" :aria-label="t('player.nowPlaying')" class="glass relative flex h-[76px] items-center gap-3 rounded-full px-3.5 lg:gap-4">
     <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" @click="ui.playerOpen = true">
       <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
     </button>
-    <div class="flex w-52 min-w-0 flex-col">
+    <div class="flex w-28 min-w-0 flex-col lg:w-52">
       <span class="truncate text-[15px]">{{ player.current.title }}</span>
       <RouterLink
         v-if="player.current.artist_id"
@@ -128,15 +129,7 @@ async function fav() {
       >{{ player.current.artist }}</RouterLink>
       <span v-else class="truncate text-[13px] font-light text-muted">{{ player.current.artist || t('common.unknownArtist') }}</span>
     </div>
-    <button
-      type="button"
-      class="grid size-10 flex-none place-items-center"
-      :class="library.isFavorite(player.current) ? 'text-accent' : 'text-ink'"
-      :aria-label="library.isFavorite(player.current) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
-      @click="fav"
-    >
-      <Heart :size="20" :stroke-width="1.3" :fill="library.isFavorite(player.current) ? 'currentColor' : 'none'" />
-    </button>
+    <LikeButton :track="player.current" :size="20" box="size-10" />
     <div class="flex items-center">
       <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.prev')" @click="player.prev()"><PlayerIcons name="prev" :stroke="1.3" /></button>
       <button type="button" class="grid size-12 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
@@ -144,27 +137,42 @@ async function fav() {
       </button>
       <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.next')" @click="player.next()"><PlayerIcons name="next" :stroke="1.3" /></button>
     </div>
-    <div class="flex min-w-0 flex-1 items-center gap-2.5 font-display text-xs text-muted">
-      <span class="w-9 text-right">{{ duration(preview ?? player.currentTime) }}</span>
-      <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
-      <span class="w-9">{{ duration(player.duration) }}</span>
+    <div class="flex min-w-0 flex-1 flex-col justify-center">
+      <!-- the line being sung (synced lyrics); click opens the lyrics -->
+      <button
+        type="button"
+        class="h-[18px] truncate px-2 text-center text-[13px] transition-opacity lg:px-11"
+        :class="lyrics.line ? 'text-accent hover:underline' : 'pointer-events-none opacity-0'"
+        :tabindex="lyrics.line ? 0 : -1"
+        :aria-label="t('player.showLyrics')"
+        @click="openPlayer('lyrics')"
+      >{{ lyrics.line || '·' }}</button>
+      <div class="hidden items-center gap-2.5 font-display text-xs text-muted lg:flex">
+        <span class="w-9 text-right">{{ duration(preview ?? player.currentTime) }}</span>
+        <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
+        <span class="w-9">{{ duration(player.duration) }}</span>
+      </div>
+      <span class="text-center font-display text-xs text-muted lg:hidden">{{ duration(preview ?? player.currentTime) }} / {{ duration(player.duration) }}</span>
     </div>
-    <button type="button" class="grid size-10 place-items-center" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
+    <!-- narrow PC windows: the seek bar runs along the bottom edge instead -->
+    <div class="absolute inset-x-10 -bottom-1.5 lg:hidden">
+      <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
+    </div>
+    <button type="button" class="hidden size-10 place-items-center lg:grid" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
       <VolumeX v-if="player.volume === 0" :size="20" :stroke-width="1.3" />
       <Volume2 v-else :size="20" :stroke-width="1.3" />
     </button>
-    <div class="w-20">
+    <div class="hidden w-20 lg:block">
       <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="#111113" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
     </div>
-    <button
-      type="button"
-      class="grid size-11 place-items-center"
-      :class="ui.queueOpen ? 'text-accent' : ''"
-      :aria-label="t('player.queue')"
-      :aria-pressed="ui.queueOpen"
-      @click="ui.queueOpen = !ui.queueOpen"
-    >
+    <button type="button" class="hidden size-10 place-items-center rounded-full hover:bg-surface lg:grid" :aria-label="t('player.lyrics')" :title="t('player.lyrics')" @click="openPlayer('lyrics')">
+      <MicVocal :size="19" :stroke-width="1.3" />
+    </button>
+    <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-surface" :aria-label="t('player.queue')" :title="t('player.queue')" @click="openPlayer('queue')">
       <QueueIcon />
+    </button>
+    <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
+      <ChevronDown :size="18" :stroke-width="1.6" />
     </button>
   </div>
 </template>

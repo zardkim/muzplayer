@@ -46,13 +46,25 @@ export interface Artist {
   name: string
   album_count: number
   track_count: number
+  image_v: number // 0 = no photo
 }
 
 export interface ArtistDetail {
   id: number
   name: string
+  image_v: number
+  image_credit: { wiki: string; title: string; url: string } | null // a Wikipedia photo's article
+  image_removed: boolean // an admin removed the photo: lookups leave it alone
   albums: Album[]
   tracks: Track[]
+}
+
+export interface ArtistImageCandidate {
+  wiki: string
+  title: string
+  description: string
+  image: string
+  url: string
 }
 
 export type CollectionKind = 'chart' | 'theme'
@@ -150,6 +162,7 @@ export interface Genre {
   id: number
   name: string
   track_count: number
+  covers?: { id: number; v: number }[] // its biggest albums, for the genre tiles
 }
 
 export interface Playlist {
@@ -227,9 +240,14 @@ export interface ScanJob {
   books_added: number
   books_updated: number
   books_missing: number
+  folder: string | null // one top-level folder; null = the whole library
+  mode: 'scan' | 'rescan' | 'reset'
 }
 
 export interface Page<T> {
   items: T[]
   total: number
 }
+
+/** How a list page shows its items: list (목록형), cover (커버형: big artwork), grid (격자형: small artwork). */
+export type ViewMode = 'list' | 'cover' | 'grid'

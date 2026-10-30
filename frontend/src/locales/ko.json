@@ -20,7 +20,9 @@
     "explore": "탐색",
     "songs": "곡",
     "charts": "차트·테마",
-    "audiobooks": "오디오북"
+    "audiobooks": "오디오북",
+    "expandMenu": "메뉴 펼치기",
+    "collapseMenu": "메뉴 접기"
   },
   "search": {
     "label": "검색",
@@ -84,7 +86,14 @@
     "smart_playlist": "스마트 재생목록에는 곡을 직접 넣을 수 없습니다.",
     "not_smart": "스마트 재생목록이 아닙니다.",
     "already_set_up": "이미 관리자 계정이 있습니다. 로그인하세요.",
-    "conf_not_writable": "설정을 저장하지 못했습니다(conf 폴더 쓰기 권한 확인)."
+    "conf_not_writable": "설정을 저장하지 못했습니다(conf 폴더 쓰기 권한 확인).",
+    "folder_required": "폴더를 골라야 합니다.",
+    "folder_not_found": "폴더를 찾지 못했습니다.",
+    "ai_not_configured": "AI API 키가 없습니다.",
+    "lookup_running": "이미 사진을 찾는 중입니다.",
+    "image_unreachable": "위키백과에 연결하지 못했습니다.",
+    "image_bad_source": "이 사진은 쓸 수 없습니다.",
+    "image_bad_file": "사진 파일을 읽지 못했습니다."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -135,7 +144,11 @@
     "watchVideos": "영상 보기",
     "saveAsPlaylist": "플레이리스트로 저장",
     "reshuffle": "다시 섞기",
-    "empty": "곡이 없습니다."
+    "empty": "곡이 없습니다.",
+    "viewMode": "보기 방식",
+    "view_list": "목록형",
+    "view_cover": "커버형",
+    "view_grid": "격자형"
   },
   "home": {
     "recent": "최근 재생",
@@ -175,11 +188,20 @@
     "albums": "앨범",
     "tracks": "곡",
     "count": "아티스트 {n}명",
-    "unofficial": "비정규"
+    "unofficial": "비정규",
+    "label": "아티스트",
+    "photoTitle": "아티스트 사진 바꾸기",
+    "photoHelp": "위키백과 문서의 사진 중에서 고르세요. 아티스트 폴더에 artist.jpg가 있으면 그 사진이 우선합니다.",
+    "photoNone": "사진이 있는 문서를 찾지 못했습니다. 다른 이름으로 검색해 보세요.",
+    "photoRemove": "사진 지우기 (자동으로 다시 찾지 않음)",
+    "photoCredit": "사진: 위키백과 '{title}'"
   },
   "genres": {
     "title": "장르",
-    "empty": "장르 태그가 있는 곡이 없습니다."
+    "empty": "장르 태그가 있는 곡이 없습니다.",
+    "count": "장르 {n}개",
+    "sort_size": "곡 많은 순",
+    "sort_name": "이름순"
   },
   "playlists": {
     "title": "내 플레이리스트",
@@ -238,7 +260,13 @@
     "sleepChapter": "이 챕터 끝까지",
     "sleepOff": "타이머 끄기",
     "sleepAtChapterEnd": "챕터 끝에서 정지",
-    "bookLeft": "책 남은 시간 {time}"
+    "bookLeft": "책 남은 시간 {time}",
+    "hideBar": "플레이어 숨기기",
+    "showBar": "플레이어 보이기",
+    "playedCount": "재생한 곡 {n}개",
+    "upNextCount": "다음 곡 {n}개",
+    "nowPlayingShort": "재생 중",
+    "queueEnd": "대기열의 마지막 곡입니다."
   },
   "settings": {
     "title": "설정",
@@ -300,7 +328,7 @@
     "autoScan": "자동 스캔: {n}분마다",
     "autoScanOff": "자동 스캔 꺼짐 (.env의 SCAN_INTERVAL_MINUTES)",
     "folders": "라이브러리 폴더",
-    "foldersDesc": "음악 폴더 바로 아래 폴더마다 종류를 정합니다. 바꾼 내용은 다음 스캔부터 반영됩니다.",
+    "foldersDesc": "음악 폴더 바로 아래 폴더마다 종류를 정합니다. 종류를 바꾸면 그 폴더를 바로 다시 분류합니다. 폴더마다 스캔·재스캔·초기화를 따로 할 수 있습니다.",
     "folderCol": "폴더",
     "kindCol": "종류",
     "tracksCol": "곡 수",
@@ -311,7 +339,7 @@
     "suggested": "추천: {kind}",
     "applySuggestion": "적용",
     "folderMissing": "폴더 없음",
-    "folderSaved": "저장했습니다. 다음 스캔부터 반영됩니다.",
+    "folderSaved": "저장했습니다. 지금 스캔이 끝나면 이 폴더의 '스캔'을 눌러 반영하세요.",
     "noFolders": "음악 폴더 아래에 하위 폴더가 없습니다.",
     "foldersHelp": "앨범: 아티스트/앨범 폴더 (아티스트 아래 \"비정규\" 폴더는 비정규로 표시) · 컴필레이션: 앨범 아티스트 태그가 없으면 Various Artists로 묶음 · 차트: 하위 폴더 하나가 차트 하나, 앨범 목록에서 제외 · 테마: 곡이 든 폴더 하나가 테마 모음 하나(중간 폴더는 분류, CD1·CD2는 합침), 앨범 목록에서 제외 · 제외: 스캔하지 않음 (이미 등록된 곡은 누락으로 바뀌고, 누락 곡 정리 때 플레이리스트·즐겨찾기에서도 사라짐)",
     "bookScanResult": "오디오북: 추가 {added} · 변경 {updated} · 누락 {missing}",
@@ -364,8 +392,56 @@
     "keyClear": "키 삭제",
     "keyClearConfirm": "이 키를 삭제할까요?",
     "ytTitle": "YouTube 검색",
-    "ytHelp": "앨범·곡에 뮤직비디오를 등록할 때 앱 안에서 검색합니다(무료 하루 약 100회). Google Cloud 콘솔에서 YouTube Data API v3를 켜고 API 키를 만드세요. 키 제한: API는 YouTube Data API v3만, 애플리케이션은 '없음' 또는 NAS IP('HTTP 리퍼러'는 안 됨). 키가 없으면 YouTube 주소를 붙여 넣어 등록합니다.",
-    "noLibrary": "음악 폴더를 찾지 못했습니다. NAS에서 음악 폴더를 muzplayer/library/music에 마운트(또는 복사)한 뒤 다시 스캔하세요."
+    "noLibrary": "음악 폴더를 찾지 못했습니다. NAS에서 음악 폴더를 muzplayer/library/music에 마운트(또는 복사)한 뒤 다시 스캔하세요.",
+    "folderSavedScanning": "저장했습니다. 이 폴더를 다시 분류하는 중입니다.",
+    "folderScan": "스캔",
+    "folderRescan": "재스캔",
+    "folderReset": "초기화",
+    "folderScanHelp": "이 폴더의 새 파일·바뀐 파일만 읽습니다.",
+    "folderRescanHelp": "이 폴더의 모든 파일 태그를 다시 읽습니다. 별점·좋아요·재생 기록은 그대로입니다.",
+    "folderResetHelp": "이 폴더의 곡을 지우고 처음부터 다시 읽습니다. 곡의 별점·좋아요·재생 기록·플레이리스트 자리가 사라집니다.",
+    "resetConfirm": "'{folder}' 폴더를 초기화할까요?\n\n곡 {tracks}개를 지우고 처음부터 다시 읽습니다. 함께 사라지는 것:\n· 별점 {ratings}개\n· 좋아요 {favorites}개\n· 플레이리스트 자리 {playlists}개\n· 재생 횟수 {plays}개\n\n태그만 다시 읽으려면 '재스캔'을 쓰세요.",
+    "scanScope_scan": "'{folder}' 폴더 스캔",
+    "scanScope_rescan": "'{folder}' 폴더 재스캔",
+    "scanScope_reset": "'{folder}' 폴더 초기화",
+    "keyHelp": "키 만드는 방법",
+    "modelDefault": "기본값 ({model})",
+    "modelCustom": "직접 입력…",
+    "modelPick": "목록에서 고르기",
+    "modelAfterKey": "API 키를 저장하면 쓸 수 있는 모델 목록이 나옵니다.",
+    "ytDesc": "앨범·곡에 뮤직비디오를 등록할 때 앱 안에서 검색합니다(무료로 하루 약 100번). 키가 없으면 YouTube 주소를 붙여 넣어 등록합니다.",
+    "help_gemini_title": "Google Gemini API 키 만들기",
+    "help_gemini_steps": [
+      "Google AI Studio(aistudio.google.com/apikey)에 Google 계정으로 로그인합니다.",
+      "'API 키 만들기(Create API key)'를 누르고 프로젝트를 고릅니다(없으면 새로 만들어짐).",
+      "만들어진 키를 복사해 위 'API 키' 칸에 붙여 넣고 저장합니다.",
+      "저장하면 이 키로 쓸 수 있는 이미지 모델 목록이 '이미지 모델'에 나옵니다."
+    ],
+    "help_gemini_note": "이미지 생성은 유료 요청입니다(배너 하나에 약 $0.05). 무료 등급에서 이미지 모델이 막혀 있으면 AI Studio에서 결제(Billing)를 연결하세요.",
+    "help_openai_title": "OpenAI API 키 만들기",
+    "help_openai_steps": [
+      "OpenAI Platform(platform.openai.com/api-keys)에 로그인합니다.",
+      "'Create new secret key'를 누르고 이름을 정해 만듭니다.",
+      "키는 이때 한 번만 보이니 바로 복사해 위 'API 키' 칸에 붙여 넣고 저장합니다.",
+      "Settings → Billing에서 결제 수단이나 크레딧을 등록합니다."
+    ],
+    "help_openai_note": "gpt-image 모델은 조직 인증(Settings → Organization → Verify)을 마쳐야 쓸 수 있는 경우가 있습니다. 모델 목록이 비어 있으면 확인하세요.",
+    "help_youtube_title": "YouTube Data API 키 만들기",
+    "help_youtube_steps": [
+      "Google Cloud 콘솔(console.cloud.google.com)에 로그인하고 프로젝트를 만들거나 고릅니다.",
+      "'API 및 서비스 → 라이브러리'에서 'YouTube Data API v3'를 찾아 '사용'을 누릅니다.",
+      "'API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키'로 키를 만듭니다.",
+      "키를 눌러 제한을 겁니다: API 제한은 'YouTube Data API v3'만, 애플리케이션 제한은 '없음' 또는 'IP 주소'(NAS의 공인 IP).",
+      "키를 복사해 아래 'API 키' 칸에 붙여 넣고 저장합니다."
+    ],
+    "help_youtube_note": "'HTTP 리퍼러(웹사이트)' 제한은 쓰지 마세요. 검색은 서버가 하므로 거부됩니다. 무료 할당량은 하루 10,000단위이고 검색 한 번이 100단위입니다.",
+    "photosTitle": "아티스트 사진",
+    "photosDesc": "아티스트 폴더(앨범 폴더의 상위)에 artist.jpg가 있으면 스캔할 때 그 사진을 씁니다. 없으면 위키백과(한국어, 영어)에서 음악가 문서의 사진을 찾아옵니다. 아티스트 화면에서 다른 사진으로 바꾸거나 지울 수 있습니다.",
+    "photosFind": "사진 없는 아티스트 찾기",
+    "photosRunning": "찾는 중 {done}/{total}",
+    "photosCount": "사진 있는 아티스트 {n}/{total}명",
+    "photosDone": "지난번 {total}명 중 {found}명 찾음",
+    "photosFailed": "위키백과에 연결하지 못했습니다. 잠시 뒤 다시 시도하세요."
   },
   "library": {
     "title": "내 음악",

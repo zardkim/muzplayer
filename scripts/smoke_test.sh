@@ -15,8 +15,9 @@ fail=0
 check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1 (expected '$3', got '$2')"; fail=1; fi; }
 j() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 login() { curl -s -c "$1" -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/login" -H 'content-type: application/json' -d "{\"username\":\"$2\",\"password\":\"$3\"}"; }
-scan() {
-  id=$(curl -s -b "$A" -X POST "$BASE/admin/scan" | j 'd["id"]')
+scan() {  # optional: a JSON body, e.g. '{"folder":"album","mode":"rescan"}'
+  body=${1:-}; [ -n "$body" ] || body='{}'
+  id=$(curl -s -b "$A" -X POST "$BASE/admin/scan" -H 'content-type: application/json' -d "$body" | j 'd["id"]')
   for _ in $(seq 1 60); do
     st=$(curl -s -b "$A" "$BASE/admin/scan/$id" | j 'd["status"]'); [ "$st" != running ] && break; sleep 1
   done
@@ -60,6 +61,16 @@ curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
 check "charts list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/charts")" 200
 check "charts & themes page" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/collections/home")" 200
 check "folder kinds list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/folders")" 200
+# one folder: rescan reads every file again and keeps the songs (ids); reset is announced with what it takes
+top=$(curl -s -b "$A" "$BASE/admin/folders" | j '[f["path"] for f in d["items"] if f["present"] and f["track_count"]][0]')
+ids_before=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')
+check "folder rescan" "$(scan "{\"folder\":\"$top\",\"mode\":\"rescan\"}")" done
+check "folder rescan keeps song ids" "$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')" "$ids_before"
+check "rescan of everything is refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/scan" -H 'content-type: application/json' -d '{"mode":"reset"}')" 400
+check "reset impact counted" "$(curl -s -b "$A" -G --data-urlencode "path=$top" "$BASE/admin/folders/impact" | j 'd["tracks"] > 0')" True
+check "genres carry cover albums" "$(curl -s -b "$A" "$BASE/genres" | j 'all("covers" in g for g in d["items"])')" True
+check "artist photo status" "$(curl -s -b "$A" "$BASE/admin/artist-images/status" | j '"with_photo" in d')" True
+check "model list needs a saved key" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/integrations/models?provider=gemini")" 400
 
 # second user cannot see the first user's playlist
 curl -s -b "$A" -o /dev/null -X POST "$BASE/admin/users" -H 'content-type: application/json' -d '{"username":"smokeuser","password":"smokepass1"}'

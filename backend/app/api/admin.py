@@ -7,13 +7,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, appconf, youtube
+from .. import ai_banner, appconf, artist_images, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
-from ..models import Album, Book, LibraryFolder, ScanJob, Track, User
+from ..models import (
+    Album, Artist, Book, Favorite, LibraryFolder, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
+)
 from ..scanner import (
-    FOLDER_KINDS, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running, start_scan,
+    FOLDER_KINDS, in_folder, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running,
+    start_scan,
 )
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
@@ -36,12 +39,22 @@ def job_out(job: ScanJob) -> dict:
         "books_added": job.books_added,
         "books_updated": job.books_updated,
         "books_missing": job.books_missing,
+        "folder": job.folder,
+        "mode": job.mode,
     }
 
 
+class ScanIn(BaseModel):
+    folder: str | None = Field(default=None, max_length=500)  # one top-level folder; none = everything
+    mode: str = Field(default="scan", pattern="^(scan|rescan|reset)$")
+
+
 @router.post("/scan", status_code=202)
-def scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
-    job = start_scan(db)
+def scan(body: ScanIn | None = None, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    body = body or ScanIn()
+    if body.mode != "scan" and body.folder is None:
+        raise api_error(400, "folder_required")  # rescan/reset of everything: not offered
+    job = start_scan(db, nfc(body.folder) if body.folder else None, body.mode)
     if job is None:
         raise api_error(409, "scan_running")
     return job_out(job)
@@ -67,6 +80,23 @@ def rebuild_covers(_: User = Depends(admin_user), db: Session = Depends(get_db))
     if job is None:
         raise api_error(409, "scan_running")
     return job_out(job)
+
+
+@router.get("/folders/impact")
+def folder_impact(path: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """What a reset of this folder would take with it (shown before asking to confirm)."""
+    ids = select(Track.id).where(in_folder(nfc(path))).scalar_subquery()
+
+    def count(model) -> int:
+        return db.scalar(select(func.count()).select_from(model).where(model.track_id.in_(ids))) or 0
+
+    return {
+        "tracks": db.scalar(select(func.count()).select_from(Track).where(in_folder(nfc(path)))) or 0,
+        "ratings": count(TrackRating),
+        "favorites": count(Favorite),
+        "playlist_entries": count(PlaylistTrack),
+        "play_counts": count(PlayCount),
+    }
 
 
 @router.get("/scan/latest")
@@ -277,3 +307,81 @@ def put_integrations(body: IntegrationsIn, _: User = Depends(admin_user)):
     except OSError:
         raise api_error(500, "conf_not_writable") from None
     return integrations_out()
+
+
+@router.get("/integrations/models")
+def integration_models(
+    provider: str = Query(pattern="^(gemini|openai)$"), _: User = Depends(admin_user)
+):
+    """Image models the saved key can use (asked from the provider with the key; never sent to the page)."""
+    try:
+        models = ai_banner.list_models(provider)
+    except ai_banner.AiError as exc:
+        raise api_error(400, str(exc)) from None
+    return {"models": models, "default": appconf.DEFAULT_MODELS[provider], "current": appconf.get(f"{provider}_image_model")}
+
+
+# ---- artist photos ----
+
+@router.post("/artist-images/lookup", status_code=202)
+def lookup_artist_images(_: User = Depends(admin_user)):
+    """Looks up a Wikipedia photo for every artist that has none (in the background)."""
+    if not artist_images.start_lookup():
+        raise api_error(409, "lookup_running")
+    return artist_images.status
+
+
+@router.get("/artist-images/status")
+def artist_images_status(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+    with_photo = db.scalar(
+        select(func.count()).select_from(Artist).where(Artist.image_path.is_not(None), Artist.image_path != "none")
+    )
+    return {**artist_images.status, "artists": db.scalar(select(func.count()).select_from(Artist)), "with_photo": with_photo}
+
+
+@router.get("/artists/{artist_id}/image-candidates")
+def artist_image_candidates(artist_id: int, q: str = "", _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Wikipedia articles with a photo for this artist (Korean, then English), to pick from."""
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    name = q.strip() or artist.name
+    try:
+        items = [p for wiki in artist_images.WIKIS for p in artist_images.search(name, wiki, limit=6)]
+    except artist_images.ImageError as exc:
+        raise api_error(502, str(exc)) from None
+    return {"items": items}
+
+
+class ArtistImageIn(BaseModel):
+    wiki: str = Field(pattern="^(ko|en)$")
+    title: str = Field(min_length=1, max_length=300)
+    image: str = Field(max_length=2000)
+    description: str = Field(default="", max_length=500)
+
+
+@router.put("/artists/{artist_id}/image")
+def set_artist_image(artist_id: int, body: ArtistImageIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    try:
+        artist_images.use_page(db, artist, body.model_dump())
+    except artist_images.ImageError as exc:
+        raise api_error(400, str(exc)) from None
+    except Exception:
+        raise api_error(400, "image_bad_file") from None
+    bump_library(db)
+    db.commit()
+    return {"image_v": artist.image_version}
+
+
+@router.delete("/artists/{artist_id}/image", status_code=204)
+def delete_artist_image(artist_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+    """Removes the photo; lookups then leave this artist alone (picking one brings it back)."""
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    artist_images.remove(artist)
+    bump_library(db)
+    db.commit()

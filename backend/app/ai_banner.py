@@ -13,6 +13,7 @@ import secrets
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -47,6 +48,48 @@ def model() -> str:
 
 def configured() -> bool:
     return bool(appconf.get(f"{provider()}_api_key"))
+
+
+GEMINI_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+OPENAI_MODELS_URL = "https://api.openai.com/v1/models"
+
+
+def _image_model(which: str, model_id: str) -> bool:
+    m = model_id.lower()
+    if which == "openai":
+        return m.startswith(("gpt-image", "chatgpt-image"))
+    return ("image" in m or "banana" in m) and not m.startswith("imagen")  # Imagen uses another API
+
+
+def list_models(which: str) -> list[str]:
+    """Image models the saved key can use, newest names first. Raises AiError."""
+    key = appconf.get(f"{which}_api_key")
+    if not key:
+        raise AiError("ai_not_configured")
+    found: list[str] = []
+    token = ""
+    for _ in range(10):  # pages
+        if which == "openai":
+            req = urllib.request.Request(OPENAI_MODELS_URL, headers={"Authorization": f"Bearer {key}"})
+        else:
+            query = "?pageSize=1000" + (f"&pageToken={urllib.parse.quote(token)}" if token else "")
+            req = urllib.request.Request(GEMINI_MODELS_URL + query, headers={"x-goog-api-key": key})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as res:  # noqa: S310 - fixed API hosts
+                data = json.loads(res.read())
+        except urllib.error.HTTPError as exc:
+            log.warning("ai models: %s %s", which, exc.code)
+            raise AiError("ai_unauthorized" if exc.code in (400, 401, 403) else "ai_bad_response") from None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            raise AiError("ai_unreachable") from None
+        if which == "openai":
+            found += [m.get("id", "") for m in data.get("data", [])]
+            break
+        found += [str(m.get("name", "")).removeprefix("models/") for m in data.get("models", [])]
+        token = data.get("nextPageToken") or ""
+        if not token:
+            break
+    return sorted({m for m in found if m and _image_model(which, m)}, reverse=True)
 
 
 def banner_file(banner_id: int) -> Path:

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListPlus, MonitorPlay } from '@lucide/vue'
-import { api, coverUrl } from '../api'
+import { ChevronDown, ChevronUp, EllipsisVertical, ListPlus, MonitorPlay } from '@lucide/vue'
+import { coverGlow } from '../coverColor'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
+import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Lyrics } from '../types'
 import CoverArt from './CoverArt.vue'
+import LikeButton from './LikeButton.vue'
 import LyricsPanel from './LyricsPanel.vue'
 import PlayerControls from './PlayerControls.vue'
 import QueueIcon from './QueueIcon.vue'
@@ -20,6 +21,7 @@ const { t } = useI18n()
 const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
+const lyrics = useLyrics()
 const preview = ref<number | null>(null)
 const menu = ref(false)
 const glow = ref('#C9D6E3')
@@ -40,73 +42,17 @@ function videos() {
   ui.videoTarget = { trackId: tr.id, title: tr.title, artist: tr.artist }
 }
 
-async function fav() {
-  if (!player.current) return
-  try {
-    await library.toggleFavorite(player.current)
-  } catch (e) {
-    ui.notify(errorMessage(e), true)
-  }
-}
-
 // soft background tint from the album art's average colour
 watch(
-  () => player.current?.album_id,
-  (albumId) => {
+  () => [player.current?.album_id, player.current?.cover_v] as const,
+  async ([albumId, v]) => {
     glow.value = '#C9D6E3'
-    if (!albumId || !player.current?.has_cover) return
-    const img = new Image()
-    img.onload = () => {
-      const c = document.createElement('canvas')
-      c.width = c.height = 8
-      const ctx = c.getContext('2d')
-      if (!ctx) return
-      ctx.drawImage(img, 0, 0, 8, 8)
-      const d = ctx.getImageData(0, 0, 8, 8).data
-      let r = 0, g = 0, b = 0
-      for (let i = 0; i < d.length; i += 4) (r += d[i]), (g += d[i + 1]), (b += d[i + 2])
-      const n = d.length / 4
-      glow.value = `rgb(${Math.round(r / n)} ${Math.round(g / n)} ${Math.round(b / n)})`
-    }
-    img.src = coverUrl(albumId, 'thumb', player.current?.cover_v)
+    if (albumId && player.current?.has_cover) glow.value = (await coverGlow(albumId, v)) ?? glow.value
   },
   { immediate: true },
 )
 
-// lyrics: fetched once per track while the player is open (also feeds the one-line preview)
-const lyricsCache = new Map<number, Lyrics>()
-const lyrics = ref<Lyrics | null>(null)
-const lyricsLoading = ref(false)
-watch(
-  () => player.current?.id,
-  async (id) => {
-    lyrics.value = id ? (lyricsCache.get(id) ?? null) : null
-    lyricsLoading.value = false
-    if (!id || lyricsCache.has(id)) return
-    lyricsLoading.value = true
-    try {
-      const data = await api<Lyrics>(`/tracks/${id}/lyrics`)
-      lyricsCache.set(id, data)
-      if (player.current?.id === id) lyrics.value = data
-    } catch {
-      /* no lyrics shown; the panel says so */
-    } finally {
-      if (player.current?.id === id) lyricsLoading.value = false
-    }
-  },
-  { immediate: true },
-)
-// current synced line, shown under the artist while the artwork is up
-const lyricLine = computed(() => {
-  const synced = lyrics.value?.synced
-  if (!synced) return ''
-  let line = ''
-  for (const [time, text] of synced) {
-    if (time > player.currentTime + 0.2) break
-    line = text
-  }
-  return line
-})
+const lyricLine = computed(() => lyrics.line)
 
 // swipe down on the artwork to close
 let startY: number | null = null
@@ -137,7 +83,7 @@ function touchEnd(e: TouchEvent) {
       <div class="relative" @touchstart.passive="touchStart" @touchend="touchEnd">
         <!-- full width, but capped on short screens so the controls stay visible; tap toggles lyrics -->
         <div v-if="ui.lyricsOpen" class="mx-auto aspect-square w-full max-w-[min(100%,50dvh)] pt-[env(safe-area-inset-top)]">
-          <LyricsPanel :lyrics="lyrics" :loading="lyricsLoading" />
+          <LyricsPanel />
         </div>
         <button v-else type="button" class="block w-full" :aria-label="t('player.showLyrics')" @click="ui.lyricsOpen = true">
           <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" size="large" rounded="rounded-none" class="mx-auto w-full max-w-[min(100%,50dvh)]" />
@@ -173,15 +119,7 @@ function touchEnd(e: TouchEvent) {
               <MonitorPlay :size="23" :stroke-width="1.3" />
             </button>
           </span>
-          <button
-            type="button"
-            class="grid size-11 place-items-center"
-            :class="library.isFavorite(player.current) ? 'text-accent' : ''"
-            :aria-label="library.isFavorite(player.current) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
-            @click="fav"
-          >
-            <Heart :size="26" :stroke-width="1.3" :fill="library.isFavorite(player.current) ? 'currentColor' : 'none'" />
-          </button>
+          <LikeButton :track="player.current" :size="26" />
           <div class="relative">
             <button type="button" class="grid size-11 place-items-center" :aria-label="t('common.moreActions')" @click="menu = !menu">
               <EllipsisVertical :size="22" :stroke-width="1.3" />

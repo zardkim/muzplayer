@@ -46,6 +46,9 @@ export const streamUrl = (trackId: number) => `${BASE}/tracks/${trackId}/stream`
 export const coverUrl = (albumId: number, size: 'thumb' | 'large' = 'thumb', v?: number) =>
   `${BASE}/albums/${albumId}/cover?size=${size}${v ? `&v=${v}` : ''}`
 
+export const artistImageUrl = (artistId: number, size: 'thumb' | 'large' = 'thumb', v?: number) =>
+  `${BASE}/artists/${artistId}/image?size=${size}${v ? `&v=${v}` : ''}`
+
 export const bookStreamUrl = (bookId: number, index: number) => `${BASE}/books/${bookId}/files/${index}/stream`
 export const bookCoverUrl = (bookId: number, size: 'thumb' | 'large' = 'thumb', v?: number) =>
   `${BASE}/books/${bookId}/cover?size=${size}${v ? `&v=${v}` : ''}`

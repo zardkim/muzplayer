@@ -6,9 +6,14 @@ import { api, query } from '../api'
 import type { Album, Page } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ViewToggle from '../components/ViewToggle.vue'
+import { useUi } from '../stores/ui'
+import type { ViewMode } from '../types'
 
 const { t } = useI18n()
 const route = useRoute()
+const ui = useUi()
+const view = computed(() => (ui.views.albums as ViewMode) || 'cover')
 const router = useRouter()
 const sort = computed(() => (typeof route.query.sort === 'string' ? route.query.sort : 'recent'))
 const kind = computed(() => (typeof route.query.kind === 'string' ? route.query.kind : ''))
@@ -66,7 +71,8 @@ const sorts = [
           {{ t(k.label) }}
         </button>
       </div>
-      <div class="-mr-5 flex gap-1 overflow-x-auto pr-5 text-[14px] [scrollbar-width:none]">
+      <div class="flex items-center gap-2">
+      <div class="-mr-5 flex min-w-0 flex-1 gap-1 overflow-x-auto pr-5 text-[14px] [scrollbar-width:none] md:mr-0 md:pr-0">
         <button
           v-for="s in sorts"
           :key="s.key"
@@ -78,9 +84,11 @@ const sorts = [
           {{ t(s.label) }}
         </button>
       </div>
+      <ViewToggle page="albums" fallback="cover" class="ml-auto" />
+      </div>
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ t('albums.empty') }}</p>
-    <AlbumGrid :albums="items" />
+    <AlbumGrid :albums="items" :mode="view" />
     <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
       {{ loading ? t('common.loading') : t('common.loadMore') }}
     </button>

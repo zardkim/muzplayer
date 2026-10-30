@@ -56,7 +56,11 @@ class Artist(Base):
     name: Mapped[str] = mapped_column(String(500), unique=True)
     sort_name: Mapped[str] = mapped_column(String(500), default="")
     bio: Mapped[str | None] = mapped_column(Text)
+    # where the photo came from: folder:<rel> (artist.jpg in the artist folder) | deezer:<id> | none
+    # (an admin removed it: not looked up again); NULL = no photo yet
     image_path: Mapped[str | None] = mapped_column(String(500))
+    image_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # in the URL: new photo, new URL
+    image_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last Deezer lookup
 
 
 class Album(Base):
@@ -220,6 +224,8 @@ class ScanJob(Base):
     books_added: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     books_updated: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     books_missing: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    folder: Mapped[str | None] = mapped_column(Text)  # one top-level folder (NFC); NULL = the whole library
+    mode: Mapped[str] = mapped_column(String(8), default="scan", server_default="scan")  # scan | rescan | reset
 
 
 class Book(Base):

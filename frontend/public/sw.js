@@ -4,7 +4,7 @@
 const CACHE = 'muz-shell-v1'
 const COVERS = 'muz-covers-v1' // also cleared on logout (stores/auth.ts)
 const MAX_COVERS = 3000 // about 100 MB of 300px covers; the oldest go first
-const COVER_PATH = /^\/api\/v1\/(albums|books)\/\d+\/cover$/
+const COVER_PATH = /^\/api\/v1\/((albums|books)\/\d+\/cover|artists\/\d+\/image)$/
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/logo.svg', '/icon-192.png', '/cover-placeholder.svg']
 const MAX_ASSETS = 120
 

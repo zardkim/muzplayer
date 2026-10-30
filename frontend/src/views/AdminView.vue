@@ -34,6 +34,7 @@ async function loadScan() {
   clearTimeout(poll)
   if (r.job?.status === 'running') poll = window.setTimeout(loadScan, 1500)
   else if (wasRunning) {
+    ui.libraryCheckedAt = 0 // kept-alive lists (charts, albums) look for the new library version
     loadFolders().catch(() => {}) // track counts changed
     loadBooks().catch(() => {})
   }
@@ -114,10 +115,31 @@ async function setKind(folder: LibraryFolder, kind: FolderKind) {
   try {
     await api('/admin/folders', { method: 'PUT', body: { path: folder.path, kind } })
     folder.kind = kind
-    ui.notify(t('admin.folderSaved'))
+    // refile the folder's songs now (from stored tags: quick), so charts and themes show up
+    if (job.value?.status !== 'running' && (await startScan(folder.path))) ui.notify(t('admin.folderSavedScanning'))
+    else ui.notify(t('admin.folderSaved'))
   } catch (e) {
     ui.notify(errorMessage(e), true)
     loadFolders()
+  }
+}
+
+// artist photos: artist.jpg in artist folders (each scan), or looked up on Wikipedia when asked
+interface PhotoStatus { state: string; done?: number; found?: number; total?: number; error?: string; artists: number; with_photo: number }
+const photos = ref<PhotoStatus | null>(null)
+let photoPoll: number | undefined
+async function loadPhotos() {
+  photos.value = await api<PhotoStatus>('/admin/artist-images/status')
+  clearTimeout(photoPoll)
+  if (photos.value.state === 'running') photoPoll = window.setTimeout(() => loadPhotos().catch(() => {}), 2000)
+  else if (photos.value.state === 'done') ui.libraryCheckedAt = 0
+}
+async function findPhotos() {
+  try {
+    await api('/admin/artist-images/lookup', { method: 'POST' })
+    loadPhotos()
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
   }
 }
 
@@ -131,16 +153,34 @@ onMounted(() => {
   loadFolders().catch((e) => ui.notify(errorMessage(e), true))
   api<NonNullable<typeof aiStatus.value>>('/admin/banners/status').then((s) => (aiStatus.value = s), () => {})
   loadBooks().catch((e) => ui.notify(errorMessage(e), true))
+  loadPhotos().catch(() => {})
 })
 onUnmounted(() => {
   clearTimeout(poll)
+  clearTimeout(photoPoll)
   clearTimeout(importPoll)
 })
 
-async function startScan() {
+// the whole library, or one top-level folder: scan (new and changed files), rescan (every
+// file's tags again, songs keep their stars and plays) or reset (songs forgotten and read again)
+async function startScan(folder?: string, mode: 'scan' | 'rescan' | 'reset' = 'scan') {
   try {
-    job.value = await api<ScanJob>('/admin/scan', { method: 'POST' })
+    job.value = await api<ScanJob>('/admin/scan', { method: 'POST', body: folder ? { folder, mode } : {} })
     poll = window.setTimeout(loadScan, 1000)
+    return true
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+    return false
+  }
+}
+
+async function resetFolder(f: LibraryFolder) {
+  try {
+    const n = await api<{ tracks: number; ratings: number; favorites: number; playlist_entries: number; play_counts: number }>(
+      `/admin/folders/impact?path=${encodeURIComponent(f.path)}`,
+    )
+    if (!confirm(t('admin.resetConfirm', { folder: f.path, tracks: n.tracks, ratings: n.ratings, favorites: n.favorites, playlists: n.playlist_entries, plays: n.play_counts }))) return
+    startScan(f.path, 'reset')
   } catch (e) {
     ui.notify(errorMessage(e), true)
   }
@@ -246,7 +286,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
             type="button"
             class="flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50"
             :disabled="job?.status === 'running'"
-            @click="startScan"
+            @click="startScan()"
           >
             <RefreshCw :size="18" :class="job?.status === 'running' ? 'animate-spin' : ''" />{{ t('admin.startScan') }}
           </button>
@@ -254,18 +294,18 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       </div>
 
       <div v-if="job?.status === 'running'" class="flex flex-col gap-2">
-        <div class="text-[13px] text-muted">{{ t('admin.scanning', { n: job.scanned }) }}</div>
+        <div class="text-[13px] text-muted"><template v-if="job.folder">{{ t(`admin.scanScope_${job.mode}`, { folder: job.folder }) }} · </template>{{ t('admin.scanning', { n: job.scanned }) }}</div>
         <div class="h-1.5 overflow-hidden rounded-full bg-line"><div class="h-1.5 w-2/5 animate-pulse rounded-full bg-accent" /></div>
       </div>
       <p v-else-if="job" class="text-[13px]" :class="job.status === 'failed' ? 'text-danger' : 'text-muted'">
         <template v-if="job.status === 'failed' && job.error_summary === 'interrupted'">{{ t('admin.scanInterrupted') }} · </template>
         <template v-else-if="job.status === 'failed'">{{ t('admin.scanFailed') }} · </template>
-        <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}<template v-if="took(job)"> · {{ took(job) }}</template>
+        <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template><template v-if="job.folder">{{ t(`admin.scanScope_${job.mode}`, { folder: job.folder }) }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}<template v-if="took(job)"> · {{ took(job) }}</template>
       </p>
+      <p v-else class="text-[13px] text-muted">{{ t('admin.neverScanned') }}</p>
       <p v-if="job?.status === 'failed' && /^(music_dir_not_found|library_empty)/.test(job.error_summary ?? '')" class="text-[13px] leading-relaxed text-danger">
         {{ t('admin.noLibrary') }}
       </p>
-      <p v-else class="text-[13px] text-muted">{{ t('admin.neverScanned') }}</p>
 
       <div v-if="job" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div class="flex flex-col gap-1 rounded-xl bg-surface px-4 py-3.5"><span class="text-[13px] text-muted">{{ t('admin.added') }}</span><span class="font-display text-[22px] font-bold">{{ job.added }}</span></div>
@@ -314,9 +354,31 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           >
             <option v-for="k in folderKinds" :key="k" :value="k">{{ t(`admin.folderKind_${k}`) }}</option>
           </select>
+          <div v-if="!f.audiobooks && f.present" class="flex gap-1.5" role="group" :aria-label="f.path">
+            <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] hover:bg-surface disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderScanHelp')" @click="startScan(f.path, 'scan')">{{ t('admin.folderScan') }}</button>
+            <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] hover:bg-surface disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderRescanHelp')" @click="startScan(f.path, 'rescan')">{{ t('admin.folderRescan') }}</button>
+            <button type="button" class="h-9 rounded-full border border-danger/40 px-3 text-[13px] text-danger hover:bg-danger/5 disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderResetHelp')" @click="resetFolder(f)">{{ t('admin.folderReset') }}</button>
+          </div>
         </li>
       </ul>
       <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
+    </section>
+
+    <section v-if="photos" class="flex flex-col gap-3 rounded-2xl border border-line p-5 md:p-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold">{{ t('admin.photosTitle') }}</h2>
+          <p class="mt-1 text-sm font-light text-muted">{{ t('admin.photosDesc') }}</p>
+        </div>
+        <button type="button" class="h-11 rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50" :disabled="photos.state === 'running'" @click="findPhotos">
+          {{ photos.state === 'running' ? t('admin.photosRunning', { done: photos.done ?? 0, total: photos.total ?? 0 }) : t('admin.photosFind') }}
+        </button>
+      </div>
+      <p class="text-[13px] text-muted">
+        {{ t('admin.photosCount', { n: photos.with_photo, total: photos.artists }) }}
+        <template v-if="photos.state === 'done'"> · {{ t('admin.photosDone', { found: photos.found ?? 0, total: photos.total ?? 0 }) }}</template>
+      </p>
+      <p v-if="photos.state === 'failed'" class="text-[13px] text-danger">{{ t('admin.photosFailed') }}</p>
     </section>
 
     <IntegrationsCard :counts="aiStatus" />

@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { BookHeadphones, ChartNoAxesColumn, Disc3, Heart, History, House, ListMusic, MicVocal, Music, Search, Tag, User, Users } from '@lucide/vue'
+import { BookHeadphones, ChartNoAxesColumn, ChevronUp, Disc3, Heart, History, House, ListMusic, MicVocal, Music, PanelLeftClose, PanelLeftOpen, Search, Tag, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { useAuth } from './stores/auth'
@@ -13,7 +13,10 @@ import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
 import LanguageSwitch from './components/LanguageSwitch.vue'
+import CoverArt from './components/CoverArt.vue'
 import NowPlaying from './components/NowPlaying.vue'
+import NowPlayingDesktop from './components/NowPlayingDesktop.vue'
+import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import PlaylistPicker from './components/PlaylistPicker.vue'
 import VideoSheet from './components/VideoSheet.vue'
@@ -131,23 +134,55 @@ function active(to: string) {
 
   <div v-else-if="auth.user" class="flex h-dvh bg-bg">
     <!-- desktop sidebar -->
-    <nav :aria-label="t('nav.mainMenu')" class="hidden w-60 flex-none flex-col gap-0.5 overflow-y-auto border-r border-line px-4 py-7 md:flex">
-      <RouterLink to="/" class="mb-6 px-2.5"><AppLogo :size="32" /></RouterLink>
+    <nav
+      :aria-label="t('nav.mainMenu')"
+      class="hidden flex-none flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line py-7 transition-[width] duration-200 md:flex"
+      :class="ui.sidebarCollapsed ? 'w-[76px] px-3' : 'w-60 px-4'"
+    >
+      <div class="mb-6 flex items-center" :class="ui.sidebarCollapsed ? 'flex-col gap-3' : 'justify-between pl-2.5'">
+        <RouterLink to="/"><AppLogo :size="32" :wordmark="!ui.sidebarCollapsed" /></RouterLink>
+        <button
+          type="button"
+          class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink"
+          :aria-label="ui.sidebarCollapsed ? t('nav.expandMenu') : t('nav.collapseMenu')"
+          :title="ui.sidebarCollapsed ? t('nav.expandMenu') : t('nav.collapseMenu')"
+          :aria-expanded="!ui.sidebarCollapsed"
+          @click="ui.sidebarCollapsed = !ui.sidebarCollapsed"
+        >
+          <PanelLeftOpen v-if="ui.sidebarCollapsed" :size="19" :stroke-width="1.5" />
+          <PanelLeftClose v-else :size="19" :stroke-width="1.5" />
+        </button>
+      </div>
       <RouterLink
         v-for="item in sideNav"
         :key="item.to"
         :to="item.to"
-        class="flex h-11 items-center gap-3 rounded-full px-3.5 text-base"
-        :class="(item.to === '/library' ? route.path === '/library' : active(item.to)) ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface'"
+        class="flex h-11 flex-none items-center gap-3 rounded-full text-base"
+        :class="[
+          (item.to === '/library' ? route.path === '/library' : active(item.to)) ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface',
+          ui.sidebarCollapsed ? 'justify-center' : 'px-3.5',
+        ]"
+        :title="ui.sidebarCollapsed ? t(item.label) : undefined"
+        :aria-label="ui.sidebarCollapsed ? t(item.label) : undefined"
       >
-        <component :is="item.icon" :size="20" :stroke-width="1.4" />{{ t(item.label) }}
+        <component :is="item.icon" :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t(item.label) }}</span>
       </RouterLink>
-      <div class="mx-3.5 mb-1 mt-6 flex items-center justify-between text-[13px] text-muted">
+      <RouterLink
+        v-if="ui.sidebarCollapsed"
+        to="/playlists"
+        class="mt-4 flex h-11 flex-none items-center justify-center rounded-full font-light hover:bg-surface"
+        :class="active('/playlists') ? 'bg-surface-2' : ''"
+        :title="t('nav.playlists')"
+        :aria-label="t('nav.playlists')"
+      >
+        <ListMusic :size="20" :stroke-width="1.4" />
+      </RouterLink>
+      <div v-if="!ui.sidebarCollapsed" class="mx-3.5 mb-1 mt-6 flex items-center justify-between text-[13px] text-muted">
         <RouterLink to="/playlists" class="hover:text-ink">{{ t('nav.playlists') }}</RouterLink>
         <ListMusic :size="16" :stroke-width="1.4" />
       </div>
       <RouterLink
-        v-for="p in library.playlists.slice(0, 15)"
+        v-for="p in ui.sidebarCollapsed ? [] : library.playlists.slice(0, 15)"
         :key="p.id"
         :to="{ name: 'playlist', params: { id: p.id } }"
         class="flex h-9 items-center truncate rounded-full px-3.5 text-[15px]"
@@ -159,10 +194,12 @@ function active(to: string) {
       <RouterLink
         v-if="auth.user.is_admin"
         to="/admin"
-        class="flex h-11 items-center gap-3 rounded-full px-3.5 text-[15px]"
-        :class="active('/admin') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface'"
+        class="flex h-11 flex-none items-center gap-3 rounded-full text-[15px]"
+        :class="[active('/admin') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
+        :title="ui.sidebarCollapsed ? t('nav.admin') : undefined"
+        :aria-label="ui.sidebarCollapsed ? t('nav.admin') : undefined"
       >
-        <Users :size="20" :stroke-width="1.4" />{{ t('nav.admin') }}
+        <Users :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed">{{ t('nav.admin') }}</span>
       </RouterLink>
     </nav>
 
@@ -180,7 +217,8 @@ function active(to: string) {
         </div>
       </header>
 
-      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pb-36 md:pt-5">
+      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
+        :class="ui.barHidden ? 'md:pb-24' : 'md:pb-36'">
         <RouterView v-slot="{ Component, route: r }">
           <KeepAlive :key="keepKey" :include="KEPT" :max="8">
             <component :is="Component" :key="r.fullPath" />
@@ -188,9 +226,22 @@ function active(to: string) {
         </RouterView>
       </main>
 
-      <!-- desktop floating player -->
-      <div class="pointer-events-none absolute inset-x-0 bottom-5 hidden justify-center px-8 md:flex">
+      <!-- desktop floating player; tucked away, a small button brings it back -->
+      <div v-if="!ui.barHidden" class="pointer-events-none absolute inset-x-0 bottom-5 hidden justify-center px-8 md:flex">
         <div class="pointer-events-auto w-full max-w-[1040px]"><PlayerBar /></div>
+      </div>
+      <div v-else class="absolute bottom-5 right-8 hidden md:block">
+        <div class="glass flex h-14 items-center gap-1 rounded-full pl-1.5 pr-1">
+          <button v-if="player.current && player.mode === 'music'" type="button" class="size-11" :aria-label="t('player.open')" @click="ui.playerOpen = true">
+            <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
+          </button>
+          <button v-if="player.current || player.book" type="button" class="grid size-11 place-items-center rounded-full hover:bg-surface" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
+            <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="22" :stroke="1.6" />
+          </button>
+          <button type="button" class="grid size-11 place-items-center rounded-full hover:bg-surface" :aria-label="t('player.showBar')" :title="t('player.showBar')" @click="ui.barHidden = false">
+            <ChevronUp :size="20" :stroke-width="1.6" />
+          </button>
+        </div>
       </div>
 
       <!-- phone: floating mini player + tab bar -->
@@ -212,6 +263,7 @@ function active(to: string) {
     </div>
 
     <BookPlayer v-if="ui.playerOpen && player.mode === 'book'" />
+    <NowPlayingDesktop v-else-if="ui.playerOpen && ui.wide" />
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
@@ -225,7 +277,7 @@ function active(to: string) {
     :class="[
       ui.toast.error ? 'bg-danger' : 'bg-ink',
       // the full player covers the bottom with its controls: show it at the top instead
-      ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
+      ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : ui.barHidden ? 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
     ]"
   >
     {{ ui.toast.text }}

@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from .. import artist_images
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
@@ -290,13 +291,41 @@ def list_artists(
         rows = db.execute(base.order_by(Artist.sort_name, Artist.id).limit(limit).offset(offset))
         return {
             "items": [
-                {"id": a.id, "name": a.name, "album_count": n_albums, "track_count": n_tracks}
+                {"id": a.id, "name": a.name, "album_count": n_albums, "track_count": n_tracks, "image_v": image_v(a)}
                 for a, n_albums, n_tracks in rows
             ],
             "total": total,
         }
 
     return shared_json(request, db, f"artists:{q.strip()}:{limit}:{offset}", build)
+
+
+def image_v(artist: Artist) -> int:
+    """The photo's version for its URL; 0 = no photo."""
+    return (artist.image_version or 1) if artist_images.has_image(artist) else 0
+
+
+def image_credit(artist: Artist) -> dict | None:
+    """Where a Wikipedia photo came from (shown under it, as its licence asks)."""
+    source = artist.image_path or ""
+    if not source.startswith("wiki:"):
+        return None
+    _, wiki, title = source.split(":", 2)
+    return {"wiki": wiki, "title": title, "url": f"https://{wiki}.wikipedia.org/wiki/{title.replace(' ', '_')}"}
+
+
+@router.get("/artists/{artist_id}/image")
+def get_artist_image(
+    request: Request,
+    artist_id: int,
+    size: str = Query("thumb", pattern="^(thumb|large)$"),
+    v: int | None = None,
+    _: User = Depends(current_user),
+):
+    path = artist_images.image_file(artist_id, size)
+    if not path.exists():
+        raise api_error(404, "not_found")
+    return image_response(request, path, versioned=v is not None)
 
 
 @router.get("/artists/{artist_id}")
@@ -316,6 +345,9 @@ def get_artist(artist_id: int, user: User = Depends(current_user), db: Session =
     return {
         "id": artist.id,
         "name": artist.name,
+        "image_v": image_v(artist),
+        "image_credit": image_credit(artist),
+        "image_removed": artist.image_path == "none",
         "albums": [album_out(a) for a in albums],
         "tracks": [track_out(t) for t in tracks],
     }
@@ -331,7 +363,29 @@ def list_genres(request: Request, _: User = Depends(current_user), db: Session =
             .group_by(Genre.id)
             .order_by(func.lower(Genre.name))
         )
-        return {"items": [{"id": i, "name": n, "track_count": c} for i, n, c in rows]}
+        # the genre's three albums with the most of its songs (with a cover), for the genre tiles
+        per_album = (
+            select(TrackGenre.genre_id, Track.album_id, func.count().label("n"))
+            .join(Track, and_(Track.id == TrackGenre.track_id, listed_tracks()))
+            .join(Album, and_(Album.id == Track.album_id, Album.cover_path.is_not(None)))
+            .group_by(TrackGenre.genre_id, Track.album_id)
+            .subquery()
+        )
+        rank = func.row_number().over(partition_by=per_album.c.genre_id, order_by=(per_album.c.n.desc(), per_album.c.album_id))
+        ranked = select(per_album.c.genre_id, per_album.c.album_id, rank.label("rn")).subquery()
+        covers: dict[int, list[dict]] = {}
+        for genre_id, album_id, v in db.execute(
+            select(ranked.c.genre_id, ranked.c.album_id, Album.cover_version)
+            .join(Album, Album.id == ranked.c.album_id)
+            .where(ranked.c.rn <= 3)
+            .order_by(ranked.c.genre_id, ranked.c.rn)
+        ):
+            covers.setdefault(genre_id, []).append({"id": album_id, "v": v})
+        return {
+            "items": [
+                {"id": i, "name": n, "track_count": c, "covers": covers.get(i, [])} for i, n, c in rows
+            ]
+        }
 
     return shared_json(request, db, "genres", build)
 
