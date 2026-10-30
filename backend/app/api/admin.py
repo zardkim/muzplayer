@@ -11,7 +11,7 @@ from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
 from ..models import Book, LibraryFolder, ScanJob, Track, User
-from ..scanner import FOLDER_KINDS, nfc, prune_orphans, remove_covers, start_scan
+from ..scanner import FOLDER_KINDS, cancel_scan, nfc, prune_orphans, remove_covers, start_scan
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
 
@@ -42,6 +42,14 @@ def scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
     if job is None:
         raise api_error(409, "scan_running")
     return job_out(job)
+
+
+@router.post("/scan/cancel", status_code=202)
+def stop_scan(_: User = Depends(admin_user)):
+    """The scan stops after the current file and keeps what it has read so far."""
+    if not cancel_scan():
+        raise api_error(409, "no_scan_running")
+    return {"cancelling": True}
 
 
 @router.get("/scan/latest")

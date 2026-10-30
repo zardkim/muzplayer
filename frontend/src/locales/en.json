@@ -66,7 +66,8 @@
     "ai_rejected": "The AI service did not accept the request. It may be the prompt or the model setting; the server log line \"ai banner\" has the actual reason.",
     "ai_no_image": "The AI returned no image. Try a different prompt.",
     "ai_unreachable": "Cannot reach the AI service.",
-    "ai_bad_response": "Could not read the AI service response."
+    "ai_bad_response": "Could not read the AI service response.",
+    "no_scan_running": "No scan is running."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -312,7 +313,11 @@
     "aiOn": "Ready",
     "aiOff": "No API key",
     "aiCounts": "{banners} AI banners · {without} collections without a banner (covers are used)",
-    "aiHelp": "Add {key} to .env and restart the app to use it. The key stays on the server, never in the page or the database."
+    "aiHelp": "Add {key} to .env and restart the app to use it. The key stays on the server, never in the page or the database.",
+    "stopScan": "Stop scan",
+    "stoppingScan": "Stopping…",
+    "scanCancelled": "Scan stopped (songs read so far are kept; nothing marked missing)",
+    "scanInterrupted": "Scan interrupted by an app restart (scan again to continue)"
   },
   "library": {
     "title": "My music",

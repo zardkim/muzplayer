@@ -11,6 +11,6 @@ if [ "$(id -u)" = "0" ]; then
   exec setpriv --reuid="$PUID" --regid="$PGID" --clear-groups "$0" "$@"
 fi
 
-alembic upgrade head
+python -m app.migrate
 python -m app.bootstrap
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'

@@ -166,7 +166,7 @@ export interface User {
 
 export interface ScanJob {
   id: number
-  status: 'running' | 'done' | 'failed'
+  status: 'running' | 'done' | 'failed' | 'cancelled'
   started_at: string
   finished_at: string | null
   scanned: number

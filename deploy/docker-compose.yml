@@ -37,11 +37,18 @@ services:
         target: ${MUSIC_ROOT:?set MUSIC_ROOT in .env}
         read_only: true
         bind:
+          # a mistyped path must stop the start, not become a new empty folder on the NAS
+          create_host_path: false
           # rslave: shares mounted into the library after start show up without a restart
           propagation: ${MUSIC_MOUNT_PROPAGATION:-rprivate}
       - ${DATA_PATH:-./data}/app:/data
-      # audiobooks, read-only at the same path; without AUDIOBOOK_PATH an empty placeholder is mounted
-      - ${AUDIOBOOK_PATH:-./no-audiobooks}:${AUDIOBOOK_PATH:-/no-audiobooks}:ro
+      # audiobooks, read-only at the same path; without AUDIOBOOK_PATH this folder stands in (unused)
+      - type: bind
+        source: ${AUDIOBOOK_PATH:-.}
+        target: ${AUDIOBOOK_PATH:-/no-audiobooks}
+        read_only: true
+        bind:
+          create_host_path: false
 
   db:
     image: postgres:17-alpine

@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from .config import settings
 from .models import Book, ScanJob
-from .scanner import AUDIO_EXTS, BATCH, DISC_DIR, FOLDER_COVERS, _embedded_cover, _first, _pick, _read_tags, _walk, _year, nfc
+from .scanner import AUDIO_EXTS, BATCH, DISC_DIR, FOLDER_COVERS, _embedded_cover, _first, _pick, _read_tags, _walk, _year, check_cancel, nfc
 
 log = logging.getLogger(__name__)
 
@@ -281,6 +281,7 @@ def scan_books(db: Session, job: ScanJob, errors: list[str]) -> None:
 
     pending = 0
     for nkey, (key, entries) in sorted(groups.items()):
+        check_cancel()  # stops before marking anything missing
         single = len(Path(key).parts) == 1 and not (root / key).is_dir()
         image = None if single else _folder_image(root / key)
         cover_sig = ""

@@ -36,6 +36,24 @@ DISC_DIR = re.compile(r"^(?:cd|disc|disk)\s*[-_.]?\s*(\d+)$", re.IGNORECASE)
 BANNER_NAMES = ("banner.jpg", "banner.jpeg", "banner.png", "banner.webp")
 
 _lock = threading.Lock()
+_cancel = threading.Event()  # set by an admin's "stop scan"; checked between files
+
+
+class ScanCancelled(Exception):
+    pass
+
+
+def check_cancel() -> None:
+    if _cancel.is_set():
+        raise ScanCancelled
+
+
+def cancel_scan() -> bool:
+    """Asks the running scan to stop after the current file. False when none is running."""
+    if not _lock.locked():
+        return False
+    _cancel.set()
+    return True
 
 # tag name candidates, compared case-insensitively (ID3/MP4 via easy mode, Vorbis, APE, ASF)
 TAG_KEYS = {
@@ -333,6 +351,7 @@ def _walk(root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] =
     stack = [root]
     visited: set[tuple[int, int]] = set()
     while stack:
+        check_cancel()  # listing a large share can take a while by itself
         directory = stack.pop()
         try:
             st = os.stat(directory)
@@ -428,6 +447,7 @@ def _scan(job_id: int) -> None:
         seen = {rel for rel, _ in files}
 
         for rel, path in files:
+            check_cancel()
             job.scanned += 1
             place = placement(rel, kinds)
             try:
@@ -493,6 +513,10 @@ def _scan(job_id: int) -> None:
         pruned_albums = prune_orphans(db)
         _find_banners(db, root)
         job.status = "done"
+    except ScanCancelled:
+        # keep what was read so far; nothing is marked missing or pruned on a partial pass
+        job.status = "cancelled"
+        pruned_albums = []
     except Exception as exc:
         log.exception("scan failed")
         db.rollback()
@@ -501,11 +525,14 @@ def _scan(job_id: int) -> None:
         job.status = "failed"
         errors.append(str(exc))
     db.commit()
-    if settings.audiobook_dir is not None:
+    if settings.audiobook_dir is not None and job.status != "cancelled":
         from .books import scan_books  # books imports scanner helpers
 
         try:
             scan_books(db, job, errors)
+        except ScanCancelled:
+            db.commit()
+            job.status = "cancelled"
         except Exception as exc:
             log.exception("audiobook scan failed")
             db.rollback()
@@ -594,6 +621,7 @@ def start_scan(db: Session) -> ScanJob | None:
     """Starts a background scan. Returns None when one is already running."""
     if not _lock.acquire(blocking=False):
         return None
+    _cancel.clear()
     job = ScanJob(status="running")
     db.add(job)
     db.commit()

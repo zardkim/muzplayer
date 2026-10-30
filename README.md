@@ -53,8 +53,17 @@ NAS에 폴더를 만들고 이 저장소의 두 파일을 복사합니다.
 ```
 /volume1/docker/muzplayer/
 ├── docker-compose.yml   ← deploy/docker-compose.yml (수정하지 않음)
-└── .env                 ← deploy/.env.example 을 복사해서 값 입력
+├── .env                 ← deploy/.env.example 을 복사해서 값 입력
+└── data/                ← DATA_PATH. app(커버 캐시)·postgres(DB)는 처음 실행할 때 자동으로 생김
 ```
+
+```bash
+sudo mkdir -p /volume1/docker/muzplayer/data
+```
+
+- 음악 폴더(`MUSIC_ROOT`)와 오디오북 폴더(`AUDIOBOOK_PATH`)는 **이미 있어야 합니다.** 경로를 잘못 적으면 빈 폴더를 만들지 않고
+  `bind source path does not exist` 오류를 내며 시작하지 않습니다.
+- 그 밖에 미리 만들 폴더는 없습니다. 앱은 음악·오디오북 폴더에 아무것도 쓰지 않습니다.
 
 ### 2. 레지스트리 로그인 (처음 한 번)
 
@@ -66,7 +75,7 @@ echo '<시크릿>' | docker login harbor.nurilab.pe.kr -u 'robot$muzplayer+deplo
 
 | 항목 | 설명 |
 |---|---|
-| `MUZPLAYER_VERSION` | 실행할 버전(예: `0.5.0`). `latest`는 최신 빌드 |
+| `MUZPLAYER_VERSION` | 실행할 버전. 기본값 `latest`(항상 최신 빌드). 특정 버전에 고정하려면 `0.5.1`처럼 적음 |
 | `HTTP_PORT` | NAS에서 열 포트. 역방향 프록시는 `http://<NAS>:<HTTP_PORT>`로 연결 |
 | `MUSIC_PATH` | 음악 폴더. 안의 심볼릭 링크 폴더와 마운트된 공유 폴더도 스캔 |
 | `MUSIC_ROOT` | 컨테이너에 같은 경로로 읽기 전용 연결할 폴더. 보통 `MUSIC_PATH`와 같게 두고, 링크가 음악 폴더 밖을 가리키면 둘을 포함하는 상위 폴더(예: `/volume1`) |
@@ -101,11 +110,18 @@ DB 준비와 첫 관리자 계정 생성은 시작할 때 자동으로 됩니다
 
 ### 업데이트
 
-`.env`의 `MUZPLAYER_VERSION`을 바꾼 뒤:
+1. DB를 백업합니다(아래 "백업·복구"의 백업 명령).
+2. 새 이미지를 받아 실행합니다. `MUZPLAYER_VERSION`이 `latest`(기본값)면 `.env`는 그대로 두고, 특정 버전에 고정했다면 그 값을 바꿉니다.
+   ```bash
+   docker compose pull && docker compose up -d
+   docker compose logs --tail 30 app      # "migrating database schema 0003 -> 0004" / "up to date"
+   ```
 
-```bash
-docker compose pull && docker compose up -d
-```
+- **DB 변경(마이그레이션)은 앱이 시작할 때 자동으로 합니다.**
+  - 여러 버전을 건너뛰어도 차례대로 한 번에 올립니다.
+  - 중간에 실패하면 **DB는 업데이트 전 그대로** 남습니다. 로그에 `migration failed`와 원인이 나오고, 이전 버전으로 되돌리면 그대로 쓸 수 있습니다.
+- **이미 업데이트된 DB에 이전 버전 이미지를 올리면** DB를 건드리지 않고 시작을 멈춥니다(`database ... is newer than this image`).
+  - 새 버전으로 다시 올리거나, 업데이트 전에 만든 백업으로 복구한 뒤 이전 버전을 씁니다.
 
 | 버전 | 해야 할 일 |
 |---|---|
@@ -113,6 +129,19 @@ docker compose pull && docker compose up -d
 | 0.2 → 0.3 | 라이브러리 폴더에서 차트·컴필레이션 폴더 종류를 고르고 스캔(DB 백업 권장) |
 | 0.3 → 0.4 | 새 `docker-compose.yml`로 교체. 오디오북을 쓰려면 `.env`에 `AUDIOBOOK_PATH` 추가(DB 백업 권장) |
 | 0.4 → 0.5 | 새 `docker-compose.yml`로 교체. 테마 폴더를 라이브러리 폴더에서 `테마`로 지정하고 스캔. AI 배너를 쓰려면 `GEMINI_API_KEY` 추가(선택) |
+| 0.5.0 → 0.5.1 | 새 `docker-compose.yml`로 교체(경로를 잘못 적으면 시작하지 않도록 바뀜) |
+
+### 스캔 중 문제가 생기면
+
+| 상황 | 처리 |
+|---|---|
+| 파일 하나를 읽지 못함(깨진 파일, 권한) | 그 파일만 오류로 세고 계속 진행. 관리자 화면 "오류 상세"에서 확인 |
+| 폴더를 읽지 못함(권한, 꺼진 공유 폴더) | 그 폴더 아래 곡은 "없어짐"으로 처리하지 않음 |
+| 음악 폴더 전체가 비어 보임(마운트 해제) | 스캔을 실패로 끝내고 아무것도 숨기지 않음 |
+| 관리자가 **스캔 중지**를 누름 | 지금 파일까지 저장하고 멈춤. "없어짐" 처리와 정리는 하지 않음 |
+| 스캔 중 앱·NAS가 재시작됨 | 다음 시작 때 "중단됨"으로 표시. 그때까지 읽은 곡은 남고 "없어짐" 처리는 하지 않음 |
+
+중지·중단된 뒤에는 **스캔 시작**을 다시 누르면 됩니다. 이미 읽은 파일은 건너뛰므로 남은 부분만 처리합니다.
 
 ## 폴더 구조
 

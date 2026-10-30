@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, RefreshCw } from '@lucide/vue'
 import { api } from '../api'
@@ -145,6 +145,17 @@ async function startScan() {
   }
 }
 
+const stopping = ref(false)
+async function stopScan() {
+  stopping.value = true
+  try {
+    await api('/admin/scan/cancel', { method: 'POST' })
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+watch(() => job.value?.status, (s) => s !== 'running' && (stopping.value = false))
+
 async function purge() {
   if (!confirm(t('admin.purgeConfirm'))) return
   try {
@@ -209,6 +220,9 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         </div>
         <div class="flex flex-wrap gap-2.5">
           <button v-if="hasMissing" type="button" class="h-11 rounded-full border border-line-strong px-4 text-sm" @click="purge">{{ t('admin.purge') }}</button>
+          <button v-if="job?.status === 'running'" type="button" class="h-11 rounded-full border border-line-strong px-4 text-sm disabled:opacity-50" :disabled="stopping" @click="stopScan">
+            {{ stopping ? t('admin.stoppingScan') : t('admin.stopScan') }}
+          </button>
           <button
             type="button"
             class="flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50"
@@ -225,7 +239,9 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <div class="h-1.5 overflow-hidden rounded-full bg-line"><div class="h-1.5 w-2/5 animate-pulse rounded-full bg-accent" /></div>
       </div>
       <p v-else-if="job" class="text-[13px]" :class="job.status === 'failed' ? 'text-danger' : 'text-muted'">
-        <template v-if="job.status === 'failed'">{{ t('admin.scanFailed') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}
+        <template v-if="job.status === 'failed' && job.error_summary === 'interrupted'">{{ t('admin.scanInterrupted') }} · </template>
+        <template v-else-if="job.status === 'failed'">{{ t('admin.scanFailed') }} · </template>
+        <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}
       </p>
       <p v-else class="text-[13px] text-muted">{{ t('admin.neverScanned') }}</p>
 
