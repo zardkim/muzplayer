@@ -65,7 +65,7 @@ def list_books(
     limit: int = Query(60, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     conds = [Book.missing_at.is_(None)]
     if q.strip():
@@ -90,7 +90,7 @@ def list_books(
 
 
 @router.get("/books/continue", dependencies=[Depends(books_enabled)])
-def continue_listening(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def continue_listening(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """Books started and not finished, most recently listened first."""
     rows = db.execute(
         select(Book, BookProgress)
@@ -110,7 +110,7 @@ def get_book_row(db: Session, book_id: int) -> Book:
 
 
 @router.get("/books/{book_id}", dependencies=[Depends(books_enabled)])
-def get_book(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_book(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     book = get_book_row(db, book_id)
     progress = db.get(BookProgress, (user.id, book.id))
     return {
@@ -142,7 +142,7 @@ def get_book_cover(
 
 
 @router.get("/books/{book_id}/files/{index}/stream", dependencies=[Depends(books_enabled)])
-def stream_book_file(book_id: int, index: int, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def stream_book_file(book_id: int, index: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     book = db.get(Book, book_id)
     path = book_file(book, index) if book else None
     if path is None:
@@ -159,7 +159,7 @@ class ProgressIn(BaseModel):
 
 
 @router.put("/books/{book_id}/progress", dependencies=[Depends(books_enabled)])
-def save_progress(book_id: int, body: ProgressIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def save_progress(book_id: int, body: ProgressIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """Last write wins: the newest save from any device is the position."""
     book = get_book_row(db, book_id)
     row = db.get(BookProgress, (user.id, book.id))
@@ -174,7 +174,7 @@ def save_progress(book_id: int, body: ProgressIn, user: User = Depends(current_u
 
 
 @router.delete("/books/{book_id}/progress", status_code=204, dependencies=[Depends(books_enabled)])
-def reset_progress(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def reset_progress(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     row = db.get(BookProgress, (user.id, book_id))
     if row is not None:
         db.delete(row)
@@ -185,7 +185,7 @@ def reset_progress(book_id: int, user: User = Depends(current_user), db: Session
 
 
 @router.get("/admin/books/status", dependencies=[Depends(books_enabled)])
-def books_status(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def books_status(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     present = db.scalar(select(func.count()).select_from(Book).where(Book.missing_at.is_(None)))
     missing = db.scalar(select(func.count()).select_from(Book).where(Book.missing_at.is_not(None)))
     imported = db.scalar(select(func.count()).select_from(Book).where(Book.abs_id.is_not(None), Book.missing_at.is_(None)))
@@ -208,7 +208,7 @@ class AbsImportIn(AbsIn):
 
 
 @router.post("/admin/books/abs-import/preview", dependencies=[Depends(books_enabled)])
-def abs_preview(body: AbsIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def abs_preview(body: AbsIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     try:
         return abs_import.preview(db, body.url, body.api_key)
     except abs_import.AbsError as exc:
@@ -216,7 +216,7 @@ def abs_preview(body: AbsIn, _: User = Depends(admin_user), db: Session = Depend
 
 
 @router.post("/admin/books/abs-import", status_code=202, dependencies=[Depends(books_enabled)])
-def abs_run(body: AbsImportIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def abs_run(body: AbsImportIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     known = set(db.scalars(select(User.id)))
     if any(user_id not in known for user_id in body.user_map.values()):
         raise api_error(400, "validation")

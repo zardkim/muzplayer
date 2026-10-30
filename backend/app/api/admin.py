@@ -50,7 +50,7 @@ class ScanIn(BaseModel):
 
 
 @router.post("/scan", status_code=202)
-def scan(body: ScanIn | None = None, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def scan(body: ScanIn | None = None, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     body = body or ScanIn()
     if body.mode != "scan" and body.folder is None:
         raise api_error(400, "folder_required")  # rescan/reset of everything: not offered
@@ -69,7 +69,7 @@ def stop_scan(_: User = Depends(admin_user)):
 
 
 @router.post("/covers/rebuild", status_code=202)
-def rebuild_covers(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def rebuild_covers(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Remakes every album and audiobook cover from the files, as part of a scan."""
     if scan_running():
         raise api_error(409, "scan_running")
@@ -83,7 +83,7 @@ def rebuild_covers(_: User = Depends(admin_user), db: Session = Depends(get_db))
 
 
 @router.get("/folders/impact")
-def folder_impact(path: str, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def folder_impact(path: str, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """What a reset of this folder would take with it (shown before asking to confirm)."""
     ids = select(Track.id).where(in_folder(nfc(path))).scalar_subquery()
 
@@ -100,7 +100,7 @@ def folder_impact(path: str, _: User = Depends(admin_user), db: Session = Depend
 
 
 @router.get("/scan/latest")
-def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     job = db.scalars(select(ScanJob).order_by(ScanJob.id.desc()).limit(1)).first()
     missing = db.scalar(select(Track.id).where(Track.missing_at.is_not(None)).limit(1)) or db.scalar(
         select(Book.id).where(Book.missing_at.is_not(None)).limit(1)
@@ -113,7 +113,7 @@ def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db)):
 
 
 @router.get("/scan/{job_id}")
-def get_scan(job_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def get_scan(job_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     job = db.get(ScanJob, job_id)
     if job is None:
         raise api_error(404, "not_found")
@@ -122,7 +122,7 @@ def get_scan(job_id: int, _: User = Depends(admin_user), db: Session = Depends(g
 
 @router.delete("/missing-tracks")
 def purge_missing(
-    days: int = Query(30, ge=0, le=3650), _: User = Depends(admin_user), db: Session = Depends(get_db)
+    days: int = Query(30, ge=0, le=3650), _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")
 ):
     """Deletes tracks and audiobooks missing for more than `days`, then unused albums/charts/artists/genres.
 
@@ -154,7 +154,7 @@ def suggest_kind(name: str) -> str | None:
 
 
 @router.get("/folders")
-def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Top-level folders of the library with their kind and how many tracks they hold."""
     kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder))}
     names: set[str] = set()
@@ -195,7 +195,7 @@ class FolderKind(BaseModel):
 
 
 @router.put("/folders")
-def set_folder_kind(body: FolderKind, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def set_folder_kind(body: FolderKind, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Takes effect on the next scan."""
     path = nfc(body.path)
     if not path or "/" in path or "\\" in path or path in (".", ".."):
@@ -227,12 +227,12 @@ class UserPatch(BaseModel):
 
 
 @router.get("/users")
-def list_users(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def list_users(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     return {"items": [user_out(u) for u in db.scalars(select(User).order_by(User.id))]}
 
 
 @router.post("/users", status_code=201)
-def create_user(body: UserCreate, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def create_user(body: UserCreate, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     if db.scalar(select(User.id).where(User.username == body.username)) is not None:
         raise api_error(409, "username_taken")
     user = User(
@@ -248,7 +248,7 @@ def create_user(body: UserCreate, _: User = Depends(admin_user), db: Session = D
 
 @router.patch("/users/{user_id}")
 def update_user(
-    user_id: int, body: UserPatch, admin: User = Depends(admin_user), db: Session = Depends(get_db)
+    user_id: int, body: UserPatch, admin: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")
 ):
     user = db.get(User, user_id)
     if user is None:
@@ -332,7 +332,7 @@ def lookup_artist_images(_: User = Depends(admin_user)):
 
 
 @router.get("/artist-images/status")
-def artist_images_status(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def artist_images_status(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     with_photo = db.scalar(
         select(func.count()).select_from(Artist).where(Artist.image_path.is_not(None), Artist.image_path != "none")
     )
@@ -340,7 +340,7 @@ def artist_images_status(_: User = Depends(admin_user), db: Session = Depends(ge
 
 
 @router.get("/artists/{artist_id}/image-candidates")
-def artist_image_candidates(artist_id: int, q: str = "", _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def artist_image_candidates(artist_id: int, q: str = "", _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Wikipedia articles with a photo for this artist (Korean, then English), to pick from."""
     artist = db.get(Artist, artist_id)
     if artist is None:
@@ -361,7 +361,7 @@ class ArtistImageIn(BaseModel):
 
 
 @router.put("/artists/{artist_id}/image")
-def set_artist_image(artist_id: int, body: ArtistImageIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def set_artist_image(artist_id: int, body: ArtistImageIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     artist = db.get(Artist, artist_id)
     if artist is None:
         raise api_error(404, "not_found")
@@ -377,7 +377,7 @@ def set_artist_image(artist_id: int, body: ArtistImageIn, _: User = Depends(admi
 
 
 @router.delete("/artists/{artist_id}/image", status_code=204)
-def delete_artist_image(artist_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def delete_artist_image(artist_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Removes the photo; lookups then leave this artist alone (picking one brings it back)."""
     artist = db.get(Artist, artist_id)
     if artist is None:

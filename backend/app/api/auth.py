@@ -42,7 +42,7 @@ def has_users(db: Session) -> bool:
 
 
 @router.get("/config")
-def get_config(db: Session = Depends(get_db)):
+def get_config(db: Session = Depends(get_db, scope="function")):
     locale = settings.default_locale if settings.default_locale in SUPPORTED_LOCALES else "ko"
     return {
         "default_locale": locale,
@@ -61,7 +61,7 @@ class LoginIn(BaseModel):
 
 
 @router.post("/auth/login")
-def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
+def login(body: LoginIn, response: Response, db: Session = Depends(get_db, scope="function")):
     user = db.execute(select(User).where(User.username == body.username.strip())).scalar_one_or_none()
     if user is None:
         dummy_verify(body.password)
@@ -106,7 +106,7 @@ class SetupIn(BaseModel):
 
 
 @router.post("/auth/setup", status_code=201)
-def setup(body: SetupIn, response: Response, db: Session = Depends(get_db)):
+def setup(body: SetupIn, response: Response, db: Session = Depends(get_db, scope="function")):
     """The first account, made from the login page of a fresh install, is the admin. Once any
     account exists this is closed; more accounts are added on the admin page."""
     db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))  # two first visitors: only one wins
@@ -125,7 +125,7 @@ def setup(body: SetupIn, response: Response, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/logout", status_code=204)
-def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+def logout(request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
     token = request.cookies.get(COOKIE_NAME)
     if token:
         delete_session(db, token)
@@ -144,7 +144,7 @@ class PasswordIn(BaseModel):
 
 
 @router.put("/auth/password", status_code=204)
-def change_password(body: PasswordIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def change_password(body: PasswordIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if not verify_password(user.password_hash, body.current_password):
         raise api_error(400, "wrong_password")
     user.password_hash = hash_password(body.new_password)

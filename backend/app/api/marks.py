@@ -28,33 +28,33 @@ def _upsert(db: Session, model, key: dict, rating: int) -> None:
 
 
 @router.put("/ratings/tracks/{track_id}", status_code=204)
-def rate_track(track_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def rate_track(track_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Track, track_id) is None:
         raise api_error(404, "not_found")
     _upsert(db, TrackRating, {"user_id": user.id, "track_id": track_id}, body.rating)
 
 
 @router.delete("/ratings/tracks/{track_id}", status_code=204)
-def unrate_track(track_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def unrate_track(track_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     db.execute(delete(TrackRating).where(TrackRating.user_id == user.id, TrackRating.track_id == track_id))
     db.commit()
 
 
 @router.put("/ratings/albums/{album_id}", status_code=204)
-def rate_album(album_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def rate_album(album_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Album, album_id) is None:
         raise api_error(404, "not_found")
     _upsert(db, AlbumRating, {"user_id": user.id, "album_id": album_id}, body.rating)
 
 
 @router.delete("/ratings/albums/{album_id}", status_code=204)
-def unrate_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def unrate_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     db.execute(delete(AlbumRating).where(AlbumRating.user_id == user.id, AlbumRating.album_id == album_id))
     db.commit()
 
 
 @router.get("/favorites/albums")
-def liked_albums(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def liked_albums(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     rows = db.execute(
         album_list_query([])
         .join(AlbumFavorite, (AlbumFavorite.album_id == Album.id) & (AlbumFavorite.user_id == user.id))
@@ -65,7 +65,7 @@ def liked_albums(user: User = Depends(current_user), db: Session = Depends(get_d
 
 
 @router.put("/favorites/albums/{album_id}", status_code=204)
-def like_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def like_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Album, album_id) is None:
         raise api_error(404, "not_found")
     db.execute(insert(AlbumFavorite).values(user_id=user.id, album_id=album_id).on_conflict_do_nothing())
@@ -73,7 +73,7 @@ def like_album(album_id: int, user: User = Depends(current_user), db: Session = 
 
 
 @router.delete("/favorites/albums/{album_id}", status_code=204)
-def unlike_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def unlike_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     db.execute(delete(AlbumFavorite).where(AlbumFavorite.user_id == user.id, AlbumFavorite.album_id == album_id))
     db.commit()
 

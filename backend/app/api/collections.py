@@ -107,7 +107,7 @@ def list_charts(
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     _: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     """Chart weeks or themes. source is the chart source, or the theme category."""
 
@@ -133,7 +133,7 @@ def list_charts(
 
 
 @router.get("/collections/home")
-def collections_home(request: Request, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def collections_home(request: Request, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """Everything the collections page shows, in one call. The picks change daily, so the day is
     part of the cache key."""
     return shared_json(request, db, f"collections-home:{date.today().isoformat()}", lambda: _collections_home(db))
@@ -188,7 +188,7 @@ def get_chart_row(db: Session, chart_id: int) -> Chart:
 
 
 @router.get("/charts/{chart_id}")
-def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, chart_id)
     rows = db.execute(
         track_query(user.id)
@@ -203,7 +203,7 @@ def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = D
 
 
 @router.get("/charts/{chart_id}/folder-banner")
-def folder_banner(chart_id: int, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def folder_banner(chart_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, chart_id)
     path = settings.music_dir / chart.banner_file if chart.banner_file else None
     if path is None or ".." in chart.banner_file.split("/") or not path.is_file():
@@ -224,7 +224,7 @@ def get_banner(banner_id: int, _: User = Depends(current_user)):
 
 
 @router.get("/admin/banners/status")
-def banner_status(_: User = Depends(admin_user), db: Session = Depends(get_db)):
+def banner_status(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     without = 0
     banners = load_banners(db)
     for chart in db.scalars(select(Chart).where(chart_count() > 0)):
@@ -262,7 +262,7 @@ def draft_prompt(db: Session, chart: Chart) -> str:
 
 
 @router.get("/admin/banners/prompt")
-def banner_prompt(chart_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def banner_prompt(chart_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, chart_id)
     return {"prompt": draft_prompt(db, chart)}
 
@@ -288,7 +288,7 @@ EDIT_PROMPT = (
 
 
 @router.post("/admin/banners/generate", status_code=202)
-def generate_banner(body: GenerateIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def generate_banner(body: GenerateIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, body.chart_id)
     if body.edit_candidate or body.edit_banner is not None:
         if body.edit_candidate:
@@ -342,7 +342,7 @@ class ApplyIn(BaseModel):
 
 
 @router.post("/admin/banners")
-def apply_banner(body: ApplyIn, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def apply_banner(body: ApplyIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, body.chart_id)
     path = ai_banner.candidate_file(body.candidate)
     if path is None or not path.is_file():
@@ -368,7 +368,7 @@ def apply_banner(body: ApplyIn, _: User = Depends(admin_user), db: Session = Dep
 
 
 @router.delete("/admin/banners/{banner_id}")
-def delete_banner(banner_id: int, chart_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db)):
+def delete_banner(banner_id: int, chart_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Back to the next banner in line (source banner, banner.jpg or the cover one)."""
     banner = db.get(Banner, banner_id)
     if banner is not None:

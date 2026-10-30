@@ -112,7 +112,7 @@ def list_tracks(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     conds = [listed_tracks()]
     if q.strip():
@@ -179,7 +179,7 @@ def list_albums(
     limit: int = Query(60, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     conds = [not_chart()]
     if kind:
@@ -215,7 +215,7 @@ def list_albums(
 
 
 @router.get("/albums/{album_id}")
-def get_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     row = db.execute(album_list_query([Album.id == album_id])).first()
     if row is None:
         raise api_error(404, "not_found")
@@ -259,7 +259,7 @@ def list_artists(
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     _: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     def build():
         # counted once for all artists (grouped), not once per artist
@@ -329,7 +329,7 @@ def get_artist_image(
 
 
 @router.get("/artists/{artist_id}")
-def get_artist(artist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_artist(artist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     artist = db.get(Artist, artist_id)
     if artist is None:
         raise api_error(404, "not_found")
@@ -354,7 +354,7 @@ def get_artist(artist_id: int, user: User = Depends(current_user), db: Session =
 
 
 @router.get("/genres")
-def list_genres(request: Request, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def list_genres(request: Request, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     def build():
         rows = db.execute(
             select(Genre.id, Genre.name, func.count(Track.id))
@@ -391,7 +391,7 @@ def list_genres(request: Request, _: User = Depends(current_user), db: Session =
 
 
 @router.get("/library/version")
-def get_library_version(_: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_library_version(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """Goes up when the library changes; the app reloads lists it kept when it differs."""
     return {"version": library_version(db)}
 
@@ -413,14 +413,14 @@ def track_file(db: Session, track_id: int) -> tuple[Track, str]:
 
 
 @router.get("/tracks/{track_id}/stream")
-def stream(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def stream(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     track, path = track_file(db, track_id)
     media_type = AUDIO_TYPES.get(track.format) or mimetypes.guess_type(path)[0] or "application/octet-stream"
     return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/tracks/{track_id}/lyrics")
-def lyrics(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db)):
+def lyrics(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """{"synced": [[seconds, line], ...] | null, "plain": str | null}, read from the file each time."""
     _, path = track_file(db, track_id)
     return JSONResponse(read_lyrics(Path(path)), headers={"Cache-Control": "private, max-age=600"})

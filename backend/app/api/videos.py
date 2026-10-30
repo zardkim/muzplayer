@@ -42,12 +42,12 @@ def _list(db: Session, user: User, **target) -> dict:
 
 
 @router.get("/albums/{album_id}/videos")
-def album_videos(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def album_videos(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return _list(db, user, album_id=album_id)
 
 
 @router.get("/tracks/{track_id}/videos")
-def track_videos(track_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def track_videos(track_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     return _list(db, user, track_id=track_id)
 
 
@@ -57,7 +57,7 @@ def search_videos(
     album_id: int | None = None,
     track_id: int | None = None,
     _: User = Depends(current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
 ):
     """YouTube search results to pick from; `added` marks those already on this album/song."""
     try:
@@ -85,7 +85,7 @@ class VideoIn(BaseModel):
 
 
 @router.post("/videos", status_code=201)
-def add_video(body: VideoIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def add_video(body: VideoIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     youtube_id = youtube.video_id(body.video)
     if youtube_id is None:
         raise api_error(400, "video_bad_link")
@@ -127,7 +127,7 @@ def _editable(db: Session, user: User, video_id: int) -> Video:
 
 
 @router.patch("/videos/{video_id}")
-def update_video(video_id: int, body: VideoPatch, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def update_video(video_id: int, body: VideoPatch, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     video = _editable(db, user, video_id)
     if body.kind is not None:
         video.kind = body.kind
@@ -138,6 +138,6 @@ def update_video(video_id: int, body: VideoPatch, user: User = Depends(current_u
 
 
 @router.delete("/videos/{video_id}", status_code=204)
-def delete_video(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def delete_video(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     db.delete(_editable(db, user, video_id))
     db.commit()

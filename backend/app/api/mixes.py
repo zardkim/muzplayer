@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 @router.get("/mixes")
-def list_mixes(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def list_mixes(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """The mixes this user has songs for, with up to four covers each. Empty ones are left out
     (no ratings yet: no "top rated")."""
     items = []
@@ -25,7 +25,7 @@ def list_mixes(user: User = Depends(current_user), db: Session = Depends(get_db)
 
 
 @router.get("/mixes/{key}")
-def get_mix(key: str, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def get_mix(key: str, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """The songs, worked out now: a random mix is new each time it is opened."""
     query = mix_query(key, track_query(user.id), user.id)
     if query is None:

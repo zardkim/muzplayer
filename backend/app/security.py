@@ -69,7 +69,7 @@ def api_error(status: int, code: str) -> HTTPException:
     return HTTPException(status_code=status, detail=code)
 
 
-def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise api_error(401, "not_authenticated")
