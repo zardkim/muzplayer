@@ -52,12 +52,13 @@ muzplayer는 NAS의 음악 폴더를 그대로 읽어 스트리밍 앱처럼 보
 
 ### 1. 폴더 준비
 
-NAS에 `muzplayer` 폴더를 만들고 이 저장소의 두 파일만 복사합니다. 나머지 폴더는 처음 실행할 때 자동으로 생깁니다.
+`.env`의 `MUZPLAYER_DIR`(예: `/volume1/docker/muzplayer`) 아래에 모든 폴더가 처음 실행할 때 자동으로 생깁니다. 미리 만들 폴더는 없습니다.
+`docker compose`로 실행하면 이 폴더에 아래 두 파일을 두고, **Portainer**로 실행하면 스택 편집기에 compose 내용을 붙이고 `.env` 값을 스택 환경 변수로 넣습니다.
 
 ```
 /volume1/docker/muzplayer/
-├── docker-compose.yml   ← deploy/docker-compose.yml (수정하지 않음)
-├── .env                 ← deploy/.env.example 을 복사해서 값 입력
+├── docker-compose.yml   ← deploy/docker-compose.yml (수정하지 않음, Portainer면 필요 없음)
+├── .env                 ← deploy/.env.example 을 복사해서 값 입력 (Portainer면 스택 환경 변수)
 ├── app/                 ← 커버 캐시 등 앱 데이터 (자동 생성)
 ├── db/                  ← 데이터베이스 (자동 생성)
 ├── conf/                ← 앱에서 바꾼 설정 저장(API 키 등) (자동 생성)
@@ -78,13 +79,13 @@ mkdir -p /volume1/docker/muzplayer/library/music /volume1/docker/muzplayer/libra
 mount --bind /volume1/music     /volume1/docker/muzplayer/library/music
 mount --bind /volume1/audiobook /volume1/docker/muzplayer/library/audiobook
 # 부팅 때 컨테이너가 마운트보다 먼저 떴을 수 있으므로 다시 시작
-docker compose -f /volume1/docker/muzplayer/docker-compose.yml restart app
+docker restart muzplayer
 ```
 
 - 다른 NAS·PC의 공유(NFS·SMB)를 같은 자리에 마운트해도 됩니다.
 - **심볼릭 링크로는 안 됩니다.** `library/music`을 `/volume1/music`을 가리키는 링크로 만들거나, 라이브러리 안의 링크가 `library/` 밖의 절대 경로를 가리키면
   컨테이너 안에서 찾을 수 없습니다. 링크 대신 마운트를 쓰세요.
-- 앱을 띄운 뒤에 마운트하면 앱을 다시 시작해야 보입니다(`MUSIC_MOUNT_PROPAGATION=rslave`면 바로 보임, `.env.example` 참고).
+- 앱을 띄운 뒤에 마운트했다면 `docker restart muzplayer`로 앱만 다시 시작하면 보입니다.
 
 ### 2. 레지스트리 로그인 (처음 한 번)
 
@@ -96,6 +97,7 @@ echo '<시크릿>' | docker login harbor.nurilab.pe.kr -u 'robot$muzplayer+deplo
 
 | 항목 | 설명 |
 |---|---|
+| `MUZPLAYER_DIR` | `app`·`db`·`conf`·`library`를 둘 폴더(절대 경로, 예: `/volume1/docker/muzplayer`). Portainer는 스택을 자기 폴더에서 실행하므로 `./app` 같은 상대 경로를 쓰지 않습니다 |
 | `MUZPLAYER_VERSION` | 실행할 버전. 기본값 `latest`(항상 최신 빌드). 특정 버전에 고정하려면 `0.8.0`처럼 적음 |
 | `HTTP_PORT` | NAS에서 열 포트(기본 `18150`). 역방향 프록시는 `http://<NAS>:<HTTP_PORT>`로 연결 |
 | `PUID` / `PGID` | 앱이 실행될 사용자(`id <사용자>`로 확인). `library/`를 읽을 수 있어야 함 |
@@ -111,6 +113,8 @@ echo '<시크릿>' | docker login harbor.nurilab.pe.kr -u 'robot$muzplayer+deplo
 cd /volume1/docker/muzplayer
 docker compose up -d
 ```
+
+Portainer에서는 스택을 만들고 **Deploy the stack**을 누릅니다.
 
 1. 브라우저로 열면 **관리자 계정 만들기** 화면이 나옵니다. **여기서 처음 만든 계정이 관리자**가 되고, 그 뒤로는 이 화면이 닫힙니다.
    - 먼저 접속한 사람이 관리자가 되므로, 역방향 프록시로 외부에 열기 전에 `http://<NAS>:18150`에서 먼저 만드세요.
@@ -166,8 +170,8 @@ sudo mkdir -p library/music library/audiobook
 ```
 
 1. `docker-compose.yml`을 새 파일로 바꿉니다.
-2. `.env`는 새 `deploy/.env.example`을 보고 다시 씁니다. `POSTGRES_PASSWORD`·`PUID`·`PGID`는 **기존 값 그대로** 두고,
-   `MUSIC_PATH`·`MUSIC_ROOT`·`AUDIOBOOK_PATH`·`DATA_PATH`·`ADMIN_*`·`*_API_KEY`·`AI_PROVIDER`·`*_IMAGE_MODEL` 줄은 지웁니다.
+2. `.env`는 새 `deploy/.env.example`을 보고 다시 씁니다. `MUZPLAYER_DIR=/volume1/docker/muzplayer`를 넣고, `POSTGRES_PASSWORD`·`PUID`·`PGID`는 **기존 값 그대로** 두고,
+   `MUSIC_PATH`·`MUSIC_ROOT`·`AUDIOBOOK_PATH`·`DATA_PATH`·`ADMIN_*`·`*_API_KEY`·`AI_PROVIDER`·`*_IMAGE_MODEL`·`MUSIC_MOUNT_PROPAGATION` 줄은 지웁니다.
 3. 포트 기본값이 `18150`으로 바뀌었습니다. 예전 포트를 계속 쓰려면 `HTTP_PORT`를 그대로 두고, 바꾸면 역방향 프록시 주소도 바꿉니다.
 4. `docker compose pull && docker compose up -d` 후 관리자 화면 → **외부 서비스 키**에 API 키를 다시 넣습니다.
 
