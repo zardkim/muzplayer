@@ -262,6 +262,9 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <template v-else-if="job.status === 'failed'">{{ t('admin.scanFailed') }} · </template>
         <template v-else-if="job.status === 'cancelled'">{{ t('admin.scanCancelled') }} · </template>{{ t('admin.lastScan', { time: dateTime(job.finished_at ?? job.started_at) }) }}<template v-if="took(job)"> · {{ took(job) }}</template>
       </p>
+      <p v-if="job?.status === 'failed' && /^(music_dir_not_found|library_empty)/.test(job.error_summary ?? '')" class="text-[13px] leading-relaxed text-danger">
+        {{ t('admin.noLibrary') }}
+      </p>
       <p v-else class="text-[13px] text-muted">{{ t('admin.neverScanned') }}</p>
 
       <div v-if="job" class="grid grid-cols-2 gap-3 sm:grid-cols-4">

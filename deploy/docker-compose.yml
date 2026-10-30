@@ -4,8 +4,9 @@
 #   muzplayer/app        album-art cache and other app data
 #   muzplayer/db         the database
 #   muzplayer/conf       settings changed in the app (API keys)
-#   muzplayer/library/music       the music library (mount or copy it here)
+#   muzplayer/library/music       the music library (mount or copy it here yourself)
 #   muzplayer/library/audiobook   audiobooks (optional; empty or missing = audiobooks off)
+# app, db, conf and library are created on the first start.
 name: muzplayer
 
 services:
@@ -34,8 +35,8 @@ services:
         target: /library
         read_only: true
         bind:
-          # a missing library folder must stop the start, not become a new empty folder
-          create_host_path: false
+          # made empty on the first start; music/ and audiobook/ inside are mounted by you
+          create_host_path: true
           # rslave: shares mounted into library/ after start show up without a restart
           propagation: ${MUSIC_MOUNT_PROPAGATION:-rprivate}
 
@@ -49,10 +50,12 @@ services:
       TZ: ${TZ:-Asia/Seoul}
     command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=30"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U muzplayer -d muzplayer"]
+      # over TCP: the temporary server of the first start (socket only) must not count as ready
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U muzplayer -d muzplayer"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 60s
     volumes:
       - ./db:/var/lib/postgresql/data
     # no ports: the database is reachable only from the app container

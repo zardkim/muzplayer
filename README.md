@@ -52,7 +52,7 @@ muzplayer는 NAS의 음악 폴더를 그대로 읽어 스트리밍 앱처럼 보
 
 ### 1. 폴더 준비
 
-NAS에 `muzplayer` 폴더를 만들고 이 저장소의 두 파일을 복사합니다. 나머지 폴더는 그 옆에 둡니다.
+NAS에 `muzplayer` 폴더를 만들고 이 저장소의 두 파일만 복사합니다. 나머지 폴더는 처음 실행할 때 자동으로 생깁니다.
 
 ```
 /volume1/docker/muzplayer/
@@ -60,17 +60,13 @@ NAS에 `muzplayer` 폴더를 만들고 이 저장소의 두 파일을 복사합�
 ├── .env                 ← deploy/.env.example 을 복사해서 값 입력
 ├── app/                 ← 커버 캐시 등 앱 데이터 (자동 생성)
 ├── db/                  ← 데이터베이스 (자동 생성)
-├── conf/                ← 앱에서 입력한 설정(API 키) (자동 생성)
-└── library/             ← 직접 만듦. 읽기 전용으로 연결
+├── conf/                ← 앱에서 바꾼 설정 저장(API 키 등) (자동 생성)
+└── library/             ← 자동 생성. 읽기 전용으로 연결
     ├── music/           ← 음악 폴더를 여기에 마운트
     └── audiobook/       ← 오디오북 폴더를 여기에 마운트 (없거나 비어 있으면 오디오북 메뉴가 숨겨짐)
 ```
 
-```bash
-sudo mkdir -p /volume1/docker/muzplayer/library/music /volume1/docker/muzplayer/library/audiobook
-```
-
-- `library/`는 **이미 있어야 합니다.** 없으면 빈 폴더를 만들지 않고 `bind source path does not exist` 오류를 내며 시작하지 않습니다.
+- `library/music`·`library/audiobook`은 직접 연결합니다(아래). 연결 전에도 앱은 정상 시작하고, 스캔하면 "음악 폴더를 찾지 못했습니다"로 끝납니다.
 - 앱은 `library/`에 아무것도 쓰지 않습니다.
 
 **음악·오디오북 연결하기**
@@ -78,6 +74,7 @@ sudo mkdir -p /volume1/docker/muzplayer/library/music /volume1/docker/muzplayer/
 기존 공유 폴더를 `library/music`, `library/audiobook`에 bind 마운트합니다. Synology 작업 스케줄러 → **트리거된 작업 → 부트업**(root)에 등록하면 재부팅 뒤에도 유지됩니다.
 
 ```bash
+mkdir -p /volume1/docker/muzplayer/library/music /volume1/docker/muzplayer/library/audiobook
 mount --bind /volume1/music     /volume1/docker/muzplayer/library/music
 mount --bind /volume1/audiobook /volume1/docker/muzplayer/library/audiobook
 # 부팅 때 컨테이너가 마운트보다 먼저 떴을 수 있으므로 다시 시작

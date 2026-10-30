@@ -364,7 +364,8 @@
     "keyClear": "키 삭제",
     "keyClearConfirm": "이 키를 삭제할까요?",
     "ytTitle": "YouTube 검색",
-    "ytHelp": "앨범·곡에 뮤직비디오를 등록할 때 앱 안에서 검색합니다(무료 하루 약 100회). Google Cloud 콘솔에서 YouTube Data API v3를 켜고 API 키를 만드세요. 키 제한: API는 YouTube Data API v3만, 애플리케이션은 '없음' 또는 NAS IP('HTTP 리퍼러'는 안 됨). 키가 없으면 YouTube 주소를 붙여 넣어 등록합니다."
+    "ytHelp": "앨범·곡에 뮤직비디오를 등록할 때 앱 안에서 검색합니다(무료 하루 약 100회). Google Cloud 콘솔에서 YouTube Data API v3를 켜고 API 키를 만드세요. 키 제한: API는 YouTube Data API v3만, 애플리케이션은 '없음' 또는 NAS IP('HTTP 리퍼러'는 안 됨). 키가 없으면 YouTube 주소를 붙여 넣어 등록합니다.",
+    "noLibrary": "음악 폴더를 찾지 못했습니다. NAS에서 음악 폴더를 muzplayer/library/music에 마운트(또는 복사)한 뒤 다시 스캔하세요."
   },
   "library": {
     "title": "내 음악",

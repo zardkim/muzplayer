@@ -364,7 +364,8 @@
     "keyClear": "Remove key",
     "keyClearConfirm": "Remove this key?",
     "ytTitle": "YouTube search",
-    "ytHelp": "Used to search inside the app when adding music videos to albums and songs (free: about 100 searches a day). In the Google Cloud console, enable YouTube Data API v3 and create an API key. Restrictions: API = YouTube Data API v3 only; application = None or the NAS's IP (not 'HTTP referrers'). Without a key, videos are added by pasting a YouTube link."
+    "ytHelp": "Used to search inside the app when adding music videos to albums and songs (free: about 100 searches a day). In the Google Cloud console, enable YouTube Data API v3 and create an API key. Restrictions: API = YouTube Data API v3 only; application = None or the NAS's IP (not 'HTTP referrers'). Without a key, videos are added by pasting a YouTube link.",
+    "noLibrary": "No music found. On the NAS, mount (or copy) the music folder to muzplayer/library/music, then scan again."
   },
   "library": {
     "title": "My music",

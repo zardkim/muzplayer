@@ -8,6 +8,7 @@ with a clear message instead of a crash loop with an alembic traceback.
 
 import logging
 import sys
+import time
 import traceback
 from pathlib import Path
 
@@ -17,10 +18,28 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.util import CommandError
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 
 from .config import settings
 
 log = logging.getLogger("migrate")
+
+WAIT_SECONDS = 120
+
+
+def current_revision(engine) -> str | None:
+    """Waits for the database: on the very first start PostgreSQL initializes, restarts once,
+    and on a slow NAS can still be starting when the app comes up."""
+    deadline = time.monotonic() + WAIT_SECONDS
+    while True:
+        try:
+            with engine.connect() as conn:
+                return MigrationContext.configure(conn).get_current_revision()
+        except OperationalError as exc:
+            if time.monotonic() > deadline:
+                raise
+            log.info("waiting for the database (%s)", str(exc.orig).strip().splitlines()[0][:120])
+            time.sleep(3)
 
 
 def main() -> int:
@@ -29,8 +48,7 @@ def main() -> int:
     script = ScriptDirectory.from_config(cfg)
     head = script.get_current_head()
     engine = create_engine(settings.database_url)
-    with engine.connect() as conn:
-        current = MigrationContext.configure(conn).get_current_revision()
+    current = current_revision(engine)
     engine.dispose()
 
     if current == head:
