@@ -33,8 +33,10 @@ export interface PlayerPrefs {
   eqGains: number[] // dB per band (custom)
   quality: Quality // streaming quality on Wi-Fi (and on iPhone, which doesn't say); needs ffmpeg on the server
   qualityCellular: Quality // ... on mobile data (Android)
+  lyricsSize: number // index into LYRICS_SIZES
 }
 export const CROSSFADES = [0, 2, 4, 6, 8]
+export const LYRICS_SIZES = [0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75] // times the lyrics' normal size
 export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
 export const CACHE_SIZES = [256, 512, 1024, 2048]
 const PLAYER_PREFS: PlayerPrefs = {
@@ -42,7 +44,7 @@ const PLAYER_PREFS: PlayerPrefs = {
   prefetchWifi: 3, prefetchCellular: 1, cacheMB: 512, autoplay: false, albumEnd: 'radio',
   showCodec: true, showQuality: true, showPopular: true,
   leveling: 'off', crossfade: 0, eq: false, eqPreset: 'flat', eqGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  quality: 'orig', qualityCellular: 'orig',
+  quality: 'orig', qualityCellular: 'orig', lyricsSize: 2,
 }
 
 function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs> } {

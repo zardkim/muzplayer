@@ -22,7 +22,8 @@ export const useLyrics = defineStore('lyrics', () => {
       try {
         const data = await api<Lyrics>(`/tracks/${id}/lyrics`)
         if (cache.size > 200) cache.clear()
-        cache.set(id, data)
+        // none yet: not kept, so the next play asks again (the server may not have looked them up yet)
+        if (data.synced || data.plain) cache.set(id, data)
         if (player.current?.id === id) lyrics.value = data
       } catch {
         /* no lyrics shown; the panel says so */

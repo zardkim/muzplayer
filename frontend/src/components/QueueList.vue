@@ -4,10 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, GripVertical, X } from '@lucide/vue'
 import { duration } from '../format'
 import { usePlayer } from '../stores/player'
+import { useLongPress, useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 
 // The play queue: what's playing, then what comes next. Songs already played fold away above.
-// Reorder by dragging (mouse) or with the arrows (touch, keyboard); a click plays that song.
+// Reorder by dragging (mouse; on a phone hold a row, then drag) or with the arrows (keyboard);
+// a click plays that song; on a phone a row swiped left leaves the queue.
 const { t } = useI18n()
 const player = usePlayer()
 const showPlayed = ref(false)
@@ -34,10 +36,61 @@ function drop(to: number) {
   if (dragFrom.value !== null && dragFrom.value !== to) player.move(dragFrom.value, to)
   dragFrom.value = dragOver.value = null
 }
+
+// touch: one set of handlers for the list, the row found from the touch
+let row: HTMLElement | null = null
+const rowAt = (el: Element | null) => el?.closest<HTMLElement>('[data-row]') ?? null
+const swipe = useSwipe({
+  axes: ['x'],
+  allow: (_, dx) => dx < 0 && !!row && Number(row.dataset.row) !== player.index && dragFrom.value === null,
+  move: (_, dx) => row && (row.style.transform = `translateX(${Math.max(-140, dx)}px)`),
+  end: ({ dx, fast }) => {
+    const el = row
+    if (!el) return
+    el.style.transition = 'transform 0.18s ease-out'
+    const gone = dx < -110 || (fast && dx < -40)
+    el.style.transform = gone ? 'translateX(-110%)' : ''
+    window.setTimeout(() => {
+      el.style.transition = el.style.transform = ''
+      if (gone) player.removeAt(Number(el.dataset.row))
+    }, 180)
+  },
+})
+const hold = useLongPress((target) => {
+  const el = rowAt(target)
+  if (el && Number(el.dataset.row) !== player.index) dragFrom.value = dragOver.value = Number(el.dataset.row)
+})
+function touchstart(e: TouchEvent) {
+  row = rowAt(e.target as Element)
+  if (!row) return
+  swipe.onTouchstart(e)
+  hold.onTouchstart(e)
+}
+function touchmove(e: TouchEvent) {
+  if (dragFrom.value !== null) {
+    // picked up: the row under the finger is where it goes (the list doesn't scroll meanwhile)
+    if (e.cancelable) e.preventDefault()
+    const t = e.touches[0]
+    const over = rowAt(document.elementFromPoint(t.clientX, t.clientY))
+    if (over) dragOver.value = Number(over.dataset.row)
+    return
+  }
+  hold.onTouchmove(e)
+  swipe.onTouchmove(e)
+}
+function touchend(e: TouchEvent) {
+  hold.onTouchend()
+  if (dragFrom.value !== null) {
+    if (dragOver.value !== null && dragOver.value !== player.index) drop(dragOver.value)
+    dragFrom.value = dragOver.value = null
+    return
+  }
+  swipe.onTouchend(e)
+}
 </script>
 
 <template>
-  <div ref="box" class="flex flex-col">
+  <div ref="box" class="flex flex-col" @touchstart="touchstart" @touchmove="touchmove" @touchend="touchend" @touchcancel="touchend" @click.capture="hold.onClickCapture">
     <p v-if="!player.queue.length" class="px-3 py-2 text-[15px] font-light text-muted">{{ t('player.queueEmpty') }}</p>
 
     <template v-else>
@@ -58,7 +111,8 @@ function drop(to: number) {
         </h3>
         <div
           :data-current="i === player.index ? '' : undefined"
-          class="group flex items-center gap-2.5 rounded-xl px-2 transition-colors"
+          :data-row="i"
+          class="group flex items-center gap-2.5 rounded-xl px-2 transition-colors [-webkit-touch-callout:none]"
           :class="[
             i === player.index ? 'bg-accent-soft' : 'hover:bg-surface',
             dragOver === i && dragFrom !== i ? 'ring-2 ring-accent/40' : '',

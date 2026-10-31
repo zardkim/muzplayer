@@ -5,6 +5,7 @@ import { cachedSource, prepare } from '../audioCache'
 import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
+import { attachOutputs } from '../outputs'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, Track } from '../types'
 import { useUi } from './ui'
@@ -53,6 +54,12 @@ function shuffled<T>(items: T[]): T[] {
 export const usePlayer = defineStore('player', () => {
   const audio = new Audio()
   audio.preload = 'auto'
+  // iPhone: a "playback" audio session plays on with the screen locked or the app in the background,
+  // ignores the silent switch and moves to Bluetooth when it connects (Safari 17+; without it, a page
+  // that also uses Web Audio counts as "ambient" sound, which stops in the background)
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
+  if (session) session.type = 'playback'
+  attachOutputs(audio)
 
   const queue = ref<Track[]>([])
   const index = ref(-1)
@@ -758,9 +765,11 @@ export const usePlayer = defineStore('player', () => {
   function pageHidden() {
     if (mode.value === 'book' && loadedKey) saveProgress(true)
   }
-  document.addEventListener('visibilitychange', () =>
-    document.visibilityState === 'hidden' ? pageHidden() : refreshBook(),
-  )
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') return pageHidden()
+    refreshBook()
+    if (playing.value) resumeGraph() // iPhone may have suspended the sound processing meanwhile
+  })
   window.addEventListener('pagehide', pageHidden)
 
   // ---- audio events ----

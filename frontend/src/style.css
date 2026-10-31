@@ -15,6 +15,7 @@
   --color-accent-strong: #b02e18;
   --color-accent-soft: #fdf1ee;
   --color-danger: #c8261d;
+  --color-like: #f0243c; /* a liked song or album: the same red in every theme */
   --color-on-ink: #ffffff; /* text and icons on an ink-filled button */
   --color-soft: #52525b; /* secondary text on the player screens */
   --color-sheet: #f7f6f2; /* full-screen player background */

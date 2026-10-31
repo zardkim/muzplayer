@@ -9,6 +9,7 @@ import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Track } from '../types'
+import { useLongPress, useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 import StarRating from './StarRating.vue'
 
@@ -99,6 +100,59 @@ function action(fn: () => void) {
 function closeMenu(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest('[data-track-menu]')) menuOpen.value = null
 }
+
+// phones: swipe a row right to play it next, left to like it; hold it for its menu. One set of
+// handlers for the whole list (rows are many); the row is found from the touch.
+let row: HTMLElement | null = null
+function release(el: HTMLElement) {
+  el.style.transition = 'transform 0.18s ease-out'
+  el.style.transform = el.style.background = ''
+  window.setTimeout(() => (el.style.transition = ''), 200)
+}
+const rowSwipe = useSwipe({
+  axes: ['x'],
+  allow: () => !!row && !props.tracks[Number(row.dataset.i)]?.missing,
+  move: (_, dx) => {
+    if (!row) return
+    row.style.transform = `translateX(${Math.max(-100, Math.min(100, dx * 0.6))}px)`
+    row.style.background = dx > 0 ? 'var(--color-accent-soft)' : 'color-mix(in srgb, var(--color-like) 14%, transparent)'
+  },
+  end: ({ dx, fast }) => {
+    const el = row
+    if (!el) return
+    release(el)
+    if (Math.abs(dx) < 110 && !(fast && Math.abs(dx) > 40)) return
+    const track = props.tracks[Number(el.dataset.i)]
+    if (dx > 0) {
+      player.playNext([track])
+      ui.notify(t('common.playNextDone', { title: track.title }))
+    } else void fav(track)
+  },
+})
+const hold = useLongPress((target) => {
+  const li = target.closest<HTMLElement>('li[data-i]')
+  if (!li || props.tracks[Number(li.dataset.i)]?.missing) return
+  menuUp.value = li.getBoundingClientRect().top > window.innerHeight / 2
+  menuOpen.value = Number(li.dataset.i)
+})
+function touchstart(e: TouchEvent) {
+  row = (e.target as Element).closest<HTMLElement>('li[data-i]')
+  if ((e.target as Element).closest('[data-track-menu]')) row = null // the open menu scrolls and taps as usual
+  if (!row) return
+  rowSwipe.onTouchstart(e)
+  hold.onTouchstart(e)
+}
+function touchmove(e: TouchEvent) {
+  if (!row) return
+  hold.onTouchmove(e)
+  rowSwipe.onTouchmove(e)
+}
+function touchend(e: TouchEvent) {
+  if (!row) return
+  hold.onTouchend()
+  rowSwipe.onTouchend(e)
+}
+
 onMounted(() => document.addEventListener('click', closeMenu))
 onUnmounted(() => document.removeEventListener('click', closeMenu))
 </script>
@@ -123,11 +177,12 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
       <span>{{ t('common.selectAll') }}</span>
     </div>
 
-    <ol class="flex flex-col">
+    <ol class="flex flex-col" @touchstart="touchstart" @touchmove="touchmove" @touchend="touchend" @touchcancel="touchend" @click.capture="hold.onClickCapture">
       <li
         v-for="(track, i) in shown"
         :key="`${track.id}-${i}`"
-        class="group relative flex min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
+        :data-i="i"
+        class="group relative flex [-webkit-touch-callout:none] min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
         :class="[
           // rows off screen skip layout and paint; not the one with its menu open (it would be clipped)
           menuOpen === i ? '' : '[contain-intrinsic-size:auto_69px] [content-visibility:auto]',
@@ -178,7 +233,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           <button
             type="button"
             class="grid size-11 place-items-center"
-            :class="library.isFavorite(track) ? 'text-accent' : 'text-ink'"
+            :class="library.isFavorite(track) ? 'text-like' : 'text-ink'"
             :aria-label="library.isFavorite(track) ? L.favRemove : L.favAdd"
             :aria-pressed="library.isFavorite(track)"
             @click="fav(track)"

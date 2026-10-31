@@ -6,8 +6,8 @@ import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { Track } from '../types'
 
-// The like (heart) button of the players. With a mouse it turns red and grows a little on hover,
-// so it is clear what a click will do; a liked song's heart stays filled.
+// The like (heart) button of the players: a liked song's heart is filled red (--color-like). With a
+// mouse it turns red and grows a little on hover, so it is clear what a click will do.
 const props = withDefaults(defineProps<{ track: Track; size?: number; box?: string }>(), { size: 22, box: 'size-11' })
 const { t } = useI18n()
 const library = useLibrary()
@@ -25,8 +25,8 @@ async function toggle() {
 <template>
   <button
     type="button"
-    class="group grid flex-none place-items-center rounded-full transition-colors hover:bg-accent-soft hover:text-accent"
-    :class="[box, library.isFavorite(track) ? 'text-accent' : 'text-ink']"
+    class="group grid flex-none place-items-center rounded-full transition-colors hover:bg-like/10 hover:text-like"
+    :class="[box, library.isFavorite(track) ? 'text-like' : 'text-ink']"
     :aria-label="library.isFavorite(track) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
     :aria-pressed="library.isFavorite(track)"
     @click="toggle"

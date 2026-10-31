@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import search_index
 from .api import admin, auth, books, cast, collections, library, marks, me, mixes, remote, videos
 from .config import settings
 from .db import SessionLocal
@@ -23,6 +24,7 @@ async def lifespan(_: FastAPI):
         mark_interrupted_jobs(db)
     stop = threading.Event()
     start_auto_scan(stop)
+    search_index.rebuild_in_background()  # only when an update changed how the index is built
     yield
     stop.set()
 

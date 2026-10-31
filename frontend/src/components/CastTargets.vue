@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Airplay, Cast } from '@lucide/vue'
+import { Airplay, Cast, Headphones } from '@lucide/vue'
 import { castControl, castQueue, castState, castSupported, loadCast } from '../cast'
 import { duration } from '../format'
+import { outputKind, outputs, pickOutput, refreshOutputs, sinkId, useOutput } from '../outputs'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import PlayerIcons from './PlayerIcons.vue'
@@ -13,7 +14,37 @@ import SeekBar from './SeekBar.vue'
 const { t } = useI18n()
 const ui = useUi()
 const player = usePlayer()
-onMounted(loadCast)
+onMounted(() => {
+  loadCast()
+  void refreshOutputs()
+})
+
+// this device's own output (outputs.ts)
+const askedNames = ref(false) // the names were asked for once
+async function showNames() {
+  // Chrome names the outputs only for a page allowed to use the microphone (nothing is recorded)
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true })
+    s.getTracks().forEach((tr) => tr.stop())
+  } catch {
+    /* refused: the list stays numbered */
+  }
+  await refreshOutputs()
+}
+async function choose(id: string) {
+  try {
+    await useOutput(id)
+  } catch {
+    ui.notify(t('devices.outputFailed'), true)
+  }
+}
+async function picker() {
+  try {
+    await pickOutput()
+  } catch {
+    /* closed */
+  }
+}
 
 async function start() {
   if (!player.current || player.mode !== 'music') return ui.notify(t('devices.castNothing'), true)
@@ -61,8 +92,32 @@ async function start() {
     </button>
     <p v-else-if="castSupported()" class="py-1 text-[13px] font-light text-muted">{{ t('devices.castNone') }}</p>
 
-    <!-- AirPlay (Safari) -->
-    <button v-if="player.airplay" type="button" class="flex items-center gap-3.5 rounded-xl py-2.5 text-left hover:bg-surface" @click="player.showAirPlay()">
+    <!-- this device's speaker / headphones -->
+    <button v-if="outputKind === 'ios'" type="button" class="flex items-center gap-3.5 rounded-xl py-2.5 text-left hover:bg-surface" @click="player.showAirPlay()">
+      <Headphones :size="24" :stroke-width="1.3" />
+      <span class="flex flex-col"><span class="text-[16px]">{{ t('devices.output') }}</span><span class="text-sm font-light text-muted">{{ t('devices.outputIos') }}</span></span>
+    </button>
+    <button v-else-if="outputKind === 'picker'" type="button" class="flex items-center gap-3.5 rounded-xl py-2.5 text-left hover:bg-surface" @click="picker">
+      <Headphones :size="24" :stroke-width="1.3" />
+      <span class="flex flex-col"><span class="text-[16px]">{{ t('devices.output') }}</span><span class="text-sm font-light text-muted">{{ t('devices.outputPick') }}</span></span>
+    </button>
+    <div v-else-if="outputKind === 'list'" class="flex items-center gap-3.5 py-2.5">
+      <Headphones :size="24" :stroke-width="1.3" class="flex-none" />
+      <label class="flex min-w-0 flex-1 flex-col gap-1">
+        <span class="text-[16px]">{{ t('devices.output') }}</span>
+        <select :value="sinkId" class="h-10 min-w-0 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="choose(($event.target as HTMLSelectElement).value)">
+          <option value="">{{ t('devices.outputDefault') }}</option>
+          <option v-for="o in outputs" :key="o.id" :value="o.id">{{ o.label }}</option>
+        </select>
+      </label>
+      <button v-if="outputs.some((o) => o.label.startsWith('#')) && !askedNames" type="button" class="h-9 flex-none self-end rounded-full border border-line-strong px-3 text-[13px]" @click="showNames().then(() => (askedNames = true))">{{ t('devices.outputNames') }}</button>
+    </div>
+    <p v-else-if="outputKind === 'system'" class="flex items-start gap-3.5 py-2.5 text-[13px] font-light text-muted">
+      <Headphones :size="24" :stroke-width="1.3" class="flex-none text-ink" />{{ t('devices.outputAndroid') }}
+    </p>
+
+    <!-- AirPlay (Safari on a Mac; on iPhone the output picker above shows it too) -->
+    <button v-if="player.airplay && outputKind !== 'ios'" type="button" class="flex items-center gap-3.5 rounded-xl py-2.5 text-left hover:bg-surface" @click="player.showAirPlay()">
       <Airplay :size="24" :stroke-width="1.3" />
       <span class="flex flex-col"><span class="text-[16px]">AirPlay</span><span class="text-sm font-light text-muted">{{ t('devices.airplayHelp') }}</span></span>
     </button>

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, select, text
 from sqlalchemy.orm import Session, aliased
 
-from .. import album_notes, artist_images, transcode
+from .. import album_notes, artist_images, lyrics_fetch, search_index, transcode
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
@@ -17,7 +17,7 @@ from ..lyrics import read_lyrics
 from ..models import (
     Album, AlbumFavorite, AlbumRating, Artist, Favorite, Genre, PlayCount, Track, TrackGenre, TrackRating, User, Video,
 )
-from ..scanner import COVER_SIZES, cover_file, search_key
+from ..scanner import COVER_SIZES, cover_file
 from ..security import api_error, current_user
 
 router = APIRouter()
@@ -113,13 +113,30 @@ def not_chart():
     return Album.kind != "chart"
 
 
+def relevance(q: str) -> list:
+    """Search results best first: the title is the query, starts with it, has it; then the artist."""
+    words = search_index.norm(q)
+    if not words:
+        return [func.lower(Track.title)]
+    title, artist = func.lower(Track.title), func.lower(Track.artist_text)
+    pattern = like(words)
+    rank = case(
+        (title == words, 0),
+        (title.like(pattern[1:]), 1),
+        (title.like(pattern), 2),
+        (artist.like(pattern), 3),
+        else_=4,
+    )
+    return [rank, title]
+
+
 @router.get("/tracks")
 def list_tracks(
     q: str = "",
     genre_id: int | None = None,
     album_id: int | None = None,
     artist_id: int | None = None,
-    sort: str = Query("title", pattern="^(title|artist|album|recent)$"),
+    sort: str = Query("title", pattern="^(title|artist|album|recent|relevance)$"),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: User = Depends(current_user),
@@ -127,8 +144,8 @@ def list_tracks(
 ):
     conds = [listed_tracks()]
     if q.strip():
-        # one column with a trigram index instead of three ILIKEs (title, artist, album)
-        conds.append(Track.search_text.like(like(search_key(q.strip()))))
+        # every word of it in the song's search index (search_index.py: one trigram-indexed column)
+        conds.extend(search_index.matches(Track.search_text, q))
     if genre_id:
         conds.append(exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id == genre_id))
     if album_id:
@@ -142,6 +159,7 @@ def list_tracks(
         "artist": [func.lower(Track.artist_text), Album.title, Track.disc_no, Track.track_no],
         "album": [Album.title, Track.disc_no, Track.track_no],
         "recent": [Track.created_at.desc(), Track.id.desc()],
+        "relevance": relevance(q),
     }[sort]
 
     # the rows carry this user's favorites; only the count is the same for everyone
@@ -243,8 +261,7 @@ def list_albums(
     if kind:
         conds.append(Album.kind == kind)
     if q.strip():
-        pattern = like(q.strip())
-        conds.append(or_(Album.title.ilike(pattern), AlbumArtist.name.ilike(pattern)))
+        conds.extend(search_index.matches(Album.search_text, q))  # its title and artist
     if artist_id:
         conds.append(Album.album_artist_id == artist_id)
     order = {
@@ -382,7 +399,7 @@ def list_artists(
         track_count = func.coalesce(tracks.c.n, 0)
         conds = [or_(album_count > 0, track_count > 0)]
         if q.strip():
-            conds.append(Artist.name.ilike(like(q.strip())))
+            conds.extend(search_index.matches(Artist.search_text, q))
         base = (
             select(Artist, album_count.label("albums"), track_count.label("tracks"))
             .outerjoin(albums, albums.c.artist_id == Artist.id)
@@ -549,6 +566,14 @@ def serve_track(db: Session, track_id: int, request: Request, quality: str, leve
 
 @router.get("/tracks/{track_id}/lyrics")
 def lyrics(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """{"synced": [[seconds, line], ...] | null, "plain": str | null}, read from the file each time."""
-    _, path = track_file(db, track_id)
-    return JSONResponse(read_lyrics(Path(path)), headers={"Cache-Control": "private, max-age=600"})
+    """{"synced": [[seconds, line], ...] | null, "plain": str | null}: the song's own (its .lrc or
+    tags, read each time), else lyrics fetched for it (lyrics_fetch.py: looked up the first time)."""
+    track, path = track_file(db, track_id)
+    found = read_lyrics(Path(path))
+    if not found["synced"]:
+        album = db.scalar(select(Album.title).where(Album.id == track.album_id)) if track.album_id else ""
+        fetched = lyrics_fetch.fetched(db, track, Path(path), album or "")
+        if fetched and (fetched["synced"] or not found["plain"]):
+            found = fetched
+    cache = "private, max-age=600" if found["synced"] or found["plain"] else "no-cache"
+    return JSONResponse(found, headers={"Cache-Control": cache})

@@ -7,12 +7,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, album_notes, appconf, artist_images, merge, youtube
+from .. import ai_banner, album_notes, appconf, artist_images, merge, search_index, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
 from ..models import (
-    Album, Artist, Book, Favorite, LibraryFolder, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
+    Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
 )
 from ..scanner import (
     FOLDER_KINDS, in_folder, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running,
@@ -109,6 +109,7 @@ def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db, sco
         "job": job_out(job) if job else None,
         "has_missing": missing is not None,
         "auto_scan_minutes": settings.scan_interval_minutes,
+        "search_index_ready": not search_index.outdated(db),
     }
 
 
@@ -492,3 +493,13 @@ def save_notes(album_id: int, body: NotesIn, _: User = Depends(admin_user), db: 
     album.description_source = body.source if text else "manual"  # cleared: not looked up again
     db.commit()
     return {"description": album.description, "description_source": album.description_source if text else None}
+
+
+@router.post("/search-index", status_code=202)
+def rebuild_search_index(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Builds the search index of every song, album and artist again, in the background."""
+    if scan_running():
+        raise api_error(409, "scan_running")
+    db.execute(update(LibraryState).values(search_version=0))
+    db.commit()
+    search_index.rebuild_in_background()

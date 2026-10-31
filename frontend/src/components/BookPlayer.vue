@@ -5,6 +5,7 @@ import { ChevronDown, ListOrdered, Moon } from '@lucide/vue'
 import { duration, longDuration } from '../format'
 import { SPEEDS, usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
+import { useSwipe } from '../swipe'
 import BookCover from './BookCover.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import SeekBar from './SeekBar.vue'
@@ -45,14 +46,43 @@ function pickSleep(value: number | 'chapter' | null) {
   sheet.value = null
 }
 
-let startY: number | null = null
-function touchStart(e: TouchEvent) {
-  startY = e.touches[0].clientY
+// gestures (phones): pull the player down to tuck it away; swipe the cover left to skip ahead,
+// right to go back (Settings → audiobooks sets by how much)
+const scroller = ref<HTMLElement | null>(null)
+const dragY = ref(0)
+const coverX = ref(0)
+const settling = ref(false)
+function settle(apply: () => void, after?: () => void) {
+  settling.value = true
+  apply()
+  window.setTimeout(() => {
+    settling.value = false
+    after?.()
+  }, 200)
 }
-function touchEnd(e: TouchEvent) {
-  if (startY !== null && e.changedTouches[0].clientY - startY > 90) ui.playerOpen = false
-  startY = null
-}
+const pull = useSwipe({
+  axes: ['y'],
+  allow: (_, __, dy) => dy > 0 && (scroller.value?.scrollTop ?? 0) <= 0,
+  move: (_, __, dy) => (dragY.value = Math.max(0, dy)),
+  end: ({ dy, fast }) => {
+    if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
+      ui.playerOpen = false
+      dragY.value = 0
+    })
+    else settle(() => (dragY.value = 0))
+  },
+})
+const flick = useSwipe({
+  axes: ['x'],
+  move: (_, dx) => (coverX.value = Math.max(-80, Math.min(80, dx * 0.5))),
+  end: ({ dx, fast }) => {
+    settle(() => (coverX.value = 0))
+    if (Math.abs(dx) < 70 && !(fast && Math.abs(dx) > 30)) return
+    const secs = dx < 0 ? player.skipForward : -player.skipBack
+    player.skip(secs)
+    ui.notify(t(dx < 0 ? 'player.skippedForward' : 'player.skippedBack', { n: Math.abs(secs) }))
+  },
+})
 </script>
 
 <template>
@@ -61,9 +91,18 @@ function touchEnd(e: TouchEvent) {
     role="dialog"
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
+    ref="scroller"
     class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
+    @touchstart="pull.onTouchstart"
+    @touchmove="pull.onTouchmove"
+    @touchend="pull.onTouchend"
+    @touchcancel="pull.onTouchcancel"
   >
-    <div class="relative mx-auto flex min-h-full max-w-md flex-col px-5 pt-[calc(env(safe-area-inset-top)+8px)] md:my-6 md:min-h-0 md:rounded-3xl md:shadow-2xl">
+    <div
+      class="relative mx-auto flex min-h-full max-w-md flex-col px-5 pt-[calc(env(safe-area-inset-top)+8px)] md:my-6 md:min-h-0 md:rounded-3xl md:shadow-2xl"
+      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+      :style="dragY ? { transform: `translateY(${dragY}px)` } : undefined"
+    >
       <div class="relative z-10 flex justify-end">
         <button type="button" class="-mb-6 grid size-11 place-items-center rounded-full bg-bg/70" :aria-label="t('player.close')" @click="ui.playerOpen = false">
           <ChevronDown :size="24" :stroke-width="1.4" />
@@ -71,7 +110,15 @@ function touchEnd(e: TouchEvent) {
       </div>
 
       <!-- 2:3 cover: capped by height so the controls below stay on screen -->
-      <div class="flex justify-center" @touchstart.passive="touchStart" @touchend="touchEnd">
+      <div
+        class="flex justify-center"
+        :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+        :style="coverX ? { transform: `translateX(${coverX}px)` } : undefined"
+        @touchstart="flick.onTouchstart"
+        @touchmove="flick.onTouchmove"
+        @touchend="flick.onTouchend"
+        @touchcancel="flick.onTouchcancel"
+      >
         <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" size="large" rounded="rounded-xl" class="w-[min(62%,27dvh)] shadow-[0_12px_40px_rgba(17,17,19,0.18)]" />
       </div>
 
@@ -142,7 +189,7 @@ function touchEnd(e: TouchEvent) {
     </div>
 
     <!-- bottom sheets -->
-    <div v-if="sheet" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/30" @click.self="sheet = null">
+    <div v-if="sheet" data-no-swipe class="fixed inset-0 z-[60] flex items-end justify-center bg-black/30" @click.self="sheet = null">
       <div class="pb-safe flex max-h-[75dvh] w-full max-w-md flex-col rounded-t-3xl bg-bg pt-2 shadow-2xl" role="dialog" aria-modal="true">
         <div class="mx-auto mb-2 h-1 w-10 rounded-full bg-line-strong" />
         <template v-if="sheet === 'speed'">

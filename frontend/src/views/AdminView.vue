@@ -20,19 +20,21 @@ const ui = useUi()
 const job = ref<ScanJob | null>(null)
 const hasMissing = ref(false)
 const autoScan = ref(0)
+const searchReady = ref(true) // the search index is built (search_index.py)
 const users = ref<User[]>([])
 const folders = ref<LibraryFolder[]>([])
 const aiStatus = ref<{ provider: string; model: string; configured: boolean; banners: number; without_banner: number } | null>(null)
 let poll: number | undefined
 
 async function loadScan() {
-  const r = await api<{ job: ScanJob | null; has_missing: boolean; auto_scan_minutes: number }>('/admin/scan/latest')
+  const r = await api<{ job: ScanJob | null; has_missing: boolean; auto_scan_minutes: number; search_index_ready: boolean }>('/admin/scan/latest')
   const wasRunning = job.value?.status === 'running'
   job.value = r.job
   hasMissing.value = r.has_missing
   autoScan.value = r.auto_scan_minutes
+  searchReady.value = r.search_index_ready
   clearTimeout(poll)
-  if (r.job?.status === 'running') poll = window.setTimeout(loadScan, 1500)
+  if (r.job?.status === 'running' || !r.search_index_ready) poll = window.setTimeout(loadScan, 1500)
   else if (wasRunning) {
     ui.libraryCheckedAt = 0 // kept-alive lists (charts, albums) look for the new library version
     loadFolders().catch(() => {}) // track counts changed
@@ -215,6 +217,17 @@ async function rebuildCovers() {
   }
 }
 
+// the search index (songs, albums, artists): built by each scan; again for everything when asked
+async function rebuildSearch() {
+  try {
+    await api('/admin/search-index', { method: 'POST' })
+    searchReady.value = false
+    poll = window.setTimeout(loadScan, 1000)
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
 async function purge() {
   if (!confirm(t('admin.purgeConfirm'))) return
   try {
@@ -320,9 +333,14 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <summary class="cursor-pointer">{{ t('admin.errorDetails') }}</summary>
         <pre class="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-xs">{{ job.error_summary }}</pre>
       </details>
-      <button type="button" class="self-start text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
-        {{ t('admin.rebuildCovers') }}
-      </button>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
+          {{ t('admin.rebuildCovers') }}
+        </button>
+        <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running' || !searchReady" :title="t('admin.searchIndexHelp')" @click="rebuildSearch">
+          {{ searchReady ? t('admin.searchIndex') : t('admin.searchIndexing') }}
+        </button>
+      </div>
     </section>
 
     <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">

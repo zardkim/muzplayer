@@ -49,3 +49,12 @@ export async function coverGlow(albumId: number, v?: number): Promise<string | n
   const avg = await average(albumId, v)
   return avg ? `rgb(${avg.map(Math.round).join(' ')})` : null
 }
+
+/** A soft wash of the cover's colour for the lyrics view: see-through, strongest in the middle and
+ *  fading out at every edge (the text keeps the page's own colours). Null when there is no cover. */
+export async function coverWash(albumId: number, v?: number): Promise<string | null> {
+  const avg = await average(albumId, v)
+  if (!avg) return null
+  const rgb = avg.map(Math.round).join(' ')
+  return `radial-gradient(closest-side, rgb(${rgb} / 0.24) 0%, rgb(${rgb} / 0.1) 60%, rgb(${rgb} / 0) 100%)`
+}

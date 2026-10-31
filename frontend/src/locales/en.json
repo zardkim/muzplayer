@@ -33,7 +33,12 @@
     "placeholder": "Search songs, albums, artists",
     "resultsFor": "Results for “{q}”",
     "noResults": "No results.",
-    "hint": "Type something to search."
+    "hint": "Type something to search.",
+    "tab_all": "All",
+    "tab_tracks": "Songs",
+    "tab_albums": "Albums",
+    "tab_artists": "Artists",
+    "tab_books": "Audiobooks"
   },
   "login": {
     "username": "Username",
@@ -163,7 +168,8 @@
     "view_cover": "Covers",
     "view_grid": "Grid",
     "startRadio": "Start radio from this song",
-    "popular": "Popular"
+    "popular": "Popular",
+    "playNextDone": "\"{title}\" plays next"
   },
   "home": {
     "recent": "Recently played",
@@ -292,7 +298,12 @@
     "playedCount": "{n} played",
     "upNextCount": "Up next · {n}",
     "nowPlayingShort": "Playing",
-    "queueEnd": "This is the last song in the queue."
+    "queueEnd": "This is the last song in the queue.",
+    "lyricsSmaller": "Smaller lyrics",
+    "lyricsLarger": "Larger lyrics",
+    "lyricsLoading": "Looking for lyrics…",
+    "skippedForward": "Ahead {n}s",
+    "skippedBack": "Back {n}s"
   },
   "settings": {
     "menu_display": "Theme, language, song details",
@@ -555,7 +566,10 @@
     "photosDone": "last run found {found} of {total}",
     "photosFailed": "Could not reach Wikipedia. Try again later.",
     "aiTextModel": "AI playlist model",
-    "aiTextModelHelp": "Text model for “Make with AI” (playlists). Empty uses the default. Every account can use it."
+    "aiTextModelHelp": "Text model for “Make with AI” (playlists). Empty uses the default. Every account can use it.",
+    "searchIndex": "Rebuild search index",
+    "searchIndexing": "Building the search index…",
+    "searchIndexHelp": "Each scan indexes songs, albums and artists for search (spacing ignored, Korean initials). Rebuild it all if search seems off."
   },
   "library": {
     "title": "My music",
@@ -812,7 +826,14 @@
     "castNone": "No Chromecast found. It must be on the same Wi-Fi.",
     "castNothing": "Nothing to send. Play something first.",
     "castFailed": "Couldn't cast.",
-    "airplayHelp": "Send the sound to an AirPlay speaker or TV. With the equaliser or crossfade on it may stay silent."
+    "airplayHelp": "Send the sound to an AirPlay speaker or TV. With the equaliser or crossfade on it may stay silent.",
+    "output": "This device’s output",
+    "outputIos": "Pick the speaker, Bluetooth or AirPlay. Connecting Bluetooth switches to it by itself.",
+    "outputPick": "Pick a speaker or headphones.",
+    "outputDefault": "System default (follows Bluetooth)",
+    "outputNames": "Show names",
+    "outputFailed": "Couldn't switch to that output.",
+    "outputAndroid": "Connecting Bluetooth plays there by itself. To switch, pick the output on the media card in the notification shade."
   },
   "merge": {
     "open": "Tidy duplicates",

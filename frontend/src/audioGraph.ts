@@ -50,6 +50,10 @@ function build(el: HTMLAudioElement) {
     node.gain.value = 0
     return node
   })
+  // iPhone suspends ("interrupted") the context for a call or in the background: start it again
+  ctx.addEventListener('statechange', () => {
+    if (ctx && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => {})
+  })
   for (let i = 0; i < filters.length - 1; i++) filters[i].connect(filters[i + 1])
   filters[filters.length - 1].connect(ctx.destination)
   main = connect(el)
@@ -58,6 +62,7 @@ function build(el: HTMLAudioElement) {
   t.preload = 'auto'
   tail = connect(t)
   tail.gain.gain.value = 0
+  if (sink) setGraphSink(sink) // an output picked before the graph was built
 }
 
 function connect(el: HTMLAudioElement): Chain {
@@ -81,6 +86,15 @@ export function ensureGraph(el: HTMLAudioElement): boolean {
     filters = []
     return false
   }
+}
+
+/** The speaker / headphones the processed sound goes to (outputs.ts), '' for the system's choice. */
+let sink = ''
+export function setGraphSink(id: string) {
+  sink = id
+  const c = ctx as (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null
+  void c?.setSinkId?.(id).catch(() => {})
+  void (tail?.el as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | undefined)?.setSinkId?.(id).catch(() => {})
 }
 
 /** Call from a tap (play, next...): browsers start an AudioContext only after a user gesture. */

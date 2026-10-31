@@ -19,6 +19,7 @@ from PIL import Image
 from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import Session, defer
 
+from . import search_index
 from .config import settings
 from .db import SessionLocal
 from .models import (
@@ -336,11 +337,6 @@ def _cover_from_folder(album: Album, root: Path, directory: Path) -> bool:
     return _set_album_cover(album, data, f"folder:{os.path.relpath(image, root)}", mtime)
 
 
-def search_key(*parts: str | None) -> str:
-    """What search matches against: NFC, lowercased (the query is lowercased the same way)."""
-    return nfc(" ".join(p for p in parts if p)).lower()
-
-
 def folder_kinds(db: Session) -> dict[str, str]:
     """Top-level folder name (NFC) -> kind. Folders not listed are "album"."""
     return {f.path: f.kind for f in db.scalars(select(LibraryFolder))}
@@ -555,7 +551,7 @@ def _classify(
     if track.album_id is not None and track.album_id != album.id:
         cache.moves.setdefault(track.album_id, album.id)
     track.album_id = album.id
-    track.search_text = search_key(track.title, track.artist_text, album.title)
+    track.search_text = search_index.index_text(track.title, track.artist_text, album.title)
     if place.chart_folder is not None:
         track.chart_id = cache.chart(place.chart_folder, place.chart_source, place.chart_kind)
         rank = RANK_PREFIX.match(rel.stem)
@@ -919,6 +915,11 @@ def _scan(job_id: int) -> None:
         from .artist_images import folder_images  # imports scanner helpers
 
         artists = folder_images(db, root)
+        if search_index.outdated(db):
+            db.commit()
+            search_index.rebuild(db)  # everything, once after an update that changed how it's built
+        elif changed or last != "done" or scope is not None:
+            search_index.index_albums_artists(db)  # new albums and artists
         if changed or pruned_albums or covers or banners or artists:
             bump_library(db)
         job.status = "done"
@@ -926,6 +927,7 @@ def _scan(job_id: int) -> None:
         # keep what was read so far; nothing is marked missing or pruned on a partial pass
         job.status = "cancelled"  # pruned_albums stays: a stop during the cover refresh comes after pruning
         if job.added or job.updated:
+            search_index.index_albums_artists(db)
             bump_library(db)
     except Exception as exc:
         log.exception("scan failed")

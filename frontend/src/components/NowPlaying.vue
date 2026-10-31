@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, ChevronUp, EllipsisVertical, ListPlus, MonitorPlay } from '@lucide/vue'
+import { ChevronDown, ChevronUp, EllipsisVertical, Heart, ListPlus, MonitorPlay } from '@lucide/vue'
 import { coverGlow } from '../coverColor'
 import { codec, duration } from '../format'
 import { errorMessage } from '../i18n'
@@ -9,6 +9,7 @@ import { useLibrary } from '../stores/library'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
+import { useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 import LikeButton from './LikeButton.vue'
 import LyricsPanel from './LyricsPanel.vue'
@@ -56,16 +57,61 @@ watch(
 
 const lyricLine = computed(() => lyrics.line)
 
-// swipe down on the artwork to close
-let startY: number | null = null
-function touchStart(e: TouchEvent) {
-  if (ui.lyricsOpen) return // lyrics scroll vertically
-  startY = e.touches[0].clientY
+// gestures (phones): pull the player down to tuck it away; swipe the artwork for the next or previous song
+const sheet = ref<HTMLElement | null>(null)
+const dragY = ref(0)
+const coverX = ref(0)
+const settling = ref(false) // animating back or away after a release
+function settle(apply: () => void, after?: () => void) {
+  settling.value = true
+  apply()
+  window.setTimeout(() => {
+    settling.value = false
+    after?.()
+  }, 220)
 }
-function touchEnd(e: TouchEvent) {
-  if (startY !== null && e.changedTouches[0].clientY - startY > 90) ui.playerOpen = false
-  startY = null
+const pull = useSwipe({
+  axes: ['y'],
+  allow: (_, __, dy) => dy > 0 && (sheet.value?.scrollTop ?? 0) <= 0,
+  move: (_, __, dy) => (dragY.value = Math.max(0, dy)),
+  end: ({ dy, fast }) => {
+    if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
+      ui.playerOpen = false
+      dragY.value = 0
+    })
+    else settle(() => (dragY.value = 0))
+  },
+})
+// a tap on the artwork shows the lyrics; two quick taps like the song (a heart pops up)
+let lastTap = 0
+let tapTimer = 0
+const burst = ref(0)
+function coverTap() {
+  const now = Date.now()
+  if (now - lastTap < 300) {
+    window.clearTimeout(tapTimer)
+    lastTap = 0
+    burst.value++
+    if (player.current && !library.isFavorite(player.current)) library.toggleFavorite(player.current).catch((e) => ui.notify(errorMessage(e), true))
+    return
+  }
+  lastTap = now
+  tapTimer = window.setTimeout(() => (ui.lyricsOpen = true), 300)
 }
+
+const flick = useSwipe({
+  axes: ['x'],
+  move: (_, dx) => (coverX.value = dx),
+  end: ({ dx, fast }) => {
+    if (Math.abs(dx) < 90 && !(fast && Math.abs(dx) > 30)) return settle(() => (coverX.value = 0))
+    const next = dx < 0
+    settle(() => (coverX.value = (next ? -1 : 1) * window.innerWidth), () => {
+      if (next) player.next()
+      else player.prev()
+      coverX.value = 0
+    })
+  },
+})
 </script>
 
 <template>
@@ -74,22 +120,43 @@ function touchEnd(e: TouchEvent) {
     role="dialog"
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
+    ref="sheet"
     class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
+    :class="dragY ? 'overflow-hidden' : ''"
+    @touchstart="pull.onTouchstart"
+    @touchmove="pull.onTouchmove"
+    @touchend="pull.onTouchend"
+    @touchcancel="pull.onTouchcancel"
   >
-    <div class="relative mx-auto flex min-h-full max-w-md flex-col md:my-6 md:min-h-0 md:overflow-hidden md:rounded-3xl md:shadow-2xl">
+    <div
+      class="relative mx-auto flex min-h-full max-w-md flex-col md:my-6 md:min-h-0 md:overflow-hidden md:rounded-3xl md:shadow-2xl"
+      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+      :style="dragY ? { transform: `translateY(${dragY}px)` } : undefined"
+    >
       <div
         class="pointer-events-none absolute inset-x-[-80px] bottom-[-80px] top-[40%] opacity-50"
         :style="{ background: `radial-gradient(60% 45% at 15% 20%, ${glow} 0%, transparent 70%), radial-gradient(55% 40% at 95% 15%, ${glow} 0%, transparent 70%)` }"
       />
 
-      <div class="relative" @touchstart.passive="touchStart" @touchend="touchEnd">
+      <div class="relative overflow-hidden" @touchstart="flick.onTouchstart" @touchmove="flick.onTouchmove" @touchend="flick.onTouchend" @touchcancel="flick.onTouchcancel">
         <!-- full width, but capped on short screens so the controls stay visible; tap toggles lyrics -->
         <div v-if="ui.lyricsOpen" class="mx-auto aspect-square w-full max-w-[min(100%,50dvh)] pt-[env(safe-area-inset-top)]">
           <LyricsPanel />
         </div>
-        <button v-else type="button" class="block w-full" :aria-label="t('player.showLyrics')" @click="ui.lyricsOpen = true">
+        <button
+          v-else
+          type="button"
+          class="block w-full"
+          :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+          :style="coverX ? { transform: `translateX(${coverX}px)` } : undefined"
+          :aria-label="t('player.showLyrics')"
+          @click="coverTap"
+        >
           <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" size="large" rounded="rounded-none" class="mx-auto w-full max-w-[min(100%,50dvh)]" />
         </button>
+        <span v-if="burst" :key="burst" class="heart-burst pointer-events-none absolute inset-0 grid place-items-center text-like" aria-hidden="true">
+          <Heart :size="96" fill="currentColor" :stroke-width="0" />
+        </span>
         <button
           type="button"
           class="absolute right-3 grid size-11 place-items-center rounded-full bg-bg/70 backdrop-blur"
@@ -179,3 +246,16 @@ function touchEnd(e: TouchEvent) {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* the double-tap heart: pops up, then fades */
+.heart-burst {
+  animation: heart-burst 0.8s ease-out forwards;
+}
+@keyframes heart-burst {
+  0% { opacity: 0; transform: scale(0.4); }
+  20% { opacity: 0.95; transform: scale(1.1); }
+  40% { transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+</style>

@@ -70,10 +70,10 @@ const saveAs = computed(() => {
     cover: { albumId: a.id, hasCover: a.has_cover, v: a.cover_v }, tracks: a.tracks,
   }
 })
-// the introduction: a few lines, the rest behind "more"; admins update it (AlbumNotesSheet)
+// the introduction (under the title); admins update it (AlbumNotesSheet)
 const notesOpen = ref(false)
 const notesFull = ref(false)
-const longNotes = computed(() => (album.value?.description ?? '').length > 280 || (album.value?.description ?? '').split('\n').length > 4)
+const longNotes = computed(() => (album.value?.description ?? '').length > 160 || (album.value?.description ?? '').split('\n').length > 3)
 function notesSaved(text: string | null, source: string | null) {
   album.value!.description = text
   album.value!.description_source = source
@@ -93,6 +93,15 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
         <h1 class="text-[30px] font-extrabold leading-tight tracking-tight md:text-[40px]">{{ album.title || t('common.unknownAlbum') }}</h1>
         <RouterLink v-if="album.artist_id" :to="{ name: 'artist', params: { id: album.artist_id } }" class="flex items-center text-lg font-medium">{{ album.artist }}<ChevronRight :size="18" :stroke-width="1.6" /></RouterLink>
         <span v-else class="text-lg text-muted">{{ t('common.unknownArtist') }}</span>
+        <!-- the introduction: three lines under the title, the rest behind "more" -->
+        <div v-if="album.description" class="flex max-w-2xl flex-col items-start gap-1">
+          <p class="whitespace-pre-line text-[14px] font-light leading-relaxed text-soft" :class="notesFull ? '' : 'line-clamp-3'">{{ album.description }}</p>
+          <span class="flex items-center gap-3">
+            <button v-if="longNotes" type="button" class="text-[13px] font-medium text-muted hover:text-ink" @click="notesFull = !notesFull">{{ notesFull ? t('notes.less') : t('notes.more') }}</button>
+            <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.update') }}</button>
+          </span>
+        </div>
+        <button v-else-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 self-start text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.add') }}</button>
         <div class="flex flex-wrap items-center gap-x-2">
           <StarRating :value="album.rating" @rate="rate" />
           <span v-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>
@@ -106,7 +115,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
           <button
             type="button"
             class="grid size-11 place-items-center rounded-full border border-line-strong"
-            :class="album.is_favorite ? 'text-accent' : ''"
+            :class="album.is_favorite ? 'text-like' : ''"
             :aria-label="album.is_favorite ? t('common.favoriteRemove') : t('common.favoriteAdd')"
             :aria-pressed="album.is_favorite"
             @click="like"
@@ -121,19 +130,6 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
       </div>
     </div>
     <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" />
-    <section v-if="album.description || auth.user?.is_admin" class="flex max-w-3xl flex-col gap-2.5">
-      <div class="flex items-center gap-3">
-        <h2 class="text-[22px] font-bold">{{ t('notes.heading') }}</h2>
-        <button v-if="auth.user?.is_admin" type="button" class="flex h-8 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="notesOpen = true">
-          <PenLine :size="14" :stroke-width="1.6" />{{ album.description ? t('notes.update') : t('notes.add') }}
-        </button>
-      </div>
-      <template v-if="album.description">
-        <p class="whitespace-pre-line text-[15px] font-light leading-relaxed" :class="longNotes && !notesFull ? 'line-clamp-4' : ''">{{ album.description }}</p>
-        <button v-if="longNotes" type="button" class="self-start text-[14px] font-medium text-muted hover:text-ink" @click="notesFull = !notesFull">{{ notesFull ? t('notes.less') : t('notes.more') }}</button>
-      </template>
-      <p v-else class="text-[14px] font-light text-muted">{{ t('notes.none') }}</p>
-    </section>
     <AlbumNotesSheet v-if="notesOpen" :album-id="album.id" :text="album.description" :source="album.description_source" @close="notesOpen = false" @saved="notesSaved" />
   </div>
 </template>

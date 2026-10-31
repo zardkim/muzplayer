@@ -67,6 +67,14 @@ etag1=$(list_etag)
 check "unchanged album list is 304" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag1" "$BASE/albums")" 304
 word=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["title"].split()[0][:4]')
 check "search finds a song" "$(curl -s -b "$A" -G --data-urlencode "q=$word" "$BASE/tracks" | j 'd["total"] > 0')" True
+# the search index: every word, in any order, any case, across title/artist/album
+fid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["id"]')
+q2=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j '(d["items"][0]["artist"] or "")[:20].upper() + " " + d["items"][0]["title"][:20]')
+check "search: artist and title, any order and case" "$(curl -s -b "$A" -G --data-urlencode "q=$q2" --data-urlencode sort=relevance "$BASE/tracks" | j "$fid in [t['id'] for t in d['items']]")" True
+check "search index built" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["search_index_ready"]')" True
+# lyrics: the song's own, else looked up once (needs the internet: only the shape is checked) and kept
+check "lyrics answer" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics" | j 'sorted(d)')" "['plain', 'synced']"
+check "lyrics answer again" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/$fid/lyrics")" 200
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"

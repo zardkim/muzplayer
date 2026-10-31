@@ -14,9 +14,10 @@ from sqlalchemy import Text, cast, delete, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from . import search_index
 from .models import Album, Artist, Genre, NameAlias, Playlist, Track, TrackGenre
 from .scanner import (
-    bump_library, carry_album_marks, prune_orphans, remove_covers, scan_lock, search_key, update_album_quality,
+    bump_library, carry_album_marks, prune_orphans, remove_covers, scan_lock, update_album_quality,
 )
 
 KINDS = ("artist", "genre")
@@ -136,6 +137,7 @@ def merge(db: Session, kind: str, keep_id: int, ids: list[int]) -> int:
         else:
             _merge_genres(db, keep, others)
         _rewrite_rules(db, kind, names, keep.name)
+        search_index.index_albums_artists(db)
         update_album_quality(db)
         bump_library(db)
         db.commit()
@@ -164,7 +166,7 @@ def _merge_artists(db: Session, keep: Artist, others: list[Artist]) -> None:
         text = SEP.join(dict.fromkeys(parts))[:1000]
         if text != track.artist_text:
             track.artist_text = text
-            track.search_text = search_key(track.title, text, album_title)
+            track.search_text = search_index.index_text(track.title, text, album_title)
     db.execute(update(Track).where(Track.artist_id.in_(ids)).values(artist_id=keep.id))
     # their albums: under the kept artist; one it already has with the same title takes the songs
     taken = {(a.kind, a.title): a.id for a in db.scalars(select(Album).where(Album.album_artist_id == keep.id))}

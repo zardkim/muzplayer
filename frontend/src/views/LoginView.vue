@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
+import AppLogo from '../components/AppLogo.vue'
 import LanguageMenu from '../components/LanguageMenu.vue'
 
 const { t } = useI18n()
@@ -53,7 +54,7 @@ async function submit() {
     <div class="-mr-3 flex justify-end"><LanguageMenu /></div>
     <div class="flex flex-1 flex-col justify-center gap-10">
       <div class="flex flex-col items-center gap-4">
-        <img src="/logo.svg" alt="" width="88" height="88" />
+        <AppLogo :size="88" :wordmark="false" />
         <h1 class="font-display text-4xl tracking-tight text-ink"><b>muz</b><span class="text-muted">player</span></h1>
       </div>
       <form class="flex flex-col gap-4" @submit.prevent="submit">

@@ -7,6 +7,7 @@ import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
 import { openPlayer, togglePlayer } from '../playerNav'
 import { useUi } from '../stores/ui'
+import { useSwipe } from '../swipe'
 import BookCover from './BookCover.vue'
 import CoverArt from './CoverArt.vue'
 import DevicesButton from './DevicesButton.vue'
@@ -28,13 +29,42 @@ const ui = useUi()
 const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
+
+// phone mini player: swipe sideways for the next / previous song, up to open the player
+const slide = ref(0)
+const sliding = ref(false)
+const swipe = useSwipe({
+  axes: ['x', 'y'],
+  allow: (axis, _, dy) => axis === 'x' ? !isBook.value && !!player.current : dy < 0,
+  move: (axis, dx) => {
+    if (axis === 'x') slide.value = dx * 0.6
+  },
+  end: ({ axis, dx, dy, fast }) => {
+    if (axis === 'y') {
+      if (dy < -30) ui.playerOpen = true
+      return
+    }
+    const go = Math.abs(dx) > 70 || (fast && Math.abs(dx) > 25)
+    if (go) (dx < 0 ? player.next() : player.prev())
+    sliding.value = true
+    slide.value = 0
+    window.setTimeout(() => (sliding.value = false), 200)
+  },
+})
 const segLength = computed(() => Math.max(0, player.segment.end - player.segment.start))
 const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookPos - player.segment.start)))
 </script>
 
 <template>
   <!-- phone mini player -->
-  <div v-if="mobile" class="glass relative flex h-[60px] items-center gap-3 overflow-hidden rounded-full pl-2 pr-1.5">
+  <div
+    v-if="mobile"
+    class="glass relative flex h-[60px] items-center gap-3 overflow-hidden rounded-full pl-2 pr-1.5"
+    @touchstart="swipe.onTouchstart"
+    @touchmove="swipe.onTouchmove"
+    @touchend="swipe.onTouchend"
+    @touchcancel="swipe.onTouchcancel"
+  >
     <template v-if="isBook && player.book">
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
         <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" class="size-11 flex-none" />
@@ -54,7 +84,14 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       </span>
     </template>
     <template v-else-if="player.current">
-      <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-center gap-3 text-left"
+        :class="sliding ? 'transition-transform duration-200' : ''"
+        :style="slide ? { transform: `translateX(${slide}px)` } : undefined"
+        :aria-label="t('player.open')"
+        @click="ui.playerOpen = true"
+      >
         <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-[15px]">{{ player.current.title }}</span>

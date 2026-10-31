@@ -55,6 +55,7 @@ class Artist(Base):
     __tablename__ = "artists"
     __table_args__ = (
         Index("ix_artists_name_trgm", "name", postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"}),
+        Index("ix_artists_search_text", "search_text", postgresql_using="gin", postgresql_ops={"search_text": "gin_trgm_ops"}),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -66,6 +67,7 @@ class Artist(Base):
     image_path: Mapped[str | None] = mapped_column(String(500))
     image_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # in the URL: new photo, new URL
     image_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last Deezer lookup
+    search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # search_index.py
 
 
 class Album(Base):
@@ -73,6 +75,7 @@ class Album(Base):
     __table_args__ = (
         UniqueConstraint("kind", "album_artist_id", "title", postgresql_nulls_not_distinct=True),
         Index("ix_albums_title_trgm", "title", postgresql_using="gin", postgresql_ops={"title": "gin_trgm_ops"}),
+        Index("ix_albums_search_text", "search_text", postgresql_using="gin", postgresql_ops={"search_text": "gin_trgm_ops"}),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -95,6 +98,7 @@ class Album(Base):
     # (album_notes.py), or written by an admin; description_source says which ("eztag", "bugs:<id>", ...)
     description: Mapped[str | None] = mapped_column(Text)
     description_source: Mapped[str | None] = mapped_column(String(200))
+    search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # title and artist (search_index.py)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -118,7 +122,7 @@ class Track(Base):
     file_size: Mapped[int] = mapped_column(BigInteger)
     file_mtime: Mapped[float] = mapped_column(Float)
     format: Mapped[str] = mapped_column(String(16))
-    # "title artist album", NFC and lowercased, with a trigram index: search looks only here
+    # title, artists and album as search matches them (search_index.py), with a trigram index
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")
     tag_json: Mapped[dict | None] = mapped_column(JSON)
     # album kind the tags say (scanner.tag_kind): compilation | unofficial | '' ; NULL = not worked out yet
@@ -168,6 +172,17 @@ class Chart(Base):
     title: Mapped[str] = mapped_column(String(500))  # folder name
     banner_file: Mapped[str | None] = mapped_column(Text)  # banner.jpg in the folder, relative to MUSIC_DIR
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FetchedLyrics(Base):
+    """Lyrics looked up for a song without its own (lyrics_fetch.py). lrc NULL: none were found."""
+
+    __tablename__ = "fetched_lyrics"
+
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True)
+    lrc: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(String(32))  # alsong | bugs | lrclib
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class NameAlias(Base):
@@ -337,6 +352,8 @@ class LibraryState(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
+    # how the search index was built (search_index.SEARCH_VERSION); a different one is rebuilt
+    search_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
