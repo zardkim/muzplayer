@@ -186,12 +186,12 @@ watch(() => ui.playerPrefs.musicSpeed, (on) => {
 })
 useWakeLock(() => ui.playerPrefs.keepAwake && player.playing && (ui.playerOpen || route.name === 'playing'))
 
-// Plexamp-style theme: the playing song's cover colour tints the page background
+// Plexamp-style and modern dark themes: the playing song's cover colour tints the page background
 const ambient = ref('')
 watch(
   () => [ui.theme, player.current?.album_id, player.current?.cover_v, player.current?.has_cover] as const,
   async ([theme, albumId, v, hasCover]) => {
-    ambient.value = theme === 'plexamp' && albumId && hasCover ? ((await coverGlow(albumId, v)) ?? '') : ''
+    ambient.value = (theme === 'plexamp' || theme === 'spotify') && albumId && hasCover ? ((await coverGlow(albumId, v)) ?? '') : ''
   },
   { immediate: true },
 )

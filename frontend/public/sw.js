@@ -2,7 +2,7 @@
 // Music and API calls go to the server, except songs saved for offline (src/offline.ts), which
 // the player asks for with ?saved=1 and which are answered from the device. Covers with a version in the URL (?v=) never
 // change, so they are kept in their own cache and not asked for again.
-const CACHE = 'muz-shell-v2' // v2: the muz icons
+const CACHE = 'muz-shell-v3' // v3: the muz icons with pink notes
 const COVERS = 'muz-covers-v1' // also cleared on logout (stores/auth.ts)
 const AUDIO = 'muz-audio-v1' // songs fetched ahead by the page (src/audioCache.ts); not touched here
 const OFFLINE = 'muz-offline-v1' // songs saved for offline (src/offline.ts); never trimmed here

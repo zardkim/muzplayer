@@ -22,12 +22,12 @@ const { t } = useI18n()
 const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
-const glow = ref('#C9D6E3')
+const glow = ref('var(--player-glow)')
 
 watch(
   () => [player.current?.album_id, player.current?.cover_v] as const,
   async ([albumId, v]) => {
-    glow.value = '#C9D6E3'
+    glow.value = 'var(--player-glow)'
     if (albumId && player.current?.has_cover) glow.value = (await coverGlow(albumId, v)) ?? glow.value
   },
   { immediate: true },

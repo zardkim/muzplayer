@@ -425,7 +425,8 @@
     "soundIosServer": "On iPhone the server does the volume levelling (sending MP3), so a locked screen is fine. Crossfade and the equaliser can stop the sound when the screen locks.",
     "downloadsHelp": "Albums and playlists saved for offline listening. In use: {mb} MB",
     "soundFailed": "This browser refused sound processing (equaliser, crossfade, levelling). Music plays on as before.",
-    "installOther": "Use the browser menu (⋮ or Share) and pick \"Install app\" or \"Add to Home Screen\"."
+    "installOther": "Use the browser menu (⋮ or Share) and pick \"Install app\" or \"Add to Home Screen\".",
+    "theme_spotify": "Modern dark (Spotify style)"
   },
   "admin": {
     "title": "Admin",

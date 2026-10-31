@@ -29,6 +29,7 @@
   --glass-shadow: 0 8px 24px rgb(17 17 19 / 0.1);
   --glow-strong: 55%; /* cover colour mixed into the background of the PC player */
   --glow-soft: 18%;
+  --player-glow: #c9d6e3; /* the players' soft background glow for a song without a cover */
   color-scheme: light;
 }
 
@@ -62,6 +63,36 @@
   background:
     radial-gradient(120% 55% at 85% 100%, color-mix(in srgb, var(--ambient, #d3cdc7) 45%, transparent), transparent 70%),
     linear-gradient(180deg, #cbc5bf 0%, #d6d1cc 100%);
+  transition: background 0.6s;
+}
+
+/* Modern dark (Spotify-like): near-black, raised greys, green accent, white pills with black text;
+   the playing song's cover colour washes down from the top of the page (App.vue sets --ambient). */
+:root[data-theme="spotify"] {
+  --color-bg: #121212;
+  --color-surface: #1f1f1f;
+  --color-surface-2: #2a2a2a;
+  --color-line: #262626;
+  --color-line-strong: #3a3a3a;
+  --color-ink: #ffffff;
+  --color-muted: #b3b3b3;
+  --color-subtle: #7c7c7c;
+  --color-accent: #1ed760;
+  --color-accent-strong: #1db954;
+  --color-accent-soft: #17311f;
+  --color-danger: #f3727f;
+  --color-on-ink: #000000;
+  --color-soft: #b3b3b3;
+  --color-sheet: #121212;
+  --glass-bg: rgb(24 24 24 / 0.88);
+  --glass-shadow: 0 8px 28px rgb(0 0 0 / 0.55);
+  --glow-strong: 40%;
+  --glow-soft: 14%;
+  --player-glow: #2a2a2a;
+  color-scheme: dark;
+}
+:root[data-theme="spotify"] .ambient {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ambient, #121212) 42%, #121212) 0, #121212 380px);
   transition: background 0.6s;
 }
 

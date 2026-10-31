@@ -27,7 +27,7 @@ const ui = useUi()
 const lyrics = useLyrics()
 const preview = ref<number | null>(null)
 const menu = ref(false)
-const glow = ref('#C9D6E3')
+const glow = ref('var(--player-glow)')
 
 async function rate(stars: number | null) {
   if (!player.current) return
@@ -49,7 +49,7 @@ function videos() {
 watch(
   () => [player.current?.album_id, player.current?.cover_v] as const,
   async ([albumId, v]) => {
-    glow.value = '#C9D6E3'
+    glow.value = 'var(--player-glow)'
     if (albumId && player.current?.has_cover) glow.value = (await coverGlow(albumId, v)) ?? glow.value
   },
   { immediate: true },

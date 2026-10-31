@@ -30,8 +30,9 @@ const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
 
-// phone mini player: swipe sideways for the next / previous song, up to open the player, down to
-// tuck it away (App.vue then shows a small button; it comes back by itself when something starts)
+// phone mini player: swipe sideways for the next / previous song, up to open the player, down (or
+// the ∨ at its end) to tuck it away (App.vue then shows a small button; it comes back by itself
+// when something starts)
 const slide = ref(0)
 const sliding = ref(false)
 const swipe = useSwipe({
@@ -81,6 +82,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.skipForward', { n: player.skipForward })" @click="player.skip(player.skipForward)">
         <SkipIcon :seconds="player.skipForward" forward :size="26" />
       </button>
+      <button type="button" class="grid w-8 flex-none place-items-center self-stretch text-muted" :aria-label="t('player.hideBar')" @click="ui.barHidden = true"><ChevronDown :size="18" :stroke-width="1.6" /></button>
       <span class="absolute inset-x-6 bottom-0 h-[2px] bg-line">
         <span class="block h-full bg-accent" :style="{ width: player.book.duration ? `${(player.bookPos / player.book.duration) * 100}%` : '0%' }" />
       </span>
@@ -106,6 +108,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.queue')" @click="ui.queueOpen = true">
         <QueueIcon />
       </button>
+      <button type="button" class="grid w-8 flex-none place-items-center self-stretch text-muted" :aria-label="t('player.hideBar')" @click="ui.barHidden = true"><ChevronDown :size="18" :stroke-width="1.6" /></button>
       <span class="absolute inset-x-6 bottom-0 h-[2px] bg-line">
         <span class="block h-full bg-accent" :style="{ width: player.duration ? `${(player.currentTime / player.duration) * 100}%` : '0%' }" />
       </span>

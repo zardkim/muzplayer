@@ -6,10 +6,10 @@ import type { Quality } from '../stream'
 const PREFS_KEY = 'muz.ui'
 
 // remembered per browser; storage may be blocked (private window), then it just isn't kept
-export const THEMES = ['default', 'plexamp'] as const
+export const THEMES = ['default', 'plexamp', 'spotify'] as const
 export type Theme = (typeof THEMES)[number]
 // the browser's bar colour per theme (meta theme-color)
-const THEME_BARS: Record<Theme, string> = { default: '#FFFFFF', plexamp: '#CBC5BF' }
+const THEME_BARS: Record<Theme, string> = { default: '#FFFFFF', plexamp: '#CBC5BF', spotify: '#121212' }
 
 // display and player options from Settings, kept per browser
 export interface PlayerPrefs {
