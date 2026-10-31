@@ -16,6 +16,7 @@ export interface Track {
   bit_depth?: number // lossless files only; 0 = lossy or unknown
   bitrate?: number // kbps
   popular?: boolean // in an album: one of its most played songs (everyone's plays)
+  rg?: [number | null, number | null, number | null, number | null] | null // ReplayGain: track gain, peak, album gain, peak
   is_favorite: boolean
   rating?: number | null // this user's stars (0.5-5, in halves)
   year?: number | null // the album's year

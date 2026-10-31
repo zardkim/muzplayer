@@ -69,6 +69,9 @@ def cancel_scan() -> bool:
 # Tags easy mode leaves out but the album kind needs: ID3 TXXX:RELEASETYPE (Picard, Mp3tag) and the
 # MP4 compilation flag (iTunes "part of a compilation").
 EasyID3.RegisterTXXXKey("releasetype", "RELEASETYPE")
+# ReplayGain as foobar2000, Mp3tag and most taggers write it in MP3s (easy mode reads only RVA2)
+for _key in ("replaygain_track_gain", "replaygain_track_peak", "replaygain_album_gain", "replaygain_album_peak"):
+    EasyID3.RegisterTXXXKey(_key, _key.upper())
 
 
 def _mp4_compilation(tags, key):
@@ -455,7 +458,20 @@ def _apply_tags(
     _set_info(track, info)
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
     track.tag_kind = tag_kind(raw)
+    for key, value in replaygain(raw).items():
+        setattr(track, key, value)
     _classify(cache, track, raw, path, place, cover_tries)
+
+
+def replaygain(raw: dict[str, list[str]]) -> dict[str, float | None]:
+    """ReplayGain values from the tags ("-7.53 dB", "0.988"); keys as on Track, None when missing."""
+    out: dict[str, float | None] = {}
+    for scope in ("track", "album"):
+        for part in ("gain", "peak"):
+            text = (raw.get(f"replaygain_{scope}_{part}") or [""])[0]
+            m = re.match(r"\s*([-+]?\d+(?:[.,]\d+)?)", text)
+            out[f"rg_{scope}_{part}"] = float(m[1].replace(",", ".")) if m else None
+    return out
 
 
 def _set_info(track: Track, info: dict) -> None:

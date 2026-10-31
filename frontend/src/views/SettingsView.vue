@@ -7,8 +7,9 @@ import { errorMessage } from '../i18n'
 import { install, installPrompt, isIos, isStandalone } from '../pwa'
 import { useAuth } from '../stores/auth'
 import { SKIPS, usePlayer } from '../stores/player'
-import { CACHE_SIZES, PREFETCH_COUNTS, useUi } from '../stores/ui'
+import { CACHE_SIZES, CROSSFADES, PREFETCH_COUNTS, useUi } from '../stores/ui'
 import { cacheUsage, clearAudioCache } from '../audioCache'
+import EqualizerEditor from '../components/EqualizerEditor.vue'
 import HomeSectionsEditor from '../components/HomeSectionsEditor.vue'
 import LanguageSwitch from '../components/LanguageSwitch.vue'
 import ThemeSwitch from '../components/ThemeSwitch.vue'
@@ -42,6 +43,8 @@ async function changePassword() {
 }
 const counts = PREFETCH_COUNTS.map((n) => ({ value: n, label: n ? t('settings.songsN', n) : t('settings.off') }))
 const sizes = CACHE_SIZES.map((mb) => ({ value: mb, label: mb >= 1024 ? `${mb / 1024} GB` : `${mb} MB` }))
+const levelings = (['off', 'track', 'album'] as const).map((v) => ({ value: v, label: t(`settings.leveling_${v}`) }))
+const fades = CROSSFADES.map((s) => ({ value: s, label: s ? t('settings.seconds', { n: s }) : t('settings.off') }))
 const albumEnds = (['radio', 'artist', 'stop'] as const).map((v) => ({ value: v, label: t(`settings.albumEnd_${v}`) }))
 const used = ref(cacheUsage())
 async function clearCache() {
@@ -94,6 +97,17 @@ const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none
         <ToggleRow v-model="ui.playerPrefs.musicSpeed" :title="t('settings.musicSpeed')" :hint="t('settings.musicSpeedHelp')" />
         <ToggleRow v-model="recordHistory" :title="t('settings.recordHistory')" :hint="t('settings.recordHistoryHelp')" />
       </div>
+    </section>
+
+    <section class="flex flex-col gap-1">
+      <h2 class="text-[22px] font-bold">{{ t('settings.sound') }}</h2>
+      <p v-if="isIos" class="rounded-xl bg-accent-soft px-3.5 py-2.5 text-[13px]">{{ t('settings.soundIos') }}</p>
+      <div class="flex flex-col divide-y divide-line">
+        <SelectRow v-model="ui.playerPrefs.leveling" :title="t('settings.leveling')" :hint="t('settings.levelingHelp')" :options="levelings" />
+        <SelectRow v-model="ui.playerPrefs.crossfade" :title="t('settings.crossfade')" :hint="t('settings.crossfadeHelp')" :options="fades" />
+        <ToggleRow v-model="ui.playerPrefs.eq" :title="t('settings.eq')" :hint="t('settings.eqHelp')" />
+      </div>
+      <EqualizerEditor class="mt-1" />
     </section>
 
     <section class="flex flex-col gap-1">

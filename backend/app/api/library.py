@@ -89,6 +89,9 @@ def track_out(row) -> dict:
         "sample_rate": track.sample_rate or 0,
         "bit_depth": track.bit_depth or 0,
         "bitrate": track.bitrate or 0,
+        # ReplayGain (dB / peak), None when untagged: the player levels the volume with these
+        "rg": [track.rg_track_gain, track.rg_track_peak, track.rg_album_gain, track.rg_album_peak]
+        if track.rg_track_gain is not None or track.rg_album_gain is not None else None,
         "is_favorite": bool(is_favorite),
         "rating": rating / 2 if rating else None,  # this user's stars (0.5-5), None when not rated
         "has_video": bool(has_video),

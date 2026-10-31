@@ -123,6 +123,11 @@ class Track(Base):
     sample_rate: Mapped[int | None] = mapped_column(Integer)
     bit_depth: Mapped[int | None] = mapped_column(SmallInteger)
     bitrate: Mapped[int | None] = mapped_column(Integer)  # kbps
+    # ReplayGain from the tags (dB, and the peak as a fraction of full scale); NULL when untagged
+    rg_track_gain: Mapped[float | None] = mapped_column(Float)
+    rg_track_peak: Mapped[float | None] = mapped_column(Float)
+    rg_album_gain: Mapped[float | None] = mapped_column(Float)
+    rg_album_peak: Mapped[float | None] = mapped_column(Float)
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
     chart_position: Mapped[int | None] = mapped_column(Integer)
     # set on a duplicate copy (e.g. the same song in an older chart week): lists show only the canonical one

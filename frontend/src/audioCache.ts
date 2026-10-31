@@ -40,11 +40,12 @@ export function cachedSource(trackId: number): string | null {
 }
 
 /** Fetches the next songs one at a time and keeps them ready; drops the rest, except the song
- *  playing now (its URL may still be in use). maxBytes: the cache size limit. */
-export async function prepare(currentId: number | null, trackIds: number[], maxBytes: number) {
+ *  playing now (its URL may still be in use) and `keep` (the song a crossfade is fading out).
+ *  maxBytes: the cache size limit. */
+export async function prepare(currentId: number | null, trackIds: number[], maxBytes: number, keep: number | null = null) {
   const gen = ++generation
   for (const [id, url] of ready) {
-    if (id !== currentId && !trackIds.includes(id)) {
+    if (id !== currentId && id !== keep && !trackIds.includes(id)) {
       URL.revokeObjectURL(url)
       ready.delete(id)
     }

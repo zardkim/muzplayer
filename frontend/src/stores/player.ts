@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 import { api, bookCoverUrl, bookStreamUrl, coverUrl, query, streamUrl } from '../api'
 import { cachedSource, onCellular, prepare } from '../audioCache'
+import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import type { Album, BookDetail, Chapter, Page, Track } from '../types'
 import { useUi } from './ui'
@@ -183,6 +184,7 @@ export const usePlayer = defineStore('player', () => {
       currentTime.value = 0
       duration.value = track.duration ?? 0
     }
+    soundSetup(track)
     updateMediaSession()
     try {
       await audio.play()
@@ -211,6 +213,80 @@ export const usePlayer = defineStore('player', () => {
     startCurrent()
   }
 
+  // ---- sound: levelling, equaliser, crossfade (audioGraph.ts; Settings → sound) ----
+  const soundPrefs = () => useUi().playerPrefs
+  const soundOn = () => {
+    const p = soundPrefs()
+    return p.leveling !== 'off' || p.crossfade > 0 || p.eq
+  }
+
+  /** The ReplayGain to apply, in dB: track or album gain per Settings, never pushing the peak
+   *  past full scale; 0 for untagged songs. */
+  function levelFor(track: Track): number {
+    const mode = soundPrefs().leveling
+    if (mode === 'off' || !track.rg) return 0
+    const [tg, tp, ag, ap] = track.rg
+    const [gain, peak] = mode === 'album' && ag != null ? [ag, ap] : tg != null ? [tg, tp] : [ag, ap]
+    if (gain == null) return 0
+    return peak ? Math.min(gain, -20 * Math.log10(peak)) : gain
+  }
+
+  /** Before a song plays (inside the tap): build the graph when a sound feature is on, wake it up. */
+  function soundSetup(track: Track) {
+    if (!soundOn() && !graphActive()) return
+    if (!graphActive()) {
+      ensureGraph(audio)
+      applyEq()
+    }
+    resumeGraph()
+    setLevel(levelFor(track))
+  }
+
+  function applyEq() {
+    if (!graphActive()) return
+    const p = soundPrefs()
+    setEq(p.eq ? (p.eqPreset === 'custom' ? p.eqGains : (EQ_PRESETS[p.eqPreset] ?? EQ_PRESETS.flat)) : EQ_PRESETS.flat)
+  }
+  // turned on from Settings (a tap): build the graph now so the change is heard at once
+  watch(() => [soundOn(), soundPrefs().eq, soundPrefs().eqPreset, [...soundPrefs().eqGains], soundPrefs().leveling], () => {
+    if (soundOn()) {
+      ensureGraph(audio)
+      resumeGraph()
+    }
+    applyEq() // also turns the EQ flat when it was switched off
+    if (current.value && mode.value === 'music') setLevel(levelFor(current.value))
+  })
+
+  let fadedFrom: number | null = null // the song a crossfade started on (once per song)
+  let fadingOut: number | null = null // the outgoing song while the tail plays it (its URL is kept)
+  let primed: number | null = null
+
+  /** Near the end of a song: start the next one under the fading end of this one. */
+  function checkCrossfade() {
+    const secs = soundPrefs().crossfade
+    const track = current.value
+    if (!secs || !graphActive() || !track || !playing.value || repeat.value === 'one') return
+    const hasNext = index.value + 1 < queue.value.length || repeat.value === 'all'
+    const left = audio.duration - audio.currentTime
+    if (!hasNext || !isFinite(left) || audio.duration < secs * 3 || fadedFrom === track.id) return
+    if (left <= secs + 1.5 && primed !== track.id) {
+      primed = track.id
+      primeTail(audio.currentSrc, audio.currentTime)
+    }
+    if (left <= secs) {
+      fadedFrom = track.id
+      fadingOut = track.id
+      const src = audio.currentSrc
+      const at = audio.currentTime
+      const outgoing = levelFor(track)
+      next(true)
+      crossfade(src, at, secs, outgoing)
+      window.setTimeout(() => {
+        if (fadingOut === track.id) fadingOut = null
+      }, (secs + 1) * 1000)
+    }
+  }
+
   // ---- looking ahead: fetch the next songs, and keep the queue from running out ----
   let radioOn = false // started as a radio: plays on even with autoplay off
   let extending = false
@@ -228,7 +304,7 @@ export const usePlayer = defineStore('player', () => {
       if (i < queue.value.length) upcoming.push(queue.value[i].id)
       else if (repeat.value === 'all') upcoming.push(queue.value[i - queue.value.length].id)
     }
-    void prepare(current.value.id, upcoming, prefs.cacheMB * 1024 * 1024)
+    void prepare(current.value.id, upcoming, prefs.cacheMB * 1024 * 1024, fadingOut)
     if ((prefs.autoplay || radioOn) && repeat.value === 'off' && index.value === queue.value.length - 1) void extendQueue()
   }
 
@@ -298,12 +374,15 @@ export const usePlayer = defineStore('player', () => {
     }
     if (!current.value) return
     // go by our own state: after a load error the element is stuck with paused === false
-    if (playing.value) audio.pause()
-    else startCurrent()
+    if (playing.value) {
+      audio.pause()
+      stopTail()
+    } else startCurrent()
   }
 
   function jump(i: number) {
     if (i < 0 || i >= queue.value.length) return
+    stopTail() // a crossfade (re)starts after this, when it is one
     index.value = i
     loadedKey = null
     startCurrent()
@@ -337,6 +416,8 @@ export const usePlayer = defineStore('player', () => {
     if (mode.value === 'book') return seekBook(seconds)
     if (!current.value) return
     if (loadedKey !== `t${current.value.id}`) startCurrent()
+    stopTail()
+    fadedFrom = null // seeking back before the end may crossfade again
     audio.currentTime = seconds
     currentTime.value = seconds
   }
@@ -690,6 +771,7 @@ export const usePlayer = defineStore('player', () => {
       checkSleep()
       return
     }
+    checkCrossfade()
     // record a play after 30s or half the track, once per play
     const track = current.value
     if (!reported && track && (audio.currentTime >= 30 || (duration.value > 0 && audio.currentTime >= duration.value / 2))) {

@@ -25,13 +25,20 @@ export interface PlayerPrefs {
   showCodec: boolean // codec and quality (FLAC 24/96) on the player
   showQuality: boolean // Hi-Res / Lossless badge on albums
   showPopular: boolean // mark an album's most played songs
+  leveling: 'off' | 'track' | 'album' // ReplayGain volume levelling
+  crossfade: number // seconds songs overlap (0 = off)
+  eq: boolean // equaliser on
+  eqPreset: string // a key of EQ_PRESETS, or 'custom'
+  eqGains: number[] // dB per band (custom)
 }
+export const CROSSFADES = [0, 2, 4, 6, 8]
 export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
 export const CACHE_SIZES = [256, 512, 1024, 2048]
 const PLAYER_PREFS: PlayerPrefs = {
   openOnPlay: false, keepAwake: false, musicSpeed: false, showYear: true, showVolume: true,
   prefetchWifi: 3, prefetchCellular: 1, cacheMB: 512, autoplay: false, albumEnd: 'radio',
   showCodec: true, showQuality: true, showPopular: true,
+  leveling: 'off', crossfade: 0, eq: false, eqPreset: 'flat', eqGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 }
 
 function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs> } {
