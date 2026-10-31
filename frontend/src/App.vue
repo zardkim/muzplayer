@@ -5,8 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
+import { coverGlow } from './coverColor'
 import { useOverlayHistory } from './overlayHistory'
 import { openPlayer } from './playerNav'
+import { useWakeLock } from './wakeLock'
 import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
@@ -163,6 +165,24 @@ function parentPage(): RouteLocationRaw {
   }
   return parents[String(route.name)] ?? '/'
 }
+// Settings → player: open the player when a list starts playing; keep the screen on while it's open
+watch(() => player.playStarts, () => {
+  if (ui.playerPrefs.openOnPlay && player.mode === 'music' && !ui.playerOpen && route.name !== 'playing') openPlayer()
+})
+watch(() => ui.playerPrefs.musicSpeed, (on) => {
+  if (!on) player.musicRate = 1 // speed control turned off: back to normal speed
+})
+useWakeLock(() => ui.playerPrefs.keepAwake && player.playing && (ui.playerOpen || route.name === 'playing'))
+
+// Plexamp-style theme: the playing song's cover colour tints the page background
+const ambient = ref('')
+watch(
+  () => [ui.theme, player.current?.album_id, player.current?.cover_v, player.current?.has_cover] as const,
+  async ([theme, albumId, v, hasCover]) => {
+    ambient.value = theme === 'plexamp' && albumId && hasCover ? ((await coverGlow(albumId, v)) ?? '') : ''
+  },
+  { immediate: true },
+)
 // the PC player page keeps the bar (it holds the controls)
 const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 </script>
@@ -170,7 +190,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 <template>
   <RouterView v-if="isPublic" />
 
-  <div v-else-if="auth.user" class="flex h-dvh bg-bg">
+  <div v-else-if="auth.user" class="ambient flex h-dvh bg-bg" :style="ambient ? { '--ambient': ambient } : undefined">
     <!-- desktop sidebar -->
     <nav
       :aria-label="t('nav.mainMenu')"
@@ -318,9 +338,9 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
   <div
     v-if="ui.toast"
     role="status"
-    class="fixed left-1/2 z-[80] w-max max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-2xl px-5 py-2.5 text-sm text-white shadow-xl"
+    class="fixed left-1/2 z-[80] w-max max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-2xl px-5 py-2.5 text-sm shadow-xl"
     :class="[
-      ui.toast.error ? 'bg-danger' : 'bg-ink',
+      ui.toast.error ? 'bg-danger text-white' : 'bg-ink text-on-ink',
       // the full player covers the bottom with its controls: show it at the top instead
       ui.playerOpen ? 'top-[calc(env(safe-area-inset-top)+16px)]' : barHidden ? 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+180px)] md:bottom-28',
     ]"

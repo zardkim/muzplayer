@@ -61,11 +61,11 @@ function touchEnd(e: TouchEvent) {
     role="dialog"
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
-    class="fixed inset-0 z-50 overflow-y-auto bg-[#F7F6F2] text-ink"
+    class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
   >
     <div class="relative mx-auto flex min-h-full max-w-md flex-col px-5 pt-[calc(env(safe-area-inset-top)+8px)] md:my-6 md:min-h-0 md:rounded-3xl md:shadow-2xl">
       <div class="relative z-10 flex justify-end">
-        <button type="button" class="-mb-6 grid size-11 place-items-center rounded-full bg-white/70" :aria-label="t('player.close')" @click="ui.playerOpen = false">
+        <button type="button" class="-mb-6 grid size-11 place-items-center rounded-full bg-bg/70" :aria-label="t('player.close')" @click="ui.playerOpen = false">
           <ChevronDown :size="24" :stroke-width="1.4" />
         </button>
       </div>
@@ -77,7 +77,7 @@ function touchEnd(e: TouchEvent) {
 
       <div class="mt-4 flex flex-col items-center gap-1 text-center">
         <span class="line-clamp-2 text-[22px] font-medium leading-snug">{{ player.chapter?.title || player.book.title }}</span>
-        <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="line-clamp-1 text-[15px] font-light text-[#52525B]">
+        <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="line-clamp-1 text-[15px] font-light text-soft">
           {{ player.chapter ? player.book.title : player.book.authors || t('books.unknownAuthor') }}
         </RouterLink>
       </div>
@@ -87,11 +87,11 @@ function touchEnd(e: TouchEvent) {
           :value="segPos"
           :max="segLength"
           :label="t('player.seek')"
-          track="rgb(17 17 19 / 0.12)"
+          track="color-mix(in srgb, var(--color-ink) 12%, transparent)"
           @change="(v) => player.seekBook(player.segment.start + v)"
           @preview="(v) => (preview = v)"
         />
-        <div class="mt-1 flex items-center justify-between font-display text-sm text-[#52525B]">
+        <div class="mt-1 flex items-center justify-between font-display text-sm text-soft">
           <span>{{ duration(preview ?? segPos) }}</span>
           <span v-if="player.chapters.length" class="text-[12px]">{{ t('books.chapterOf', { n: player.chapterIndex + 1, total: player.chapters.length }) }}</span>
           <span>-{{ duration(segLength - (preview ?? segPos)) }}</span>
@@ -107,7 +107,7 @@ function touchEnd(e: TouchEvent) {
         </button>
         <button
           type="button"
-          class="grid size-[76px] place-items-center rounded-full bg-ink text-white transition-transform active:scale-90"
+          class="grid size-[76px] place-items-center rounded-full bg-ink text-on-ink transition-transform active:scale-90"
           :aria-label="player.playing ? t('player.pause') : t('player.play')"
           @click="player.toggle()"
         >
@@ -130,7 +130,7 @@ function touchEnd(e: TouchEvent) {
         <button
           type="button"
           class="flex h-11 items-center justify-center gap-1.5 rounded-full border text-[14px]"
-          :class="player.sleepUntil !== null || player.sleepChapter !== null ? 'border-ink bg-ink text-white' : 'border-line-strong'"
+          :class="player.sleepUntil !== null || player.sleepChapter !== null ? 'border-ink bg-ink text-on-ink' : 'border-line-strong'"
           @click="sheet = 'sleep'"
         >
           <Moon :size="16" :stroke-width="1.6" /><span class="truncate">{{ sleepLabel }}</span>
@@ -153,7 +153,7 @@ function touchEnd(e: TouchEvent) {
               :key="s"
               type="button"
               class="h-11 rounded-full border font-display text-[15px]"
-              :class="player.rate === s ? 'border-ink bg-ink text-white' : 'border-line-strong'"
+              :class="player.rate === s ? 'border-ink bg-ink text-on-ink' : 'border-line-strong'"
               :aria-pressed="player.rate === s"
               @click="(player.rate = s), (sheet = null)"
             >{{ s }}×</button>

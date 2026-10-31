@@ -104,7 +104,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <Volume2 v-else :size="20" :stroke-width="1.3" />
     </button>
     <div class="w-20">
-      <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="#111113" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
+      <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="var(--color-ink)" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
     </div>
     <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
       <ChevronDown :size="18" :stroke-width="1.6" />
@@ -154,12 +154,12 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     <div class="absolute inset-x-10 -bottom-1.5 xl:hidden">
       <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" @change="player.seek" @preview="(v) => (preview = v)" />
     </div>
-    <button type="button" class="hidden size-10 place-items-center lg:grid" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
+    <button v-if="ui.playerPrefs.showVolume" type="button" class="hidden size-10 place-items-center lg:grid" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
       <VolumeX v-if="player.volume === 0" :size="20" :stroke-width="1.3" />
       <Volume2 v-else :size="20" :stroke-width="1.3" />
     </button>
-    <div class="hidden w-20 lg:block">
-      <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="#111113" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
+    <div v-if="ui.playerPrefs.showVolume" class="hidden w-20 lg:block">
+      <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="var(--color-ink)" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
     </div>
     <button type="button" class="hidden size-10 place-items-center rounded-full hover:bg-surface xl:grid" :aria-label="t('player.lyrics')" :title="t('player.lyrics')" @click="openPlayer('lyrics')">
       <MicVocal :size="19" :stroke-width="1.3" />

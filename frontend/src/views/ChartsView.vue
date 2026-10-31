@@ -42,7 +42,7 @@ onMounted(load)
         :key="s"
         type="button"
         class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-        :class="source === s ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg'"
+        :class="source === s ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
         @click="router.replace({ query: { kind: kind === 'theme' ? 'theme' : undefined, source: s || undefined } })"
       >
         {{ s || t('charts.all') }}

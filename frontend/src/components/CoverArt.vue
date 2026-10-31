@@ -17,10 +17,17 @@ watch(() => props.albumId, () => (failed.value = false))
       :src="coverUrl(albumId, size, version)"
       alt=""
       loading="lazy"
+      decoding="async"
       class="h-full w-full object-cover"
       @error="failed = true"
     />
-    <img v-else src="/cover-placeholder.svg" alt="" class="h-full w-full object-cover" />
+    <!-- drawn inline in theme colours (the dark theme would otherwise show light squares) -->
+    <svg v-else viewBox="0 0 300 300" class="h-full w-full" aria-hidden="true">
+      <rect width="300" height="300" class="fill-surface" />
+      <circle cx="150" cy="150" r="70" class="fill-line" />
+      <circle cx="150" cy="150" r="56" fill="none" stroke-width="3" class="stroke-surface" />
+      <circle cx="150" cy="150" r="14" class="fill-surface" />
+    </svg>
     <slot />
   </div>
 </template>

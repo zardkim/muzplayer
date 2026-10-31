@@ -64,7 +64,7 @@ async function remove() {
       <p class="text-[14px] font-light text-muted">{{ t('artists.photoHelp') }}</p>
       <form class="flex gap-2" @submit.prevent="find">
         <input v-model="q" maxlength="200" class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-[15px] outline-none focus:ring-2 focus:ring-ink" :aria-label="t('search.label')" />
-        <button type="submit" class="grid size-11 flex-none place-items-center rounded-full bg-ink text-white" :aria-label="t('search.label')"><Search :size="18" /></button>
+        <button type="submit" class="grid size-11 flex-none place-items-center rounded-full bg-ink text-on-ink" :aria-label="t('search.label')"><Search :size="18" /></button>
       </form>
       <p v-if="loading" class="text-[14px] text-muted">{{ t('common.loading') }}</p>
       <p v-else-if="error" class="text-[14px] text-danger">{{ error }}</p>

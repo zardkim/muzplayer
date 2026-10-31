@@ -25,7 +25,7 @@ const OPS: Record<RuleField, string[]> = {
   duration: ['gte', 'lte'],
 }
 const FIELDS = Object.keys(OPS) as RuleField[]
-const FOLDERS = ['album', 'compilation', 'chart', 'theme']
+const FOLDERS = ['album', 'compilation', 'soundtrack', 'chart', 'theme']
 const SORTS: SmartRules['sort'][] = ['random', 'plays', 'recent', 'title', 'rating', 'last_played']
 
 function fresh(field: RuleField): SmartRule {
@@ -107,7 +107,7 @@ async function save() {
           <input v-model.number="(r.value as number[])[1]" type="number" min="1900" max="2100" :class="[field, 'w-24']" />
         </template>
         <select v-else-if="r.field === 'rating' && r.op !== 'none'" v-model.number="r.value" :class="field">
-          <option v-for="n in 5" :key="n" :value="n">★ {{ n }}</option>
+          <option v-for="n in 10" :key="n" :value="n / 2">★ {{ n / 2 }}</option>
         </select>
         <select v-else-if="r.field === 'favorite'" v-model="r.value" :class="field">
           <option :value="true">{{ t('smart.yes') }}</option>
@@ -149,7 +149,7 @@ async function save() {
       </div>
 
       <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>
-      <button type="submit" class="h-12 rounded-full bg-ink text-white disabled:opacity-40" :disabled="busy || !name.trim()">{{ t('common.save') }}</button>
+      <button type="submit" class="h-12 rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="busy || !name.trim()">{{ t('common.save') }}</button>
     </form>
   </BaseModal>
 </template>

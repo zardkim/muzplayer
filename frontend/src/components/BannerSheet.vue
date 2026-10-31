@@ -130,7 +130,7 @@ async function reset() {
           <label class="flex items-center gap-2 text-[15px]"><input v-model="scope" type="radio" value="source" /> {{ t('banner.scopeSource', { source: chart.source }) }}</label>
         </fieldset>
         <div class="flex gap-2">
-          <button type="button" class="h-11 flex-1 rounded-full bg-ink text-[15px] text-white disabled:opacity-40" :disabled="!!busy" @click="apply">{{ t('banner.apply') }}</button>
+          <button type="button" class="h-11 flex-1 rounded-full bg-ink text-[15px] text-on-ink disabled:opacity-40" :disabled="!!busy" @click="apply">{{ t('banner.apply') }}</button>
           <button type="button" class="h-11 flex-1 rounded-full border border-line-strong text-[15px] disabled:opacity-40" :disabled="!!busy" @click="generate(false)">{{ t('banner.again') }}</button>
         </div>
       </template>
@@ -147,7 +147,7 @@ async function reset() {
         <label class="mt-2 flex items-center gap-2 text-[14px]">
           <input v-model="useCovers" type="checkbox" /> {{ t('banner.useCovers') }}
         </label>
-        <button v-if="!candidate" type="button" class="mt-3 h-11 w-full rounded-full bg-ink text-[15px] text-white disabled:opacity-40" :disabled="!!busy || !prompt.trim()" @click="generate(false)">
+        <button v-if="!candidate" type="button" class="mt-3 h-11 w-full rounded-full bg-ink text-[15px] text-on-ink disabled:opacity-40" :disabled="!!busy || !prompt.trim()" @click="generate(false)">
           {{ t('banner.make') }}
         </button>
       </details>

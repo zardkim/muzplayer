@@ -184,9 +184,9 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
       <div v-if="current" class="flex flex-col gap-2">
         <div class="relative aspect-video overflow-hidden rounded-xl bg-black">
           <div ref="host" class="absolute inset-0" />
-          <div v-if="playError" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink p-4 text-center text-[14px] text-white">
+          <div v-if="playError" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink p-4 text-center text-[14px] text-on-ink">
             <p>{{ playError === 'gone' ? t('videos.unavailable') : t('videos.notEmbeddable') }}</p>
-            <a :href="`https://www.youtube.com/watch?v=${current.youtube_id}`" target="_blank" rel="noopener" class="flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-ink">
+            <a :href="`https://www.youtube.com/watch?v=${current.youtube_id}`" target="_blank" rel="noopener" class="flex h-10 items-center gap-1.5 rounded-full bg-bg px-4 text-ink">
               <ExternalLink :size="16" />{{ t('videos.openYoutube') }}
             </a>
           </div>
@@ -227,7 +227,7 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
             role="radio"
             :aria-checked="kind === k"
             class="h-9 rounded-full px-3.5 text-[14px]"
-            :class="kind === k ? 'bg-ink text-white' : 'bg-bg'"
+            :class="kind === k ? 'bg-ink text-on-ink' : 'bg-bg'"
             @click="setKind(k)"
           >
             {{ t(`videos.kinds.${k}`) }}
@@ -238,7 +238,7 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
           <form class="flex gap-2" role="search" @submit.prevent="search">
             <label for="video-q" class="sr-only">{{ t('videos.search') }}</label>
             <input id="video-q" v-model="q" maxlength="200" class="h-11 min-w-0 flex-1 rounded-full bg-bg px-4 text-[15px] outline-none focus:ring-2 focus:ring-ink" />
-            <button type="submit" class="flex h-11 flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white disabled:opacity-40" :disabled="searching || !q.trim()">
+            <button type="submit" class="flex h-11 flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink disabled:opacity-40" :disabled="searching || !q.trim()">
               <Search :size="16" />{{ t('videos.searchButton') }}
             </button>
           </form>
@@ -256,7 +256,7 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
               <button
                 type="button"
                 class="h-9 flex-none rounded-full px-3.5 text-[14px] disabled:opacity-50"
-                :class="r.added ? 'text-muted' : 'bg-ink text-white'"
+                :class="r.added ? 'text-muted' : 'bg-ink text-on-ink'"
                 :disabled="r.added"
                 @click="add(r.youtube_id, r)"
               >

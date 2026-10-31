@@ -84,7 +84,7 @@ const chips = computed(() =>
         v-for="c in chips"
         :key="c.key"
         type="button"
-        class="flex h-[38px] items-center gap-1.5 rounded-full border border-ink bg-ink px-4 text-[15px] text-white"
+        class="flex h-[38px] items-center gap-1.5 rounded-full border border-ink bg-ink px-4 text-[15px] text-on-ink"
         :aria-label="`${c.label} · ${t('books.clearFilter')}`"
         @click="router.replace({ query: { ...route.query, [c.key]: undefined } })"
       >

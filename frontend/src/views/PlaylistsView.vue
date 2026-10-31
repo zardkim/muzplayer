@@ -41,7 +41,7 @@ async function create() {
     <form class="flex max-w-md gap-2" @submit.prevent="create">
       <label for="pl-name" class="sr-only">{{ t('playlists.name') }}</label>
       <input id="pl-name" v-model="name" maxlength="200" :placeholder="t('playlists.new')" class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink" />
-      <button type="submit" class="flex h-11 items-center gap-1 rounded-full bg-ink px-4 text-[15px] text-white disabled:opacity-40" :disabled="!name.trim()">
+      <button type="submit" class="flex h-11 items-center gap-1 rounded-full bg-ink px-4 text-[15px] text-on-ink disabled:opacity-40" :disabled="!name.trim()">
         <Plus :size="18" :stroke-width="1.6" />{{ t('common.create') }}
       </button>
     </form>

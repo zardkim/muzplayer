@@ -26,6 +26,7 @@ const tint = computed(() => {
       :src="artistImageUrl(artistId, size, version)"
       alt=""
       loading="lazy"
+      decoding="async"
       class="h-full w-full object-cover"
       @error="failed = true"
     />

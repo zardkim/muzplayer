@@ -25,7 +25,7 @@ const playing = (tr: Track) => player.mode === 'music' && player.current?.id ===
           class="absolute inset-0 grid place-items-center rounded-[inherit] bg-black/25 transition-opacity"
           :class="playing(tr) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
         >
-          <span class="grid place-items-center rounded-full bg-white/90 text-ink" :class="dense ? 'size-9' : 'size-12'">
+          <span class="grid place-items-center rounded-full bg-bg/90 text-ink" :class="dense ? 'size-9' : 'size-12'">
             <PlayerIcons :name="playing(tr) && player.playing ? 'pause' : 'play'" :size="dense ? 16 : 20" :stroke="1.8" />
           </span>
         </span>

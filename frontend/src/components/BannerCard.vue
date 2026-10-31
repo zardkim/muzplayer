@@ -45,7 +45,7 @@ async function play() {
   <component
     :is="link ? 'RouterLink' : 'div'"
     :to="link ? { name: 'chart', params: { id: chart.id } } : undefined"
-    class="relative block overflow-hidden rounded-2xl bg-ink text-white"
+    class="relative block overflow-hidden rounded-2xl bg-[#111113] text-white"
     :class="{ small: 'aspect-[16/9]', compact: 'aspect-[2/1] md:aspect-[4/1]', header: 'aspect-[16/9] md:aspect-[5/2]', hero: 'aspect-[16/9] md:aspect-[3/1]' }[size]"
     :style="{ '--tint': tint ?? '38 38 44' }"
   >
@@ -84,7 +84,7 @@ async function play() {
       <button
         v-if="link"
         type="button"
-        class="grid flex-none place-items-center rounded-full bg-white text-ink shadow-lg transition-transform active:scale-90"
+        class="grid flex-none place-items-center rounded-full bg-bg text-ink shadow-lg transition-transform active:scale-90"
         :class="size === 'small' ? 'size-10' : 'size-12'"
         :aria-label="`${t('common.play')}: ${chart.title}`"
         @click.prevent.stop="play"

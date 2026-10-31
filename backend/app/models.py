@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -31,6 +32,10 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(100), default="")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # off: plays leave no history or play count (listening privately)
+    record_history: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # home screen rows in order, each shown or not: [{"key": "recent", "on": true}, ...]; NULL = default
+    home_sections: Mapped[list | None] = mapped_column(JSON)
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -71,11 +76,15 @@ class Album(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # album | unofficial | compilation | chart (chart albums only hold covers for chart tracks)
+    # album | unofficial | compilation | soundtrack | chart (chart albums only hold covers for chart tracks)
     kind: Mapped[str] = mapped_column(String(16), default="album", server_default="album")
     title: Mapped[str] = mapped_column(String(500))
     album_artist_id: Mapped[int | None] = mapped_column(ForeignKey("artists.id", ondelete="SET NULL"), index=True)
     year: Mapped[int | None] = mapped_column(Integer)
+    # the full release date when a tag has one (YYYY-MM-DD): "on this day" on the home screen
+    release_date: Mapped[date | None] = mapped_column(Date)
+    # hires | lossless | NULL, from its songs (scanner.update_album_quality)
+    quality: Mapped[str | None] = mapped_column(String(16))
     cover_path: Mapped[str | None] = mapped_column(String(500))
     # bumped whenever the cover is remade: it is part of the cover URL, so browsers can keep covers for good
     cover_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -108,6 +117,12 @@ class Track(Base):
     # "title artist album", NFC and lowercased, with a trigram index: search looks only here
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")
     tag_json: Mapped[dict | None] = mapped_column(JSON)
+    # album kind the tags say (scanner.tag_kind): compilation | unofficial | '' ; NULL = not worked out yet
+    tag_kind: Mapped[str | None] = mapped_column(String(16))
+    # from the file header; 0 = unknown, NULL = not read yet. bit_depth only for lossless files
+    sample_rate: Mapped[int | None] = mapped_column(Integer)
+    bit_depth: Mapped[int | None] = mapped_column(SmallInteger)
+    bitrate: Mapped[int | None] = mapped_column(Integer)  # kbps
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
     chart_position: Mapped[int | None] = mapped_column(Integer)
     # set on a duplicate copy (e.g. the same song in an older chart week): lists show only the canonical one
@@ -310,11 +325,11 @@ class TrackRating(Base):
     """A user's 1-5 stars for a song."""
 
     __tablename__ = "track_ratings"
-    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 5", name="ck_track_ratings_rating"),)
+    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 10", name="ck_track_ratings_rating"),)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True, index=True)
-    rating: Mapped[int] = mapped_column(SmallInteger)
+    rating: Mapped[int] = mapped_column(SmallInteger)  # half stars: 1-10 (the API speaks stars, 0.5-5)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -324,11 +339,11 @@ class AlbumRating(Base):
     """A user's 1-5 stars for an album (its own, not the average of its songs)."""
 
     __tablename__ = "album_ratings"
-    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 5", name="ck_album_ratings_rating"),)
+    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 10", name="ck_album_ratings_rating"),)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     album_id: Mapped[int] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True, index=True)
-    rating: Mapped[int] = mapped_column(SmallInteger)
+    rating: Mapped[int] = mapped_column(SmallInteger)  # half stars: 1-10 (the API speaks stars, 0.5-5)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

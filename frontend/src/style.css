@@ -15,8 +15,53 @@
   --color-accent-strong: #b02e18;
   --color-accent-soft: #fdf1ee;
   --color-danger: #c8261d;
+  --color-on-ink: #ffffff; /* text and icons on an ink-filled button */
+  --color-soft: #52525b; /* secondary text on the player screens */
+  --color-sheet: #f7f6f2; /* full-screen player background */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
   --font-display: "Space Grotesk", "Pretendard Variable", sans-serif;
+}
+
+/* things that aren't Tailwind colors */
+:root {
+  --glass-bg: rgb(255 255 255 / 0.86);
+  --glass-shadow: 0 8px 24px rgb(17 17 19 / 0.1);
+  --glow-strong: 55%; /* cover colour mixed into the background of the PC player */
+  --glow-soft: 18%;
+  color-scheme: light;
+}
+
+/* Plexamp-style theme: warm grey paper, orange accent, the playing song's cover colour glowing
+   through the background (App.vue sets --ambient). Colours only; the layout stays the same. Picked
+   in Settings, kept per browser (index.html sets data-theme before the first paint). */
+:root[data-theme="plexamp"] {
+  --color-bg: #d3cdc7;
+  --color-surface: #c7c0b9;
+  --color-surface-2: #bcb4ac;
+  --color-line: #c0b9b2;
+  --color-line-strong: #a8a099;
+  --color-ink: #1c1b1a;
+  --color-muted: #6f6964;
+  --color-subtle: #8f8881;
+  --color-accent: #cc7b19;
+  --color-accent-strong: #a8630f;
+  --color-accent-soft: #e3cfb6;
+  --color-danger: #b3261e;
+  --color-on-ink: #fbfaf8;
+  --color-soft: #4a4642;
+  --color-sheet: #d3cdc7;
+  --glass-bg: rgb(250 248 245 / 0.92);
+  --glass-shadow: 0 6px 20px rgb(60 50 40 / 0.12);
+  --glow-strong: 38%;
+  --glow-soft: 12%;
+  color-scheme: light;
+}
+/* the background behind every page: soft paper, the cover colour rising from the bottom corner */
+:root[data-theme="plexamp"] .ambient {
+  background:
+    radial-gradient(120% 55% at 85% 100%, color-mix(in srgb, var(--ambient, #d3cdc7) 45%, transparent), transparent 70%),
+    linear-gradient(180deg, #cbc5bf 0%, #d6d1cc 100%);
+  transition: background 0.6s;
 }
 
 html,
@@ -30,11 +75,11 @@ body {
 
 /* floating translucent bars (mini player, tab bar, desktop player) */
 .glass {
-  background: rgb(255 255 255 / 0.86);
+  background: var(--glass-bg);
   -webkit-backdrop-filter: saturate(180%) blur(18px);
   backdrop-filter: saturate(180%) blur(18px);
   border: 1px solid var(--color-line);
-  box-shadow: 0 8px 24px rgb(17 17 19 / 0.1);
+  box-shadow: var(--glass-shadow);
 }
 
 input[type="range"].seek {

@@ -219,6 +219,8 @@ def list_history(
 def add_history(body: HistoryIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Track, body.track_id) is None:
         raise api_error(404, "not_found")
+    if not user.record_history:  # listening privately: no history, no play count
+        return
     db.add(PlayHistory(user_id=user.id, track_id=body.track_id))
     # the count is kept for good; the history below keeps only the latest plays
     db.execute(

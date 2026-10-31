@@ -48,7 +48,7 @@ function photoChanged() {
         <button
           v-if="auth.user?.is_admin"
           type="button"
-          class="absolute bottom-1 right-1 grid size-10 place-items-center rounded-full bg-white/90 shadow hover:bg-white"
+          class="absolute bottom-1 right-1 grid size-10 place-items-center rounded-full bg-bg/90 shadow hover:bg-bg"
           :aria-label="t('artists.photoTitle')"
           :title="t('artists.photoTitle')"
           @click="photoSheet = true"
@@ -63,7 +63,7 @@ function photoChanged() {
           <template v-if="artist.albums.length">{{ t('common.albums', artist.albums.length) }} · </template>{{ t('common.tracks', artist.tracks.length) }}
         </span>
         <div v-if="artist.tracks.length" class="flex flex-wrap justify-center gap-2 md:justify-start">
-          <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink px-[22px] text-[15px] text-white" @click="player.playTracks(artist.tracks, 0, { shuffle: false })">
+          <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink px-[22px] text-[15px] text-on-ink" @click="player.playTracks(artist.tracks, 0, { shuffle: false })">
             <PlayerIcons name="play" :size="16" :stroke="1.8" />{{ t('common.listenAll') }}
           </button>
           <button type="button" class="h-11 rounded-full border border-line-strong px-5 text-[15px]" @click="player.playTracks(artist.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>

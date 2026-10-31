@@ -284,7 +284,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           </button>
           <button
             type="button"
-            class="flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50"
+            class="flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm text-on-ink disabled:opacity-50"
             :disabled="job?.status === 'running'"
             @click="startScan()"
           >
@@ -370,7 +370,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           <h2 class="text-xl font-bold">{{ t('admin.photosTitle') }}</h2>
           <p class="mt-1 text-sm font-light text-muted">{{ t('admin.photosDesc') }}</p>
         </div>
-        <button type="button" class="h-11 rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50" :disabled="photos.state === 'running'" @click="findPhotos">
+        <button type="button" class="h-11 rounded-full bg-ink px-5 text-sm text-on-ink disabled:opacity-50" :disabled="photos.state === 'running'" @click="findPhotos">
           {{ photos.state === 'running' ? t('admin.photosRunning', { done: photos.done ?? 0, total: photos.total ?? 0 }) : t('admin.photosFind') }}
         </button>
       </div>
@@ -436,7 +436,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
                 <option v-for="m in users" :key="m.id" :value="m.id">{{ m.display_name }} ({{ m.username }})</option>
               </select>
             </div>
-            <button type="button" class="h-11 self-start rounded-full bg-ink px-5 text-sm text-white disabled:opacity-50" :disabled="!absPreview.matched || job?.status === 'running'" @click="startImport">
+            <button type="button" class="h-11 self-start rounded-full bg-ink px-5 text-sm text-on-ink disabled:opacity-50" :disabled="!absPreview.matched || job?.status === 'running'" @click="startImport">
               {{ t('admin.absStart', { n: absPreview.matched }) }}
             </button>
           </div>
@@ -499,7 +499,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">{{ t('admin.password') }}<input v-model="form.password" type="password" autocomplete="new-password" required minlength="8" :class="field" /></label>
         <label class="flex items-center gap-2.5 text-sm"><input v-model="form.is_admin" type="checkbox" class="size-4 accent-ink" />{{ t('admin.makeAdmin') }}</label>
         <p v-if="formError" role="alert" class="text-[13px] text-danger">{{ formError }}</p>
-        <button type="submit" class="mt-1 h-12 rounded-full bg-ink text-white">{{ t('common.create') }}</button>
+        <button type="submit" class="mt-1 h-12 rounded-full bg-ink text-on-ink">{{ t('common.create') }}</button>
       </form>
     </BaseModal>
 
@@ -509,7 +509,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           {{ t('admin.resetPasswordFor', { name: resetFor.display_name }) }}
           <input v-model="resetPassword" type="password" autocomplete="new-password" required minlength="8" :class="field" />
         </label>
-        <button type="submit" class="h-12 rounded-full bg-ink text-white">{{ t('common.save') }}</button>
+        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
   </div>

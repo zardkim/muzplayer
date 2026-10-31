@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import Select, and_, exists, func, not_, or_, select, true
+from sqlalchemy import Select, and_, case, exists, func, literal, not_, or_, select, true
 from sqlalchemy.orm import Session
 
 from .models import Album, Chart, Favorite, Genre, PlayCount, PlayHistory, Track, TrackGenre, TrackRating
@@ -33,14 +33,14 @@ FIELDS = {
     "folder": ("is", "is_not"),
     "duration": ("gte", "lte"),  # seconds
 }
-FOLDERS = ("album", "compilation", "chart", "theme")
+FOLDERS = ("album", "compilation", "soundtrack", "chart", "theme")
 SORTS = ("random", "plays", "recent", "title", "rating", "last_played")
 
 
 class Rule(BaseModel):
     field: Literal["genre", "artist", "year", "rating", "favorite", "plays", "last_played", "added", "folder", "duration"]
     op: str
-    value: str | int | bool | list[int] | None = None
+    value: str | int | float | bool | list[int] | None = None
 
     @model_validator(mode="after")
     def check(self):
@@ -59,6 +59,9 @@ class Rule(BaseModel):
         elif self.field == "folder":
             if v not in FOLDERS:
                 raise ValueError("unknown folder kind")
+        elif self.field == "rating" and self.op != "none":
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0.5 <= v <= 5 or (v * 2) % 1:
+                raise ValueError("stars 0.5-5 in halves")
         elif not (self.field == "rating" and self.op == "none"):
             if not isinstance(v, int) or isinstance(v, bool) or v < 0 or v > 100_000:
                 raise ValueError("number required")
@@ -97,7 +100,7 @@ def _condition(rule: Rule, user_id: int):
         case "rating":
             if op == "none":
                 return rating.is_(None)
-            return rating >= v if op == "gte" else rating <= v
+            return rating >= v * 2 if op == "gte" else rating <= v * 2  # stored in half stars
         case "favorite":
             liked = exists().where(Favorite.user_id == user_id, Favorite.track_id == Track.id)
             return liked if v else not_(liked)
@@ -113,6 +116,7 @@ def _condition(rule: Rule, user_id: int):
             cond = {
                 "album": Album.kind.in_(("album", "unofficial")),
                 "compilation": Album.kind == "compilation",
+                "soundtrack": Album.kind == "soundtrack",
                 "chart": exists().where(Chart.id == Track.chart_id, Chart.kind == "chart"),
                 "theme": exists().where(Chart.id == Track.chart_id, Chart.kind == "theme"),
             }[v]
@@ -230,3 +234,37 @@ def mix_preview(db: Session, key: str, user_id: int) -> tuple[int, list[dict]]:
             if len(covers) == 4:
                 break
     return len(rows), covers
+
+
+# ---- radio: songs like a seed song, for "radio" and for playing on when the queue runs out ----
+
+def radio_ids(
+    seed: Track, seed_year: int | None, user_id: int, exclude: list[int], limit: int, related: bool = True
+) -> Select:
+    """The ids of songs like the seed, best first (the caller then loads just those: scoring only
+    ids keeps the per-song extras of track_query off the thousands of candidates). Scores each listed song: same artist, a shared genre,
+    a year within five, and this user's own likes and stars; randomness keeps it from repeating
+    itself and mixes other artists in. related: only songs sharing the artist or a genre with the seed
+    (the caller asks again without it when that finds nothing, e.g. an untagged seed)."""
+    from .api.library import listed_tracks
+
+    genre_ids = select(TrackGenre.genre_id).where(TrackGenre.track_id == seed.id).scalar_subquery()
+    shares_genre = exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id.in_(genre_ids))
+    liked = exists().where(Favorite.user_id == user_id, Favorite.track_id == Track.id)
+    links = [shares_genre]
+    if seed.artist_id is not None:
+        links.append(Track.artist_id == seed.artist_id)
+    # (the year only adds to the score: as a link it would let in most of the library and be slow)
+    score = (
+        (case((Track.artist_id == seed.artist_id, 2), else_=0) if seed.artist_id is not None else literal(0))
+        + case((shares_genre, 3), else_=0)
+        + (case((func.abs(Album.year - seed_year) <= 5, 1), else_=0) if seed_year else literal(0))
+        + case((TrackRating.rating >= 8, 1), else_=0)
+        + case((liked, 1), else_=0)
+        + func.random() * 4
+    )
+    conds = [listed_tracks(), Track.id != seed.id] + ([or_(*links)] if related else [])
+    if exclude:
+        conds.append(Track.id.not_in(exclude))
+    query = select(Track.id).outerjoin(Album, Album.id == Track.album_id)
+    return with_user_marks(query, user_id).where(*conds).order_by(score.desc()).limit(limit)

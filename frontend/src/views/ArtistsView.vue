@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight } from '@lucide/vue'
 import { api, query } from '../api'
+import { useProgressive } from '../progressive'
 import type { Artist, Page, ViewMode } from '../types'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
@@ -15,11 +16,12 @@ const view = computed(() => (ui.views.artists as ViewMode) || 'grid')
 const items = ref<Artist[]>([])
 const total = ref(0)
 const loading = ref(false)
+const shown = useProgressive(() => items.value)
 
 async function load() {
   loading.value = true
   try {
-    const page = await api<Page<Artist>>(`/artists${query({ limit: 500, offset: items.value.length })}`)
+    const page = await api<Page<Artist>>(`/artists${query({ limit: 200, offset: items.value.length })}`)
     items.value.push(...page.items)
     total.value = page.total
   } finally {
@@ -39,7 +41,7 @@ onMounted(load)
       class="grid gap-x-4 gap-y-6"
       :class="view === 'grid' ? 'grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(130px,1fr))]' : 'grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-x-6'"
     >
-      <li v-for="a in items" :key="a.id">
+      <li v-for="a in shown" :key="a.id">
         <RouterLink :to="{ name: 'artist', params: { id: a.id } }" class="group flex flex-col items-center gap-2.5 text-center">
           <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" :size="view === 'cover' ? 'large' : 'thumb'" class="w-full transition-transform duration-200 group-hover:scale-[1.03]" />
           <span class="flex w-full min-w-0 flex-col">
@@ -50,7 +52,7 @@ onMounted(load)
       </li>
     </ul>
     <ul v-else class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
-      <li v-for="a in items" :key="a.id">
+      <li v-for="a in shown" :key="a.id">
         <RouterLink :to="{ name: 'artist', params: { id: a.id } }" class="flex min-h-[64px] items-center gap-3.5 border-b border-surface">
           <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-11 flex-none" />
           <span class="flex min-w-0 flex-1 flex-col">

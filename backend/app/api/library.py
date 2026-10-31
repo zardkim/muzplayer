@@ -13,7 +13,9 @@ from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
 from ..lyrics import read_lyrics
-from ..models import Album, AlbumFavorite, AlbumRating, Artist, Favorite, Genre, Track, TrackGenre, TrackRating, User, Video
+from ..models import (
+    Album, AlbumFavorite, AlbumRating, Artist, Favorite, Genre, PlayCount, Track, TrackGenre, TrackRating, User, Video,
+)
 from ..scanner import COVER_SIZES, cover_file, search_key
 from ..security import api_error, current_user
 
@@ -60,14 +62,14 @@ def track_query(user_id: int) -> Select:
     return (
         select(
             Track, Album.title, Album.cover_path, Album.kind, fav.label("is_favorite"), Album.cover_version,
-            rating.label("rating"), video.label("has_video"),
+            rating.label("rating"), video.label("has_video"), Album.year,
         )
         .outerjoin(Album, Album.id == Track.album_id)
     )
 
 
 def track_out(row) -> dict:
-    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video = row
+    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year = row
     return {
         "id": track.id,
         "title": track.title,
@@ -78,12 +80,17 @@ def track_out(row) -> dict:
         "album_kind": album_kind or "album",
         "has_cover": bool(cover_path),
         "cover_v": cover_version if cover_path else 0,
+        "year": album_year,
         "track_no": track.track_no,
         "disc_no": track.disc_no,
         "duration": track.duration,
         "format": track.format,
+        # 0 when unknown; bit_depth only for lossless files
+        "sample_rate": track.sample_rate or 0,
+        "bit_depth": track.bit_depth or 0,
+        "bitrate": track.bitrate or 0,
         "is_favorite": bool(is_favorite),
-        "rating": rating,  # this user's stars, None when not rated
+        "rating": rating / 2 if rating else None,  # this user's stars (0.5-5), None when not rated
         "has_video": bool(has_video),
         "missing": track.missing_at is not None,
     }
@@ -208,6 +215,8 @@ def album_out(row) -> dict:
         "artist_id": album.album_artist_id,
         "kind": album.kind,
         "year": album.year,
+        "release_date": album.release_date,
+        "quality": album.quality,  # hires | lossless | None
         "has_cover": bool(album.cover_path),
         "cover_v": album.cover_version if album.cover_path else 0,
         "track_count": track_count,
@@ -219,7 +228,7 @@ def list_albums(
     request: Request,
     q: str = "",
     artist_id: int | None = None,
-    kind: str | None = Query(None, pattern="^(album|unofficial|compilation)$"),
+    kind: str | None = Query(None, pattern="^(album|unofficial|compilation|soundtrack)$"),
     sort: str = Query("recent", pattern="^(recent|title|artist|year|rating)$"),
     limit: int = Query(60, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -259,6 +268,44 @@ def list_albums(
     return shared_json(request, db, f"albums:{q.strip()}:{artist_id}:{kind}:{sort}:{limit}:{offset}", build)
 
 
+def mark_popular(db: Session, tracks: list[dict]) -> None:
+    """Sets "popular" on an album's most played songs, counting everyone's plays: the top fifth
+    (one to three songs), and only songs played at least three times."""
+    plays = dict(db.execute(
+        select(PlayCount.track_id, func.sum(PlayCount.plays))
+        .where(PlayCount.track_id.in_([t["id"] for t in tracks]))
+        .group_by(PlayCount.track_id)
+    ).all()) if tracks else {}
+    ranked = sorted((n, i) for i, n in plays.items() if n >= 3)[::-1]
+    top = {i for _, i in ranked[: min(3, max(1, len(tracks) // 5))]}
+    for t in tracks:
+        t["popular"] = t["id"] in top
+
+
+@router.get("/albums/on-this-day")
+def on_this_day(
+    request: Request,
+    day: str = Query(..., pattern=r"^\d{2}-\d{2}$"),  # MM-DD in the viewer's own time zone
+    _: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """Albums released on this day in an earlier year, most recent first ("on this day")."""
+    month, dom = (int(x) for x in day.split("-"))
+
+    def build():
+        rows = db.execute(
+            album_list_query([
+                not_chart(),
+                func.extract("month", Album.release_date) == month,
+                func.extract("day", Album.release_date) == dom,
+                func.extract("year", Album.release_date) < func.extract("year", func.current_date()),
+            ]).order_by(Album.release_date.desc()).limit(10)
+        )
+        return {"items": [album_out(r) for r in rows]}
+
+    return shared_json(request, db, f"on-this-day:{day}", build)
+
+
 @router.get("/albums/{album_id}")
 def get_album(album_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     row = db.execute(album_list_query([Album.id == album_id])).first()
@@ -271,11 +318,12 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
     )
     tracks = [track_out(t) for t in tracks]
     rated = [t["rating"] for t in tracks if t["rating"]]
+    mark_popular(db, tracks)
     return {
         **album_out(row),
         # this user's marks: the album's own stars, and the average of its songs' as a hint
-        "rating": db.scalar(select(AlbumRating.rating).where(AlbumRating.user_id == user.id, AlbumRating.album_id == album_id)),
-        "track_rating_avg": round(sum(rated) / len(rated), 1) if rated else None,
+        "rating": (db.scalar(select(AlbumRating.rating).where(AlbumRating.user_id == user.id, AlbumRating.album_id == album_id)) or 0) / 2 or None,
+        "track_rating_avg": round(sum(rated) / len(rated), 2) if rated else None,
         "is_favorite": db.get(AlbumFavorite, (user.id, album_id)) is not None,
         "video_count": db.scalar(select(func.count()).where(Video.album_id == album_id)),
         "tracks": tracks,

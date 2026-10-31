@@ -110,7 +110,7 @@ async function setFinished(finished: boolean) {
         <span>{{ progress.finished ? t('books.finished') : t('books.left', { time: longDuration(book.duration - position) }) }}</span>
       </div>
       <div class="flex items-center gap-2.5">
-        <button type="button" class="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-6 text-[16px] text-white md:flex-none" @click="play">
+        <button type="button" class="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-6 text-[16px] text-on-ink md:flex-none" @click="play">
           <PlayerIcons :name="isOpen && player.playing ? 'pause' : 'play'" :size="20" :stroke="1.8" />
           <template v-if="isOpen && player.playing">{{ t('player.pause') }}</template>
           <template v-else-if="started">{{ t('books.resume', { time: duration(position) }) }}</template>

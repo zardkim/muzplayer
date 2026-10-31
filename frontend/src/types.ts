@@ -12,14 +12,19 @@ export interface Track {
   disc_no: number | null
   duration: number | null
   format: string
+  sample_rate?: number // Hz; 0 = unknown
+  bit_depth?: number // lossless files only; 0 = lossy or unknown
+  bitrate?: number // kbps
+  popular?: boolean // in an album: one of its most played songs (everyone's plays)
   is_favorite: boolean
-  rating?: number | null // this user's stars (1-5)
+  rating?: number | null // this user's stars (0.5-5, in halves)
+  year?: number | null // the album's year
   has_video?: boolean
   missing: boolean
   chart_position?: number | null // only in chart lists
 }
 
-export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'chart'
+export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'soundtrack' | 'chart'
 
 export interface Album {
   id: number
@@ -28,6 +33,8 @@ export interface Album {
   artist_id: number | null
   kind: AlbumKind
   year: number | null
+  release_date?: string | null // YYYY-MM-DD when a tag has the whole date
+  quality?: 'hires' | 'lossless' | null
   has_cover: boolean
   cover_v: number
   track_count: number
@@ -237,6 +244,8 @@ export interface User {
   display_name: string
   is_admin: boolean
   is_active: boolean
+  record_history: boolean // off: plays leave no history or play count
+  home_sections: { key: string; on: boolean }[] | null // home rows in order; null = the default
 }
 
 export interface ScanJob {

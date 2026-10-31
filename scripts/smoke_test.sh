@@ -98,10 +98,19 @@ aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/tracks/$tid" -H 'content-type: application/json' -d '{"rating":5}'
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":4}'
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/albums/$aid"
-check "song stars saved" "$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["rating"]')" 5
+check "song stars saved" "$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["rating"]')" 5.0
 check "other user's song stars separate" "$(curl -s -b "$U" "$BASE/tracks?sort=title" | j 'd["items"][0]["rating"]')" None
-check "album stars and like" "$(curl -s -b "$A" "$BASE/albums/$aid" | j '(d["rating"], d["is_favorite"])')" "(4, True)"
+check "album stars and like" "$(curl -s -b "$A" "$BASE/albums/$aid" | j '(d["rating"], d["is_favorite"])')" "(4.0, True)"
+check "half stars allowed" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":3.5}')/$(curl -s -b "$A" "$BASE/albums/$aid" | j 'd["rating"]')" "204/3.5"
+check "other steps refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":3.3}')" 422
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":4}'
 check "other user's album marks separate" "$(curl -s -b "$U" "$BASE/albums/$aid" | j '(d["rating"], d["is_favorite"])')" "(None, False)"
+h0=$(curl -s -b "$U" "$BASE/history?limit=1000" | j 'len(d["items"])')
+curl -s -b "$U" -o /dev/null -X PATCH "$BASE/auth/me" -H 'content-type: application/json' -d '{"record_history":false}'
+curl -s -b "$U" -o /dev/null -X POST "$BASE/history" -H 'content-type: application/json' -d "{\"track_id\":$tid}"
+check "private listening keeps no history" "$(curl -s -b "$U" "$BASE/history?limit=1000" | j 'len(d["items"])')" "$h0"
+check "radio finds similar songs" "$(curl -s -b "$U" "$BASE/radio?track_id=$tid&limit=5" | j 'len(d["tracks"]) > 0 and all(t["id"] != '"$tid"' for t in d["tracks"])')" True
+curl -s -b "$U" -o /dev/null -X PATCH "$BASE/auth/me" -H 'content-type: application/json' -d '{"record_history":true}'
 curl -s -b "$A" -o /dev/null -X POST "$BASE/history" -H 'content-type: application/json' -d "{\"track_id\":$tid}"
 check "play counted in most played mix" "$(curl -s -b "$A" "$BASE/mixes/top" | j "$tid in [t['id'] for t in d['tracks']]")" True
 check "random mix" "$(curl -s -b "$A" "$BASE/mixes/random" | j 'len(d["tracks"]) > 0')" True

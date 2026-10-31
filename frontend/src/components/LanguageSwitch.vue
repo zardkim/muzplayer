@@ -16,7 +16,7 @@ const { locale, t } = useI18n()
       class="rounded-full border transition-colors"
       :class="[
         compact ? 'h-8 px-3 text-[13px]' : 'h-10 px-4 text-[15px]',
-        locale === l.code ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg text-ink hover:border-ink',
+        locale === l.code ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg text-ink hover:border-ink',
       ]"
       @click="setLocale(l.code)"
     >

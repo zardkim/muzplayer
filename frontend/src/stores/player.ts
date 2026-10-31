@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
-import { api, bookCoverUrl, bookStreamUrl, coverUrl, streamUrl } from '../api'
+import { api, bookCoverUrl, bookStreamUrl, coverUrl, query, streamUrl } from '../api'
+import { cachedSource, onCellular, prepare } from '../audioCache'
 import { errorMessage, i18n } from '../i18n'
-import type { BookDetail, Chapter, Track } from '../types'
+import type { Album, BookDetail, Chapter, Page, Track } from '../types'
 import { useUi } from './ui'
 
 type Repeat = 'off' | 'all' | 'one'
@@ -14,6 +15,7 @@ const bookKey = (userId: number) => `muz.book.${userId}` // open book and mode
 const pendingKey = (userId: number) => `muz.bookPending.${userId}` // position not yet saved (offline)
 
 export const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]
+export const MUSIC_SPEEDS = [0.75, 0.9, 1, 1.1, 1.25, 1.5] // only with Settings → "music speed" on
 export const SKIPS = [10, 15, 30, 60]
 const SAVE_EVERY_MS = 15_000
 const FINISHED_WITHIN = 30 // seconds before the end that count as finished (at most 2% of the book)
@@ -72,6 +74,9 @@ export const usePlayer = defineStore('player', () => {
   const fileIndex = ref(0)
   const bookPos = ref(0) // seconds on the whole-book timeline
   const rate = ref(1)
+  const musicRate = ref(1)
+  // counts the times a person started a list playing (Settings: open the player when that happens)
+  const playStarts = ref(0)
   const skipBack = ref(15)
   const skipForward = ref(30)
   const sleepUntil = ref<number | null>(null) // Date.now() ms to stop at
@@ -100,12 +105,13 @@ export const usePlayer = defineStore('player', () => {
   // ---- persistence (per browser, per user) ----
   function restore(forUserId: number) {
     userId = forUserId
-    const settings = load<{ volume: number; shuffle: boolean; repeat: Repeat; rate: number; skipBack: number; skipForward: number }>(SETTINGS_KEY)
+    const settings = load<{ volume: number; shuffle: boolean; repeat: Repeat; rate: number; musicRate: number; skipBack: number; skipForward: number }>(SETTINGS_KEY)
     if (settings) {
       volume.value = settings.volume ?? 1
       shuffle.value = !!settings.shuffle
       repeat.value = settings.repeat ?? 'off'
       rate.value = SPEEDS.includes(settings.rate) ? settings.rate : 1
+      musicRate.value = MUSIC_SPEEDS.includes(settings.musicRate) ? settings.musicRate : 1
       skipBack.value = SKIPS.includes(settings.skipBack) ? settings.skipBack : 15
       skipForward.value = SKIPS.includes(settings.skipForward) ? settings.skipForward : 30
     }
@@ -131,12 +137,13 @@ export const usePlayer = defineStore('player', () => {
     if (userId !== null) save(queueKey(userId), { queue: queue.value, index: index.value })
   }
   watch([queue, index], persistQueue, { deep: true })
-  watch([volume, shuffle, repeat, rate, skipBack, skipForward], () =>
+  watch([volume, shuffle, repeat, rate, musicRate, skipBack, skipForward], () =>
     save(SETTINGS_KEY, {
       volume: volume.value,
       shuffle: shuffle.value,
       repeat: repeat.value,
       rate: rate.value,
+      musicRate: musicRate.value,
       skipBack: skipBack.value,
       skipForward: skipForward.value,
     }),
@@ -170,7 +177,7 @@ export const usePlayer = defineStore('player', () => {
     if (!track) return
     if (mode.value === 'book') leaveBook()
     if (loadedKey !== `t${track.id}`) {
-      audio.src = streamUrl(track.id)
+      audio.src = cachedSource(track.id) ?? streamUrl(track.id) // fetched ahead: no wait on the network
       loadedKey = `t${track.id}`
       reported = false
       currentTime.value = 0
@@ -189,6 +196,8 @@ export const usePlayer = defineStore('player', () => {
     if (!playable.length) return
     const first = tracks[startAt] && !tracks[startAt].missing ? tracks[startAt] : playable[0]
     if (opts.shuffle !== undefined) shuffle.value = opts.shuffle
+    playStarts.value++
+    radioOn = false
     if (shuffle.value) {
       originalOrder = playable
       queue.value = [first, ...shuffled(playable.filter((t) => t !== first))]
@@ -200,6 +209,80 @@ export const usePlayer = defineStore('player', () => {
     }
     loadedKey = null
     startCurrent()
+  }
+
+  // ---- looking ahead: fetch the next songs, and keep the queue from running out ----
+  let radioOn = false // started as a radio: plays on even with autoplay off
+  let extending = false
+
+  /** After a song starts: fetch the next few (Settings → storage), and with autoplay or a radio,
+   *  add more songs while the last one plays (not after it ends: iOS may not let a locked phone
+   *  start a song that had to wait for the network). */
+  function lookAhead() {
+    if (mode.value !== 'music' || !current.value) return
+    const prefs = useUi().playerPrefs
+    const n = onCellular() ? prefs.prefetchCellular : prefs.prefetchWifi
+    const upcoming: number[] = []
+    for (let k = 1; k <= n && k < queue.value.length; k++) {
+      const i = index.value + k
+      if (i < queue.value.length) upcoming.push(queue.value[i].id)
+      else if (repeat.value === 'all') upcoming.push(queue.value[i - queue.value.length].id)
+    }
+    void prepare(current.value.id, upcoming, prefs.cacheMB * 1024 * 1024)
+    if ((prefs.autoplay || radioOn) && repeat.value === 'off' && index.value === queue.value.length - 1) void extendQueue()
+  }
+
+  async function extendQueue() {
+    const last = queue.value[queue.value.length - 1]
+    if (extending || !last) return
+    extending = true
+    try {
+      const more = await continuation(last)
+      // only if nothing changed the queue meanwhile
+      if (more.length && queue.value[queue.value.length - 1]?.id === last.id) {
+        queue.value.push(...more)
+        lookAhead()
+      }
+    } catch {
+      /* offline: the queue just ends */
+    } finally {
+      extending = false
+    }
+  }
+
+  /** What follows the last song: after a whole album, per Settings (the artist's next album, a
+   *  radio, or nothing); otherwise songs like the last one. */
+  async function continuation(last: Track): Promise<Track[]> {
+    const albumEnd = useUi().playerPrefs.albumEnd
+    const wholeAlbum = !radioOn && last.album_id && last.album_kind !== 'chart' && queue.value.every((t) => t.album_id === last.album_id)
+    if (wholeAlbum && albumEnd === 'stop') return []
+    if (wholeAlbum && albumEnd === 'artist') {
+      const next = await nextAlbum(last.album_id!)
+      if (next.length) return next
+    }
+    const exclude = queue.value.slice(-300).map((t) => t.id).join(',')
+    const r = await api<{ tracks: Track[] }>(`/radio${query({ track_id: last.id, exclude, limit: 20 })}`)
+    return r.tracks.filter((t) => !t.missing)
+  }
+
+  /** The album artist's next album by year after this one, or [] when it was the last. */
+  async function nextAlbum(albumId: number): Promise<Track[]> {
+    const album = await api<{ artist_id: number | null }>(`/albums/${albumId}`)
+    if (!album.artist_id) return []
+    const list = await api<Page<Album>>(`/albums${query({ artist_id: album.artist_id, sort: 'year', limit: 500 })}`)
+    // oldest first; undated albums last, ties by title
+    const oldestFirst = [...list.items].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || a.title.localeCompare(b.title))
+    const after = oldestFirst[oldestFirst.findIndex((a) => a.id === albumId) + 1]
+    if (!after) return []
+    const detail = await api<{ tracks: Track[] }>(`/albums/${after.id}`)
+    return detail.tracks.filter((t) => !t.missing)
+  }
+
+  /** A radio from one song: it plays at once (still inside the tap, for iOS), the rest follows. */
+  function startRadio(track: Track) {
+    playTracks([track], 0, { shuffle: false })
+    radioOn = true
+    void extendQueue()
   }
 
   async function playAlbum(albumId: number) {
@@ -331,13 +414,13 @@ export const usePlayer = defineStore('player', () => {
 
   // ---- audiobooks ----
   function applyRate() {
-    const r = mode.value === 'book' ? rate.value : 1
+    const r = mode.value === 'book' ? rate.value : musicRate.value
     // a new src resets playbackRate in some browsers; defaultPlaybackRate carries over
     audio.defaultPlaybackRate = r
     audio.playbackRate = r
     audio.preservesPitch = true
   }
-  watch(rate, applyRate)
+  watch([rate, musicRate], applyRate)
 
   /** Saved position, or the start for a finished book. */
   function startPosition(detail: BookDetail) {
@@ -561,7 +644,14 @@ export const usePlayer = defineStore('player', () => {
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = value ? 'playing' : 'paused'
   }
   audio.addEventListener('play', () => setPlaying(true))
-  audio.addEventListener('playing', () => (failures = 0))
+  // songs added while playing (or a longer queue) are fetched ahead too
+  watch(() => queue.value.length, () => {
+    if (playing.value) lookAhead()
+  })
+  audio.addEventListener('playing', () => {
+    failures = 0
+    lookAhead()
+  })
   audio.addEventListener('pause', () => {
     setPlaying(false)
     if (mode.value === 'book' && loadedKey) {
@@ -721,6 +811,9 @@ export const usePlayer = defineStore('player', () => {
     chapter,
     segment,
     rate,
+    musicRate,
+    playStarts,
+    startRadio,
     skipBack,
     skipForward,
     sleepUntil,

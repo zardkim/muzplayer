@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, EllipsisVertical, Heart, MonitorPlay, Star } from '@lucide/vue'
+import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MonitorPlay, Star } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { duration } from '../format'
+import { useProgressive } from '../progressive'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
@@ -28,6 +29,14 @@ const { t } = useI18n()
 const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
+// rows (i stays the index into props.tracks: play, select and the menu use the whole list)
+const shown = useProgressive(() => props.tracks)
+// row labels looked up once per list, not several times per row (a long list spent much of its time here)
+const L = computed(() => ({
+  select: t('common.select'), play: t('common.play'), videos: t('common.videos'), missing: t('common.missingFile'),
+  unknownArtist: t('common.unknownArtist'), unknownAlbum: t('common.unknownAlbum'),
+  favAdd: t('common.favoriteAdd'), popular: t('common.popular'), favRemove: t('common.favoriteRemove'), more: t('common.moreActions'),
+}))
 const menuOpen = ref<number | null>(null)
 const menuUp = ref(false) // rows low on the screen open their menu upwards, clear of the player bar
 
@@ -99,14 +108,14 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
     <!-- bulk action bar -->
     <div
       v-if="selected.size"
-      class="sticky top-0 z-20 mb-2 hidden h-[52px] items-center gap-1 rounded-xl bg-ink pl-4 pr-2 text-sm text-white md:flex"
+      class="sticky top-0 z-20 mb-2 hidden h-[52px] items-center gap-1 rounded-xl bg-ink pl-4 pr-2 text-sm text-on-ink md:flex"
     >
       <span class="flex-1">{{ t('common.selected', { n: selected.size }) }}</span>
-      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-white/10" @click="bulk((x) => player.playTracks(x, 0))">{{ t('common.playSelected') }}</button>
-      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-white/10" @click="bulk((x) => player.playNext(x))">{{ t('common.playNext') }}</button>
-      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-white/10" @click="bulk((x) => player.addToQueue(x))">{{ t('common.addToQueue') }}</button>
-      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-white/10" @click="bulk((x) => (ui.playlistPicker = x))">{{ t('common.addToPlaylist') }}</button>
-      <button type="button" class="h-9 rounded-full bg-white/15 px-3.5" @click="selected = new Set()">{{ t('common.clearSelection') }}</button>
+      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => player.playTracks(x, 0))">{{ t('common.playSelected') }}</button>
+      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => player.playNext(x))">{{ t('common.playNext') }}</button>
+      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => player.addToQueue(x))">{{ t('common.addToQueue') }}</button>
+      <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => (ui.playlistPicker = x))">{{ t('common.addToPlaylist') }}</button>
+      <button type="button" class="h-9 rounded-full bg-on-ink/15 px-3.5" @click="selected = new Set()">{{ t('common.clearSelection') }}</button>
     </div>
 
     <div v-if="tracks.length > 1" class="hidden h-10 items-center gap-3 border-b border-line px-2.5 text-[13px] text-muted md:flex">
@@ -116,10 +125,12 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
 
     <ol class="flex flex-col">
       <li
-        v-for="(track, i) in tracks"
+        v-for="(track, i) in shown"
         :key="`${track.id}-${i}`"
         class="group relative flex min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
         :class="[
+          // rows off screen skip layout and paint; not the one with its menu open (it would be clipped)
+          menuOpen === i ? '' : '[contain-intrinsic-size:auto_69px] [content-visibility:auto]',
           isCurrent(track) ? 'bg-accent-soft' : selected.has(i) ? 'bg-surface' : 'md:hover:bg-surface/60',
           track.missing ? 'opacity-40' : '',
         ]"
@@ -128,7 +139,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           type="checkbox"
           class="hidden size-[18px] flex-none accent-ink md:block"
           :checked="selected.has(i)"
-          :aria-label="`${t('common.select')}: ${track.title}`"
+          :aria-label="`${L.select}: ${track.title}`"
           @change="toggleSelect(i)"
         />
         <span
@@ -141,18 +152,19 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           type="button"
           class="flex min-w-0 flex-1 items-center gap-3.5 py-1.5 text-left"
           :disabled="track.missing"
-          :aria-label="`${t('common.play')}: ${track.title}`"
+          :aria-label="`${L.play}: ${track.title}`"
           @click="play(i)"
         >
           <CoverArt v-if="showCover" :album-id="track.album_id" :has-cover="track.has_cover" :version="track.cover_v" rounded="rounded-md" class="size-[52px] flex-none" />
           <span class="flex min-w-0 flex-col">
             <span class="flex min-w-0 items-center gap-1.5">
               <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
-              <MonitorPlay v-if="track.has_video" :size="15" :stroke-width="1.5" class="flex-none text-muted" :aria-label="t('common.videos')" />
+              <span v-if="track.popular && ui.playerPrefs.showPopular" class="flex flex-none items-center gap-0.5 rounded-full bg-accent-soft px-1.5 text-[11px] font-medium leading-[18px] text-accent"><Flame :size="11" :stroke-width="2" />{{ L.popular }}</span>
+              <MonitorPlay v-if="track.has_video" :size="15" :stroke-width="1.5" class="flex-none text-muted" :aria-label="L.videos" />
             </span>
             <span class="truncate text-[14px] font-light text-muted">
-              <template v-if="track.missing">{{ t('common.missingFile') }}</template>
-              <template v-else>{{ track.artist || t('common.unknownArtist') }}<template v-if="showAlbum"> · {{ track.album || t('common.unknownAlbum') }}</template></template>
+              <template v-if="track.missing">{{ L.missing }}</template>
+              <template v-else>{{ track.artist || L.unknownArtist }}<template v-if="showAlbum"> · {{ track.album || L.unknownAlbum }}</template></template>
             </span>
           </span>
         </button>
@@ -167,7 +179,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
             type="button"
             class="grid size-11 place-items-center"
             :class="library.isFavorite(track) ? 'text-accent' : 'text-ink'"
-            :aria-label="library.isFavorite(track) ? t('common.favoriteRemove') : t('common.favoriteAdd')"
+            :aria-label="library.isFavorite(track) ? L.favRemove : L.favAdd"
             :aria-pressed="library.isFavorite(track)"
             @click="fav(track)"
           >
@@ -177,7 +189,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
             <button
               type="button"
               class="grid size-11 place-items-center text-ink"
-              :aria-label="t('common.moreActions')"
+              :aria-label="L.more"
               :aria-expanded="menuOpen === i"
               @click="(e) => openMenu(e, i)"
             >
@@ -194,6 +206,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
+                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.startRadio(track))">{{ t('common.startRadio') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
               </template>
               <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>

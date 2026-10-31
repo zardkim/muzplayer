@@ -59,7 +59,7 @@ const sorts = [
     <LibraryHeader v-else :sub="t('common.tracks', total)" />
     <div class="flex items-center gap-2">
     <div class="-mr-5 flex min-w-0 flex-1 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
-      <button type="button" class="flex h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
+      <button type="button" class="flex h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
       <button type="button" class="h-[38px] flex-none rounded-full border border-line-strong px-4 text-[15px]" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>

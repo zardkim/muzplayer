@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 class RatingIn(BaseModel):
-    rating: int = Field(ge=1, le=5)
+    rating: float = Field(ge=0.5, le=5, multiple_of=0.5)  # stars, in halves (stored as half stars, 1-10)
 
 
 def _upsert(db: Session, model, key: dict, rating: int) -> None:
@@ -31,7 +31,7 @@ def _upsert(db: Session, model, key: dict, rating: int) -> None:
 def rate_track(track_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Track, track_id) is None:
         raise api_error(404, "not_found")
-    _upsert(db, TrackRating, {"user_id": user.id, "track_id": track_id}, body.rating)
+    _upsert(db, TrackRating, {"user_id": user.id, "track_id": track_id}, round(body.rating * 2))
 
 
 @router.delete("/ratings/tracks/{track_id}", status_code=204)
@@ -44,7 +44,7 @@ def unrate_track(track_id: int, user: User = Depends(current_user), db: Session 
 def rate_album(album_id: int, body: RatingIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if db.get(Album, album_id) is None:
         raise api_error(404, "not_found")
-    _upsert(db, AlbumRating, {"user_id": user.id, "album_id": album_id}, body.rating)
+    _upsert(db, AlbumRating, {"user_id": user.id, "album_id": album_id}, round(body.rating * 2))
 
 
 @router.delete("/ratings/albums/{album_id}", status_code=204)

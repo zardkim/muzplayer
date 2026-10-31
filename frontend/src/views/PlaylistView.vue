@@ -100,7 +100,7 @@ async function destroy() {
   <div v-else-if="playlist" class="flex flex-col gap-5">
     <PageHeader :title="playlist.name" :sub="smart ? `${t('smart.badge')} · ${t('common.tracks', playlist.entries.length)}` : t('common.tracks', playlist.entries.length)" />
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
+      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
       <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
@@ -125,7 +125,7 @@ async function destroy() {
           {{ t('playlists.name') }}
           <input v-model="newName" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
         </label>
-        <button type="submit" class="h-12 rounded-full bg-ink text-white">{{ t('common.save') }}</button>
+        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
   </div>

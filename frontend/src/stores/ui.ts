@@ -5,7 +5,36 @@ import type { Track } from '../types'
 const PREFS_KEY = 'muz.ui'
 
 // remembered per browser; storage may be blocked (private window), then it just isn't kept
-function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string> } {
+export const THEMES = ['default', 'plexamp'] as const
+export type Theme = (typeof THEMES)[number]
+// the browser's bar colour per theme (meta theme-color)
+const THEME_BARS: Record<Theme, string> = { default: '#FFFFFF', plexamp: '#CBC5BF' }
+
+// display and player options from Settings, kept per browser
+export interface PlayerPrefs {
+  openOnPlay: boolean // starting a list opens the player
+  keepAwake: boolean // the screen stays on while the player is open
+  musicSpeed: boolean // a speed control for music too (audiobooks always have one)
+  showYear: boolean // album year on the player and in album lists
+  showVolume: boolean // volume slider on the PC bar
+  prefetchWifi: number // songs fetched ahead of time on Wi-Fi (and on iPhone, which doesn't say)
+  prefetchCellular: number // ... on mobile data (Android)
+  cacheMB: number // the most fetched songs kept on this device
+  autoplay: boolean // when the queue runs out, play on with songs like the last one
+  albumEnd: 'radio' | 'artist' | 'stop' // with autoplay, after a whole album
+  showCodec: boolean // codec and quality (FLAC 24/96) on the player
+  showQuality: boolean // Hi-Res / Lossless badge on albums
+  showPopular: boolean // mark an album's most played songs
+}
+export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
+export const CACHE_SIZES = [256, 512, 1024, 2048]
+const PLAYER_PREFS: PlayerPrefs = {
+  openOnPlay: false, keepAwake: false, musicSpeed: false, showYear: true, showVolume: true,
+  prefetchWifi: 3, prefetchCellular: 1, cacheMB: 512, autoplay: false, albumEnd: 'radio',
+  showCodec: true, showQuality: true, showPopular: true,
+}
+
+function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs> } {
   try {
     return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
   } catch {
@@ -38,11 +67,24 @@ export const useUi = defineStore('ui', () => {
   const barHidden = ref(!!prefs.barHidden)
   const sidebarCollapsed = ref(!!prefs.sidebarCollapsed)
   const views = ref<Record<string, string>>(prefs.views ?? {})
+  // colour theme; index.html applies the stored one before the first paint, this keeps it in step
+  const playerPrefs = ref<PlayerPrefs>({ ...PLAYER_PREFS, ...prefs.player })
+  const theme = ref<Theme>((THEMES as readonly string[]).includes(prefs.theme ?? '') ? (prefs.theme as Theme) : 'default')
   watch(
-    [barHidden, sidebarCollapsed, views],
+    theme,
+    (v) => {
+      const root = document.documentElement
+      if (v === 'default') delete root.dataset.theme
+      else root.dataset.theme = v
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_BARS[v])
+    },
+    { immediate: true },
+  )
+  watch(
+    [barHidden, sidebarCollapsed, views, theme, playerPrefs],
     () => {
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value }))
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, player: playerPrefs.value }))
       } catch {
         /* not kept */
       }
@@ -62,6 +104,6 @@ export const useUi = defineStore('ui', () => {
 
   return {
     toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget,
-    barHidden, sidebarCollapsed, views, wide, playerTab,
+    barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })

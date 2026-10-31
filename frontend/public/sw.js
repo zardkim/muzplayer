@@ -3,6 +3,7 @@
 // change, so they are kept in their own cache and not asked for again.
 const CACHE = 'muz-shell-v1'
 const COVERS = 'muz-covers-v1' // also cleared on logout (stores/auth.ts)
+const AUDIO = 'muz-audio-v1' // songs fetched ahead by the page (src/audioCache.ts); not touched here
 const MAX_COVERS = 3000 // about 100 MB of 300px covers; the oldest go first
 const COVER_PATH = /^\/api\/v1\/((albums|books)\/\d+\/cover|artists\/\d+\/image)$/
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/logo.svg', '/icon-192.png', '/cover-placeholder.svg']
@@ -16,7 +17,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== COVERS).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== COVERS && k !== AUDIO).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   )
 })

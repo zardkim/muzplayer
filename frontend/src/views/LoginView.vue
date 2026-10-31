@@ -91,7 +91,7 @@ async function submit() {
           />
         </label>
         <p v-if="error" role="alert" class="text-[13px] text-danger">{{ error }}</p>
-        <button type="submit" :disabled="busy" class="mt-2 h-[52px] rounded-full bg-ink text-base text-white disabled:opacity-60">
+        <button type="submit" :disabled="busy" class="mt-2 h-[52px] rounded-full bg-ink text-base text-on-ink disabled:opacity-60">
           {{ setup ? t('login.setupSubmit') : t('login.submit') }}
         </button>
       </form>

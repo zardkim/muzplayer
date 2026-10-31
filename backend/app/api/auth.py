@@ -34,6 +34,8 @@ def user_out(user: User) -> dict:
         "display_name": user.display_name or user.username,
         "is_admin": user.is_admin,
         "is_active": user.is_active,
+        "record_history": user.record_history,
+        "home_sections": user.home_sections,
     }
 
 
@@ -135,6 +137,27 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db, s
 
 @router.get("/auth/me")
 def me(user: User = Depends(current_user)):
+    return user_out(user)
+
+
+class HomeSection(BaseModel):
+    key: str = Field(min_length=1, max_length=32)
+    on: bool
+
+
+class SettingsIn(BaseModel):
+    record_history: bool | None = None
+    home_sections: list[HomeSection] | None = Field(None, max_length=20)
+
+
+@router.patch("/auth/me")
+def update_me(body: SettingsIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """This person's own settings (kept on the server, the same on every device)."""
+    if body.record_history is not None:
+        user.record_history = body.record_history
+    if body.home_sections is not None:
+        user.home_sections = [s.model_dump() for s in body.home_sections]
+    db.commit()
     return user_out(user)
 
 

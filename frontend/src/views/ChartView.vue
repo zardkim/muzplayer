@@ -52,7 +52,7 @@ function applied(banner: CollectionBanner | null) {
     </BannerCard>
     <h1 class="sr-only">{{ chart.title }}</h1>
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white" @click="player.playTracks(chart.tracks, 0, { shuffle: false })">
+      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="player.playTracks(chart.tracks, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
       <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="player.playTracks(chart.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>

@@ -74,7 +74,7 @@ async function create() {
           :album-id="f.album_id"
           :has-cover="f.has_cover" :version="f.cover_v"
           rounded="rounded-full"
-          class="size-10 border-2 border-white"
+          class="size-10 border-2 border-bg"
           :class="i ? '-ml-3' : ''"
         />
       </span>
@@ -120,7 +120,7 @@ async function create() {
           {{ t('playlists.name') }}
           <input v-model="newName" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
         </label>
-        <button type="submit" class="h-12 rounded-full bg-ink text-white disabled:opacity-40" :disabled="!newName.trim()">{{ t('common.create') }}</button>
+        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="!newName.trim()">{{ t('common.create') }}</button>
       </form>
     </BaseModal>
   </div>

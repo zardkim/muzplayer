@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown, ChevronUp, EllipsisVertical, ListPlus, MonitorPlay } from '@lucide/vue'
 import { coverGlow } from '../coverColor'
-import { duration } from '../format'
+import { codec, duration } from '../format'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useLyrics } from '../stores/lyrics'
@@ -15,6 +15,7 @@ import LyricsPanel from './LyricsPanel.vue'
 import PlayerControls from './PlayerControls.vue'
 import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
+import SpeedButton from './SpeedButton.vue'
 import StarRating from './StarRating.vue'
 
 const { t } = useI18n()
@@ -72,7 +73,7 @@ function touchEnd(e: TouchEvent) {
     role="dialog"
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
-    class="fixed inset-0 z-50 overflow-y-auto bg-[#F7F6F2] text-ink"
+    class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
   >
     <div class="relative mx-auto flex min-h-full max-w-md flex-col md:my-6 md:min-h-0 md:overflow-hidden md:rounded-3xl md:shadow-2xl">
       <div
@@ -90,7 +91,7 @@ function touchEnd(e: TouchEvent) {
         </button>
         <button
           type="button"
-          class="absolute right-3 grid size-11 place-items-center rounded-full bg-white/70 backdrop-blur"
+          class="absolute right-3 grid size-11 place-items-center rounded-full bg-bg/70 backdrop-blur"
           style="top: calc(env(safe-area-inset-top) + 10px)"
           :aria-label="t('player.close')"
           @click="ui.playerOpen = false"
@@ -100,13 +101,16 @@ function touchEnd(e: TouchEvent) {
       </div>
 
       <div class="relative -mt-3">
-        <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" track="rgb(17 17 19 / 0.12)" @change="player.seek" @preview="(v) => (preview = v)" />
+        <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" track="color-mix(in srgb, var(--color-ink) 12%, transparent)" @change="player.seek" @preview="(v) => (preview = v)" />
       </div>
 
       <div class="pb-safe relative flex flex-1 flex-col px-5 pb-6">
-        <div class="flex items-center justify-between font-display text-sm text-[#52525B]">
+        <div class="flex items-center justify-between font-display text-sm text-soft">
           <span>{{ duration(preview ?? player.currentTime) }}</span>
-          <span class="text-[12px] uppercase tracking-wide">{{ player.current.format }}</span>
+          <span class="flex items-center gap-2">
+            <span class="text-[12px] uppercase tracking-wide">{{ ui.playerPrefs.showCodec ? codec(player.current) : player.current.format }}</span>
+            <SpeedButton v-if="ui.playerPrefs.musicSpeed" />
+          </span>
           <span>{{ duration(player.duration) }}</span>
         </div>
 
@@ -134,7 +138,7 @@ function touchEnd(e: TouchEvent) {
 
         <div class="mt-2 flex flex-col items-center gap-1 text-center">
           <span class="line-clamp-2 text-2xl font-medium">{{ player.current.title }}</span>
-          <span class="text-[17px] font-light text-[#52525B]">{{ player.current.artist || t('common.unknownArtist') }}</span>
+          <span class="text-[17px] font-light text-soft">{{ player.current.artist || t('common.unknownArtist') }}<template v-if="ui.playerPrefs.showYear && player.current.year"> · {{ player.current.year }}</template></span>
           <StarRating :value="library.rating(player.current)" :size="18" @rate="rate" />
           <!-- fixed-height slot so the controls don't jump when a line appears -->
           <span class="h-[22px] max-w-full">
@@ -154,7 +158,7 @@ function touchEnd(e: TouchEvent) {
           <button
             type="button"
             class="h-9 rounded-full border px-3.5 text-[14px]"
-            :class="ui.lyricsOpen ? 'border-ink bg-ink text-white' : 'border-line-strong'"
+            :class="ui.lyricsOpen ? 'border-ink bg-ink text-on-ink' : 'border-line-strong'"
             :aria-pressed="ui.lyricsOpen"
             @click="ui.lyricsOpen = !ui.lyricsOpen"
           >

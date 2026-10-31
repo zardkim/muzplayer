@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '../api'
+import { clearAudioCache } from '../audioCache'
 import type { User } from '../types'
 
 export const useAuth = defineStore('auth', () => {
@@ -31,7 +32,13 @@ export const useAuth = defineStore('auth', () => {
     user.value = null
     // covers kept by sw.js: the next person on this device shouldn't see what was browsed
     await globalThis.caches?.delete('muz-covers-v1').catch(() => {}) // no Cache API over plain http
+    await clearAudioCache(true)
   }
 
-  return { user, checked, fetchMe, login, setup, logout }
+  // this person's own settings, kept on the server (the same on every device)
+  async function updateSettings(body: { record_history?: boolean; home_sections?: { key: string; on: boolean }[] }) {
+    user.value = await api<User>('/auth/me', { method: 'PATCH', body })
+  }
+
+  return { user, checked, fetchMe, login, setup, logout, updateSettings }
 })

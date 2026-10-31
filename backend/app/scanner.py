@@ -8,10 +8,13 @@ import threading
 import time
 import unicodedata
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import mutagen
+from mutagen.easyid3 import EasyID3
+from mutagen.id3 import ID3
+from mutagen.easymp4 import EasyMP4Tags
 from PIL import Image
 from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import Session, defer
@@ -63,6 +66,71 @@ def cancel_scan() -> bool:
     _cancel.set()
     return True
 
+# Tags easy mode leaves out but the album kind needs: ID3 TXXX:RELEASETYPE (Picard, Mp3tag) and the
+# MP4 compilation flag (iTunes "part of a compilation").
+EasyID3.RegisterTXXXKey("releasetype", "RELEASETYPE")
+
+
+def _mp4_compilation(tags, key):
+    return ["1"] if tags.get("cpil") else []
+
+
+def _mp4_set_compilation(tags, key, value):
+    tags["cpil"] = bool(value and value[0] not in ("0", ""))
+
+
+def _mp4_del_compilation(tags, key):
+    tags.pop("cpil", None)
+
+
+EasyMP4Tags.RegisterKey("compilation", _mp4_compilation, _mp4_set_compilation, _mp4_del_compilation)
+
+# Album kind from tags, when the folder says nothing (folder kinds and 비정규 folders win; a
+# soundtrack in a compilation folder is still a soundtrack).
+# Soundtrack: a release type of soundtrack, or "OST" / "Original Soundtrack" / "사운드트랙" in the
+# album name. Compilation: the compilation flag (ID3 TCMP, Vorbis COMPILATION, MP4 cpil), a release type of
+# compilation, or an album artist like "Various Artists".
+# 비정규 (singles, EPs, mini albums): a release type of single/ep, or the album name saying so
+# ("Love - Single", "Love [EP]", "1st 미니앨범"). Only album-level tags, so one album's songs agree.
+VA_NAMES = {"various artists", "various", "va", "v.a.", "v/a", "여러 아티스트", "여러 가수", "베리어스 아티스트", "옴니버스"}
+RELEASE_TYPE_KEYS = ("releasetype", "release type", "musicbrainz_albumtype", "musicbrainz album type")
+SOUNDTRACK = re.compile(r"(?<![a-z])o\.?s\.?t(?![a-z])|original\s+(?:motion\s+picture\s+)?soundtrack|사운드\s*트랙", re.IGNORECASE)
+SHORT_RELEASE = re.compile(
+    r"(?:[\[(]\s*(?:digital\s+)?(?:single|ep|mini[\s-]?album|싱글|디지털\s*싱글|미니\s*앨범|미니)\s*[\])]"
+    r"|\s-\s*(?:single|ep)$|\s(?:single|ep)$|미니\s*앨범|디지털\s*싱글|\d\s*(?:st|nd|rd|th)\s+mini\b)",
+    re.IGNORECASE,
+)
+
+
+def tag_kind(raw: dict[str, list[str]]) -> str:
+    """soundtrack | compilation | unofficial | '' (nothing in the tags)."""
+    types = {
+        t for key in RELEASE_TYPE_KEYS for v in raw.get(key, []) for t in re.split(r"[;,/\s]+", v.casefold()) if t
+    }
+    if "soundtrack" in types or SOUNDTRACK.search(_first(raw, "album")):
+        return "soundtrack"
+    if any(v.strip().casefold() in ("1", "true", "yes") for v in raw.get("compilation", [])[:1]):
+        return "compilation"
+    if "compilation" in types:
+        return "compilation"
+    if nfc(_first(raw, "albumartist")).casefold() in VA_NAMES:
+        return "compilation"
+    if types & {"single", "ep"} and "album" not in types:
+        return "unofficial"
+    if SHORT_RELEASE.search(_first(raw, "album")):
+        return "unofficial"
+    return ""
+
+
+def album_kind(place: "Placement", track: Track) -> str:
+    """The kind of album a track is filed under: the folder's, else what its tags say."""
+    if place.kind == "compilation" and track.tag_kind == "soundtrack":
+        return "soundtrack"
+    if place.kind != "album":
+        return place.kind
+    return track.tag_kind or "album"
+
+
 # tag name candidates, compared case-insensitively (ID3/MP4 via easy mode, Vorbis, APE, ASF)
 TAG_KEYS = {
     "title": ("title", "wm/title"),
@@ -93,17 +161,53 @@ def _text_values(value) -> list[str]:
     return out
 
 
-def _read_tags(path: Path) -> tuple[dict[str, list[str]], float | None]:
+LOSSLESS_EXTS = {".flac", ".wav", ".aif", ".aiff", ".ape", ".wv"}  # and ALAC in .m4a (by codec)
+
+
+def audio_info(audio, path: Path) -> dict:
+    """Length and quality from the file header: sample rate, bit depth (lossless files only:
+    AAC reports 16 bits too) and bitrate in kbps. Unknown values are 0, so they aren't read again."""
+    info = audio.info
+    lossless = path.suffix.lower() in LOSSLESS_EXTS or getattr(info, "codec", "") == "alac"
+    rate = getattr(info, "sample_rate", 0) or 0
+    bits = getattr(info, "bits_per_sample", 0) or 0
+    bitrate = getattr(info, "bitrate", 0) or 0
+    return {
+        "duration": getattr(info, "length", None),
+        "sample_rate": int(rate),
+        "bit_depth": int(bits) if lossless else 0,
+        "bitrate": int(bitrate / 1000),
+    }
+
+
+def _read_info(path: Path) -> dict:
+    audio = mutagen.File(path)
+    if audio is None:
+        raise ValueError("unsupported file")
+    return audio_info(audio, path)
+
+
+def _easy_get(tags: ID3, key: str) -> list[str]:
+    try:
+        return EasyID3.Get[key](tags, key)
+    except (KeyError, ValueError):
+        return []
+
+
+def _read_tags(path: Path) -> tuple[dict[str, list[str]], dict]:
     audio = mutagen.File(path, easy=True)
     if audio is None:
         raise ValueError("unsupported file")
     raw: dict[str, list[str]] = {}
-    for key, value in (audio.tags or {}).items():
+    tags = audio.tags
+    if isinstance(tags, ID3) and not isinstance(tags, EasyID3):
+        # WAV and AIFF keep ID3 tags that easy mode leaves raw (TIT2, ...): name them as EasyID3 does
+        tags = {k: v for k in EasyID3.Get if (v := _easy_get(tags, k))}
+    for key, value in (tags or {}).items():
         values = _text_values(value)
         if values:
             raw[str(key).lower()] = values
-    duration = getattr(audio.info, "length", None)
-    return raw, duration
+    return raw, audio_info(audio, path)
 
 
 def _pick(raw: dict[str, list[str]], field: str) -> list[str]:
@@ -121,6 +225,15 @@ def _first(raw: dict[str, list[str]], field: str) -> str:
 def _number(text: str) -> int | None:
     match = re.match(r"\s*(\d+)", text or "")
     return int(match.group(1)) if match else None
+
+
+def full_date(text: str | None) -> date | None:
+    """A whole release date (2011-11-28, 2011.11.28), or None for just a year or a bad date."""
+    m = re.match(r"\s*(\d{4})[-./](\d{2})[-./](\d{2})", text or "")
+    try:
+        return date(int(m[1]), int(m[2]), int(m[3])) if m else None
+    except ValueError:
+        return None
 
 
 def _year(text: str) -> int | None:
@@ -272,7 +385,7 @@ class _Cache:
     def matches(self, track: Track, place: Placement) -> bool:
         """Whether the track is already filed the way its path says."""
         return (
-            self.album_kinds.get(track.album_id) == place.kind
+            self.album_kinds.get(track.album_id) == album_kind(place, track)
             and self.chart_folders.get(track.chart_id) == place.chart_folder
             and (
                 place.chart_folder is None
@@ -330,7 +443,7 @@ def _apply_tags(
     cache: _Cache,
     track: Track,
     raw: dict[str, list[str]],
-    duration: float | None,
+    info: dict,
     path: Path,
     place: Placement,
     cover_tries: dict[int, int],
@@ -339,13 +452,19 @@ def _apply_tags(
     track.artist_id = cache.artist((_pick(raw, "artist") or [""])[0][:500])
     track.track_no = _number(_first(raw, "tracknumber"))
     track.disc_no = _number(_first(raw, "discnumber"))
-    track.duration = duration
+    _set_info(track, info)
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
+    track.tag_kind = tag_kind(raw)
     _classify(cache, track, raw, path, place, cover_tries)
 
 
-# one new or changed file, read but not yet written: (rel, path, stat, placement, tags, duration)
-Pending = tuple[str, Path, os.stat_result, Placement, dict[str, list[str]], float | None]
+def _set_info(track: Track, info: dict) -> None:
+    track.duration = info["duration"]
+    track.sample_rate, track.bit_depth, track.bitrate = info["sample_rate"], info["bit_depth"], info["bitrate"]
+
+
+# one new or changed file, read but not yet written: (rel, path, stat, placement, tags, audio info)
+Pending = tuple[str, Path, os.stat_result, Placement, dict[str, list[str]], dict]
 
 
 def _store(
@@ -355,7 +474,7 @@ def _store(
     Returns (rel, track, is_new) for each; existing is left alone until the caller commits."""
     done: list[tuple[str, Track, bool]] = []
     genres: list[tuple[Track, set[int]]] = []
-    for rel, path, st, place, raw, duration in items:
+    for rel, path, st, place, raw, info in items:
         track = existing.get(rel)
         is_new = track is None
         if is_new:
@@ -363,7 +482,7 @@ def _store(
                           format=path.suffix.lower().lstrip("."))
             db.add(track)
         track.file_size, track.file_mtime, track.missing_at = st.st_size, st.st_mtime, None
-        _apply_tags(cache, track, raw, duration, path, place, cover_tries)
+        _apply_tags(cache, track, raw, info, path, place, cover_tries)
         genres.append((track, {cache.genre(g[:200]) for g in _pick(raw, "genre")}))
         done.append((rel, track, is_new))
     db.flush()
@@ -392,11 +511,16 @@ def _classify(
     if place.kind == "chart":  # "001 Artist - Title" -> "Artist - Title"
         stem = RANK_PREFIX.sub("", stem) or stem
     track.title = (_first(raw, "title") or stem)[:1000]
+    if track.tag_kind is None:
+        track.tag_kind = tag_kind(raw)
+    kind = album_kind(place, track)
     album_title = _first(raw, "album") or nfc(rel.parent.name) or ""
     album_artist = _first(raw, "albumartist") or (
-        VARIOUS_ARTISTS if place.kind == "compilation" else (_pick(raw, "artist") or [""])[0]
+        VARIOUS_ARTISTS if kind in ("compilation", "soundtrack") else (_pick(raw, "artist") or [""])[0]
     )
-    album = cache.album(place.kind, album_title[:500], cache.artist(album_artist[:500]), _year(_first(raw, "date")))
+    album = cache.album(kind, album_title[:500], cache.artist(album_artist[:500]), _year(_first(raw, "date")))
+    if album.release_date is None:
+        album.release_date = full_date(_first(raw, "date")) or full_date(raw.get("originaldate", [""])[0])
     if track.album_id is not None and track.album_id != album.id:
         cache.moves.setdefault(track.album_id, album.id)
     track.album_id = album.id
@@ -564,6 +688,26 @@ def _collect(
     return files
 
 
+def _fill_tag_kinds(db: Session, scope: str | None) -> None:
+    """Works out tag_kind from the stored tags where it is missing (songs scanned before it existed),
+    a chunk at a time; the scan then refiles the songs whose album kind changed."""
+    last = 0
+    while True:
+        check_cancel()
+        query = select(Track.id, Track.tag_json).where(Track.tag_kind.is_(None), Track.tag_json.is_not(None), Track.id > last)
+        if scope is not None:
+            query = query.where(in_folder(scope))
+        rows = db.execute(query.order_by(Track.id).limit(2000)).all()
+        if not rows:
+            return
+        db.execute(
+            update(Track),
+            [{"id": i, "tag_kind": tag_kind(raw or {})} for i, raw in rows],
+        )
+        db.commit()
+        last = rows[-1][0]
+
+
 def _run(job_id: int) -> None:
     try:
         _scan(job_id)
@@ -597,6 +741,7 @@ def _scan(job_id: int) -> None:
                 reset_albums = prune_orphans(db)
                 bump_library(db)
                 db.commit()
+        _fill_tag_kinds(db, scope)
         cache = _Cache(db)
         query = select(Track).options(defer(Track.tag_json))
         if scope is not None:
@@ -684,6 +829,13 @@ def _scan(job_id: int) -> None:
                             _classify(cache, track, raw, path, place, cover_tries)
                             db.flush()
                         changed = True
+                    if track.sample_rate is None:
+                        # scanned before quality was kept: read just the header, once
+                        try:
+                            _set_info(track, _read_info(path))
+                        except Exception:  # unreadable header: don't try on every scan
+                            track.sample_rate = track.bit_depth = track.bitrate = 0
+                        changed = True
                     if changed:
                         job.updated += 1
                         pending += 1
@@ -696,11 +848,11 @@ def _scan(job_id: int) -> None:
                 continue
             # new or changed: read it now, write it with the next batch
             try:
-                raw, duration = _read_tags(path)
+                raw, info = _read_tags(path)
             except Exception as exc:
                 file_error(rel, exc)
                 continue
-            batch.append((rel, path, st, place, raw, duration))
+            batch.append((rel, path, st, place, raw, info))
             if len(batch) >= BATCH:
                 store(batch)
                 batch = []
@@ -730,6 +882,7 @@ def _scan(job_id: int) -> None:
         if changed or last != "done" or scope is not None:
             _link_chart_duplicates(db)
             pruned_albums = prune_orphans(db, cache.moves)
+            update_album_quality(db)
         covers = _refresh_covers(db, root, reachable, cover_tries)
         banners = _find_banners(db, root)
         from .artist_images import folder_images  # imports scanner helpers
@@ -861,6 +1014,22 @@ def remove_covers(album_ids: list[int]) -> None:
     for album_id in album_ids:
         for size in COVER_SIZES:
             cover_file(album_id, size).unlink(missing_ok=True)
+
+
+def update_album_quality(db: Session) -> None:
+    """albums.quality from their songs: hires when every song is lossless and one goes past CD
+    quality (more than 16 bits or 48 kHz), lossless when every song is lossless, else none."""
+    db.execute(text("""
+        UPDATE albums a SET quality = s.q
+        FROM (
+            SELECT album_id,
+                   CASE WHEN count(*) FILTER (WHERE bit_depth > 0) < count(*) THEN NULL
+                        WHEN max(bit_depth) > 16 OR max(sample_rate) > 48000 THEN 'hires'
+                        ELSE 'lossless' END AS q
+            FROM tracks WHERE missing_at IS NULL AND album_id IS NOT NULL GROUP BY album_id
+        ) s
+        WHERE s.album_id = a.id AND a.quality IS DISTINCT FROM s.q
+    """))
 
 
 def bump_library(db: Session) -> None:

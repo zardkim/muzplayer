@@ -37,7 +37,7 @@ onMounted(async () => {
         role="tab"
         :aria-selected="tab === k"
         class="h-[38px] rounded-full px-4 text-[15px]"
-        :class="tab === k ? 'bg-ink text-white' : 'bg-surface'"
+        :class="tab === k ? 'bg-ink text-on-ink' : 'bg-surface'"
         @click="tab = k"
       >
         {{ t(`favorites.${k}`) }} {{ k === 'songs' ? items.length : albums.length }}
@@ -49,7 +49,7 @@ onMounted(async () => {
     </template>
     <template v-else>
     <div v-if="items.length" class="flex gap-2">
-      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-white" @click="player.playTracks(items, 0, { shuffle: false })">
+      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="player.playTracks(items, 0, { shuffle: false })">
         <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
       </button>
       <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="player.playTracks(items, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>

@@ -26,3 +26,13 @@ export function longDuration(seconds: number | null | undefined): string {
   if (h) return t('books.hours', { h })
   return t('books.minutes', { m: Math.max(m, seconds && seconds > 0 ? 1 : 0) })
 }
+
+/** "FLAC 24/96" for lossless songs, "MP3 320k" for the rest; just the format when unknown. */
+export function codec(track: { format: string; sample_rate?: number; bit_depth?: number; bitrate?: number }): string {
+  const name = track.format.toUpperCase()
+  if (track.bit_depth && track.sample_rate) {
+    const khz = track.sample_rate / 1000
+    return `${name} ${track.bit_depth}/${Number.isInteger(khz) ? khz : khz.toFixed(1)}`
+  }
+  return track.bitrate ? `${name} ${track.bitrate}k` : name
+}

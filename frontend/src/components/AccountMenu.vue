@@ -31,7 +31,7 @@ onUnmounted(() => document.removeEventListener('click', close))
     <button
       v-if="avatar"
       type="button"
-      class="grid size-10 place-items-center rounded-full bg-ink text-[15px] font-medium text-white"
+      class="grid size-10 place-items-center rounded-full bg-ink text-[15px] font-medium text-on-ink"
       :aria-label="t('nav.accountMenu')"
       :aria-expanded="open"
       @click="open = !open"

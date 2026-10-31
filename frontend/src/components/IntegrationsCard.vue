@@ -172,7 +172,7 @@ const field = 'h-12 min-w-0 rounded-full bg-surface px-4 text-base text-ink outl
         <button v-if="custom && state[`${aiKey}_set`]" type="button" class="self-start text-[12px] underline" @click="custom = false">{{ t('admin.modelPick') }}</button>
       </label>
       <div class="flex flex-wrap items-center gap-3">
-        <button type="submit" class="h-10 rounded-full bg-ink px-5 text-[15px] text-white disabled:opacity-40" :disabled="busy">{{ t('common.save') }}</button>
+        <button type="submit" class="h-10 rounded-full bg-ink px-5 text-[15px] text-on-ink disabled:opacity-40" :disabled="busy">{{ t('common.save') }}</button>
         <button v-if="state[`${aiKey}_set`]" type="button" class="text-[14px] text-muted underline" :disabled="busy" @click="clear(aiKey)">{{ t('admin.keyClear') }}</button>
       </div>
     </form>
@@ -212,7 +212,7 @@ const field = 'h-12 min-w-0 rounded-full bg-surface px-4 text-base text-ink outl
         />
       </label>
       <div class="flex flex-wrap items-center gap-3">
-        <button type="submit" class="h-10 rounded-full bg-ink px-5 text-[15px] text-white disabled:opacity-40" :disabled="busy || !keys.youtube_api_key.trim()">{{ t('common.save') }}</button>
+        <button type="submit" class="h-10 rounded-full bg-ink px-5 text-[15px] text-on-ink disabled:opacity-40" :disabled="busy || !keys.youtube_api_key.trim()">{{ t('common.save') }}</button>
         <button v-if="state.youtube_api_key_set" type="button" class="text-[14px] text-muted underline" :disabled="busy" @click="clear('youtube_api_key')">{{ t('admin.keyClear') }}</button>
       </div>
     </form>

@@ -45,6 +45,7 @@ const kinds = [
   { key: 'album', label: 'albums.kind_album' },
   { key: 'unofficial', label: 'albums.kind_unofficial' },
   { key: 'compilation', label: 'albums.kind_compilation' },
+  { key: 'soundtrack', label: 'albums.kind_soundtrack' },
 ]
 const sorts = [
   { key: 'recent', label: 'albums.sortRecent' },
@@ -65,7 +66,7 @@ const sorts = [
           :key="k.key"
           type="button"
           class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="kind === k.key ? 'border-ink bg-ink text-white' : 'border-line-strong bg-bg'"
+          :class="kind === k.key ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
           @click="router.replace({ query: { ...route.query, kind: k.key || undefined } })"
         >
           {{ t(k.label) }}

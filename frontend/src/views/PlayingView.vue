@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Disc3, ListPlus, MicVocal, MonitorPlay } from '@lucide/vue'
 import { coverGlow } from '../coverColor'
+import { codec } from '../format'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
@@ -12,6 +13,7 @@ import LikeButton from '../components/LikeButton.vue'
 import LyricsPanel from '../components/LyricsPanel.vue'
 import PageHeader from '../components/PageHeader.vue'
 import QueueList from '../components/QueueList.vue'
+import SpeedButton from '../components/SpeedButton.vue'
 import StarRating from '../components/StarRating.vue'
 
 // PC player: a page inside the sidebar and bars (the bottom bar keeps the controls). The song up top,
@@ -56,7 +58,7 @@ function videos() {
     <!-- the song -->
     <section
       class="relative flex items-end gap-8 overflow-hidden rounded-3xl p-6 lg:p-8"
-      :style="{ background: `linear-gradient(120deg, color-mix(in srgb, ${glow} 55%, white) 0%, color-mix(in srgb, ${glow} 18%, white) 100%)` }"
+      :style="{ background: `linear-gradient(120deg, color-mix(in srgb, ${glow} var(--glow-strong), var(--color-bg)) 0%, color-mix(in srgb, ${glow} var(--glow-soft), var(--color-bg)) 100%)` }"
     >
       <CoverArt
         :album-id="player.current.album_id"
@@ -68,32 +70,34 @@ function videos() {
       />
       <div class="flex min-w-0 flex-1 flex-col gap-4 pb-1">
         <div class="flex min-w-0 flex-col gap-1">
-          <span class="text-[12px] font-medium uppercase tracking-[0.18em] text-[#52525B]">{{ t('player.nowPlaying') }}</span>
+          <span class="text-[12px] font-medium uppercase tracking-[0.18em] text-soft">{{ t('player.nowPlaying') }}</span>
           <h1 class="line-clamp-2 text-[32px] font-extrabold leading-tight tracking-tight lg:text-[44px]">{{ player.current.title }}</h1>
-          <span class="flex min-w-0 flex-wrap items-center gap-x-2 text-[17px] text-[#3F3F46]">
+          <span class="flex min-w-0 flex-wrap items-center gap-x-2 text-[17px] text-soft">
             <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="truncate font-medium hover:underline">{{ player.current.artist }}</RouterLink>
             <span v-else class="truncate font-medium">{{ player.current.artist || t('common.unknownArtist') }}</span>
             <template v-if="player.current.album_id && player.current.album_kind !== 'chart' && player.current.album">
               <span aria-hidden="true">·</span>
               <RouterLink :to="{ name: 'album', params: { id: player.current.album_id } }" class="truncate font-light hover:underline">{{ player.current.album }}</RouterLink>
             </template>
-            <span class="rounded border border-black/15 px-1.5 text-[11px] uppercase tracking-wide">{{ player.current.format }}</span>
+            <template v-if="ui.playerPrefs.showYear && player.current.year"><span aria-hidden="true">·</span><span class="font-light">{{ player.current.year }}</span></template>
+            <span class="rounded border border-ink/15 px-1.5 text-[11px] uppercase tracking-wide">{{ ui.playerPrefs.showCodec ? codec(player.current) : player.current.format }}</span>
           </span>
         </div>
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <LikeButton :track="player.current" :size="24" box="size-11 bg-white/60" />
+          <LikeButton :track="player.current" :size="24" box="size-11 bg-bg/60" />
           <StarRating :value="library.rating(player.current)" :size="20" @rate="rate" />
+          <SpeedButton v-if="ui.playerPrefs.musicSpeed" />
           <span class="flex items-center gap-1">
-            <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-white/70" :aria-label="t('common.addToPlaylist')" :title="t('common.addToPlaylist')" @click="ui.playlistPicker = [player.current]">
+            <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-bg/70" :aria-label="t('common.addToPlaylist')" :title="t('common.addToPlaylist')" @click="ui.playlistPicker = [player.current]">
               <ListPlus :size="21" :stroke-width="1.3" />
             </button>
-            <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-white/70" :class="player.current.has_video ? '' : 'text-muted'" :aria-label="t('common.watchVideos')" :title="t('common.watchVideos')" @click="videos">
+            <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-bg/70" :class="player.current.has_video ? '' : 'text-muted'" :aria-label="t('common.watchVideos')" :title="t('common.watchVideos')" @click="videos">
               <MonitorPlay :size="20" :stroke-width="1.3" />
             </button>
-            <RouterLink v-if="player.current.album_id && player.current.album_kind !== 'chart'" :to="{ name: 'album', params: { id: player.current.album_id } }" class="grid size-10 place-items-center rounded-full hover:bg-white/70" :aria-label="t('common.goToAlbum')" :title="t('common.goToAlbum')">
+            <RouterLink v-if="player.current.album_id && player.current.album_kind !== 'chart'" :to="{ name: 'album', params: { id: player.current.album_id } }" class="grid size-10 place-items-center rounded-full hover:bg-bg/70" :aria-label="t('common.goToAlbum')" :title="t('common.goToAlbum')">
               <Disc3 :size="20" :stroke-width="1.3" />
             </RouterLink>
-            <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="grid size-10 place-items-center rounded-full hover:bg-white/70" :aria-label="t('common.goToArtist')" :title="t('common.goToArtist')">
+            <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="grid size-10 place-items-center rounded-full hover:bg-bg/70" :aria-label="t('common.goToArtist')" :title="t('common.goToArtist')">
               <MicVocal :size="20" :stroke-width="1.3" />
             </RouterLink>
           </span>
@@ -109,7 +113,7 @@ function videos() {
         type="button"
         role="tab"
         class="h-10 rounded-full px-5 text-[15px] transition-colors"
-        :class="ui.playerTab === tab ? 'bg-ink text-white' : 'bg-surface hover:bg-surface-2'"
+        :class="ui.playerTab === tab ? 'bg-ink text-on-ink' : 'bg-surface hover:bg-surface-2'"
         :aria-selected="ui.playerTab === tab"
         @click="ui.playerTab = tab"
       >

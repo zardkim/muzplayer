@@ -52,7 +52,7 @@ async function createAndAdd() {
         :placeholder="t('playlists.new')"
         class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink"
       />
-      <button type="submit" class="grid size-11 place-items-center rounded-full bg-ink text-white disabled:opacity-40" :disabled="!newName.trim()" :aria-label="t('common.create')">
+      <button type="submit" class="grid size-11 place-items-center rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="!newName.trim()" :aria-label="t('common.create')">
         <Plus :size="20" />
       </button>
     </form>
