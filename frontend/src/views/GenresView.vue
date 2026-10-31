@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
@@ -37,6 +37,24 @@ const sorted = computed(() =>
     ? [...items.value].sort((a, b) => b.track_count - a.track_count || a.name.localeCompare(b.name))
     : items.value,
 )
+// a few screenfuls first, more as the end comes near (a library can have hundreds of genres, each
+// tile with three covers: building them all at once, or while scrolling, makes a phone stutter)
+const PAGE = 36
+const count = ref(PAGE)
+const shown = computed(() => sorted.value.slice(0, count.value))
+watch(sort, () => (count.value = PAGE))
+const more = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+onMounted(() => {
+  observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && count.value < sorted.value.length) count.value += PAGE
+  }, { rootMargin: '1200px 0px' })
+  watch(more, (el, old) => {
+    if (old) observer?.unobserve(old)
+    if (el) observer?.observe(el)
+  }, { immediate: true })
+})
+onUnmounted(() => observer?.disconnect())
 // wide tiles for the four biggest genres (only when sorted by size and there are enough)
 const wide = computed(() => (sort.value === 'size' && items.value.length >= 8 ? 4 : 0))
 // fanned covers: back to front
@@ -65,7 +83,8 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
     <MergeSheet v-if="merging" kind="genre" @close="merging = false" @changed="load" />
 
     <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
-      <li v-for="(g, i) in sorted" :key="g.id" :class="i < wide ? 'col-span-2' : ''">
+      <!-- off-screen tiles are neither drawn nor painted (content-visibility): smooth scrolling on phones -->
+      <li v-for="(g, i) in shown" :key="g.id" class="[contain-intrinsic-size:auto_150px] [content-visibility:auto]" :class="i < wide ? 'col-span-2' : ''">
         <RouterLink
           :to="{ name: 'tracks', query: { genre: g.id } }"
           class="group relative block overflow-hidden rounded-2xl text-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
@@ -84,7 +103,8 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
               :src="coverUrl(c.id, 'thumb', c.v)"
               alt=""
               loading="lazy"
-              class="absolute bottom-0 right-0 aspect-square h-full rounded-lg object-cover shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out"
+              decoding="async"
+              class="absolute bottom-0 right-0 aspect-square h-full rounded-lg object-cover shadow-[0_3px_8px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out"
               :class="[FAN[k + 3 - Math.min(3, g.covers.length)], FAN_HOVER[k + 3 - Math.min(3, g.covers.length)]]"
             />
           </span>
@@ -92,5 +112,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
         </RouterLink>
       </li>
     </ul>
+    <!-- once this comes within 1200px, the next tiles are added (a new one after each batch) -->
+    <div v-if="shown.length < sorted.length" :key="shown.length" ref="more" class="h-px" aria-hidden="true" />
   </div>
 </template>
