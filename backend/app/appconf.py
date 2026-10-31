@@ -1,4 +1,4 @@
-"""Settings an admin changes in the app (AI banner and YouTube keys), kept in CONF_DIR/settings.json.
+"""Settings an admin changes in the app (AI and YouTube keys, sign-up), kept in CONF_DIR/settings.json.
 
 The file is readable by the app user only. Keys are never sent back to the browser or logged:
 the admin page only learns whether each one is set.
@@ -22,6 +22,7 @@ DEFAULTS = {
     "gemini_text_model": "",  # AI playlists; empty = DEFAULT_TEXT_MODELS
     "openai_text_model": "",
     "youtube_api_key": "",
+    "signup": "off",  # off | approval (an admin approves each new account) | open
 }
 SECRETS = ("gemini_api_key", "openai_api_key", "youtube_api_key")
 DEFAULT_MODELS = {"gemini": "gemini-nano-banana-2.1", "openai": "gpt-image-2.5-flare"}
@@ -68,6 +69,14 @@ def update(changes: dict[str, str]) -> None:
     os.replace(tmp, path)
     with _lock:
         _cache = data
+
+
+SIGNUP_MODES = ("off", "approval", "open")
+
+
+def signup_mode() -> str:
+    mode = get("signup")
+    return mode if mode in SIGNUP_MODES else "off"
 
 
 def provider() -> str:

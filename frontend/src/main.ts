@@ -42,6 +42,7 @@ async function start() {
   appConfig.needsSetup = !!config?.needs_setup
   appConfig.transcode = !!config?.transcode
   appConfig.aiPlaylists = !!config?.ai_playlists
+  appConfig.signup = config?.signup === 'approval' || config?.signup === 'open' ? config.signup : 'off'
   ;(window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ = config?.version
 
   const app = createApp(App).use(createPinia()).use(i18n).use(router)

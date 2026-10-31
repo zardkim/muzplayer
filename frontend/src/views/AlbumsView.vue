@@ -72,8 +72,9 @@ const sorts = [
           {{ t(k.label) }}
         </button>
       </div>
+      <!-- the sorts scroll in their own space; the view switch keeps its place beside them -->
       <div class="flex items-center gap-2">
-      <div class="-mr-5 flex min-w-0 flex-1 gap-1 overflow-x-auto pr-5 text-[14px] [scrollbar-width:none] md:mr-0 md:pr-0">
+      <div class="flex min-w-0 flex-1 gap-1 overflow-x-auto text-[14px] [scrollbar-width:none]">
         <button
           v-for="s in sorts"
           :key="s.key"
@@ -85,7 +86,7 @@ const sorts = [
           {{ t(s.label) }}
         </button>
       </div>
-      <ViewToggle page="albums" fallback="cover" class="ml-auto" />
+      <ViewToggle page="albums" fallback="cover" class="ml-auto flex-none" />
       </div>
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ t('albums.empty') }}</p>

@@ -52,7 +52,15 @@
     "setupSubmit": "Create admin account",
     "mismatch": "The passwords don't match.",
     "addTitle": "Add another account",
-    "addDesc": "{name} stays signed in on this device; switch back from the account menu."
+    "addDesc": "{name} stays signed in on this device; switch back from the account menu.",
+    "join": "Create an account",
+    "joinTitle": "Create an account",
+    "joinOpen": "Pick a username and password and start listening.",
+    "joinApproval": "An admin approves new accounts before you can log in.",
+    "joinSubmit": "Sign up",
+    "joinWaiting": "Request sent. You can log in once an admin approves it.",
+    "haveAccount": "I already have an account",
+    "displayName": "Name (shown)"
   },
   "errors": {
     "invalid_credentials": "Incorrect username or password.",
@@ -111,7 +119,10 @@
     "ai_no_songs": "No songs match. Try other words.",
     "page": "Something went wrong on this page: {text}",
     "no_report": "No eztag report (album card) in this album folder.",
-    "notes_unreachable": "Couldn't reach Bugs/Melon. Try again later."
+    "notes_unreachable": "Couldn't reach Bugs/Melon. Try again later.",
+    "pending_approval": "This account is waiting for an admin to approve it.",
+    "signup_closed": "Sign-up is closed.",
+    "too_many_signups": "Too many sign-ups. Try again later."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -189,7 +200,10 @@
     "section_mixes": "Mixes",
     "section_quick": "Recent · New albums · Playlists",
     "section_books": "Audiobooks in progress",
-    "section_newAlbums": "Recently added albums"
+    "section_newAlbums": "Recently added albums",
+    "random100": "Random 100",
+    "emptyList": "Nothing to play.",
+    "section_playlists": "Playlists (Random 100 · mine)"
   },
   "albums": {
     "title": "Albums",
@@ -570,7 +584,30 @@
     "aiTextModelHelp": "Text model for “Make with AI” (playlists). Empty uses the default. Every account can use it.",
     "searchIndex": "Rebuild search index",
     "searchIndexing": "Building the search index…",
-    "searchIndexHelp": "Each scan indexes songs, albums and artists for search (spacing ignored, Korean initials). Rebuild it all if search seems off."
+    "searchIndexHelp": "Each scan indexes songs, albums and artists for search (spacing ignored, Korean initials). Rebuild it all if search seems off.",
+    "signup": "Sign-up",
+    "signup_off": "Closed",
+    "signup_approval": "After admin approval",
+    "signup_open": "Open",
+    "signupHelp_off": "Accounts are made here only; the login page shows no sign-up.",
+    "signupHelp_approval": "Anyone can ask for an account on the login page; approve it here before they can log in.",
+    "signupHelp_open": "Anyone can make an account on the login page and use it right away. For an address reachable from outside your home, approval is safer.",
+    "signupSaved": "Sign-up setting saved.",
+    "pending": "Waiting",
+    "pendingCount": "{n} waiting",
+    "approve": "Approve",
+    "reject": "Turn down",
+    "approved": "Approved.",
+    "rejected": "Sign-up turned down.",
+    "rejectConfirm": "Turn down {name}'s sign-up?",
+    "deleteUser": "Delete",
+    "deleteUserConfirm": "Delete {name}'s account? Their playlists, likes, stars and history all go, and it can't be undone.",
+    "userDeleted": "Account deleted.",
+    "editUser": "Edit",
+    "userSaved": "Saved.",
+    "joinedCol": "Joined",
+    "lastLoginCol": "Last login",
+    "userSearch": "Search name or username"
   },
   "library": {
     "title": "My music",

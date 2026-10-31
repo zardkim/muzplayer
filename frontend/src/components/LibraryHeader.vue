@@ -34,9 +34,10 @@ const LABELS: Record<LibraryRoute, string> = {
         {{ t(LABELS[name]) }}
       </RouterLink>
     </nav>
-    <div v-if="sub || $slots.default" class="flex min-h-8 items-center justify-between gap-3">
-      <p class="text-[15px] font-light text-muted">{{ sub }}</p>
-      <slot />
+    <!-- on a narrow screen the controls go to their own line rather than squeeze the count -->
+    <div v-if="sub || $slots.default" class="flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <p class="whitespace-nowrap text-[15px] font-light text-muted">{{ sub }}</p>
+      <div v-if="$slots.default" class="ml-auto flex-none"><slot /></div>
     </div>
   </div>
 </template>

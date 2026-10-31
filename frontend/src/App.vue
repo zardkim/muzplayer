@@ -174,6 +174,10 @@ function parentPage(): RouteLocationRaw {
   return parents[String(route.name)] ?? '/'
 }
 // Settings → player: open the player when a list starts playing; keep the screen on while it's open
+// a tucked-away player bar comes back when something starts playing
+watch(() => [player.playStarts, player.playing] as const, ([, playing], [startsBefore]) => {
+  if (playing || player.playStarts !== startsBefore) ui.barHidden = false
+})
 watch(() => player.playStarts, () => {
   if (ui.playerPrefs.openOnPlay && player.mode === 'music' && !ui.playerOpen && route.name !== 'playing') openPlayer()
 })
@@ -320,7 +324,15 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 
       <!-- phone: floating mini player + tab bar -->
       <div class="bottom-safe pointer-events-none fixed inset-x-3 z-30 flex flex-col gap-2.5 md:hidden">
-        <div class="pointer-events-auto"><PlayerBar mobile /></div>
+        <div v-if="!ui.barHidden" class="pointer-events-auto"><PlayerBar mobile /></div>
+        <!-- tucked away (swiped down): a small button brings it back -->
+        <div v-else class="pointer-events-auto flex justify-end">
+          <button type="button" class="glass flex h-12 items-center gap-1.5 rounded-full pl-1.5 pr-3" :aria-label="t('player.showBar')" @click="ui.barHidden = false">
+            <CoverArt v-if="player.current && player.mode === 'music'" :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" class="size-9" />
+            <span v-else class="grid size-9 place-items-center"><PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="18" :stroke="1.6" /></span>
+            <ChevronUp :size="18" :stroke-width="1.6" />
+          </button>
+        </div>
         <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] items-center rounded-full px-1.5" :style="{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }">
           <RouterLink
             v-for="tab in tabs"

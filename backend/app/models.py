@@ -32,6 +32,9 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(100), default="")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # signed up and waiting for an admin to approve (can't log in meanwhile; api/auth.py signup)
+    pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # off: plays leave no history or play count (listening privately)
     record_history: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # home screen rows in order, each shown or not: [{"key": "recent", "on": true}, ...]; NULL = default

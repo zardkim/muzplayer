@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .. import ai_playlist
 from ..ai_banner import AiError
 from ..db import get_db
-from ..models import Favorite, PlayCount, PlayHistory, Playlist, PlaylistTrack, Track, User
+from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistTrack, Track, User
 from ..security import api_error, current_user
 from ..smart import Rules, apply_rules
 from .library import track_out, track_query
@@ -66,7 +66,18 @@ def list_playlists(user: User = Depends(current_user), db: Session = Depends(get
         .group_by(Playlist.id)
         .order_by(Playlist.updated_at.desc())
     )
-    return {"items": [playlist_out(p, None if p.kind == "smart" else c) for p, c in rows]}
+    rows = rows.all()
+    # a cover for each list's card (home screen): its first song's album that has one
+    first = (
+        select(PlaylistTrack.playlist_id, Album.id, Album.cover_version)
+        .join(Track, Track.id == PlaylistTrack.track_id)
+        .join(Album, Album.id == Track.album_id)
+        .where(PlaylistTrack.playlist_id.in_([p.id for p, _ in rows]), Album.cover_path.is_not(None))
+        .order_by(PlaylistTrack.playlist_id, PlaylistTrack.position)
+        .distinct(PlaylistTrack.playlist_id)
+    )
+    covers = {pid: {"id": aid, "v": v} for pid, aid, v in db.execute(first)} if rows else {}
+    return {"items": [{**playlist_out(p, None if p.kind == "smart" else c), "cover": covers.get(p.id)} for p, c in rows]}
 
 
 @router.post("/playlists", status_code=201)

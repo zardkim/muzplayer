@@ -202,6 +202,7 @@ export interface Playlist {
   kind: 'manual' | 'smart'
   rules: SmartRules | null
   track_count: number | null // null for a smart playlist until it is opened
+  cover?: { id: number; v: number } | null // its first song's album cover (the list's card)
   created_at: string
   updated_at: string
 }
@@ -257,6 +258,9 @@ export interface User {
   is_active: boolean
   record_history: boolean // off: plays leave no history or play count
   home_sections: { key: string; on: boolean }[] | null // home rows in order; null = the default
+  pending?: boolean // signed up, waiting for an admin to approve
+  created_at?: string | null
+  last_login_at?: string | null
 }
 
 export interface ScanJob {

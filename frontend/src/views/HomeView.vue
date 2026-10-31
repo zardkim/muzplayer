@@ -16,6 +16,7 @@ import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
 import OnThisDay from '../components/OnThisDay.vue'
 import PageHeader from '../components/PageHeader.vue'
+import PlaylistCircles from '../components/PlaylistCircles.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 
 const { t } = useI18n()
@@ -83,6 +84,7 @@ const tabs = computed(() => [
     <!-- rows in the order this person chose (Settings → home screen) -->
     <template v-for="key in rows" :key="key">
       <BannerCarousel v-if="key === 'banners' && featured.length" :items="featured" size="compact" />
+      <PlaylistCircles v-else-if="key === 'playlists'" />
       <OnThisDay v-else-if="key === 'onThisDay'" />
       <section v-else-if="key === 'mixes' && mixes.length" class="flex flex-col gap-3">
         <h2 class="text-[22px] font-bold">{{ t('home.mixes') }}</h2>

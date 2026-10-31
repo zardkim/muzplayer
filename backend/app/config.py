@@ -30,7 +30,7 @@ class Settings:
     conf_dir: Path = Path(os.getenv("CONF_DIR", "/conf"))
     static_dir: Path = Path(os.getenv("STATIC_DIR", "/app/static"))
     cookie_secure: bool = _bool("COOKIE_SECURE", True)
-    session_days: int = int(os.getenv("SESSION_DAYS", "30"))
+    session_days: int = int(os.getenv("SESSION_DAYS", "60"))
     scan_interval_minutes: int = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))  # 0 = manual only
     default_locale: str = os.getenv("DEFAULT_LOCALE", "ko")
     # converting songs (quality, WMA/APE, levelling on the server): the image has its own ffmpeg

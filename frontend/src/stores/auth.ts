@@ -55,6 +55,14 @@ export const useAuth = defineStore('auth', () => {
   }
 
   // a fresh install: the first account is the admin
+  /** A new account from the login page (when an admin allows it). True when it waits for approval. */
+  async function signup(username: string, displayName: string, password: string): Promise<boolean> {
+    const r = await api<User | { pending: true }>('/auth/signup', { method: 'POST', body: { username, display_name: displayName, password } })
+    if ('pending' in r && r.pending && !('id' in r)) return true
+    user.value = r as User
+    return false
+  }
+
   async function setup(username: string, password: string) {
     user.value = await api<User>('/auth/setup', { method: 'POST', body: { username, password } })
   }
@@ -79,5 +87,5 @@ export const useAuth = defineStore('auth', () => {
     user.value = await api<User>('/auth/me', { method: 'PATCH', body })
   }
 
-  return { user, checked, fetchMe, login, setup, logout, updateSettings, accounts, loadAccounts, switchTo }
+  return { user, checked, fetchMe, login, setup, signup, logout, updateSettings, accounts, loadAccounts, switchTo }
 })

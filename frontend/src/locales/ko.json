@@ -52,7 +52,15 @@
     "setupSubmit": "관리자 계정 만들기",
     "mismatch": "비밀번호가 서로 다릅니다.",
     "addTitle": "다른 계정 추가",
-    "addDesc": "{name} 계정은 이 기기에 그대로 남아, 계정 메뉴에서 바로 전환할 수 있습니다."
+    "addDesc": "{name} 계정은 이 기기에 그대로 남아, 계정 메뉴에서 바로 전환할 수 있습니다.",
+    "join": "계정 만들기",
+    "joinTitle": "계정 만들기",
+    "joinOpen": "아이디와 비밀번호를 정하면 바로 쓸 수 있습니다.",
+    "joinApproval": "신청하면 관리자가 승인한 뒤 로그인할 수 있습니다.",
+    "joinSubmit": "가입하기",
+    "joinWaiting": "가입 신청을 보냈습니다. 관리자가 승인하면 로그인할 수 있습니다.",
+    "haveAccount": "이미 계정이 있어요",
+    "displayName": "이름(표시용)"
   },
   "errors": {
     "invalid_credentials": "아이디 또는 비밀번호가 올바르지 않습니다.",
@@ -111,7 +119,10 @@
     "ai_no_songs": "조건에 맞는 곡이 없습니다. 다르게 적어 보세요.",
     "page": "화면을 그리다 오류가 났습니다: {text}",
     "no_report": "이 앨범 폴더에 eztag 리포트(앨범카드)가 없습니다.",
-    "notes_unreachable": "벅스·멜론에 연결하지 못했습니다. 잠시 후 다시 해 보세요."
+    "notes_unreachable": "벅스·멜론에 연결하지 못했습니다. 잠시 후 다시 해 보세요.",
+    "pending_approval": "관리자 승인을 기다리는 계정입니다.",
+    "signup_closed": "지금은 가입을 받지 않습니다.",
+    "too_many_signups": "가입 신청이 너무 많습니다. 잠시 후 다시 해 주세요."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -189,7 +200,10 @@
     "section_mixes": "믹스",
     "section_quick": "최근 재생 · 새 앨범 · 플레이리스트",
     "section_books": "이어 듣는 오디오북",
-    "section_newAlbums": "최근 추가된 앨범"
+    "section_newAlbums": "최근 추가된 앨범",
+    "random100": "랜덤 100",
+    "emptyList": "재생할 곡이 없습니다.",
+    "section_playlists": "플레이리스트 (랜덤 100 · 내 플레이리스트)"
   },
   "albums": {
     "title": "앨범",
@@ -570,7 +584,30 @@
     "aiTextModelHelp": "‘AI로 만들기’(재생목록)에 쓰는 글 모델입니다. 비워 두면 기본값을 씁니다. 가족 계정 모두 쓸 수 있습니다.",
     "searchIndex": "검색 색인 다시 만들기",
     "searchIndexing": "검색 색인을 만드는 중…",
-    "searchIndexHelp": "스캔할 때 곡·앨범·아티스트의 검색 색인(띄어쓰기 무시, 초성 검색)을 만듭니다. 검색이 이상할 때 전체를 다시 만듭니다."
+    "searchIndexHelp": "스캔할 때 곡·앨범·아티스트의 검색 색인(띄어쓰기 무시, 초성 검색)을 만듭니다. 검색이 이상할 때 전체를 다시 만듭니다.",
+    "signup": "회원가입",
+    "signup_off": "받지 않음",
+    "signup_approval": "관리자 승인 후 사용",
+    "signup_open": "바로 사용",
+    "signupHelp_off": "계정은 여기서만 만듭니다. 로그인 화면에 가입 버튼이 보이지 않습니다.",
+    "signupHelp_approval": "누구나 로그인 화면에서 가입 신청을 할 수 있고, 여기서 승인해야 로그인할 수 있습니다.",
+    "signupHelp_open": "누구나 로그인 화면에서 계정을 만들고 바로 쓸 수 있습니다. 집 밖에서 열리는 주소라면 승인 방식을 권합니다.",
+    "signupSaved": "회원가입 설정을 저장했습니다.",
+    "pending": "승인 대기",
+    "pendingCount": "승인 대기 {n}",
+    "approve": "승인",
+    "reject": "거절",
+    "approved": "승인했습니다.",
+    "rejected": "가입 신청을 거절했습니다.",
+    "rejectConfirm": "{name}의 가입 신청을 거절할까요?",
+    "deleteUser": "삭제",
+    "deleteUserConfirm": "{name} 계정을 삭제할까요? 그 사람의 재생목록·좋아요·별점·기록이 모두 지워지고 되돌릴 수 없습니다.",
+    "userDeleted": "계정을 삭제했습니다.",
+    "editUser": "편집",
+    "userSaved": "저장했습니다.",
+    "joinedCol": "가입",
+    "lastLoginCol": "최근 로그인",
+    "userSearch": "이름·아이디 검색"
   },
   "library": {
     "title": "내 음악",

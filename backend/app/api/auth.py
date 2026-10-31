@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -5,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, ai_playlist, transcode, youtube
+from .. import ai_banner, ai_playlist, appconf, transcode, youtube
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -39,6 +40,9 @@ def user_out(user: User) -> dict:
         "is_active": user.is_active,
         "record_history": user.record_history,
         "home_sections": user.home_sections,
+        "pending": user.pending,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
     }
 
 
@@ -56,9 +60,10 @@ def get_config(db: Session = Depends(get_db, scope="function")):
         "audiobooks": settings.audiobook_dir is not None,
         "ai_banners": ai_banner.configured(),
         "youtube_search": youtube.configured(),  # in-app video search; without it links are pasted
-        "needs_setup": not has_users(db),
-        "transcode": transcode.available(),
-        "ai_playlists": ai_playlist.configured(),  # the AI key an admin set for banners  # stream quality, WMA/APE, levelling on the server  # a fresh install: the login page makes the first (admin) account
+        "needs_setup": not has_users(db),  # a fresh install: the login page makes the first (admin) account
+        "transcode": transcode.available(),  # stream quality, WMA/APE, levelling on the server
+        "ai_playlists": ai_playlist.configured(),  # the AI key an admin set for banners
+        "signup": appconf.signup_mode(),  # off | approval | open (admin page)
     }
 
 
@@ -93,7 +98,7 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
         raise api_error(401, "invalid_credentials")
     check_password(db, user, body.password)
     if not user.is_active:
-        raise api_error(403, "account_disabled")
+        raise api_error(403, "pending_approval" if user.pending else "account_disabled")
     others = others_on_device(db, request)
     current = request.cookies.get(COOKIE_NAME)
     signed_in = session_user(db, current) if body.add and current else None
@@ -118,6 +123,7 @@ def _cookie(response: Response, name: str, value: str) -> None:
 
 def start_session(db: Session, user: User, response: Response) -> None:
     token, _ = create_session(db, user.id)
+    user.last_login_at = now()
     db.commit()
     _cookie(response, COOKIE_NAME, token)
 
@@ -210,6 +216,55 @@ def setup(body: SetupIn, response: Response, db: Session = Depends(get_db, scope
     )
     db.add(user)
     db.flush()
+    start_session(db, user, response)
+    return user_out(user)
+
+
+# ---- sign-up (when an admin turned it on: open, or each account approved first) ----
+class SignupIn(BaseModel):
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    password: str = Field(min_length=8, max_length=256)
+    display_name: str = Field("", max_length=100)
+
+
+SIGNUPS_PER_HOUR = 5  # from one address: a public page shouldn't be a way to fill the user table
+_signups: dict[str, list[float]] = {}
+
+
+def _signup_allowed(ip: str) -> bool:
+    cutoff = time.time() - 3600
+    recent = [t for t in _signups.get(ip, []) if t > cutoff]
+    _signups[ip] = recent
+    if len(recent) >= SIGNUPS_PER_HOUR:
+        return False
+    recent.append(time.time())
+    return True
+
+
+@router.post("/auth/signup", status_code=201)
+def signup(body: SignupIn, request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
+    """A new (non-admin) account. Open: signed in at once. Approval: it waits for an admin
+    ({"pending": true}) and can't log in until approved."""
+    mode = appconf.signup_mode()
+    if mode == "off" or not has_users(db):
+        raise api_error(403, "signup_closed")
+    if not _signup_allowed(request.client.host if request.client else "?"):
+        raise api_error(429, "too_many_signups")
+    if db.scalar(select(User.id).where(func.lower(User.username) == body.username.lower())) is not None:
+        raise api_error(409, "username_taken")
+    pending = mode == "approval"
+    user = User(
+        username=body.username,
+        password_hash=hash_password(body.password),
+        display_name=body.display_name.strip() or body.username,
+        is_active=not pending,
+        pending=pending,
+    )
+    db.add(user)
+    db.flush()
+    if pending:
+        db.commit()
+        return {"pending": True}
     start_session(db, user, response)
     return user_out(user)
 

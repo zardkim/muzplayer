@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, RefreshCw } from '@lucide/vue'
 import { api } from '../api'
@@ -146,7 +146,10 @@ async function findPhotos() {
 }
 
 async function loadUsers() {
-  users.value = (await api<{ items: User[] }>('/admin/users')).items
+  const [u, sm] = await Promise.all([api<{ items: User[] }>('/admin/users'), api<{ mode: SignupMode }>('/admin/signup')])
+  // sign-ups waiting for approval first
+  users.value = [...u.items].sort((a, b) => Number(!!b.pending) - Number(!!a.pending))
+  signupMode.value = sm.mode
 }
 
 onMounted(() => {
@@ -263,6 +266,50 @@ async function patch(user: User, body: Record<string, unknown>, done?: string) {
   } catch (e) {
     ui.notify(errorMessage(e), true)
   }
+}
+
+// sign-up from the login page: off, approved by an admin, or open
+type SignupMode = 'off' | 'approval' | 'open'
+const signupMode = ref<SignupMode>('off')
+async function setSignup(mode: SignupMode) {
+  try {
+    signupMode.value = (await api<{ mode: SignupMode }>('/admin/signup', { method: 'PUT', body: { mode } })).mode
+    appConfig.signup = signupMode.value
+    ui.notify(t('admin.signupSaved'))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: '2-digit', month: '2-digit', day: '2-digit' }) : '–')
+const userFilter = ref('')
+const shownUsers = computed(() => {
+  const q = userFilter.value.trim().toLowerCase()
+  return q ? users.value.filter((u) => `${u.display_name} ${u.username}`.toLowerCase().includes(q)) : users.value
+})
+const pendingCount = computed(() => users.value.filter((u) => u.pending).length)
+async function removeUser(user: User) {
+  if (!confirm(t(user.pending ? 'admin.rejectConfirm' : 'admin.deleteUserConfirm', { name: user.display_name }))) return
+  try {
+    await api(`/admin/users/${user.id}`, { method: 'DELETE' })
+    ui.notify(t(user.pending ? 'admin.rejected' : 'admin.userDeleted'))
+    loadUsers()
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+// editing a name or the admin role
+const editFor = ref<User | null>(null)
+const editForm = ref({ display_name: '', is_admin: false })
+function openEdit(user: User) {
+  editFor.value = user
+  editForm.value = { display_name: user.display_name, is_admin: user.is_admin }
+}
+function submitEdit() {
+  if (!editFor.value) return
+  const body: Record<string, unknown> = { display_name: editForm.value.display_name }
+  if (editFor.value.id !== auth.user?.id) body.is_admin = editForm.value.is_admin
+  patch(editFor.value, body, t('admin.userSaved'))
+  editFor.value = null
 }
 
 const resetFor = ref<User | null>(null)
@@ -464,22 +511,36 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
 
     <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold">{{ t('admin.users') }}</h2>
+        <h2 class="text-xl font-bold">{{ t('admin.users') }}<span v-if="pendingCount" class="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-medium text-white">{{ t('admin.pendingCount', { n: pendingCount }) }}</span></h2>
         <button type="button" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm" @click="adding = true"><Plus :size="16" />{{ t('admin.addUser') }}</button>
       </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="flex items-center gap-2.5 text-sm">
+          {{ t('admin.signup') }}
+          <select :value="signupMode" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setSignup(($event.target as HTMLSelectElement).value as SignupMode)">
+            <option value="off">{{ t('admin.signup_off') }}</option>
+            <option value="approval">{{ t('admin.signup_approval') }}</option>
+            <option value="open">{{ t('admin.signup_open') }}</option>
+          </select>
+        </label>
+        <input v-if="users.length > 6" v-model="userFilter" type="search" :placeholder="t('admin.userSearch')" class="h-10 min-w-0 flex-1 rounded-full bg-surface px-4 text-sm outline-none focus:ring-2 focus:ring-ink sm:max-w-60" />
+      </div>
+      <p class="-mt-1 text-[13px] font-light text-muted">{{ t(`admin.signupHelp_${signupMode}`) }}</p>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[640px] text-sm">
+        <table class="w-full min-w-[820px] whitespace-nowrap text-sm">
           <thead>
             <tr class="border-b border-line text-left text-xs tracking-wide text-subtle">
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.nameCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.idCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.roleCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.stateCol') }}</th>
+              <th class="px-3 pb-2.5 font-medium">{{ t('admin.joinedCol') }}</th>
+              <th class="px-3 pb-2.5 font-medium">{{ t('admin.lastLoginCol') }}</th>
               <th class="px-3 pb-2.5"><span class="sr-only">{{ t('common.moreActions') }}</span></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(u, i) in users" :key="u.id" class="border-b border-surface">
+            <tr v-for="(u, i) in shownUsers" :key="u.id" class="border-b border-surface" :class="u.pending ? 'bg-accent-soft/60' : ''">
               <td class="px-3 py-2.5">
                 <span class="flex items-center gap-2.5">
                   <span class="grid size-8 place-items-center rounded-full text-[13px] font-medium text-white" :style="{ background: u.is_active ? avatarColors[i % avatarColors.length] : '#A1A1AA' }">{{ u.display_name.slice(0, 1).toUpperCase() }}</span>
@@ -490,9 +551,16 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
               <td class="px-3 py-2.5">
                 <span class="rounded-full px-2.5 py-1 text-xs" :class="u.is_admin ? 'bg-accent-soft text-accent-strong' : 'bg-surface text-muted'">{{ u.is_admin ? t('admin.roleAdmin') : t('admin.roleUser') }}</span>
               </td>
-              <td class="px-3 py-2.5" :class="u.is_active ? '' : 'text-muted'">{{ u.is_active ? t('admin.active') : t('admin.inactive') }}</td>
+              <td class="px-3 py-2.5" :class="u.pending ? 'font-medium text-accent-strong' : u.is_active ? '' : 'text-muted'">{{ u.pending ? t('admin.pending') : u.is_active ? t('admin.active') : t('admin.inactive') }}</td>
+              <td class="px-3 py-2.5 font-display text-[13px] text-muted">{{ day(u.created_at) }}</td>
+              <td class="px-3 py-2.5 font-display text-[13px] text-muted" :title="u.last_login_at ? dateTime(u.last_login_at) : undefined">{{ day(u.last_login_at) }}</td>
               <td class="px-3 py-2.5">
-                <span class="flex justify-end gap-2">
+                <span v-if="u.pending" class="flex justify-end gap-2">
+                  <button type="button" class="h-9 rounded-full bg-ink px-3.5 text-[13px] text-on-ink" @click="patch(u, { is_active: true }, t('admin.approved'))">{{ t('admin.approve') }}</button>
+                  <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] hover:text-danger" @click="removeUser(u)">{{ t('admin.reject') }}</button>
+                </span>
+                <span v-else class="flex justify-end gap-2">
+                  <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px]" @click="openEdit(u)">{{ t('admin.editUser') }}</button>
                   <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px]" @click="resetFor = u">{{ t('admin.resetPassword') }}</button>
                   <button
                     v-if="u.id !== auth.user?.id"
@@ -502,6 +570,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
                   >
                     {{ u.is_active ? t('admin.disable') : t('admin.enable') }}
                   </button>
+                  <button v-if="u.id !== auth.user?.id" type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] text-danger" @click="removeUser(u)">{{ t('admin.deleteUser') }}</button>
                 </span>
               </td>
             </tr>
@@ -518,6 +587,15 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <label class="flex items-center gap-2.5 text-sm"><input v-model="form.is_admin" type="checkbox" class="size-4 accent-ink" />{{ t('admin.makeAdmin') }}</label>
         <p v-if="formError" role="alert" class="text-[13px] text-danger">{{ formError }}</p>
         <button type="submit" class="mt-1 h-12 rounded-full bg-ink text-on-ink">{{ t('common.create') }}</button>
+      </form>
+    </BaseModal>
+
+    <BaseModal v-if="editFor" :title="t('admin.editUser')" @close="editFor = null">
+      <form class="flex flex-col gap-3.5" @submit.prevent="submitEdit">
+        <p class="text-[13px] text-muted">{{ editFor.username }}</p>
+        <label class="flex flex-col gap-1.5 text-[13px] text-muted">{{ t('admin.displayName') }}<input v-model="editForm.display_name" maxlength="100" required :class="field" /></label>
+        <label v-if="editFor.id !== auth.user?.id" class="flex items-center gap-2.5 text-sm"><input v-model="editForm.is_admin" type="checkbox" class="size-4 accent-ink" />{{ t('admin.makeAdmin') }}</label>
+        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
 

@@ -30,18 +30,20 @@ const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
 
-// phone mini player: swipe sideways for the next / previous song, up to open the player
+// phone mini player: swipe sideways for the next / previous song, up to open the player, down to
+// tuck it away (App.vue then shows a small button; it comes back by itself when something starts)
 const slide = ref(0)
 const sliding = ref(false)
 const swipe = useSwipe({
   axes: ['x', 'y'],
-  allow: (axis, _, dy) => axis === 'x' ? !isBook.value && !!player.current : dy < 0,
+  allow: (axis) => axis === 'x' ? !isBook.value && !!player.current : true,
   move: (axis, dx) => {
     if (axis === 'x') slide.value = dx * 0.6
   },
   end: ({ axis, dx, dy, fast }) => {
     if (axis === 'y') {
-      if (dy < -30) ui.playerOpen = true
+      if (dy < -30 && (player.current || isBook.value)) ui.playerOpen = true
+      else if (dy > 30) ui.barHidden = true
       return
     }
     const go = Math.abs(dx) > 70 || (fast && Math.abs(dx) > 25)
@@ -109,7 +111,8 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       </span>
     </template>
     <template v-else>
-      <span class="flex-1 pl-3 text-[15px] font-light text-muted">{{ t('player.notPlaying') }}</span>
+      <span class="min-w-0 flex-1 truncate pl-3 text-[15px] font-light text-muted">{{ t('player.notPlaying') }}</span>
+      <button type="button" class="grid size-11 place-items-center text-muted" :aria-label="t('player.hideBar')" @click="ui.barHidden = true"><ChevronDown :size="20" :stroke-width="1.6" /></button>
       <span class="grid size-11 place-items-center text-subtle"><PlayerIcons name="play" /></span>
       <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.queue')" @click="ui.queueOpen = true"><QueueIcon /></button>
     </template>

@@ -262,7 +262,9 @@ def update_user(
         user.is_admin = body.is_admin
     if body.is_active is not None:
         user.is_active = body.is_active
-        if not body.is_active:
+        if body.is_active:
+            user.pending = False  # approving a sign-up
+        else:
             delete_user_sessions(db, user.id)
     if body.password is not None:
         user.password_hash = hash_password(body.password)
@@ -271,6 +273,36 @@ def update_user(
         delete_user_sessions(db, user.id)
     db.commit()
     return user_out(user)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, admin: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Removes an account and everything that was only its own (playlists, likes, stars, history,
+    progress). A sign-up that isn't approved is turned down this way too."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise api_error(404, "not_found")
+    if user.id == admin.id:
+        raise api_error(400, "cannot_change_self")
+    db.delete(user)
+    db.commit()
+
+
+class SignupModeIn(BaseModel):
+    mode: str = Field(pattern="^(off|approval|open)$")
+
+
+@router.get("/signup")
+def get_signup(_: User = Depends(admin_user)):
+    return {"mode": appconf.signup_mode()}
+
+
+@router.put("/signup")
+def set_signup(body: SignupModeIn, _: User = Depends(admin_user)):
+    """Who may make an account on the login page: nobody (off), anyone once an admin approves it,
+    or anyone."""
+    appconf.update({"signup": body.mode})
+    return {"mode": appconf.signup_mode()}
 
 
 def integrations_out() -> dict:

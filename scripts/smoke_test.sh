@@ -177,6 +177,26 @@ check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -
 check "video needs a YouTube link" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"not a youtube link\",\"kind\":\"mv\",\"album_id\":$aid}")" 400
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
 
+# sign-up: closed by default; with approval an account waits, then logs in once approved
+J="$TMP/join.txt"
+signup() { curl -s -c "$J" -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/signup" -H 'content-type: application/json' -d "{\"username\":\"$1\",\"password\":\"joinpass123\"}"; }
+check "sign-up closed by default" "$(signup smokejoin1)" 403
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/signup" -H 'content-type: application/json' -d '{"mode":"approval"}'
+check "sign-up mode shown to the login page" "$(curl -s "$BASE/config" | j 'd["signup"]')" approval
+check "sign-up asks for approval" "$(signup smokejoin1)" 201
+check "waiting account can't log in" "$(curl -s -X POST "$BASE/auth/login" -H 'content-type: application/json' -d '{"username":"smokejoin1","password":"joinpass123"}' | j 'd["detail"]')" pending_approval
+jid=$(curl -s -b "$A" "$BASE/admin/users" | j '[u["id"] for u in d["items"] if u["username"]=="smokejoin1"][0]')
+check "approve sign-up" "$(curl -s -b "$A" -X PATCH "$BASE/admin/users/$jid" -H 'content-type: application/json' -d '{"is_active":true}' | j '(d["is_active"], d["pending"])')" "(True, False)"
+check "approved account logs in" "$(login "$J" smokejoin1 joinpass123)" 200
+check "session cookie lasts 60 days" "$(curl -s -o /dev/null -D - -X POST "$BASE/auth/login" -H 'content-type: application/json' -d '{"username":"smokejoin1","password":"joinpass123"}' | grep -io 'max-age=[0-9]*' | head -1)" "Max-Age=5184000"
+check "only admins delete accounts" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/admin/users/$jid")" 403
+check "delete account" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/admin/users/$jid")" 204
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/signup" -H 'content-type: application/json' -d '{"mode":"open"}'
+check "open sign-up signs in at once" "$(signup smokejoin2)/$(curl -s -b "$J" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" "201/200"
+jid=$(curl -s -b "$A" "$BASE/admin/users" | j '[u["id"] for u in d["items"] if u["username"]=="smokejoin2"][0]')
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/admin/users/$jid"
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/signup" -H 'content-type: application/json' -d '{"mode":"off"}'
+
 # duplicate artists/genres and album descriptions: admin only
 check "duplicate names admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/duplicates/artist")" 403
 check "duplicate name suggestions" "$(curl -s -b "$A" "$BASE/admin/duplicates/genre" | j 'sorted(d)')" "['groups', 'merged']"
