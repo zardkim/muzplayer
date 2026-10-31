@@ -55,7 +55,8 @@ watch(() => lyrics.lyrics, async () => {
   >
     <div v-if="wash" class="pointer-events-none absolute inset-0 transition-[background] duration-500" :style="{ background: wash }" aria-hidden="true" />
     <!-- data-no-swipe: a swipe here scrolls the lyrics, it doesn't close the player (swipe.ts) -->
-    <div ref="box" data-no-swipe class="relative h-full overflow-y-auto overscroll-contain [scrollbar-width:none]" :class="[large ? 'px-8' : 'px-6', lyrics.lyrics?.synced ? '' : 'py-10']">
+    <!-- lines fade out towards the top and bottom edges instead of running into what is around -->
+    <div ref="box" data-no-swipe class="relative h-full overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,transparent,black_14%,black_86%,transparent)] [scrollbar-width:none]" :class="[large ? 'px-8' : 'px-6', lyrics.lyrics?.synced ? '' : 'py-10']">
       <p v-if="lyrics.loading" class="pt-10 text-center text-[15px] text-muted">{{ t('player.lyricsLoading') }}</p>
       <p v-else-if="!lyrics.lyrics?.synced && !lyrics.lyrics?.plain" class="pt-10 text-center text-[15px] text-muted">{{ t('player.noLyrics') }}</p>
       <!-- synced: room above and below (a share of the panel's height) so the first and last lines can sit in the middle -->
@@ -83,7 +84,8 @@ watch(() => lyrics.lyrics, async () => {
       <p v-else class="whitespace-pre-line leading-relaxed text-ink/80" :style="{ fontSize: `${(large ? 20 : 17) * scale}px` }">{{ lyrics.lyrics.plain }}</p>
     </div>
     <!-- text size -->
-    <div class="absolute bottom-2.5 right-2.5 flex gap-1">
+    <!-- phone: top left (the close button is top right); PC: bottom right -->
+    <div class="absolute flex gap-1" :class="large ? 'bottom-2.5 right-2.5' : 'left-3 top-1'">
       <button
         v-for="by in [-1, 1]"
         :key="by"

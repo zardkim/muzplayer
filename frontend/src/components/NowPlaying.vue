@@ -140,7 +140,8 @@ const flick = useSwipe({
 
       <div class="relative overflow-hidden" @touchstart="flick.onTouchstart" @touchmove="flick.onTouchmove" @touchend="flick.onTouchend" @touchcancel="flick.onTouchcancel">
         <!-- full width, but capped on short screens so the controls stay visible; tap toggles lyrics -->
-        <div v-if="ui.lyricsOpen" class="mx-auto aspect-square w-full max-w-[min(100%,50dvh)] pt-[env(safe-area-inset-top)]">
+        <!-- the artwork's height; clear of the top buttons and of the seek bar below -->
+        <div v-if="ui.lyricsOpen" class="mx-auto h-[min(100vw,28rem,50dvh)] w-full pb-5 pt-[calc(env(safe-area-inset-top)+10px)]">
           <LyricsPanel />
         </div>
         <button
@@ -204,7 +205,18 @@ const flick = useSwipe({
           </div>
         </div>
 
-        <div class="mt-2 flex flex-col items-center gap-1 text-center">
+        <!-- with the lyrics up the artwork is gone from the top: a small one beside the title, the two centred -->
+        <div v-if="ui.lyricsOpen" class="mt-2 flex items-center justify-center gap-3.5">
+          <button type="button" class="flex-none" :aria-label="t('player.hideLyrics')" @click="ui.lyricsOpen = false">
+            <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-lg" class="size-[72px] shadow-md" />
+          </button>
+          <span class="flex min-w-0 max-w-[70%] flex-col items-start gap-0.5">
+            <span class="line-clamp-2 text-xl font-medium leading-snug">{{ player.current.title }}</span>
+            <span class="truncate text-[16px] font-light text-soft">{{ player.current.artist || t('common.unknownArtist') }}<template v-if="ui.playerPrefs.showYear && player.current.year"> · {{ player.current.year }}</template></span>
+            <StarRating :value="library.rating(player.current)" :size="16" @rate="rate" />
+          </span>
+        </div>
+        <div v-else class="mt-2 flex flex-col items-center gap-1 text-center">
           <span class="line-clamp-2 text-2xl font-medium">{{ player.current.title }}</span>
           <span class="text-[17px] font-light text-soft">{{ player.current.artist || t('common.unknownArtist') }}<template v-if="ui.playerPrefs.showYear && player.current.year"> · {{ player.current.year }}</template></span>
           <StarRating :value="library.rating(player.current)" :size="18" @rate="rate" />

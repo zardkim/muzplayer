@@ -303,7 +303,8 @@
     "lyricsLarger": "Larger lyrics",
     "lyricsLoading": "Looking for lyrics…",
     "skippedForward": "Ahead {n}s",
-    "skippedBack": "Back {n}s"
+    "skippedBack": "Back {n}s",
+    "hideLyrics": "Hide lyrics"
   },
   "settings": {
     "menu_display": "Theme, language, song details",

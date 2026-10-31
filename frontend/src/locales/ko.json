@@ -303,7 +303,8 @@
     "lyricsLarger": "가사 글씨 크게",
     "lyricsLoading": "가사를 찾는 중…",
     "skippedForward": "{n}초 앞으로",
-    "skippedBack": "{n}초 뒤로"
+    "skippedBack": "{n}초 뒤로",
+    "hideLyrics": "가사 닫기"
   },
   "settings": {
     "menu_display": "테마, 언어, 곡 정보 표시",
