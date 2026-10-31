@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import type { Chart } from '../types'
 import BannerCard from './BannerCard.vue'
 
@@ -26,6 +27,12 @@ function go(i: number) {
 
 function hold() {
   holdUntil = Date.now() + 8000
+}
+
+/** The arrows: one slide back or on, round the ends. */
+function step(by: number) {
+  hold()
+  go((index.value + by + props.items.length) % props.items.length)
 }
 
 onMounted(() => {
@@ -60,6 +67,19 @@ onUnmounted(() => clearInterval(timer))
         <BannerCard :chart="c" :size="size" />
       </div>
     </div>
+    <template v-if="items.length > 1">
+      <button
+        v-for="by in [-1, 1]"
+        :key="by"
+        type="button"
+        class="absolute top-[calc(50%-0.6875rem)] grid size-10 -translate-y-1/2 place-items-center rounded-full bg-bg/85 text-ink shadow-md backdrop-blur-sm transition-opacity hover:bg-bg md:size-11"
+        :class="by < 0 ? 'left-2 md:left-3' : 'right-2 md:right-3'"
+        :aria-label="t(by < 0 ? 'charts.slidePrev' : 'charts.slideNext')"
+        @click="step(by)"
+      >
+        <component :is="by < 0 ? ChevronLeft : ChevronRight" :size="22" :stroke-width="1.6" />
+      </button>
+    </template>
     <div v-if="items.length > 1" class="mt-2.5 flex justify-center gap-1.5">
       <button
         v-for="(c, i) in items"

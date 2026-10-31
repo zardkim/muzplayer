@@ -45,7 +45,9 @@
     "setupDesc": "Create the admin account. The first account made here is the admin; add other accounts on the admin page.",
     "passwordAgain": "Password again",
     "setupSubmit": "Create admin account",
-    "mismatch": "The passwords don't match."
+    "mismatch": "The passwords don't match.",
+    "addTitle": "Add another account",
+    "addDesc": "{name} stays signed in on this device; switch back from the account menu."
   },
   "errors": {
     "invalid_credentials": "Incorrect username or password.",
@@ -97,7 +99,14 @@
     "lookup_running": "Already looking for photos.",
     "image_unreachable": "Could not reach Wikipedia.",
     "image_bad_source": "This photo can't be used.",
-    "image_bad_file": "Could not read the photo file."
+    "image_bad_file": "Could not read the photo file.",
+    "password_required": "Enter the password to switch to an admin account.",
+    "ai_playlist_busy": "Still working on your last request. Try again shortly.",
+    "ai_no_rules": "Couldn't turn that into this library's genres and artists. Try other words.",
+    "ai_no_songs": "No songs match. Try other words.",
+    "page": "Something went wrong on this page: {text}",
+    "no_report": "No eztag report (album card) in this album folder.",
+    "notes_unreachable": "Couldn't reach Bugs/Melon. Try again later."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -286,6 +295,15 @@
     "queueEnd": "This is the last song in the queue."
   },
   "settings": {
+    "menu_display": "Theme, language, song details",
+    "menu_home": "Rows on the home screen and their order",
+    "menu_player": "Opening the player, screen on, history",
+    "menu_sound": "Quality, levelling, crossfade, equaliser",
+    "menu_autoplay": "Keep playing similar songs",
+    "menu_storage": "Prefetch, cache, downloads",
+    "menu_audiobooks": "Skip intervals",
+    "menu_install": "Install like an app",
+    "menu_account": "Change password",
     "title": "Settings",
     "language": "Language",
     "account": "Account",
@@ -379,7 +397,9 @@
     "qualityCellularHelp": "Used on Android while on mobile data.",
     "quality_orig": "Original",
     "soundIosServer": "On iPhone the server does the volume levelling (sending MP3), so a locked screen is fine. Crossfade and the equaliser can stop the sound when the screen locks.",
-    "downloadsHelp": "Albums and playlists saved for offline listening. In use: {mb} MB"
+    "downloadsHelp": "Albums and playlists saved for offline listening. In use: {mb} MB",
+    "soundFailed": "This browser refused sound processing (equaliser, crossfade, levelling). Music plays on as before.",
+    "installOther": "Use the browser menu (⋮ or Share) and pick \"Install app\" or \"Add to Home Screen\"."
   },
   "admin": {
     "title": "Admin",
@@ -533,7 +553,9 @@
     "photosRunning": "Searching {done}/{total}",
     "photosCount": "{n} of {total} artists have a photo",
     "photosDone": "last run found {found} of {total}",
-    "photosFailed": "Could not reach Wikipedia. Try again later."
+    "photosFailed": "Could not reach Wikipedia. Try again later.",
+    "aiTextModel": "AI playlist model",
+    "aiTextModelHelp": "Text model for “Make with AI” (playlists). Empty uses the default. Every account can use it."
   },
   "library": {
     "title": "My music",
@@ -562,7 +584,9 @@
     "sourceRow": "{source} chart",
     "picks": "Today's themes",
     "recent": "Recently added",
-    "featured": "Featured"
+    "featured": "Featured",
+    "slidePrev": "Previous",
+    "slideNext": "Next"
   },
   "books": {
     "title": "Audiobooks",
@@ -757,5 +781,79 @@
     "saving": "saving {done}/{total}",
     "showTracks": "Show songs",
     "listCount": "{n}"
+  },
+  "account": {
+    "switchTo": "Switch to this account",
+    "adminPassword": "Admin account password",
+    "add": "Add another account"
+  },
+  "ai": {
+    "title": "Make with AI",
+    "intro": "Describe a mood or moment, and AI turns it into smart playlist rules over your library's genres, artists and years. Check and adjust them before saving.",
+    "example1": "Calm ballads for a rainy day",
+    "example2": "Upbeat 2000s dance songs",
+    "example3": "Highly rated songs I haven't played lately",
+    "make": "Make",
+    "thinking": "Making…",
+    "review": "Rules drafted by AI. {n} songs match now. Check them and save."
+  },
+  "devices": {
+    "title": "Devices",
+    "all": "All devices",
+    "thisOne": "this device",
+    "idle": "Not playing",
+    "none": "Open muzplayer on another device (phone, PC) with this account and it shows up here: control it or move what you're listening to.",
+    "offline": "Connecting to the server…",
+    "blocked": "Playback was blocked on that device. Tap play there once (iPhone needs a tap).",
+    "takeOver": "Play on this device",
+    "sendHere": "Send what plays here",
+    "castStart": "Send the queue to a Chromecast",
+    "castStop": "Disconnect",
+    "castNone": "No Chromecast found. It must be on the same Wi-Fi.",
+    "castNothing": "Nothing to send. Play something first.",
+    "castFailed": "Couldn't cast.",
+    "airplayHelp": "Send the sound to an AirPlay speaker or TV. With the equaliser or crossfade on it may stay silent."
+  },
+  "merge": {
+    "open": "Tidy duplicates",
+    "titleArtists": "Duplicate artists",
+    "titleGenres": "Duplicate genres",
+    "intro": "Merge names tagged differently for the same artist or genre. The music files keep their tags; later scans file them under the merged name too.",
+    "byHand": "Pick by hand",
+    "search": "Search names",
+    "keepHelp": "They merge into the name with the dot.",
+    "merge": "Merge",
+    "suggested": "Look-alike names",
+    "none": "No look-alike names.",
+    "keepThis": "Keep {name}",
+    "include": "Include {name}",
+    "kept": "Kept",
+    "mergeInto": "Merge into \"{name}\"",
+    "merged": "Merged names",
+    "undo": "Undo",
+    "undoHelp": "Undoing reads those songs again and files them under their own name (one scan).",
+    "done": "Merged {n}.",
+    "undone": "Undone. It shows once the scan finishes."
+  },
+  "notes": {
+    "heading": "About this album",
+    "update": "Update",
+    "add": "Add description",
+    "more": "More",
+    "less": "Less",
+    "none": "No description yet. Find one on Bugs/Melon or write one.",
+    "title": "Album description",
+    "text": "Description",
+    "placeholder": "Write the description, or find one below.",
+    "report": "Read the eztag report again",
+    "search": "Find on Bugs and Melon",
+    "noResults": "No albums found. Try other words.",
+    "help": "Tap an album to put its description above. Check it, then save.",
+    "empty": "That album page has no description.",
+    "saved": "Album description saved.",
+    "from_bugs": "Bugs",
+    "from_melon": "Melon",
+    "from_eztag": "eztag report",
+    "from_manual": "Written here"
   }
 }

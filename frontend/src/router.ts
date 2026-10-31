@@ -34,7 +34,7 @@ export const router = createRouter({
     { path: '/downloads', name: 'downloads', component: () => import('./views/DownloadsView.vue') },
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
     { path: '/more', redirect: '/library' },
-    { path: '/settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
+    { path: '/settings/:section?', name: 'settings', component: () => import('./views/SettingsView.vue'), props: true },
     { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { admin: true } },
     { path: '/:rest(.*)', redirect: '/' },
   ],
@@ -43,7 +43,8 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuth()
   if (!auth.checked) await auth.fetchMe()
-  if (to.meta.public) return auth.user ? { name: 'home' } : true
+  // signed in, the login page is only for adding another account (user switching)
+  if (to.meta.public) return auth.user && !(to.name === 'login' && to.query.add) ? { name: 'home' } : true
   if (!auth.user) return { name: 'login', query: to.fullPath !== '/' ? { next: to.fullPath } : {} }
   if (to.meta.admin && !auth.user.is_admin) return { name: 'home' }
   if (to.meta.books && !appConfig.audiobooks) return { name: 'home' }

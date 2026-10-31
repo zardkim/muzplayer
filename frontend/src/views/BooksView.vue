@@ -73,7 +73,8 @@ const chips = computed(() =>
   <div class="flex flex-col gap-7">
     <PageHeader :title="t('books.title')" :sub="loaded ? t('books.count', { n: total }) : ''" />
 
-    <form role="search" class="flex h-[50px] items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="submit">
+    <!-- phones: wide screens search from the top bar (App.vue) -->
+    <form role="search" class="flex h-[50px] md:hidden items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="submit">
       <Search :size="22" :stroke-width="1.4" class="text-muted" aria-hidden="true" />
       <label for="book-search" class="sr-only">{{ t('books.searchPlaceholder') }}</label>
       <input id="book-search" v-model="text" type="search" enterkeyhint="search" :placeholder="t('books.searchPlaceholder')" class="min-w-0 flex-1 bg-transparent text-[17px] font-light outline-none placeholder:text-muted" />

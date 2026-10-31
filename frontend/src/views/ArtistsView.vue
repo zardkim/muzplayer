@@ -5,12 +5,16 @@ import { ChevronRight } from '@lucide/vue'
 import { api, query } from '../api'
 import { useProgressive } from '../progressive'
 import type { Artist, Page, ViewMode } from '../types'
+import { useAuth } from '../stores/auth'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
+import MergeSheet from '../components/MergeSheet.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
 
 const { t } = useI18n()
+const auth = useAuth()
+const merging = ref(false) // admin: the duplicates sheet
 const ui = useUi()
 const view = computed(() => (ui.views.artists as ViewMode) || 'grid')
 const items = ref<Artist[]>([])
@@ -29,12 +33,19 @@ async function load() {
   }
 }
 onMounted(load)
+function reload() {
+  items.value = []
+  void load()
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-5">
     <LibraryHeader :sub="t('artists.count', total)">
-      <ViewToggle page="artists" fallback="grid" />
+      <div class="flex items-center gap-2">
+        <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
+        <ViewToggle page="artists" fallback="grid" />
+      </div>
     </LibraryHeader>
     <ul
       v-if="view !== 'list'"
@@ -63,6 +74,7 @@ onMounted(load)
         </RouterLink>
       </li>
     </ul>
+    <MergeSheet v-if="merging" kind="artist" @close="merging = false" @changed="reload" />
     <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
       {{ loading ? t('common.loading') : t('common.loadMore') }}
     </button>

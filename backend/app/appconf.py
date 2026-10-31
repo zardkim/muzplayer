@@ -19,10 +19,13 @@ DEFAULTS = {
     "gemini_image_model": "",  # empty = DEFAULT_MODELS
     "openai_api_key": "",
     "openai_image_model": "",
+    "gemini_text_model": "",  # AI playlists; empty = DEFAULT_TEXT_MODELS
+    "openai_text_model": "",
     "youtube_api_key": "",
 }
 SECRETS = ("gemini_api_key", "openai_api_key", "youtube_api_key")
 DEFAULT_MODELS = {"gemini": "gemini-nano-banana-2.1", "openai": "gpt-image-2.5-flare"}
+DEFAULT_TEXT_MODELS = {"gemini": "gemini-3.8-flash", "openai": "gpt-6-astra"}
 
 _lock = threading.Lock()
 _cache: dict | None = None
@@ -74,3 +77,8 @@ def provider() -> str:
 def image_model(which: str | None = None) -> str:
     which = which or provider()
     return get(f"{which}_image_model") or DEFAULT_MODELS[which]
+
+
+def text_model(which: str | None = None) -> str:
+    which = which or provider()
+    return get(f"{which}_text_model") or DEFAULT_TEXT_MODELS[which]

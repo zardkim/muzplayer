@@ -61,8 +61,16 @@ def _image_model(which: str, model_id: str) -> bool:
     return ("image" in m or "banana" in m) and not m.startswith("imagen")  # Imagen uses another API
 
 
-def list_models(which: str) -> list[str]:
-    """Image models the saved key can use, newest names first. Raises AiError."""
+def _text_model(which: str, model_id: str) -> bool:
+    m = model_id.lower()
+    skip = ("image", "imagen", "veo", "tts", "audio", "embed", "live", "realtime", "transcribe", "search", "aqa", "robotics")
+    if any(s in m for s in skip):
+        return False
+    return m.startswith("gpt-") if which == "openai" else m.startswith("gemini")
+
+
+def list_models(which: str, kind: str = "image") -> list[str]:
+    """Image (or text, for AI playlists) models the saved key can use, newest names first. Raises AiError."""
     key = appconf.get(f"{which}_api_key")
     if not key:
         raise AiError("ai_not_configured")
@@ -89,7 +97,8 @@ def list_models(which: str) -> list[str]:
         token = data.get("nextPageToken") or ""
         if not token:
             break
-    return sorted({m for m in found if m and _image_model(which, m)}, reverse=True)
+    wanted = _text_model if kind == "text" else _image_model
+    return sorted({m for m in found if m and wanted(which, m)}, reverse=True)
 
 
 def banner_file(banner_id: int) -> Path:

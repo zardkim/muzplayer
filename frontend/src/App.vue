@@ -13,6 +13,7 @@ import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
+import { useRemote } from './stores/remote'
 import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
@@ -22,6 +23,7 @@ import NowPlaying from './components/NowPlaying.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import PlaylistPicker from './components/PlaylistPicker.vue'
+import DevicesSheet from './components/DevicesSheet.vue'
 import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
 
@@ -30,6 +32,7 @@ const auth = useAuth()
 const library = useLibrary()
 const player = usePlayer()
 const ui = useUi()
+useRemote() // this tab is a device other devices of this person can see and control
 const route = useRoute()
 const router = useRouter()
 
@@ -112,9 +115,13 @@ router.afterEach(async (to, from, failure) => {
   libVersion = version
 })
 
+// on the audiobook list the top bar searches the audiobooks (that page has no search box of its own
+// on wide screens); everywhere else, music
+const searchBooks = computed(() => route.name === 'books')
 function search() {
   const q = searchText.value.trim()
-  if (q) router.push({ name: 'search', query: { q } })
+  if (searchBooks.value) router.replace({ query: { ...route.query, q: q || undefined } })
+  else if (q) router.push({ name: 'search', query: { q } })
 }
 
 // the library menu (albums, artists, songs, genres, folders) opens on the tab used last
@@ -158,6 +165,7 @@ const showBack = computed(
 function parentPage(): RouteLocationRaw {
   const path = typeof route.query.path === 'string' ? route.query.path : ''
   if (route.name === 'folders' && path.includes('/')) return { name: 'folders', query: { path: path.slice(0, path.lastIndexOf('/')) } }
+  if (route.name === 'settings' && route.params.section) return '/settings' // a part of Settings: its menu
   const parents: Record<string, string> = {
     album: '/albums', artist: '/artists', folders: '/folders', tracks: '/genres', playlist: '/playlists', chart: '/charts',
     'chart-list': '/charts', book: '/books', mix: '/library', playlists: '/library', favorites: '/library', history: '/library',
@@ -275,7 +283,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         <form role="search" class="flex h-[46px] max-w-[420px] flex-1 items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="search">
           <Search :size="20" :stroke-width="1.4" class="text-muted" aria-hidden="true" />
           <label for="top-search" class="sr-only">{{ t('search.label') }}</label>
-          <input id="top-search" v-model="searchText" type="search" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 bg-transparent text-[15px] font-light outline-none placeholder:text-muted" />
+          <input id="top-search" v-model="searchText" type="search" :placeholder="t(searchBooks ? 'books.searchPlaceholder' : 'search.placeholder')" class="min-w-0 flex-1 bg-transparent text-[15px] font-light outline-none placeholder:text-muted" />
         </form>
         <AccountMenu avatar />
       </header>
@@ -332,6 +340,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
+    <DevicesSheet v-if="ui.devicesOpen && auth.user" />
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
   </div>
 

@@ -67,9 +67,20 @@ function connect(el: HTMLAudioElement): Chain {
   return { el, gain }
 }
 
-/** Builds the graph around the main element the first time a sound feature is turned on. */
-export function ensureGraph(el: HTMLAudioElement) {
-  if (!ctx) build(el)
+/** Builds the graph around the main element the first time a sound feature is turned on.
+ *  False when the browser refused (nothing is left half-built: the song plays on as before). */
+export function ensureGraph(el: HTMLAudioElement): boolean {
+  if (ctx) return true
+  try {
+    build(el)
+    return true
+  } catch (e) {
+    console.error('sound processing unavailable', e)
+    void (ctx as AudioContext | null)?.close().catch(() => {}) // build() may have stopped part-way
+    ctx = main = tail = null
+    filters = []
+    return false
+  }
 }
 
 /** Call from a tap (play, next...): browsers start an AudioContext only after a user gesture. */
@@ -87,6 +98,7 @@ export function setLevel(db: number) {
 
 /** EQ band gains in dB (all zero = no change). */
 export function setEq(gains: number[]) {
+  if (!ctx) return
   filters.forEach((f, i) => f.gain.setTargetAtTime(gains[i] ?? 0, ctx!.currentTime, 0.05))
 }
 

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, appconf, artist_images, youtube
+from .. import ai_banner, album_notes, appconf, artist_images, merge, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -279,6 +279,9 @@ def integrations_out() -> dict:
         "gemini_image_model": appconf.get("gemini_image_model"),
         "openai_image_model": appconf.get("openai_image_model"),
         "default_models": appconf.DEFAULT_MODELS,
+        "gemini_text_model": appconf.get("gemini_text_model"),
+        "openai_text_model": appconf.get("openai_text_model"),
+        "default_text_models": appconf.DEFAULT_TEXT_MODELS,
         **{f"{k}_set": bool(appconf.get(k)) for k in appconf.SECRETS},
         "ai_banners": ai_banner.configured(),
         "youtube_search": youtube.configured(),
@@ -292,6 +295,8 @@ class IntegrationsIn(BaseModel):
     gemini_image_model: str | None = Field(default=None, max_length=100)
     openai_api_key: str | None = Field(default=None, max_length=500)
     openai_image_model: str | None = Field(default=None, max_length=100)
+    gemini_text_model: str | None = Field(default=None, max_length=100)
+    openai_text_model: str | None = Field(default=None, max_length=100)
     youtube_api_key: str | None = Field(default=None, max_length=500)
 
 
@@ -311,14 +316,18 @@ def put_integrations(body: IntegrationsIn, _: User = Depends(admin_user)):
 
 @router.get("/integrations/models")
 def integration_models(
-    provider: str = Query(pattern="^(gemini|openai)$"), _: User = Depends(admin_user)
+    provider: str = Query(pattern="^(gemini|openai)$"),
+    kind: str = Query("image", pattern="^(image|text)$"),
+    _: User = Depends(admin_user),
 ):
-    """Image models the saved key can use (asked from the provider with the key; never sent to the page)."""
+    """Image (or text: AI playlists) models the saved key can use (asked from the provider with the
+    key; never sent to the page)."""
     try:
-        models = ai_banner.list_models(provider)
+        models = ai_banner.list_models(provider, kind)
     except ai_banner.AiError as exc:
         raise api_error(400, str(exc)) from None
-    return {"models": models, "default": appconf.DEFAULT_MODELS[provider], "current": appconf.get(f"{provider}_image_model")}
+    defaults = appconf.DEFAULT_TEXT_MODELS if kind == "text" else appconf.DEFAULT_MODELS
+    return {"models": models, "default": defaults[provider], "current": appconf.get(f"{provider}_{kind}_model")}
 
 
 # ---- artist photos ----
@@ -385,3 +394,101 @@ def delete_artist_image(artist_id: int, _: User = Depends(admin_user), db: Sessi
     artist_images.remove(artist)
     bump_library(db)
     db.commit()
+
+
+# ---- duplicate artists and genres (merge.py) ----
+class MergeIn(BaseModel):
+    keep: int
+    ids: list[int] = Field(min_length=1, max_length=200)
+
+
+def _kind(kind: str) -> str:
+    if kind not in merge.KINDS:
+        raise api_error(404, "not_found")
+    return kind
+
+
+@router.get("/duplicates/{kind}")
+def duplicates(kind: str, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Names that look like the same artist or genre (suggestions), and the merges made so far."""
+    kind = _kind(kind)
+    return {"groups": merge.duplicates(db, kind), "merged": merge.aliases(db, kind)}
+
+
+@router.post("/merge/{kind}")
+def merge_names(kind: str, body: MergeIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    kind = _kind(kind)
+    try:
+        return {"merged": merge.merge(db, kind, body.keep, body.ids)}
+    except merge.Busy:
+        raise api_error(409, "scan_running")
+    except LookupError:
+        raise api_error(404, "not_found")
+
+
+@router.delete("/merge/{kind}", status_code=204)
+def unmerge(kind: str, name: str = Query(min_length=1, max_length=500), _: User = Depends(admin_user),
+            db: Session = Depends(get_db, scope="function")):
+    """Undoes a merge: the songs tagged with that name are read again by a scan started now."""
+    kind = _kind(kind)
+    try:
+        if not merge.unmerge(db, kind, name):
+            raise api_error(404, "not_found")
+    except merge.Busy:
+        raise api_error(409, "scan_running")
+    start_scan(db)
+
+
+# ---- album introductions (album_notes.py) ----
+class NotesIn(BaseModel):
+    text: str = Field(max_length=album_notes.MAX_TEXT)
+    source: str = Field("manual", max_length=200)  # manual | eztag | bugs:<id> | melon:<id>
+
+
+def _album(db: Session, album_id: int) -> Album:
+    album = db.get(Album, album_id)
+    if album is None:
+        raise api_error(404, "not_found")
+    return album
+
+
+@router.get("/albums/{album_id}/notes/search")
+def search_notes(album_id: int, q: str = Query("", max_length=200), _: User = Depends(admin_user),
+                 db: Session = Depends(get_db, scope="function")):
+    """Albums on Bugs and Melon to take the introduction from (q: the album's artist and title)."""
+    album = _album(db, album_id)
+    if not q.strip():
+        artist = db.get(Artist, album.album_artist_id) if album.album_artist_id else None
+        q = f"{artist.name if artist else ''} {album.title}".strip()
+    return {"q": q, "items": album_notes.search(q)}
+
+
+@router.get("/albums/{album_id}/notes/fetch")
+def fetch_notes(album_id: int, provider: str = Query(pattern="^(bugs|melon)$"), id: str = Query(pattern=r"^\d{1,20}$"),
+                _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """The introduction on that Bugs/Melon album page, to look at before saving."""
+    _album(db, album_id)
+    try:
+        text = album_notes.fetch(provider, id)
+    except Exception:  # noqa: BLE001 - the site didn't answer or changed
+        raise api_error(502, "notes_unreachable")
+    return {"text": text or "", "source": f"{provider}:{id}"}
+
+
+@router.post("/albums/{album_id}/notes/report")
+def reread_report(album_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Reads the eztag album card in the album's folder again."""
+    text = album_notes.check_report(db, _album(db, album_id), force=True)
+    if not text:
+        raise api_error(404, "no_report")
+    return {"text": text, "source": "eztag"}
+
+
+@router.put("/albums/{album_id}/notes")
+def save_notes(album_id: int, body: NotesIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    album = _album(db, album_id)
+    text = body.text.strip()
+    album.description = text or None
+    album.description_source = body.source if text else "manual"  # cleared: not looked up again
+    db.commit()
+    return {"description": album.description, "description_source": album.description_source if text else None}

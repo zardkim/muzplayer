@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, select, text
 from sqlalchemy.orm import Session, aliased
 
-from .. import artist_images, transcode
+from .. import album_notes, artist_images, transcode
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
@@ -323,6 +323,9 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
     tracks = [track_out(t) for t in tracks]
     rated = [t["rating"] for t in tracks if t["rating"]]
     mark_popular(db, tracks)
+    album = db.get(Album, album_id)
+    if album.description_source is None:  # first opened: an eztag album card in its folder?
+        album_notes.check_report(db, album)
     return {
         **album_out(row),
         # this user's marks: the album's own stars, and the average of its songs' as a hint
@@ -330,6 +333,8 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
         "track_rating_avg": round(sum(rated) / len(rated), 2) if rated else None,
         "is_favorite": db.get(AlbumFavorite, (user.id, album_id)) is not None,
         "video_count": db.scalar(select(func.count()).where(Video.album_id == album_id)),
+        "description": album.description,
+        "description_source": album.description_source if album.description else None,
         "tracks": tracks,
     }
 
@@ -521,6 +526,11 @@ def stream(
 ):
     """The song file, or converted (transcode.py) for a lower bitrate, a format browsers can't
     play or levelling."""
+    return serve_track(db, track_id, request, quality, level, whole)
+
+
+def serve_track(db: Session, track_id: int, request: Request, quality: str, level: str, whole: bool):
+    """A song's audio as asked (also for Cast, api/cast.py)."""
     track, path = track_file(db, track_id)
     gain = transcode.level_gain((track.rg_track_gain, track.rg_track_peak, track.rg_album_gain, track.rg_album_peak), level)
     kbps = transcode.target_kbps(track.format, track.bitrate, quality, gain) if transcode.available() else None

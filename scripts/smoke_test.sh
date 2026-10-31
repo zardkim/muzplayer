@@ -105,6 +105,43 @@ curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-t
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlist list empty" "$(curl -s -b "$U" "$BASE/playlists" | j 'len(d["items"])')" 0
 
+# user switching: two accounts on one device; switching into an admin account asks for its password
+D="$TMP/device.txt"; cp "$U" "$D"
+sw() { curl -s -b "$D" -c "$D" -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/switch" -H 'content-type: application/json' -d "$1"; }
+curl -s -b "$D" -c "$D" -o /dev/null -X POST "$BASE/auth/login" -H 'content-type: application/json' -d "{\"username\":\"$ADMIN\",\"password\":\"$ADMIN_PW\",\"add\":true}"
+check "added account listed for switching" "$(curl -s -b "$D" -c "$D" "$BASE/auth/accounts" | j '[a["username"] for a in d]')" "['smokeuser']"
+admin_id=$(curl -s -b "$D" "$BASE/auth/me" | j 'd["id"]')
+check "switch to a user needs no password" "$(sw "{\"user_id\":$uid}")" 200
+check "switch to admin needs its password" "$(sw "{\"user_id\":$admin_id}")" 403
+check "switch to admin, wrong password" "$(sw "{\"user_id\":$admin_id,\"password\":\"wrong-password\"}")" 401
+check "switch to admin with password" "$(sw "{\"user_id\":$admin_id,\"password\":\"$ADMIN_PW\"}")" 200
+check "switched account" "$(curl -s -b "$D" "$BASE/auth/me" | j 'd["username"]')" "$ADMIN"
+check "switch to an account not on this device" "$(sw '{"user_id":999999}')" 404
+
+# AI playlists: without a key, a clear code (with one, it would cost a request)
+if [ "$(curl -s "$BASE/config" | j 'd.get("ai_playlists")')" = False ]; then
+  check "ai playlist without a key" "$(curl -s -b "$U" -X POST "$BASE/playlists/ai" -H 'content-type: application/json' -d '{"prompt":"rainy day"}' | j 'd["detail"]')" ai_not_configured
+fi
+
+# remote control: a device listening on its event stream gets a command from another device
+ev="$TMP/events.txt"
+(timeout 4 curl -s -N -b "$A" "$BASE/remote/events?device=smokeAAAAAAAA&name=smoke" > "$ev" &)
+sleep 1
+check "remote command accepted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/remote/command" -H 'content-type: application/json' -d '{"device":"smokeBBBBBBBB","to":"smokeAAAAAAAA","cmd":"next"}')" 204
+check "another person can't reach the device" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/remote/command" -H 'content-type: application/json' -d '{"device":"smokeBBBBBBBB","to":"smokeAAAAAAAA","cmd":"next"}')" 404
+sleep 0.5
+check "command reaches the device" "$(grep -c '"cmd": "next"' "$ev")" 1
+
+# Chromecast links: signed for one song, refused when changed
+ROOT="${BASE%/api/v1}"
+csrc=$(curl -s -b "$A" -X POST "$BASE/cast/links" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j "d['$tid']['src']")
+check "cast link plays without a cookie" "$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$ROOT$csrc")" 206
+flipped=$(echo "$csrc" | python3 -c "import sys; s=sys.stdin.read().strip(); print(s[:-1] + ('0' if s[-1] != '0' else '1'))")
+check "changed cast link refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT$flipped")" 403
+other=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][1]["id"]')
+check "cast link for another song refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT${csrc/tracks\/$tid\//tracks/$other/}")" 403
+usrc=$(curl -s -b "$U" -X POST "$BASE/cast/links" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j "d['$tid']['src']")
+
 # stars, likes, play counts, mixes and smart playlists are each user's own
 aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/tracks/$tid" -H 'content-type: application/json' -d '{"rating":5}'
@@ -131,6 +168,16 @@ check "smart playlist follows its rules" "$(curl -s -b "$A" "$BASE/playlists/$si
 check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$sid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}")" 400
 check "video needs a YouTube link" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"not a youtube link\",\"kind\":\"mv\",\"album_id\":$aid}")" 400
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
+
+# duplicate artists/genres and album descriptions: admin only
+check "duplicate names admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/duplicates/artist")" 403
+check "duplicate name suggestions" "$(curl -s -b "$A" "$BASE/admin/duplicates/genre" | j 'sorted(d)')" "['groups', 'merged']"
+check "merge with unknown id refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/merge/artist" -H 'content-type: application/json' -d '{"keep":2147483000,"ids":[2147483001]}')" 404
+check "album description admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X PUT "$BASE/admin/albums/$aid/notes" -H 'content-type: application/json' -d '{"text":"x"}')" 403
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/albums/$aid/notes" -H 'content-type: application/json' -d '{"text":"smoke 소개\n둘째 줄"}'
+check "album description saved" "$(curl -s -b "$U" "$BASE/albums/$aid" | j '(d["description"], d["description_source"])')" "('smoke 소개\n둘째 줄', 'manual')"
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/albums/$aid/notes" -H 'content-type: application/json' -d '{"text":""}'
+check "album description cleared" "$(curl -s -b "$A" "$BASE/albums/$aid" | j 'd["description"]')" None
 
 # audiobooks (only when AUDIOBOOK_PATH is set): stream, and positions kept per user
 if [ "$(curl -s "$BASE/config" | j 'd["audiobooks"]')" = True ]; then
@@ -164,4 +211,5 @@ check "restored track visible" "$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$pid"
 curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type: application/json' -d '{"is_active":false}'
 check "disabled user session revoked" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 401
+check "disabled user's cast link refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT$usrc")" 403
 exit $fail

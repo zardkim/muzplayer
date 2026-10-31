@@ -13,6 +13,9 @@ from .db import get_db
 from .models import User, UserSession
 
 COOKIE_NAME = "muz_session"
+# the other accounts signed in on this device (user switching): their session tokens, space-separated
+OTHERS_COOKIE = "muz_others"
+MAX_OTHERS = 5
 MAX_FAILED_LOGINS = 5
 LOCK_MINUTES = 15
 
@@ -69,16 +72,20 @@ def api_error(status: int, code: str) -> HTTPException:
     return HTTPException(status_code=status, detail=code)
 
 
-def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
-    token = request.cookies.get(COOKIE_NAME)
-    if not token:
-        raise api_error(401, "not_authenticated")
+def session_user(db: Session, token: str) -> User | None:
+    """The active user a session token belongs to, or None (unknown, expired, disabled)."""
     row = db.execute(
         select(User)
         .join(UserSession, UserSession.user_id == User.id)
         .where(UserSession.id == _token_hash(token), UserSession.expires_at > now())
     ).scalar_one_or_none()
-    if row is None or not row.is_active:
+    return row if row is not None and row.is_active else None
+
+
+def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
+    token = request.cookies.get(COOKIE_NAME)
+    row = session_user(db, token) if token else None
+    if row is None:
         raise api_error(401, "not_authenticated")
     # Hand the connection back now: the endpoint runs in another worker thread, and holding a
     # connection while waiting for a thread deadlocks under load (a page of covers takes every

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
-import LanguageSwitch from '../components/LanguageSwitch.vue'
+import LanguageMenu from '../components/LanguageMenu.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -18,6 +18,8 @@ const password2 = ref('')
 const setup = ref(appConfig.needsSetup)
 const error = ref('')
 const busy = ref(false)
+// adding another account on this device: the one signed in now stays (account menu → switch)
+const adding = !!route.query.add && !!auth.user
 
 async function submit() {
   error.value = ''
@@ -30,7 +32,11 @@ async function submit() {
     if (setup.value) {
       await auth.setup(username.value.trim(), password.value)
       appConfig.needsSetup = false
-    } else await auth.login(username.value, password.value)
+    } else await auth.login(username.value, password.value, adding)
+    if (adding) {
+      window.location.assign('/') // start afresh as the new account
+      return
+    }
     const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : '/'
     router.replace(next)
   } catch (e) {
@@ -44,13 +50,17 @@ async function submit() {
 
 <template>
   <div class="pb-safe mx-auto flex min-h-dvh max-w-sm flex-col px-6 pb-8 pt-[calc(env(safe-area-inset-top)+24px)]">
-    <div class="flex justify-end"><LanguageSwitch compact /></div>
+    <div class="-mr-3 flex justify-end"><LanguageMenu /></div>
     <div class="flex flex-1 flex-col justify-center gap-10">
       <div class="flex flex-col items-center gap-4">
         <img src="/logo.svg" alt="" width="88" height="88" />
         <h1 class="font-display text-4xl tracking-tight text-ink"><b>muz</b><span class="text-muted">player</span></h1>
       </div>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
+        <div v-if="adding" class="flex flex-col gap-1 text-center">
+          <h2 class="text-lg font-bold">{{ t('login.addTitle') }}</h2>
+          <p class="text-[14px] font-light leading-relaxed text-muted">{{ t('login.addDesc', { name: auth.user?.display_name }) }}</p>
+        </div>
         <div v-if="setup" class="flex flex-col gap-1 text-center">
           <h2 class="text-lg font-bold">{{ t('login.setupTitle') }}</h2>
           <p class="text-[14px] font-light leading-relaxed text-muted">{{ t('login.setupDesc') }}</p>
@@ -94,6 +104,7 @@ async function submit() {
         <button type="submit" :disabled="busy" class="mt-2 h-[52px] rounded-full bg-ink text-base text-on-ink disabled:opacity-60">
           {{ setup ? t('login.setupSubmit') : t('login.submit') }}
         </button>
+        <button v-if="adding" type="button" class="h-11 text-[15px] text-muted" @click="router.back()">{{ t('common.cancel') }}</button>
       </form>
     </div>
     <p v-if="!setup" class="text-center text-[13px] font-light leading-relaxed text-muted">{{ t('login.help') }}<br />{{ t('login.help2') }}</p>

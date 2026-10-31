@@ -1,3 +1,11 @@
+/** Another account signed in on this device (user switching). */
+export interface Account {
+  id: number
+  username: string
+  display_name: string
+  is_admin: boolean
+}
+
 export interface Track {
   id: number
   title: string
@@ -47,6 +55,8 @@ export interface AlbumDetail extends Album {
   track_rating_avg: number | null // average of this user's stars for its songs
   is_favorite: boolean
   video_count: number
+  description: string | null // its introduction (eztag album card, Bugs/Melon, or written by an admin)
+  description_source: string | null // eztag | bugs:<id> | melon:<id> | manual
 }
 
 export interface Artist {

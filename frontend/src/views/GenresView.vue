@@ -3,18 +3,23 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
+import { useAuth } from '../stores/auth'
 import LibraryHeader from '../components/LibraryHeader.vue'
+import MergeSheet from '../components/MergeSheet.vue'
 
 // Genres as colour tiles: each genre keeps its own colour (from its name), with the covers of
 // its biggest albums fanned out in the corner. The largest genres get wide tiles up top.
 const { t } = useI18n()
+const auth = useAuth()
+const merging = ref(false) // admin: the duplicates sheet
 const items = ref<Genre[]>([])
 const loaded = ref(false)
 const sort = ref<'size' | 'name'>('size')
-onMounted(async () => {
+async function load() {
   items.value = (await api<{ items: Genre[] }>('/genres')).items
   loaded.value = true
-})
+}
+onMounted(load)
 
 const PALETTE = [
   '#E13300', '#1E3264', '#8D67AB', '#E8115B', '#148A08', '#BA5D07', '#503750', '#477D95',
@@ -42,7 +47,8 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
 <template>
   <div class="flex flex-col gap-6">
     <LibraryHeader :sub="loaded && items.length ? t('genres.count', items.length) : undefined">
-      <div class="flex gap-1 text-[14px]">
+      <div class="flex items-center gap-1 text-[14px]">
+        <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
         <button
           v-for="s in (['size', 'name'] as const)"
           :key="s"
@@ -56,6 +62,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
       </div>
     </LibraryHeader>
     <p v-if="loaded && !items.length" class="font-light text-muted">{{ t('genres.empty') }}</p>
+    <MergeSheet v-if="merging" kind="genre" @close="merging = false" @changed="load" />
 
     <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
       <li v-for="(g, i) in sorted" :key="g.id" :class="i < wide ? 'col-span-2' : ''">

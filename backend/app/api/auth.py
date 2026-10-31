@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, transcode, youtube
+from .. import ai_banner, ai_playlist, transcode, youtube
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -13,6 +13,8 @@ from ..security import (
     COOKIE_NAME,
     LOCK_MINUTES,
     MAX_FAILED_LOGINS,
+    MAX_OTHERS,
+    OTHERS_COOKIE,
     api_error,
     create_session,
     current_user,
@@ -21,6 +23,7 @@ from ..security import (
     hash_password,
     needs_rehash,
     now,
+    session_user,
     verify_password,
 )
 
@@ -54,53 +57,137 @@ def get_config(db: Session = Depends(get_db, scope="function")):
         "ai_banners": ai_banner.configured(),
         "youtube_search": youtube.configured(),  # in-app video search; without it links are pasted
         "needs_setup": not has_users(db),
-        "transcode": transcode.available(),  # stream quality, WMA/APE, levelling on the server  # a fresh install: the login page makes the first (admin) account
+        "transcode": transcode.available(),
+        "ai_playlists": ai_playlist.configured(),  # the AI key an admin set for banners  # stream quality, WMA/APE, levelling on the server  # a fresh install: the login page makes the first (admin) account
     }
 
 
 class LoginIn(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=256)
+    add: bool = False  # another account on this device: the one signed in now stays (user switching)
 
 
-@router.post("/auth/login")
-def login(body: LoginIn, response: Response, db: Session = Depends(get_db, scope="function")):
-    user = db.execute(select(User).where(User.username == body.username.strip())).scalar_one_or_none()
-    if user is None:
-        dummy_verify(body.password)
-        raise api_error(401, "invalid_credentials")
+def check_password(db: Session, user: User, password: str) -> None:
+    """Raises on a wrong password, counting it toward the lockout (login and switching alike)."""
     if user.locked_until and user.locked_until > now():
         raise api_error(429, "account_locked")
-    if not verify_password(user.password_hash, body.password):
+    if not verify_password(user.password_hash, password):
         user.failed_logins += 1
         if user.failed_logins >= MAX_FAILED_LOGINS:
             user.failed_logins = 0
             user.locked_until = now() + timedelta(minutes=LOCK_MINUTES)
         db.commit()
         raise api_error(401, "invalid_credentials")
-    if not user.is_active:
-        raise api_error(403, "account_disabled")
-
     user.failed_logins = 0
     user.locked_until = None
     if needs_rehash(user.password_hash):
-        user.password_hash = hash_password(body.password)
+        user.password_hash = hash_password(password)
+
+
+@router.post("/auth/login")
+def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
+    user = db.execute(select(User).where(User.username == body.username.strip())).scalar_one_or_none()
+    if user is None:
+        dummy_verify(body.password)
+        raise api_error(401, "invalid_credentials")
+    check_password(db, user, body.password)
+    if not user.is_active:
+        raise api_error(403, "account_disabled")
+    others = others_on_device(db, request)
+    current = request.cookies.get(COOKIE_NAME)
+    signed_in = session_user(db, current) if body.add and current else None
+    if signed_in is not None:
+        others.insert(0, (current, signed_in))
     start_session(db, user, response)
+    set_others(response, [t for t, u in others if u.id != user.id])
     return user_out(user)
 
 
-def start_session(db: Session, user: User, response: Response) -> None:
-    token, expires_at = create_session(db, user.id)
-    db.commit()
+def _cookie(response: Response, name: str, value: str) -> None:
     response.set_cookie(
-        COOKIE_NAME,
-        token,
-        expires=expires_at,
+        name,
+        value,
+        max_age=settings.session_days * 86400,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",
         path="/",
     )
+
+
+def start_session(db: Session, user: User, response: Response) -> None:
+    token, _ = create_session(db, user.id)
+    db.commit()
+    _cookie(response, COOKIE_NAME, token)
+
+
+# ---- user switching ----
+# Family members on one device: accounts signed in here ("add account" on the login page) are kept
+# in a second HttpOnly cookie and switched to without signing in again. Switching into an admin
+# account asks for its password (with the login lockout), so a shared phone doesn't hand out admin.
+
+
+def others_on_device(db: Session, request: Request) -> list[tuple[str, User]]:
+    """(token, user) of the other accounts signed in on this device that are still valid: not the
+    one signed in now, one per user, at most MAX_OTHERS."""
+    current = request.cookies.get(COOKIE_NAME)
+    active = session_user(db, current) if current else None
+    seen = {active.id} if active else set()
+    found: list[tuple[str, User]] = []
+    for token in (request.cookies.get(OTHERS_COOKIE) or "").split("."):
+        if not token or len(found) >= MAX_OTHERS:
+            continue
+        user = session_user(db, token)
+        if user is not None and user.id not in seen:
+            seen.add(user.id)
+            found.append((token, user))
+    return found
+
+
+def set_others(response: Response, tokens: list[str]) -> None:
+    if tokens:
+        _cookie(response, OTHERS_COOKIE, ".".join(tokens[:MAX_OTHERS]))
+    else:
+        response.delete_cookie(OTHERS_COOKIE, path="/")
+
+
+def account_out(user: User) -> dict:
+    return {"id": user.id, "username": user.username, "display_name": user.display_name or user.username, "is_admin": user.is_admin}
+
+
+@router.get("/auth/accounts")
+def accounts(request: Request, response: Response, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """The other accounts signed in on this device (the cookie loses ones that ended)."""
+    others = others_on_device(db, request)
+    set_others(response, [t for t, _ in others])
+    return [account_out(u) for _, u in others]
+
+
+class SwitchIn(BaseModel):
+    user_id: int
+    password: str | None = Field(None, max_length=256)  # needed for an admin account
+
+
+@router.post("/auth/switch")
+def switch(body: SwitchIn, request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
+    others = others_on_device(db, request)
+    match = next(((t, u) for t, u in others if u.id == body.user_id), None)
+    if match is None:
+        raise api_error(404, "not_found")
+    token, user = match
+    if user.is_admin:
+        if not body.password:
+            raise api_error(403, "password_required")
+        check_password(db, user, body.password)
+        db.commit()
+    current = request.cookies.get(COOKIE_NAME)
+    rest = [t for t, u in others if u.id != user.id]
+    if current and session_user(db, current) is not None:
+        rest.insert(0, current)
+    _cookie(response, COOKIE_NAME, token)
+    set_others(response, rest)
+    return user_out(user)
 
 
 class SetupIn(BaseModel):
@@ -127,13 +214,24 @@ def setup(body: SetupIn, response: Response, db: Session = Depends(get_db, scope
     return user_out(user)
 
 
-@router.post("/auth/logout", status_code=204)
+@router.post("/auth/logout")
 def logout(request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
+    """Signs this account out. Another account signed in on this device takes over, if there is
+    one that needs no password (not an admin): {"user": that user or null}. Admin accounts stay
+    listed for signing in again."""
     token = request.cookies.get(COOKIE_NAME)
     if token:
         delete_session(db, token)
         db.commit()
+    others = others_on_device(db, request)
+    heir = next(((t, u) for t, u in others if not u.is_admin), None)
+    if heir is not None:
+        _cookie(response, COOKIE_NAME, heir[0])
+        set_others(response, [t for t, _ in others if t != heir[0]])
+        return {"user": user_out(heir[1])}
     response.delete_cookie(COOKIE_NAME, path="/")
+    set_others(response, [t for t, _ in others])
+    return {"user": None}
 
 
 @router.get("/auth/me")

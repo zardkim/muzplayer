@@ -19,6 +19,9 @@ interface Integrations {
   gemini_image_model: string
   openai_image_model: string
   default_models: Record<'gemini' | 'openai', string>
+  gemini_text_model: string
+  openai_text_model: string
+  default_text_models: Record<'gemini' | 'openai', string>
   gemini_api_key_set: boolean
   openai_api_key_set: boolean
   youtube_api_key_set: boolean
@@ -29,6 +32,8 @@ interface Integrations {
 const state = ref<Integrations | null>(null)
 const provider = ref<'gemini' | 'openai'>('gemini')
 const model = ref('')
+const textModel = ref('') // AI playlists
+const textModels = ref<string[]>([])
 const keys = ref<Record<Secret, string>>({ gemini_api_key: '', openai_api_key: '', youtube_api_key: '' })
 const busy = ref(false)
 const help = ref<'' | 'gemini' | 'openai' | 'youtube'>('')
@@ -43,6 +48,7 @@ async function loadModels() {
   if (!state.value?.[`${provider.value}_api_key_set`]) return
   try {
     models.value = (await api<{ models: string[] }>(`/admin/integrations/models?provider=${provider.value}`)).models
+    textModels.value = (await api<{ models: string[] }>(`/admin/integrations/models?provider=${provider.value}&kind=text`)).models
   } catch (e) {
     modelsError.value = errorMessage(e)
   }
@@ -56,6 +62,8 @@ function apply(s: Integrations) {
   state.value = s
   provider.value = s.ai_provider
   model.value = s[`${s.ai_provider}_image_model`]
+  textModel.value = s[`${s.ai_provider}_text_model`]
+  appConfig.aiPlaylists = s.ai_banners
   keys.value = { gemini_api_key: '', openai_api_key: '', youtube_api_key: '' }
   appConfig.aiBanners = s.ai_banners
   appConfig.youtubeSearch = s.youtube_search
@@ -71,6 +79,7 @@ onMounted(() => {
 function switchProvider(p: 'gemini' | 'openai') {
   provider.value = p
   model.value = state.value?.[`${p}_image_model`] ?? ''
+  textModel.value = state.value?.[`${p}_text_model`] ?? ''
 }
 
 async function save(body: Record<string, string>) {
@@ -88,7 +97,11 @@ async function save(body: Record<string, string>) {
 }
 
 function saveAi() {
-  const body: Record<string, string> = { ai_provider: provider.value, [`${provider.value}_image_model`]: model.value.trim() }
+  const body: Record<string, string> = {
+    ai_provider: provider.value,
+    [`${provider.value}_image_model`]: model.value.trim(),
+    [`${provider.value}_text_model`]: textModel.value.trim(),
+  }
   if (keys.value[aiKey.value].trim()) body[aiKey.value] = keys.value[aiKey.value].trim()
   save(body)
 }
@@ -170,6 +183,12 @@ const field = 'h-12 min-w-0 rounded-full bg-surface px-4 text-base text-ink outl
         <span v-if="!state[`${aiKey}_set`]" class="text-[12px]">{{ t('admin.modelAfterKey') }}</span>
         <span v-else-if="modelsError" class="text-[12px] text-danger">{{ modelsError }}</span>
         <button v-if="custom && state[`${aiKey}_set`]" type="button" class="self-start text-[12px] underline" @click="custom = false">{{ t('admin.modelPick') }}</button>
+      </label>
+      <label class="flex flex-col gap-1.5 text-[13px] text-muted">
+        {{ t('admin.aiTextModel') }}
+        <input v-model="textModel" list="ai-text-models" maxlength="100" autocapitalize="none" :placeholder="state.default_text_models[provider]" :class="field" />
+        <datalist id="ai-text-models"><option v-for="m in textModels" :key="m" :value="m" /></datalist>
+        <span class="text-[12px]">{{ t('admin.aiTextModelHelp') }}</span>
       </label>
       <div class="flex flex-wrap items-center gap-3">
         <button type="submit" class="h-10 rounded-full bg-ink px-5 text-[15px] text-on-ink disabled:opacity-40" :disabled="busy">{{ t('common.save') }}</button>

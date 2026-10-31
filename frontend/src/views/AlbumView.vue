@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Heart, MonitorPlay } from '@lucide/vue'
+import { ChevronRight, Heart, MonitorPlay, PenLine } from '@lucide/vue'
 import { api } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
+import { useAuth } from '../stores/auth'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { AlbumDetail } from '../types'
 import AccountMenu from '../components/AccountMenu.vue'
+import AlbumNotesSheet from '../components/AlbumNotesSheet.vue'
 import CoverArt from '../components/CoverArt.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
@@ -18,6 +20,7 @@ import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
+const auth = useAuth()
 const player = usePlayer()
 const ui = useUi()
 const album = ref<AlbumDetail | null>(null)
@@ -67,6 +70,14 @@ const saveAs = computed(() => {
     cover: { albumId: a.id, hasCover: a.has_cover, v: a.cover_v }, tracks: a.tracks,
   }
 })
+// the introduction: a few lines, the rest behind "more"; admins update it (AlbumNotesSheet)
+const notesOpen = ref(false)
+const notesFull = ref(false)
+const longNotes = computed(() => (album.value?.description ?? '').length > 280 || (album.value?.description ?? '').split('\n').length > 4)
+function notesSaved(text: string | null, source: string | null) {
+  album.value!.description = text
+  album.value!.description_source = source
+}
 const totalTime = computed(() => album.value?.tracks.reduce((s, x) => s + (x.duration ?? 0), 0) ?? 0)
 const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_no ?? 1)).size > 1)
 </script>
@@ -110,5 +121,19 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
       </div>
     </div>
     <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" />
+    <section v-if="album.description || auth.user?.is_admin" class="flex max-w-3xl flex-col gap-2.5">
+      <div class="flex items-center gap-3">
+        <h2 class="text-[22px] font-bold">{{ t('notes.heading') }}</h2>
+        <button v-if="auth.user?.is_admin" type="button" class="flex h-8 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="notesOpen = true">
+          <PenLine :size="14" :stroke-width="1.6" />{{ album.description ? t('notes.update') : t('notes.add') }}
+        </button>
+      </div>
+      <template v-if="album.description">
+        <p class="whitespace-pre-line text-[15px] font-light leading-relaxed" :class="longNotes && !notesFull ? 'line-clamp-4' : ''">{{ album.description }}</p>
+        <button v-if="longNotes" type="button" class="self-start text-[14px] font-medium text-muted hover:text-ink" @click="notesFull = !notesFull">{{ notesFull ? t('notes.less') : t('notes.more') }}</button>
+      </template>
+      <p v-else class="text-[14px] font-light text-muted">{{ t('notes.none') }}</p>
+    </section>
+    <AlbumNotesSheet v-if="notesOpen" :album-id="album.id" :text="album.description" :source="album.description_source" @close="notesOpen = false" @saved="notesSaved" />
   </div>
 </template>

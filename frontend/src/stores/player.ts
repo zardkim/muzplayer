@@ -62,6 +62,19 @@ export const usePlayer = defineStore('player', () => {
   const shuffle = ref(false)
   const repeat = ref<Repeat>('off')
   const volume = ref(1)
+  // the browser refused to start playing without a tap here (a remote play: remote.ts tells the sender)
+  const blocked = ref(false)
+  // Safari: AirPlay speakers or TVs nearby (its own picker sends this element's sound there)
+  const airplay = ref(false)
+  audio.setAttribute('x-webkit-airplay', 'allow')
+  if ('WebKitPlaybackTargetAvailabilityEvent' in window) {
+    audio.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
+      airplay.value = (e as Event & { availability: string }).availability === 'available'
+    })
+  }
+  function showAirPlay() {
+    ;(audio as HTMLAudioElement & { webkitShowPlaybackTargetPicker?: () => void }).webkitShowPlaybackTargetPicker?.()
+  }
   let userId: number | null = null
   // what the audio element holds: "t<track id>" or "b<book id>:<file index>"
   let loadedKey: string | null = null
@@ -193,17 +206,20 @@ export const usePlayer = defineStore('player', () => {
     updateMediaSession()
     try {
       await audio.play()
-    } catch {
+    } catch (e) {
       // autoplay blocked or aborted by a newer src; the UI stays paused
+      if ((e as DOMException)?.name === 'NotAllowedError') blocked.value = true
     }
   }
 
-  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean } = {}) {
+  /** opts.position: start there (seconds); opts.remote: started from another device (remote.ts),
+   *  so the player view doesn't open here */
+  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean; position?: number; remote?: boolean } = {}) {
     const playable = tracks.filter((t) => !t.missing)
     if (!playable.length) return
     const first = tracks[startAt] && !tracks[startAt].missing ? tracks[startAt] : playable[0]
     if (opts.shuffle !== undefined) shuffle.value = opts.shuffle
-    playStarts.value++
+    if (!opts.remote) playStarts.value++
     radioOn = false
     if (shuffle.value) {
       originalOrder = playable
@@ -215,7 +231,8 @@ export const usePlayer = defineStore('player', () => {
       index.value = playable.indexOf(first)
     }
     loadedKey = null
-    startCurrent()
+    void startCurrent()
+    if (opts.position) pendingSeek = opts.position // applied once the song's metadata is in
   }
 
   // ---- sound: levelling, equaliser, crossfade (audioGraph.ts; Settings → sound) ----
@@ -241,11 +258,17 @@ export const usePlayer = defineStore('player', () => {
   function soundSetup(track: Track) {
     if (!soundOn() && !graphActive()) return
     if (!graphActive()) {
-      ensureGraph(audio)
+      if (!ensureGraph(audio)) return soundFailed()
       applyEq()
     }
     resumeGraph()
     setLevel(levelFor(track))
+  }
+
+  let failedShown = false
+  function soundFailed() {
+    if (!failedShown) useUi().notify(i18n.global.t('settings.soundFailed'), true)
+    failedShown = true
   }
 
   function applyEq() {
@@ -254,9 +277,9 @@ export const usePlayer = defineStore('player', () => {
     setEq(p.eq ? (p.eqPreset === 'custom' ? p.eqGains : (EQ_PRESETS[p.eqPreset] ?? EQ_PRESETS.flat)) : EQ_PRESETS.flat)
   }
   // turned on from Settings (a tap): build the graph now so the change is heard at once
-  watch(() => [soundOn(), soundPrefs().eq, soundPrefs().eqPreset, [...soundPrefs().eqGains], soundPrefs().leveling], () => {
+  watch(() => [soundOn(), soundPrefs().eq, soundPrefs().eqPreset, [...(soundPrefs().eqGains ?? [])], soundPrefs().leveling], () => {
     if (soundOn()) {
-      ensureGraph(audio)
+      if (!ensureGraph(audio)) return soundFailed()
       resumeGraph()
     }
     applyEq() // also turns the EQ flat when it was switched off
@@ -752,6 +775,7 @@ export const usePlayer = defineStore('player', () => {
   })
   audio.addEventListener('playing', () => {
     failures = 0
+    blocked.value = false
     lookAhead()
   })
   audio.addEventListener('pause', () => {
@@ -949,6 +973,9 @@ export const usePlayer = defineStore('player', () => {
     shuffle,
     repeat,
     volume,
+    blocked,
+    airplay,
+    showAirPlay,
     restore,
     reset,
     playTracks,

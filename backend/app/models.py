@@ -91,6 +91,10 @@ class Album(Base):
     # what the cover was made from ("folder:<rel>" or "file:<rel>", relative to MUSIC_DIR) and its mtime then
     cover_source: Mapped[str | None] = mapped_column(Text)
     cover_mtime: Mapped[float | None] = mapped_column(Float)
+    # the album's introduction: from an eztag report in its folder, or fetched from Bugs/Melon
+    # (album_notes.py), or written by an admin; description_source says which ("eztag", "bugs:<id>", ...)
+    description: Mapped[str | None] = mapped_column(Text)
+    description_source: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -163,6 +167,18 @@ class Chart(Base):
     source: Mapped[str] = mapped_column(String(200), default="")
     title: Mapped[str] = mapped_column(String(500))  # folder name
     banner_file: Mapped[str | None] = mapped_column(Text)  # banner.jpg in the folder, relative to MUSIC_DIR
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NameAlias(Base):
+    """A merged duplicate (merge.py): songs tagged with `name` are filed under `target` instead,
+    now and in later scans (the library is read-only, so the tags themselves stay as they are)."""
+
+    __tablename__ = "name_aliases"
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)  # artist | genre
+    name: Mapped[str] = mapped_column(String(500), primary_key=True)
+    target: Mapped[str] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

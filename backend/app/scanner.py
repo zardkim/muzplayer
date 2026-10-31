@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session, defer
 from .config import settings
 from .db import SessionLocal
 from .models import (
-    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, ScanJob, Track, TrackGenre,
-    Video,
+    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanJob, Track,
+    TrackGenre, Video,
 )
 
 log = logging.getLogger(__name__)
@@ -57,6 +57,11 @@ def check_cancel() -> None:
 
 def scan_running() -> bool:
     return _lock.locked()
+
+
+def scan_lock() -> threading.Lock:
+    """Held by a scan; merge.py takes it too, so a scan never runs on ids being merged away."""
+    return _lock
 
 
 def cancel_scan() -> bool:
@@ -384,6 +389,13 @@ class _Cache:
         self.charts = {c.folder_path: c for c in db.scalars(select(Chart))}
         self.chart_folders = {c.id: k for k, c in self.charts.items()}
         self.genres = {g.name: g.id for g in db.scalars(select(Genre))}
+        # merged duplicates (merge.py): a name as tagged -> the name it is filed under
+        self.aliases: dict[str, dict[str, str]] = {"artist": {}, "genre": {}}
+        for a in db.scalars(select(NameAlias)):
+            self.aliases.setdefault(a.kind, {})[a.name] = a.target
+
+    def artist_name(self, name: str) -> str:
+        return self.aliases["artist"].get(name, name)
 
     def matches(self, track: Track, place: Placement) -> bool:
         """Whether the track is already filed the way its path says."""
@@ -400,6 +412,7 @@ class _Cache:
     def artist(self, name: str) -> int | None:
         if not name:
             return None
+        name = self.artist_name(name)
         if name not in self.artists:
             row = Artist(name=name, sort_name=name.lower())
             self.db.add(row)
@@ -434,6 +447,7 @@ class _Cache:
         return row.id
 
     def genre(self, name: str) -> int:
+        name = self.aliases["genre"].get(name, name)
         if name not in self.genres:
             row = Genre(name=name)
             self.db.add(row)
@@ -451,8 +465,9 @@ def _apply_tags(
     place: Placement,
     cover_tries: dict[int, int],
 ) -> None:
-    track.artist_text = " / ".join(_pick(raw, "artist"))[:1000]
-    track.artist_id = cache.artist((_pick(raw, "artist") or [""])[0][:500])
+    artists = [cache.artist_name(a[:500]) for a in _pick(raw, "artist")]
+    track.artist_text = " / ".join(artists)[:1000]
+    track.artist_id = cache.artist((artists or [""])[0])
     track.track_no = _number(_first(raw, "tracknumber"))
     track.disc_no = _number(_first(raw, "discnumber"))
     _set_info(track, info)
@@ -993,9 +1008,18 @@ def _find_banners(db: Session, root: Path) -> bool:
 
 
 def carry_album_marks(db: Session, moves: dict[int, int]) -> None:
-    """Stars, likes and videos of albums about to be pruned move to the album their songs went to.
-    Where the user already marked the new album, that mark stays (and the old one goes with the album)."""
+    """Stars, likes, videos and the introduction of albums about to be pruned move to the album their
+    songs went to. Where the user already marked the new album, that mark stays (and the old one goes
+    with the album); so does an introduction the new album already has."""
     for old, new in moves.items():
+        db.execute(
+            update(Album)
+            .where(Album.id == new, Album.description.is_(None))
+            .values(
+                description=select(Album.description).where(Album.id == old).scalar_subquery(),
+                description_source=select(Album.description_source).where(Album.id == old).scalar_subquery(),
+            )
+        )
         for model in (AlbumRating, AlbumFavorite):
             taken = select(model.user_id).where(model.album_id == new)
             db.execute(update(model).where(model.album_id == old, model.user_id.not_in(taken)).values(album_id=new))

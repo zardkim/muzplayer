@@ -45,7 +45,9 @@
     "setupDesc": "관리자 계정을 만드세요. 여기서 만든 첫 계정이 관리자가 되고, 다른 계정은 관리자 화면에서 추가합니다.",
     "passwordAgain": "비밀번호 확인",
     "setupSubmit": "관리자 계정 만들기",
-    "mismatch": "비밀번호가 서로 다릅니다."
+    "mismatch": "비밀번호가 서로 다릅니다.",
+    "addTitle": "다른 계정 추가",
+    "addDesc": "{name} 계정은 이 기기에 그대로 남아, 계정 메뉴에서 바로 전환할 수 있습니다."
   },
   "errors": {
     "invalid_credentials": "아이디 또는 비밀번호가 올바르지 않습니다.",
@@ -97,7 +99,14 @@
     "lookup_running": "이미 사진을 찾는 중입니다.",
     "image_unreachable": "위키백과에 연결하지 못했습니다.",
     "image_bad_source": "이 사진은 쓸 수 없습니다.",
-    "image_bad_file": "사진 파일을 읽지 못했습니다."
+    "image_bad_file": "사진 파일을 읽지 못했습니다.",
+    "password_required": "관리자 계정은 비밀번호를 입력해야 전환됩니다.",
+    "ai_playlist_busy": "이전 요청을 처리하는 중입니다. 잠시 후 다시 시도하세요.",
+    "ai_no_rules": "요청을 이 라이브러리의 장르·가수로 바꾸지 못했습니다. 다르게 적어 보세요.",
+    "ai_no_songs": "조건에 맞는 곡이 없습니다. 다르게 적어 보세요.",
+    "page": "화면을 그리다 오류가 났습니다: {text}",
+    "no_report": "이 앨범 폴더에 eztag 리포트(앨범카드)가 없습니다.",
+    "notes_unreachable": "벅스·멜론에 연결하지 못했습니다. 잠시 후 다시 해 보세요."
   },
   "common": {
     "unknownArtist": "알 수 없는 아티스트",
@@ -286,6 +295,15 @@
     "queueEnd": "대기열의 마지막 곡입니다."
   },
   "settings": {
+    "menu_display": "테마, 언어, 곡 정보 표시",
+    "menu_home": "홈 화면에 보일 줄과 순서",
+    "menu_player": "플레이어 열기, 화면 켜두기, 기록",
+    "menu_sound": "음질, 음량 레벨링, 크로스페이드, 이퀄라이저",
+    "menu_autoplay": "끝나면 비슷한 곡 이어 듣기",
+    "menu_storage": "미리 받기, 캐시, 다운로드",
+    "menu_audiobooks": "건너뛰기 간격",
+    "menu_install": "앱처럼 설치하기",
+    "menu_account": "비밀번호 변경",
     "title": "설정",
     "language": "언어",
     "account": "계정",
@@ -379,7 +397,9 @@
     "qualityCellularHelp": "안드로이드에서 모바일 데이터로 들을 때 씁니다.",
     "quality_orig": "원본",
     "soundIosServer": "iPhone에서는 음량 레벨링을 서버가 맞춰 보내므로(MP3로 변환) 화면이 꺼져도 괜찮습니다. 크로스페이드와 이퀄라이저는 화면이 꺼졌을 때 소리가 멈출 수 있습니다.",
-    "downloadsHelp": "오프라인으로 듣도록 저장한 앨범·플레이리스트. 사용 중: {mb} MB"
+    "downloadsHelp": "오프라인으로 듣도록 저장한 앨범·플레이리스트. 사용 중: {mb} MB",
+    "soundFailed": "이 브라우저가 소리 처리(이퀄라이저·크로스페이드·음량 평준화)를 거부했습니다. 음악은 그대로 재생됩니다.",
+    "installOther": "브라우저 메뉴(⋮ 또는 공유)에서 \"앱 설치\"나 \"홈 화면에 추가\"를 고르세요."
   },
   "admin": {
     "title": "관리자",
@@ -533,7 +553,9 @@
     "photosRunning": "찾는 중 {done}/{total}",
     "photosCount": "사진 있는 아티스트 {n}/{total}명",
     "photosDone": "지난번 {total}명 중 {found}명 찾음",
-    "photosFailed": "위키백과에 연결하지 못했습니다. 잠시 뒤 다시 시도하세요."
+    "photosFailed": "위키백과에 연결하지 못했습니다. 잠시 뒤 다시 시도하세요.",
+    "aiTextModel": "AI 재생목록 모델",
+    "aiTextModelHelp": "‘AI로 만들기’(재생목록)에 쓰는 글 모델입니다. 비워 두면 기본값을 씁니다. 가족 계정 모두 쓸 수 있습니다."
   },
   "library": {
     "title": "내 음악",
@@ -562,7 +584,9 @@
     "sourceRow": "{source} 차트",
     "picks": "오늘의 추천 테마",
     "recent": "최근 추가된 모음",
-    "featured": "추천 모음"
+    "featured": "추천 모음",
+    "slidePrev": "이전",
+    "slideNext": "다음"
   },
   "books": {
     "title": "오디오북",
@@ -757,5 +781,79 @@
     "saving": "저장 중 {done}/{total}",
     "showTracks": "곡 보기",
     "listCount": "{n}개"
+  },
+  "account": {
+    "switchTo": "이 계정으로 전환",
+    "adminPassword": "관리자 계정 비밀번호",
+    "add": "다른 계정 추가"
+  },
+  "ai": {
+    "title": "AI로 만들기",
+    "intro": "듣고 싶은 분위기나 상황을 적으면, 내 라이브러리의 장르·가수·연도로 스마트 재생목록 조건을 만들어 줍니다. 저장하기 전에 확인하고 고칠 수 있습니다.",
+    "example1": "비 오는 날 듣기 좋은 잔잔한 발라드",
+    "example2": "2000년대 신나는 댄스곡",
+    "example3": "요즘 자주 안 들은 별점 높은 곡",
+    "make": "만들기",
+    "thinking": "만드는 중…",
+    "review": "AI가 만든 조건입니다. 지금 {n}곡이 들어갑니다. 확인하고 저장하세요."
+  },
+  "devices": {
+    "title": "기기",
+    "all": "모든 기기",
+    "thisOne": "이 기기",
+    "idle": "재생 안 함",
+    "none": "같은 계정으로 다른 기기(휴대폰, PC)에서 muzplayer를 열면 여기에 나타나고, 그 기기를 조종하거나 듣던 곡을 옮길 수 있습니다.",
+    "offline": "서버에 연결하는 중입니다…",
+    "blocked": "그 기기에서 재생이 막혔습니다. 그 기기 화면을 한 번 눌러 재생해 주세요(iPhone은 직접 눌러야 재생됩니다).",
+    "takeOver": "이 기기로 가져오기",
+    "sendHere": "여기서 듣던 곡 보내기",
+    "castStart": "지금 대기열을 크롬캐스트로 보냅니다",
+    "castStop": "연결 끊기",
+    "castNone": "크롬캐스트를 찾지 못했습니다. 같은 Wi-Fi에 있어야 합니다.",
+    "castNothing": "보낼 곡이 없습니다. 먼저 곡을 재생하세요.",
+    "castFailed": "크롬캐스트로 보내지 못했습니다.",
+    "airplayHelp": "AirPlay 스피커·TV로 소리를 보냅니다. 이퀄라이저·크로스페이드를 켜 두면 소리가 안 날 수 있습니다."
+  },
+  "merge": {
+    "open": "중복 정리",
+    "titleArtists": "아티스트 중복 정리",
+    "titleGenres": "장르 중복 정리",
+    "intro": "같은 대상인데 이름이 다르게 태그된 것을 하나로 합칩니다. 음악 파일의 태그는 바꾸지 않고, 이후 스캔에서도 합친 이름으로 정리됩니다.",
+    "byHand": "직접 고르기",
+    "search": "이름 검색",
+    "keepHelp": "동그라미로 고른 이름으로 합쳐집니다.",
+    "merge": "합치기",
+    "suggested": "비슷한 이름",
+    "none": "비슷한 이름이 없습니다.",
+    "keepThis": "{name}(으)로 남기기",
+    "include": "{name} 포함",
+    "kept": "남길 이름",
+    "mergeInto": "\"{name}\"(으)로 합치기",
+    "merged": "합친 이름",
+    "undo": "되돌리기",
+    "undoHelp": "되돌리면 해당 곡을 다시 읽어 원래 이름으로 나눕니다(스캔 한 번).",
+    "done": "{n}개를 합쳤습니다.",
+    "undone": "되돌렸습니다. 스캔이 끝나면 반영됩니다."
+  },
+  "notes": {
+    "heading": "앨범 소개",
+    "update": "설명 업데이트",
+    "add": "설명 추가",
+    "more": "더 보기",
+    "less": "접기",
+    "none": "아직 소개가 없습니다. 벅스·멜론에서 찾거나 직접 쓸 수 있습니다.",
+    "title": "앨범 설명 업데이트",
+    "text": "소개 글",
+    "placeholder": "앨범 소개를 직접 쓰거나 아래에서 찾아 넣으세요.",
+    "report": "eztag 리포트 다시 읽기",
+    "search": "벅스·멜론에서 찾기",
+    "noResults": "찾은 앨범이 없습니다. 검색어를 바꿔 보세요.",
+    "help": "앨범을 누르면 그 소개 글을 위 칸에 넣습니다. 확인하고 저장하세요.",
+    "empty": "이 앨범 페이지에는 소개 글이 없습니다.",
+    "saved": "앨범 소개를 저장했습니다.",
+    "from_bugs": "벅스",
+    "from_melon": "멜론",
+    "from_eztag": "eztag 리포트",
+    "from_manual": "직접 입력"
   }
 }

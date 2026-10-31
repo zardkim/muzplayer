@@ -2,11 +2,13 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, ListMusic, Plus, Zap } from '@lucide/vue'
+import { ChevronRight, ListMusic, Plus, Sparkles, Zap } from '@lucide/vue'
+import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import PageHeader from '../components/PageHeader.vue'
+import AiPlaylistSheet, { type AiDraft } from '../components/AiPlaylistSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import type { Playlist } from '../types'
 
@@ -16,6 +18,13 @@ const ui = useUi()
 const router = useRouter()
 const name = ref('')
 const smartOpen = ref(false)
+const aiOpen = ref(false)
+const draft = ref<AiDraft | undefined>()
+function drafted(d: AiDraft) {
+  aiOpen.value = false
+  draft.value = d
+  smartOpen.value = true
+}
 
 function smartSaved(p: Playlist) {
   smartOpen.value = false
@@ -45,10 +54,16 @@ async function create() {
         <Plus :size="18" :stroke-width="1.6" />{{ t('common.create') }}
       </button>
     </form>
-    <button type="button" class="flex h-11 items-center gap-1.5 self-start rounded-full border border-line-strong px-4 text-[15px]" @click="smartOpen = true">
-      <Zap :size="17" :stroke-width="1.5" />{{ t('smart.new') }}
-    </button>
-    <SmartRulesSheet v-if="smartOpen" @close="smartOpen = false" @saved="smartSaved" />
+    <div class="flex flex-wrap gap-2">
+      <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="(draft = undefined), (smartOpen = true)">
+        <Zap :size="17" :stroke-width="1.5" />{{ t('smart.new') }}
+      </button>
+      <button v-if="appConfig.aiPlaylists" type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="aiOpen = true">
+        <Sparkles :size="17" :stroke-width="1.5" />{{ t('ai.title') }}
+      </button>
+    </div>
+    <AiPlaylistSheet v-if="aiOpen" @close="aiOpen = false" @draft="drafted" />
+    <SmartRulesSheet v-if="smartOpen" :draft="draft" @close="smartOpen = false" @saved="smartSaved" />
     <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
     <ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
       <li v-for="p in library.playlists" :key="p.id">
