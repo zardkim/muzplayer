@@ -33,6 +33,9 @@ class Settings:
     session_days: int = int(os.getenv("SESSION_DAYS", "30"))
     scan_interval_minutes: int = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))  # 0 = manual only
     default_locale: str = os.getenv("DEFAULT_LOCALE", "ko")
+    # converting songs (quality, WMA/APE, levelling on the server): the image has its own ffmpeg
+    ffmpeg_path: str = os.getenv("FFMPEG_PATH", "").strip() or "ffmpeg"
+    transcode_cache_mb: int = int(os.getenv("TRANSCODE_CACHE_MB", "2048"))
     version: str = os.getenv("APP_VERSION", "dev")
 
     @property

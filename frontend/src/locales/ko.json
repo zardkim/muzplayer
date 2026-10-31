@@ -372,7 +372,14 @@
     "eq_classical": "클래식",
     "eq_electronic": "일렉트로닉",
     "eq_night": "밤에 작게",
-    "eq_custom": "직접 설정"
+    "eq_custom": "직접 설정",
+    "quality": "스트리밍 품질",
+    "qualityHelp": "서버에서 MP3로 바꿔 보냅니다. 원본보다 작은 값을 고르면 데이터를 덜 씁니다. iPhone은 Wi-Fi와 모바일 데이터를 구분하지 못해 이 값을 씁니다.",
+    "qualityCellular": "모바일 데이터 품질",
+    "qualityCellularHelp": "안드로이드에서 모바일 데이터로 들을 때 씁니다.",
+    "quality_orig": "원본",
+    "soundIosServer": "iPhone에서는 음량 레벨링을 서버가 맞춰 보내므로(MP3로 변환) 화면이 꺼져도 괜찮습니다. 크로스페이드와 이퀄라이저는 화면이 꺼졌을 때 소리가 멈출 수 있습니다.",
+    "downloadsHelp": "오프라인으로 듣도록 저장한 앨범·플레이리스트. 사용 중: {mb} MB"
   },
   "admin": {
     "title": "관리자",
@@ -733,5 +740,22 @@
     "path": "폴더 위치",
     "count": "폴더 {n}개",
     "empty": "이 폴더에는 곡이 없습니다."
+  },
+  "offline": {
+    "title": "다운로드",
+    "save": "이 기기에 저장",
+    "saveShort": "저장",
+    "savedShort": "저장됨",
+    "update": "마저 저장",
+    "remove": "저장한 곡 지우기",
+    "removeConfirm": "‘{name}’을(를) 이 기기에서 지울까요?",
+    "saved": "‘{name}’을(를) 저장했습니다.",
+    "failed": "저장하다 멈췄습니다: {error}. 다시 누르면 이어서 저장합니다.",
+    "help": "이 기기에 저장한 음악입니다. 인터넷이 없어도 들을 수 있습니다. 사용 중: {mb} MB",
+    "unsupported": "이 주소에서는 저장할 수 없습니다(https 필요).",
+    "empty": "저장한 음악이 없습니다. 앨범이나 플레이리스트에서 ‘저장’을 누르세요.",
+    "saving": "저장 중 {done}/{total}",
+    "showTracks": "곡 보기",
+    "listCount": "{n}개"
   }
 }

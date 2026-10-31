@@ -2,13 +2,14 @@ import mimetypes
 import os
 import unicodedata
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, select, text
 from sqlalchemy.orm import Session, aliased
 
-from .. import artist_images
+from .. import artist_images, transcode
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
@@ -509,10 +510,31 @@ def track_file(db: Session, track_id: int) -> tuple[Track, str]:
 
 
 @router.get("/tracks/{track_id}/stream")
-def stream(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+def stream(
+    track_id: int,
+    request: Request,
+    quality: Literal["orig", "320", "256", "192", "128"] = "orig",
+    level: Literal["off", "track", "album"] = "off",  # levelling done here (iPhone)
+    whole: bool = False,  # wait for a conversion to finish, to be able to seek
+    _: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """The song file, or converted (transcode.py) for a lower bitrate, a format browsers can't
+    play or levelling."""
     track, path = track_file(db, track_id)
-    media_type = AUDIO_TYPES.get(track.format) or mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})
+    gain = transcode.level_gain((track.rg_track_gain, track.rg_track_peak, track.rg_album_gain, track.rg_album_peak), level)
+    kbps = transcode.target_kbps(track.format, track.bitrate, quality, gain) if transcode.available() else None
+    if kbps is None:
+        media_type = AUDIO_TYPES.get(track.format) or mimetypes.guess_type(path)[0] or "application/octet-stream"
+        return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})
+    ident = f"{track.id}-{track.file_size}-{int(track.file_mtime)}"
+    db.close()  # a conversion can take seconds: don't hold a database connection meanwhile
+    rng = request.headers.get("range")
+    follow = not whole and (not rng or rng.replace(" ", "").startswith("bytes=0-"))
+    res = transcode.respond(path, ident, kbps, gain, follow)
+    if res is None:
+        raise api_error(503, "transcode_failed")
+    return res
 
 
 @router.get("/tracks/{track_id}/lyrics")

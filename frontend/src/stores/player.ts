@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
-import { api, bookCoverUrl, bookStreamUrl, coverUrl, query, streamUrl } from '../api'
-import { cachedSource, onCellular, prepare } from '../audioCache'
+import { api, bookCoverUrl, bookStreamUrl, coverUrl, query } from '../api'
+import { cachedSource, prepare } from '../audioCache'
 import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
+import { isSaved } from '../offline'
+import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, Track } from '../types'
 import { useUi } from './ui'
 
@@ -178,8 +180,11 @@ export const usePlayer = defineStore('player', () => {
     if (!track) return
     if (mode.value === 'book') leaveBook()
     if (loadedKey !== `t${track.id}`) {
-      audio.src = cachedSource(track.id) ?? streamUrl(track.id) // fetched ahead: no wait on the network
+      // fetched ahead: no wait on the network; saved for offline: sw.js answers from the device
+      const src = trackSrc(track)
+      audio.src = cachedSource(track.id, src) ?? (isSaved(track.id) ? `${streamBase(track.id)}?saved=1` : src)
       loadedKey = `t${track.id}`
+      pendingSeek = null
       reported = false
       currentTime.value = 0
       duration.value = track.duration ?? 0
@@ -215,16 +220,17 @@ export const usePlayer = defineStore('player', () => {
 
   // ---- sound: levelling, equaliser, crossfade (audioGraph.ts; Settings → sound) ----
   const soundPrefs = () => useUi().playerPrefs
+  // on iPhone the server levels (stream.ts), so levelling alone doesn't need Web Audio there
   const soundOn = () => {
     const p = soundPrefs()
-    return p.leveling !== 'off' || p.crossfade > 0 || p.eq
+    return (p.leveling !== 'off' && !serverLevels()) || p.crossfade > 0 || p.eq
   }
 
   /** The ReplayGain to apply, in dB: track or album gain per Settings, never pushing the peak
    *  past full scale; 0 for untagged songs. */
   function levelFor(track: Track): number {
     const mode = soundPrefs().leveling
-    if (mode === 'off' || !track.rg) return 0
+    if (mode === 'off' || !track.rg || serverLevels()) return 0
     const [tg, tp, ag, ap] = track.rg
     const [gain, peak] = mode === 'album' && ag != null ? [ag, ap] : tg != null ? [tg, tp] : [ag, ap]
     if (gain == null) return 0
@@ -298,11 +304,11 @@ export const usePlayer = defineStore('player', () => {
     if (mode.value !== 'music' || !current.value) return
     const prefs = useUi().playerPrefs
     const n = onCellular() ? prefs.prefetchCellular : prefs.prefetchWifi
-    const upcoming: number[] = []
+    const upcoming: { id: number; src: string }[] = []
     for (let k = 1; k <= n && k < queue.value.length; k++) {
       const i = index.value + k
-      if (i < queue.value.length) upcoming.push(queue.value[i].id)
-      else if (repeat.value === 'all') upcoming.push(queue.value[i - queue.value.length].id)
+      const t = i < queue.value.length ? queue.value[i] : repeat.value === 'all' ? queue.value[i - queue.value.length] : null
+      if (t) upcoming.push({ id: t.id, src: trackSrc(t) })
     }
     void prepare(current.value.id, upcoming, prefs.cacheMB * 1024 * 1024, fadingOut)
     if ((prefs.autoplay || radioOn) && repeat.value === 'off' && index.value === queue.value.length - 1) void extendQueue()
@@ -392,7 +398,8 @@ export const usePlayer = defineStore('player', () => {
     if (mode.value === 'book') return nextChapter()
     if (!queue.value.length) return
     if (auto && repeat.value === 'one') {
-      audio.currentTime = 0
+      if (converting()) loadedKey = null // can't seek in it: load it again (finished by now)
+      else audio.currentTime = 0
       startCurrent()
       return
     }
@@ -406,7 +413,7 @@ export const usePlayer = defineStore('player', () => {
   function prev() {
     if (mode.value === 'book') return prevChapter()
     if (audio.currentTime > 3 || index.value <= 0) {
-      audio.currentTime = 0
+      seek(0)
       return
     }
     jump(index.value - 1)
@@ -418,8 +425,22 @@ export const usePlayer = defineStore('player', () => {
     if (loadedKey !== `t${current.value.id}`) startCurrent()
     stopTail()
     fadedFrom = null // seeking back before the end may crossfade again
-    audio.currentTime = seconds
     currentTime.value = seconds
+    if (converting()) {
+      // the server is still converting it and sends it as it goes, which can't be sought in: ask
+      // for the finished file (it waits for the conversion) and go there once it's in
+      pendingSeek = seconds
+      const src = audio.currentSrc
+      audio.src = src + (src.includes('whole=1') ? '' : '&whole=1')
+      if (playing.value) void audio.play().catch(() => {})
+      return
+    }
+    audio.currentTime = seconds
+  }
+
+  /** The song is a conversion still arriving from the server (no length yet). */
+  function converting() {
+    return mode.value === 'music' && !isFinite(audio.duration) && mayConvert(audio.currentSrc)
   }
 
   function toggleShuffle() {
@@ -761,6 +782,7 @@ export const usePlayer = defineStore('player', () => {
     if (mode.value === 'book') applyRate()
   })
   audio.addEventListener('timeupdate', () => {
+    if (mode.value === 'music' && pendingSeek !== null) return // the position of a reload for a seek
     currentTime.value = audio.currentTime
     if (mode.value === 'book') {
       if (pendingSeek !== null) return // still the old position of a file being swapped in
@@ -804,6 +826,15 @@ export const usePlayer = defineStore('player', () => {
       pendingSeek = null
       audio.pause()
       setPlaying(false)
+      return
+    }
+    // a conversion sent while it is written (no length): a browser that won't take that (Safari
+    // may want byte ranges) gets the finished file instead, once
+    const src = audio.currentSrc
+    if (mayConvert(src) && !src.includes('whole=1')) {
+      pendingSeek = audio.currentTime || null
+      audio.src = src + '&whole=1'
+      if (playing.value) void audio.play().catch(() => {})
       return
     }
     failures++

@@ -1,4 +1,5 @@
-import { streamUrl } from './api'
+import { savedFile } from './offline'
+import { streamBase } from './stream'
 
 // Songs fetched ahead of time: the next few in the queue are downloaded while the current one
 // plays, then played from memory (an object URL), so the change to the next song doesn't wait on
@@ -10,12 +11,19 @@ import { streamUrl } from './api'
 //
 // The object URL is made before the song starts: iOS lets play() run only straight from a tap,
 // with no waiting in between, so the player must be able to pick the source without awaiting.
+//
+// Songs are fetched from the address the player would play them from (stream.ts: quality,
+// levelling), and only stand in for that address; a song saved for offline (offline.ts) stands
+// in for any.
 const CACHE = 'muz-audio-v1' // kept by sw.js, cleared on logout (stores/auth.ts)
-const INDEX_KEY = 'muz.audioCache' // trackId -> {size, at}: what is cached, for the size limit
-type Index = Record<string, { size: number; at: number }>
+const INDEX_KEY = 'muz.audioCache' // trackId -> {size, at, url}: what is cached, for the size limit
+type Index = Record<string, { size: number; at: number; url?: string }>
+type Ready = { src: string; url: string; saved: boolean } // src: the address it stands in for
 
-const ready = new Map<number, string>() // trackId -> object URL
+const ready = new Map<number, Ready>()
 let generation = 0 // a newer prepare() stops an older one between songs
+// ...and its download in progress: the server stops a conversion nobody waits for any more
+let fetching = new AbortController()
 
 const cacheApi = () => (globalThis.caches && window.isSecureContext ? globalThis.caches : null)
 
@@ -34,63 +42,72 @@ function writeIndex(index: Index) {
   }
 }
 
-/** The ready object URL for a song, or null (then it streams from the server). */
-export function cachedSource(trackId: number): string | null {
-  return ready.get(trackId) ?? null
+/** The ready object URL for a song played from `src`, or null (then it streams from the server). */
+export function cachedSource(trackId: number, src: string): string | null {
+  const r = ready.get(trackId)
+  return r && (r.saved || r.src === src) ? r.url : null
 }
 
 /** Fetches the next songs one at a time and keeps them ready; drops the rest, except the song
  *  playing now (its URL may still be in use) and `keep` (the song a crossfade is fading out).
  *  maxBytes: the cache size limit. */
-export async function prepare(currentId: number | null, trackIds: number[], maxBytes: number, keep: number | null = null) {
+export async function prepare(currentId: number | null, next: { id: number; src: string }[], maxBytes: number, keep: number | null = null) {
   const gen = ++generation
-  for (const [id, url] of ready) {
-    if (id !== currentId && id !== keep && !trackIds.includes(id)) {
-      URL.revokeObjectURL(url)
+  fetching.abort()
+  const signal = (fetching = new AbortController()).signal
+  const wanted = new Map(next.map((n) => [n.id, n.src]))
+  for (const [id, r] of ready) {
+    const src = wanted.get(id)
+    if (id !== currentId && id !== keep && (src === undefined || (src !== r.src && !r.saved))) {
+      URL.revokeObjectURL(r.url)
       ready.delete(id)
     }
   }
-  for (const id of trackIds) {
+  for (const { id, src } of next) {
     if (gen !== generation) return
     if (ready.has(id)) continue
     try {
-      const blob = await load(id, maxBytes)
-      if (blob && gen === generation && trackIds.includes(id) && !ready.has(id)) ready.set(id, URL.createObjectURL(blob))
+      const got = await load(id, src, maxBytes, signal)
+      if (got && gen === generation && wanted.has(id) && !ready.has(id)) ready.set(id, { src, url: URL.createObjectURL(got.blob), saved: got.saved })
     } catch {
       return // offline or the server said no: try again with the next song change
     }
   }
 }
 
-async function load(trackId: number, maxBytes: number): Promise<Blob | null> {
-  const url = streamUrl(trackId)
+async function load(trackId: number, src: string, maxBytes: number, signal: AbortSignal): Promise<{ blob: Blob; saved: boolean } | null> {
+  const saved = await savedFile(trackId).catch(() => null)
+  if (saved) return { blob: saved, saved: true }
   const caches = cacheApi()
   const cache = caches ? await caches.open(CACHE) : null
   const index = readIndex()
-  const hit = await cache?.match(url)
+  const hit = await cache?.match(src)
   if (hit) {
     if (index[trackId]) {
       index[trackId].at = Date.now()
       writeIndex(index)
     }
-    return hit.blob()
+    return { blob: await hit.blob(), saved: false }
   }
-  const res = await fetch(url, { credentials: 'same-origin' })
+  const res = await fetch(src, { credentials: 'same-origin', signal })
   if (!res.ok) return null
+  // a conversion still being written has no length: kept in memory only
   const size = Number(res.headers.get('content-length') || 0)
   if (cache && size && size < maxBytes / 4) {
-    await cache.put(url, res.clone()).catch(() => {}) // storage full: just don't keep it
-    index[trackId] = { size, at: Date.now() }
+    const old = index[trackId]?.url
+    if (old && old !== src) await cache.delete(old).catch(() => {}) // the same song at another quality
+    await cache.put(src, res.clone()).catch(() => {}) // storage full: just don't keep it
+    index[trackId] = { size, at: Date.now(), url: src }
     await evict(cache, index, maxBytes)
   }
-  return res.blob()
+  return { blob: await res.blob(), saved: false }
 }
 
 async function evict(cache: Cache, index: Index, maxBytes: number) {
   let total = Object.values(index).reduce((n, e) => n + e.size, 0)
   for (const [id, e] of Object.entries(index).sort((a, b) => a[1].at - b[1].at)) {
     if (total <= maxBytes) break
-    await cache.delete(streamUrl(Number(id))).catch(() => {})
+    await cache.delete(e.url ?? streamBase(Number(id))).catch(() => {})
     delete index[id]
     total -= e.size
   }
@@ -106,15 +123,10 @@ export function cacheUsage(): number {
 export async function clearAudioCache(all = false) {
   if (all) {
     generation++
-    for (const url of ready.values()) URL.revokeObjectURL(url)
+    fetching.abort()
+    for (const r of ready.values()) URL.revokeObjectURL(r.url)
     ready.clear()
   }
   writeIndex({})
   await cacheApi()?.delete(CACHE).catch(() => {})
-}
-
-/** On mobile data (Android tells us; iPhone doesn't, so it counts as Wi-Fi). */
-export function onCellular(): boolean {
-  const c = (navigator as Navigator & { connection?: { type?: string } }).connection
-  return c?.type === 'cellular'
 }

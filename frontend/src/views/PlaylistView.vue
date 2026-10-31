@@ -10,6 +10,7 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Playlist, PlaylistDetail } from '../types'
 import BaseModal from '../components/BaseModal.vue'
+import DownloadButton from '../components/DownloadButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
@@ -37,6 +38,14 @@ async function load() {
 }
 onMounted(load)
 const tracks = computed(() => playlist.value?.entries.map((e) => e.track) ?? [])
+// what the download button saves (offline.ts); the cover is the first song's album
+const saveAs = computed(() => {
+  const first = tracks.value.find((x) => x.album_id)
+  return {
+    key: `playlist:${props.id}`, title: playlist.value?.name ?? '', subtitle: '', link: `/playlists/${props.id}`,
+    cover: first ? { albumId: first.album_id!, hasCover: first.has_cover, v: first.cover_v } : null, tracks: tracks.value,
+  }
+})
 
 async function run(fn: () => Promise<unknown>) {
   try {
@@ -107,6 +116,7 @@ async function destroy() {
       <button v-if="smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
       </button>
+      <DownloadButton v-if="tracks.length" class="h-[38px]" :list="saveAs" />
       <button v-if="smart" type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="snapshot">{{ t('common.saveAsPlaylist') }}</button>
       <button v-else type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
         <Pencil :size="16" :stroke-width="1.4" />

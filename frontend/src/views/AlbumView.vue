@@ -10,6 +10,7 @@ import { useUi } from '../stores/ui'
 import type { AlbumDetail } from '../types'
 import AccountMenu from '../components/AccountMenu.vue'
 import CoverArt from '../components/CoverArt.vue'
+import DownloadButton from '../components/DownloadButton.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 import QualityBadge from '../components/QualityBadge.vue'
 import StarRating from '../components/StarRating.vue'
@@ -58,6 +59,14 @@ function videos() {
   ui.videoTarget = { albumId: a.id, title: a.title, artist: a.artist }
 }
 
+// what the download button saves (offline.ts)
+const saveAs = computed(() => {
+  const a = album.value!
+  return {
+    key: `album:${a.id}`, title: a.title || t('common.unknownAlbum'), subtitle: a.artist ?? '', link: `/albums/${a.id}`,
+    cover: { albumId: a.id, hasCover: a.has_cover, v: a.cover_v }, tracks: a.tracks,
+  }
+})
 const totalTime = computed(() => album.value?.tracks.reduce((s, x) => s + (x.duration ?? 0), 0) ?? 0)
 const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_no ?? 1)).size > 1)
 </script>
@@ -96,6 +105,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
           <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="videos">
             <MonitorPlay :size="17" :stroke-width="1.4" />{{ t('common.videos') }}<template v-if="album.video_count"> {{ album.video_count }}</template>
           </button>
+          <DownloadButton class="h-11" :list="saveAs" />
         </div>
       </div>
     </div>

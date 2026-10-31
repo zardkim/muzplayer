@@ -31,6 +31,7 @@ export const router = createRouter({
     { path: '/mixes/:mixKey', name: 'mix', component: () => import('./views/MixView.vue'), props: true },
     { path: '/favorites', name: 'favorites', component: () => import('./views/FavoritesView.vue') },
     { path: '/history', name: 'history', component: () => import('./views/HistoryView.vue') },
+    { path: '/downloads', name: 'downloads', component: () => import('./views/DownloadsView.vue') },
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
     { path: '/more', redirect: '/library' },
     { path: '/settings', name: 'settings', component: () => import('./views/SettingsView.vue') },

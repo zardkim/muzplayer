@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Clock, Heart, ListMusic, Plus, Settings, Users, Zap } from '@lucide/vue'
+import { ChevronRight, Clock, Download, Heart, ListMusic, Plus, Settings, Users, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
+import { canSave, offline } from '../offline'
 import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
@@ -88,6 +89,10 @@ async function create() {
       <RouterLink to="/history" class="flex h-[58px] items-center gap-4">
         <Clock :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.history') }}</span>
         <span class="text-[15px] font-light text-muted">{{ t('library.tracksCount', { n: historyCount }) }}</span><ChevronRight :size="18" class="text-subtle" />
+      </RouterLink>
+      <RouterLink v-if="canSave()" to="/downloads" class="flex h-[58px] items-center gap-4">
+        <Download :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('offline.title') }}</span>
+        <span class="text-[15px] font-light text-muted">{{ t('offline.listCount', { n: offline.lists.length }) }}</span><ChevronRight :size="18" class="text-subtle" />
       </RouterLink>
       <RouterLink to="/settings" class="flex h-[58px] items-center gap-4">
         <Settings :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.settings') }}</span><ChevronRight :size="18" class="text-subtle" />

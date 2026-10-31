@@ -372,7 +372,14 @@
     "eq_classical": "Classical",
     "eq_electronic": "Electronic",
     "eq_night": "Late night",
-    "eq_custom": "Custom"
+    "eq_custom": "Custom",
+    "quality": "Streaming quality",
+    "qualityHelp": "The server converts songs to MP3. A value below the original uses less data. iPhone can't tell Wi-Fi from mobile data and uses this one.",
+    "qualityCellular": "Mobile data quality",
+    "qualityCellularHelp": "Used on Android while on mobile data.",
+    "quality_orig": "Original",
+    "soundIosServer": "On iPhone the server does the volume levelling (sending MP3), so a locked screen is fine. Crossfade and the equaliser can stop the sound when the screen locks.",
+    "downloadsHelp": "Albums and playlists saved for offline listening. In use: {mb} MB"
   },
   "admin": {
     "title": "Admin",
@@ -733,5 +740,22 @@
     "path": "Folder path",
     "count": "{n} folder | {n} folders",
     "empty": "No songs in this folder."
+  },
+  "offline": {
+    "title": "Downloads",
+    "save": "Save on this device",
+    "saveShort": "Save",
+    "savedShort": "Saved",
+    "update": "Finish saving",
+    "remove": "Remove saved songs",
+    "removeConfirm": "Remove “{name}” from this device?",
+    "saved": "Saved “{name}”.",
+    "failed": "Saving stopped: {error}. Tap again to continue.",
+    "help": "Music saved on this device. It plays without a connection. In use: {mb} MB",
+    "unsupported": "Saving isn't possible at this address (needs https).",
+    "empty": "Nothing saved yet. Tap “Save” on an album or playlist.",
+    "saving": "saving {done}/{total}",
+    "showTracks": "Show songs",
+    "listCount": "{n}"
   }
 }

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { onScopeDispose, ref, watch } from 'vue'
 import type { Track } from '../types'
+import type { Quality } from '../stream'
 
 const PREFS_KEY = 'muz.ui'
 
@@ -30,6 +31,8 @@ export interface PlayerPrefs {
   eq: boolean // equaliser on
   eqPreset: string // a key of EQ_PRESETS, or 'custom'
   eqGains: number[] // dB per band (custom)
+  quality: Quality // streaming quality on Wi-Fi (and on iPhone, which doesn't say); needs ffmpeg on the server
+  qualityCellular: Quality // ... on mobile data (Android)
 }
 export const CROSSFADES = [0, 2, 4, 6, 8]
 export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
@@ -39,6 +42,7 @@ const PLAYER_PREFS: PlayerPrefs = {
   prefetchWifi: 3, prefetchCellular: 1, cacheMB: 512, autoplay: false, albumEnd: 'radio',
   showCodec: true, showQuality: true, showPopular: true,
   leveling: 'off', crossfade: 0, eq: false, eqPreset: 'flat', eqGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  quality: 'orig', qualityCellular: 'orig',
 }
 
 function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs> } {

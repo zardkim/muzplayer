@@ -44,6 +44,18 @@ total=$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]')
 [ "$total" -gt 0 ] && echo "ok   tracks indexed ($total)" || { echo "FAIL no tracks"; fail=1; }
 tid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["id"]')
 check "range request returns 206" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-99' "$BASE/tracks/$tid/stream")" 206
+# converting (ffmpeg in the image): a song above 128 kbps, finished file with byte ranges
+if [ "$(curl -s "$BASE/config" | j 'd.get("transcode")')" = True ]; then
+  big=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'next((str(t["id"]) for t in d["items"] if (t.get("bitrate") or 0) > 200), "")')
+  if [ -n "$big" ]; then
+    check "converted stream is mp3" "$(curl -s -b "$A" -o /dev/null -w '%{content_type}' "$BASE/tracks/$big/stream?quality=128")" audio/mpeg
+    check "converted file range 206" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -H 'Range: bytes=0-99' "$BASE/tracks/$big/stream?quality=128&whole=1")" 206
+  else
+    echo "skip converting (no song above 200 kbps)"
+  fi
+else
+  echo "FAIL ffmpeg missing (config transcode false)"; fail=1
+fi
 check "cover available" "$(curl -s -b "$A" "$BASE/albums" | j 'any(a["has_cover"] for a in d["items"])')" True
 cov=$(curl -s -b "$A" "$BASE/albums?limit=500" | j 'next(str(a["id"]) + "&v=" + str(a["cover_v"]) for a in d["items"] if a["has_cover"])')
 cover_url="$BASE/albums/${cov%%&*}/cover?size=thumb&${cov#*&}"

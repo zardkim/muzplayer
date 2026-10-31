@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, youtube
+from .. import ai_banner, transcode, youtube
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -53,7 +53,8 @@ def get_config(db: Session = Depends(get_db, scope="function")):
         "audiobooks": settings.audiobook_dir is not None,
         "ai_banners": ai_banner.configured(),
         "youtube_search": youtube.configured(),  # in-app video search; without it links are pasted
-        "needs_setup": not has_users(db),  # a fresh install: the login page makes the first (admin) account
+        "needs_setup": not has_users(db),
+        "transcode": transcode.available(),  # stream quality, WMA/APE, levelling on the server  # a fresh install: the login page makes the first (admin) account
     }
 
 
