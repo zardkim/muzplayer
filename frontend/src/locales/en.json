@@ -1039,7 +1039,7 @@
   "lyricsSheet": {
     "title": "Lyrics: {title}",
     "none": "No lyrics.",
-    "show": "Show LRC lyrics",
+    "show": "Show lyrics",
     "synced": "Synced lyrics (LRC)"
   }
 }

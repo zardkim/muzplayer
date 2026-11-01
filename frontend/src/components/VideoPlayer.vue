@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ExternalLink, Film, ListPlus, Repeat, Shuffle } from '@lucide/vue'
+import { ExternalLink, ListPlus, Repeat, Shuffle } from '@lucide/vue'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { VideoListItem } from '../types'
-import { youtubeApi, youtubeThumb, type YTPlayer } from '../youtube'
+import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 import PlayerIcons from './PlayerIcons.vue'
+import VideoThumb from './VideoThumb.vue'
 
 // The video player (ui.videoQueue): videos played large, one after another or shuffled, YouTube
 // ones with YouTube's player, NAS files with the browser's. From the Music videos page, a search,
@@ -193,8 +194,7 @@ function close() {
               @click="jump(i)"
             >
               <span class="relative aspect-video w-24 flex-none overflow-hidden rounded-lg bg-surface">
-                <img v-if="items[i].youtube_id" :src="youtubeThumb(items[i].youtube_id!)" alt="" loading="lazy" class="h-full w-full object-cover" />
-                <Film v-else :size="18" :stroke-width="1.4" class="absolute inset-0 m-auto text-muted" />
+                <VideoThumb :video="items[i]" :icon="18" :length="false" />
               </span>
               <span class="line-clamp-2 min-w-0 text-[13px] leading-snug" :class="k === pos ? 'font-medium text-accent' : ''">{{ items[i].title }}</span>
             </button>

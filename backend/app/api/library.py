@@ -61,20 +61,20 @@ def track_query(user_id: int) -> Select:
         .scalar_subquery()
     )
     video = exists().where(Video.track_id == Track.id).correlate(Track)
-    # synced lyrics: its own (tags, .lrc next to it; scanner) or fetched for it (lyrics_fetch)
+    # lyrics: its own (tags, .lrc next to it; scanner) or fetched for it (lyrics_fetch), synced or plain
     fetched = exists().where(FetchedLyrics.track_id == Track.id, FetchedLyrics.lrc.is_not(None)).correlate(Track)
     lrc = or_(Track.lrc_tag.is_(True), Track.lrc_file, fetched)
     return (
         select(
             Track, Album.title, Album.cover_path, Album.kind, fav.label("is_favorite"), Album.cover_version,
-            rating.label("rating"), video.label("has_video"), Album.year, lrc.label("has_lrc"),
+            rating.label("rating"), video.label("has_video"), Album.year, lrc.label("has_lyrics"),
         )
         .outerjoin(Album, Album.id == Track.album_id)
     )
 
 
 def track_out(row) -> dict:
-    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year, has_lrc = row
+    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year, has_lyrics = row
     return {
         "id": track.id,
         "title": track.title,
@@ -100,7 +100,7 @@ def track_out(row) -> dict:
         "is_favorite": bool(is_favorite),
         "rating": rating / 2 if rating else None,  # this user's stars (0.5-5), None when not rated
         "has_video": bool(has_video),
-        "has_lrc": bool(has_lrc),
+        "has_lyrics": bool(has_lyrics),
         "missing": track.missing_at is not None,
         # an MP3 only ffmpeg could read (scanner._read_damaged): the player asks for it converted
         "damaged": DAMAGED in (track.tag_json or {}),

@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from .. import youtube
+from .. import video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Artist, Track, User, Video, VideoPlaylist, VideoPlaylistItem
@@ -34,6 +34,7 @@ def video_out(v: Video, user: User) -> dict:
         "source": "file" if v.file_path else "youtube",
         "youtube_id": v.youtube_id,
         "file_path": v.file_path,
+        "duration": v.duration,
         "kind": v.kind,
         "title": v.title,
         "channel": v.channel,
@@ -213,6 +214,7 @@ def update_video(video_id: int, body: VideoPatch, user: User = Depends(current_u
 def delete_video(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     db.delete(_editable(db, user, video_id))
     db.commit()
+    video_thumbs.remove(video_id)
 
 
 # ---- video files on the NAS (library/video; the library is mounted read-only) ----
@@ -287,7 +289,22 @@ def add_video_file(body: VideoFileIn, user: User = Depends(current_user), db: Se
     except IntegrityError:
         db.rollback()
         raise api_error(409, "video_exists") from None
+    video_thumbs.make_later(video.id, path)
     return video_out(video, user)
+
+
+@router.get("/videos/{video_id}/thumb")
+def video_thumb(video_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A NAS file's thumbnail (video_thumbs.py), made the first time when it isn't there yet."""
+    video = db.get(Video, video_id)
+    path = _inside(video.file_path) if video is not None and video.file_path else None
+    if path is None:
+        raise api_error(404, "not_found")
+    db.close()  # making one can take a few seconds: don't hold a connection meanwhile
+    thumb = video_thumbs.ensure(video_id, path)
+    if thumb is None:
+        raise api_error(404, "not_found")
+    return FileResponse(thumb, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.get("/videos/{video_id}/file")

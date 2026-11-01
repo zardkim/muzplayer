@@ -8,7 +8,8 @@ RUN npm run build
 
 # ---- ffmpeg: only what music needs (decode the library's formats, encode MP3, change volume; the
 # null muxer with pcm_s16le decodes a damaged MP3 to measure it: scanner._read_damaged; mpegts for
-# radio HLS segments: radio.py) ----
+# radio HLS segments: radio.py), and one frame of a music video on the NAS as a JPEG thumbnail
+# (video_thumbs.py: H.264/HEVC/VP8/VP9/MPEG-4 in mp4/mov/mkv/webm/avi, scaled down) ----
 # Debian's ffmpeg package would add about 600 MB; this static build is a few MB.
 FROM python:3.12-slim AS ffmpeg
 ARG FFMPEG_VERSION=7.1.1
@@ -22,16 +23,17 @@ RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o 
  && echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c - \
  && tar xf ffmpeg.tar.xz --strip-components=1
 RUN ./configure --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-network \
-      --disable-ffplay --disable-ffprobe --disable-avdevice --disable-swscale --disable-x86asm \
+      --disable-ffplay --disable-ffprobe --disable-avdevice --disable-x86asm \
       --enable-static --disable-shared --extra-ldexeflags=-static \
-      --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le --enable-muxer=mp3,null \
+      --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le,mjpeg --enable-muxer=mp3,null,image2 \
       --enable-protocol=file,pipe \
-      --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff,mpegts \
-      --enable-parser=mpegaudio,flac,aac,vorbis,opus \
-      --enable-decoder=mp3,mp3float,flac,aac,alac,vorbis,opus,wmav1,wmav2,wmapro,wmalossless,ape,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_u8,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be \
-      --enable-filter=aresample,aformat,anull,volume \
+      --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff,mpegts,matroska,avi \
+      --enable-parser=mpegaudio,flac,aac,vorbis,opus,h264,hevc,vp8,vp9,mpeg4video,mpegvideo \
+      --enable-decoder=mp3,mp3float,flac,aac,alac,vorbis,opus,wmav1,wmav2,wmapro,wmalossless,ape,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_u8,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be,h264,hevc,vp8,vp9,mpeg4,mpeg1video,mpeg2video \
+      --enable-filter=aresample,aformat,anull,volume,null,scale,format \
  && make -j"$(nproc)" ffmpeg && strip ffmpeg && ./ffmpeg -hide_banner -encoders | grep -q libmp3lame \
- && ./ffmpeg -hide_banner -encoders | grep -q pcm_s16le && ./ffmpeg -hide_banner -muxers | grep -q ' null '
+ && ./ffmpeg -hide_banner -encoders | grep -q pcm_s16le && ./ffmpeg -hide_banner -muxers | grep -q ' null ' \
+ && ./ffmpeg -hide_banner -encoders | grep -q mjpeg && ./ffmpeg -hide_banner -decoders | grep -q ' hevc '
 
 # ---- runtime ----
 FROM python:3.12-slim

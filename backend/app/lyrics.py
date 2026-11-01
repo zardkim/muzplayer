@@ -68,10 +68,10 @@ def _from_tags(path: Path) -> list[str]:
     return [t for t in found if t.strip()]
 
 
-def synced_in_tags(path: Path) -> bool:
-    """Whether the tags hold synced lyrics (LRC); the scanner keeps the answer (tracks.lrc_tag)."""
+def lyrics_in_tags(path: Path) -> bool:
+    """Whether the tags hold lyrics, synced (LRC) or plain; the scanner keeps the answer (tracks.lrc_tag)."""
     try:
-        return any(parse(t)["synced"] for t in _from_tags(path))
+        return any(parse(t)["synced"] or parse(t)["plain"] for t in _from_tags(path))
     except Exception:  # unreadable tags: no lyrics
         return False
 

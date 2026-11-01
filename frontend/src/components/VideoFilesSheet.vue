@@ -7,6 +7,7 @@ import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type Video, type VideoFile, type VideoKind } from '../types'
 import BaseModal from './BaseModal.vue'
+import VideoThumb from './VideoThumb.vue'
 
 // Registering the video files the NAS keeps in library/video: each gets a kind (and a title,
 // the file name to begin with). Files already registered are marked. All files in one list, or
@@ -137,7 +138,10 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
           </div>
           <ul v-if="g.dir === null || open.has(g.dir)" class="flex flex-col gap-2">
             <li v-for="f in g.items" :key="f.path" class="flex items-center gap-3 rounded-xl bg-surface p-2.5">
-              <span class="grid size-10 flex-none place-items-center rounded-lg bg-bg text-muted"><Film :size="18" :stroke-width="1.4" /></span>
+              <span class="relative grid aspect-video w-20 flex-none place-items-center overflow-hidden rounded-lg bg-bg text-muted">
+                <VideoThumb v-if="f.video_id" :key="f.video_id" :video="{ id: f.video_id, youtube_id: null }" :icon="18" :length="false" />
+                <Film v-else :size="18" :stroke-width="1.4" />
+              </span>
               <span class="flex min-w-0 flex-1 flex-col gap-1">
                 <input
                   v-model="titles[f.path]"

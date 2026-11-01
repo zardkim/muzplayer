@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Heart, MonitorPlay, PenLine } from '@lucide/vue'
+import { ChevronRight, Heart, PenLine } from '@lucide/vue'
 import { api } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
@@ -53,11 +53,6 @@ async function rate(stars: number | null) {
     a.rating = before
     ui.notify(errorMessage(e), true)
   }
-}
-
-function videos() {
-  const a = album.value!
-  ui.videoTarget = { albumId: a.id, title: a.title, artist: a.artist }
 }
 
 // what the download button saves (offline.ts)
@@ -115,9 +110,6 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
             @click="like"
           >
             <Heart :size="19" :stroke-width="1.4" :fill="album.is_favorite ? 'currentColor' : 'none'" />
-          </button>
-          <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="videos">
-            <MonitorPlay :size="17" :stroke-width="1.4" />{{ t('common.videos') }}<template v-if="album.video_count"> {{ album.video_count }}</template>
           </button>
           <DownloadButton class="h-11" :list="saveAs" />
         </div>

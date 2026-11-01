@@ -1039,7 +1039,7 @@
   "lyricsSheet": {
     "title": "{title} 가사",
     "none": "가사가 없습니다.",
-    "show": "LRC 가사 보기",
+    "show": "가사 보기",
     "synced": "시간에 맞춘 가사(LRC)"
   }
 }

@@ -139,7 +139,7 @@ class Track(Base):
     rg_track_peak: Mapped[float | None] = mapped_column(Float)
     rg_album_gain: Mapped[float | None] = mapped_column(Float)
     rg_album_peak: Mapped[float | None] = mapped_column(Float)
-    # synced lyrics (LRC) in the tags (NULL = not looked at yet), and a Song.lrc next to the file
+    # lyrics (synced or plain) in the tags (NULL = not looked at yet), and a Song.lrc next to the file
     lrc_tag: Mapped[bool | None] = mapped_column(Boolean)
     lrc_file: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
@@ -439,6 +439,7 @@ class Video(Base):
     track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
     youtube_id: Mapped[str | None] = mapped_column(String(16))
     file_path: Mapped[str | None] = mapped_column(String(1000))
+    duration: Mapped[int | None] = mapped_column(Integer)  # seconds; NAS files (video_thumbs.py)
     kind: Mapped[str] = mapped_column(String(16))  # mv | concert | tv | fan | other
     title: Mapped[str] = mapped_column(String(500))
     channel: Mapped[str] = mapped_column(String(200), default="")

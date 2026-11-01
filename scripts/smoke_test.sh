@@ -75,7 +75,7 @@ check "search index built" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["
 # lyrics: the song's own, else looked up once (needs the internet: only the shape is checked) and kept
 check "lyrics answer" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics" | j 'sorted(d)')" "['plain', 'synced']"
 check "lyrics answer again" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/$fid/lyrics")" 200
-check "songs say whether they have LRC lyrics" "$(curl -s -b "$A" "$BASE/tracks?limit=1" | j '"has_lrc" in d["items"][0]')" True
+check "songs say whether they have lyrics" "$(curl -s -b "$A" "$BASE/tracks?limit=1" | j '"has_lyrics" in d["items"][0]')" True
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
@@ -181,6 +181,7 @@ check "music videos can be searched" "$(curl -s -b "$A" "$BASE/videos?q=nothing-
 vpl=$(curl -s -b "$A" -X POST "$BASE/video-playlists" -H 'content-type: application/json' -d '{"name":"smoke videos"}' | j 'd["id"]')
 check "video playlist made" "$(curl -s -b "$A" "$BASE/video-playlists/$vpl" | j '[d["name"], d["count"]]')" "['smoke videos', 0]"
 check "video playlist deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/video-playlists/$vpl")" 204
+check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/thumb")" 404
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
 check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"

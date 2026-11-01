@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { EllipsisVertical, Film, Play } from '@lucide/vue'
+import { EllipsisVertical, Play } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
-import { youtubeThumb } from '../youtube'
 import CoverArt from './CoverArt.vue'
+import VideoThumb from './VideoThumb.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
 // One music video in a grid: its picture plays it; the menu puts it in a video playlist and lets
@@ -47,8 +47,7 @@ onUnmounted(() => document.removeEventListener('click', outside))
 <template>
   <div class="flex flex-col gap-2.5">
     <button type="button" class="group relative aspect-video overflow-hidden rounded-xl bg-surface" :aria-label="`${t('videos.play')}: ${video.title}`" @click="emit('play')">
-      <img v-if="video.youtube_id" :src="youtubeThumb(video.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" />
-      <span v-else class="grid h-full w-full place-items-center bg-ink/90 text-on-ink/70"><Film :size="40" :stroke-width="1.1" /></span>
+      <VideoThumb :video="video" :icon="40" />
       <span class="absolute inset-0 m-auto grid size-12 place-items-center rounded-full bg-black/55 text-white"><Play :size="20" fill="currentColor" /></span>
       <span class="absolute left-2 top-2 flex h-5 items-center rounded-full bg-black/60 px-2 text-[11px] text-white">
         <YoutubeIcon v-if="video.youtube_id" :size="15" /><template v-else>{{ t('videos.nas') }}</template>

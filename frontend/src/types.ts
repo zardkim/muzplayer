@@ -29,7 +29,7 @@ export interface Track {
   rating?: number | null // this user's stars (0.5-5, in halves)
   year?: number | null // the album's year
   has_video?: boolean
-  has_lrc?: boolean // synced lyrics: its own (tags, .lrc next to it) or fetched for it
+  has_lyrics?: boolean // lyrics (synced or plain): its own (tags, .lrc next to it) or fetched for it
   missing: boolean
   damaged?: boolean // an MP3 only ffmpeg could read: played converted (server transcode)
   chart_position?: number | null // only in chart lists
@@ -239,6 +239,7 @@ export interface Video {
   source: 'youtube' | 'file' // a file: in library/video on the NAS
   youtube_id: string | null
   file_path: string | null
+  duration?: number | null // seconds, NAS files
   kind: VideoKind
   title: string
   channel: string

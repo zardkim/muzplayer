@@ -89,10 +89,13 @@ function videos(track: Track) {
   ui.videoTarget = { trackId: track.id, title: track.title, artist: track.artist }
 }
 
-// the icons before the heart: play a video added to the song (or, without one, find and add one); its synced lyrics
+// the icons before the heart: the song's lyrics; play a video added to it (or, without one, find and add one)
 function playVideo(track: Track) {
   ui.videoTarget = { trackId: track.id, title: track.title, artist: track.artist, play: track.has_video ? 'first' : undefined }
 }
+// the icon columns line up: a row without lyrics (or a video) keeps the room when another row has them
+const lyricsColumn = computed(() => props.tracks.some((tr) => tr.has_lyrics && !tr.missing))
+const videoColumn = computed(() => props.videoButtons || props.tracks.some((tr) => tr.has_video && !tr.missing))
 // videos added or removed in the video sheet: the mark follows
 watch(
   () => ui.videoChanged,
@@ -251,6 +254,11 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
         <span class="hidden w-14 flex-none font-display text-[14px] text-muted md:block">{{ duration(track.duration) }}</span>
 
         <span class="flex flex-none items-center">
+          <!-- before the heart: lyrics, then YouTube -->
+          <button v-if="track.has_lyrics && !track.missing" type="button" class="grid size-9 place-items-center text-muted hover:text-ink md:size-10" :aria-label="`${L.lyrics}: ${track.title}`" :title="L.lyrics" @click="showLyrics(track)">
+            <MicVocal :size="19" :stroke-width="1.4" />
+          </button>
+          <span v-else-if="lyricsColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
           <button
             v-if="(track.has_video || videoButtons) && !track.missing"
             type="button"
@@ -262,9 +270,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           >
             <YoutubeIcon :size="22" />
           </button>
-          <button v-if="track.has_lrc && !track.missing" type="button" class="grid size-9 place-items-center text-muted hover:text-ink md:size-10" :aria-label="`${L.lyrics}: ${track.title}`" :title="L.lyrics" @click="showLyrics(track)">
-            <MicVocal :size="19" :stroke-width="1.4" />
-          </button>
+          <span v-else-if="videoColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
           <button
             type="button"
             class="grid size-11 place-items-center"

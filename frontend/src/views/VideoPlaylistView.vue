@@ -2,13 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, Film, Pencil, Play, Shuffle, Trash2, X } from '@lucide/vue'
+import { ArrowDown, ArrowUp, Pencil, Play, Shuffle, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import type { VideoPlaylist } from '../types'
-import { youtubeThumb } from '../youtube'
 import PageHeader from '../components/PageHeader.vue'
+import VideoThumb from '../components/VideoThumb.vue'
 
 // One video playlist: play it in order or shuffled (the video player), a video from where it is;
 // rename, reorder, remove videos, delete the list.
@@ -92,8 +92,7 @@ async function destroy() {
           <span class="w-6 flex-none text-center font-display text-[14px] text-muted">{{ i + 1 }}</span>
           <button type="button" class="flex min-w-0 flex-1 items-center gap-3.5 text-left" :aria-label="`${t('videos.play')}: ${e.video.title}`" @click="play(i)">
             <span class="relative aspect-video w-32 flex-none overflow-hidden rounded-lg bg-surface sm:w-40">
-              <img v-if="e.video.youtube_id" :src="youtubeThumb(e.video.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
-              <Film v-else :size="22" :stroke-width="1.3" class="absolute inset-0 m-auto text-muted" />
+              <VideoThumb :video="e.video" />
             </span>
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="line-clamp-2 text-[15px] leading-snug">{{ e.video.title }}</span>

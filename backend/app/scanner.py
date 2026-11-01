@@ -20,7 +20,7 @@ from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import Session, defer
 
 from . import search_index
-from .lyrics import synced_in_tags
+from .lyrics import lyrics_in_tags
 from .config import settings
 from .db import SessionLocal
 from .models import (
@@ -519,7 +519,7 @@ def _apply_tags(
     _set_info(track, info)
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
     track.tag_kind = tag_kind(raw)
-    track.lrc_tag = synced_in_tags(path)
+    track.lrc_tag = lyrics_in_tags(path)
     for key, value in replaygain(raw).items():
         setattr(track, key, value)
     _classify(cache, track, raw, path, place, cover_tries)
@@ -931,7 +931,7 @@ def _scan(job_id: int) -> None:
                     if track.lrc_file != has_file:
                         track.lrc_file, lyrics = has_file, True
                     if track.lrc_tag is None:
-                        track.lrc_tag, lyrics = synced_in_tags(path), True
+                        track.lrc_tag, lyrics = lyrics_in_tags(path), True
                     if changed:
                         job.updated += 1
                     if changed or lyrics:

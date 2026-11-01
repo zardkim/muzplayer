@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ExternalLink, Film, Play, Search, Trash2 } from '@lucide/vue'
+import { ExternalLink, Play, Search, Trash2 } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
@@ -10,6 +10,7 @@ import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type Video, type VideoKind, type VideoResult } from '../types'
 import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
+import VideoThumb from './VideoThumb.vue'
 
 // Videos of an album or a song (ui.videoTarget): watch them with YouTube's own player (or, for a
 // file on the NAS linked to it, the browser's), add more from a YouTube search (or a pasted link). Videos never go into the music queue: YouTube's terms
@@ -211,8 +212,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
         <div v-for="v in g.items" :key="v.id" class="flex items-center gap-3 rounded-xl py-1.5" :class="current?.id === v.id ? 'bg-accent-soft' : ''">
           <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="`${t('common.play')}: ${v.title}`" @click="watch(v)">
             <span class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-surface sm:w-40">
-              <img v-if="v.youtube_id" :src="thumb(v.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
-              <Film v-else :size="22" :stroke-width="1.4" class="absolute inset-0 m-auto text-muted" />
+              <VideoThumb :video="v" />
               <Play v-if="v.youtube_id" :size="18" class="absolute inset-0 m-auto text-white drop-shadow" fill="currentColor" />
             </span>
             <span class="flex min-w-0 flex-col">
