@@ -6,6 +6,7 @@
 #   conf/               settings changed in the app (API keys)
 #   library/music/      the music library (mount it here yourself, then restart the app)
 #   library/audiobook/  audiobooks (optional; empty or missing = audiobooks off)
+#   library/video/      music videos (optional; registered on the Music videos page)
 # app, db, conf and library are created on the first start.
 # Absolute on purpose: Portainer runs stacks from its own folder, where ./app would not be yours.
 name: muzplayer

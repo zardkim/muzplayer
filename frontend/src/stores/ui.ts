@@ -72,8 +72,14 @@ export const useUi = defineStore('ui', () => {
   // when App.vue last asked whether the library changed; 0 makes the next page change ask
   // (after this person changed it, e.g. applied a banner, the kept lists must not wait a minute)
   const libraryCheckedAt = ref(0)
-  // the video sheet (App.vue): an album's or a song's videos
-  const videoTarget = ref<{ albumId?: number; trackId?: number; title: string; artist: string } | null>(null)
+  // the video sheet (App.vue): an album's or a song's videos; play: start one at once (a video id, or the first)
+  const videoTarget = ref<{ albumId?: number; trackId?: number; title: string; artist: string; play?: number | 'first' } | null>(null)
+  // a song's videos changed in the video sheet: lists showing it update their YouTube mark
+  const videoChanged = ref<{ trackId: number; has: boolean } | null>(null)
+  // a video file from the NAS playing in its own sheet (App.vue)
+  const fileVideo = ref<import('../types').Video | null>(null)
+  // the lyrics sheet (App.vue): a song's lyrics from a list, without playing it
+  const lyricsTarget = ref<{ trackId: number; title: string; artist: string } | null>(null)
 
   // PC: the bottom player bar can be tucked away, the sidebar folded to icons, and each list page
   // shown as a list, covers or a grid
@@ -117,7 +123,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget,
+    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, fileVideo,
     barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })

@@ -29,6 +29,7 @@ export interface Track {
   rating?: number | null // this user's stars (0.5-5, in halves)
   year?: number | null // the album's year
   has_video?: boolean
+  has_lrc?: boolean // synced lyrics: its own (tags, .lrc next to it) or fetched for it
   missing: boolean
   damaged?: boolean // an MP3 only ffmpeg could read: played converted (server transcode)
   chart_position?: number | null // only in chart lists
@@ -231,16 +232,30 @@ export interface Mix {
   cover_albums: { id: number; v: number }[]
 }
 
-export type VideoKind = 'mv' | 'live' | 'cover' | 'other'
+export type VideoKind = 'mv' | 'concert' | 'tv' | 'fan' | 'other'
+export const VIDEO_KINDS: VideoKind[] = ['mv', 'concert', 'tv', 'fan', 'other']
 export interface Video {
   id: number
-  youtube_id: string
+  source: 'youtube' | 'file' // a file: in library/video on the NAS
+  youtube_id: string | null
+  file_path: string | null
   kind: VideoKind
   title: string
   channel: string
   album_id: number | null
   track_id: number | null
   can_edit: boolean
+}
+/** A video on the Music videos page, with the song or album it was added to. */
+export interface VideoListItem extends Video {
+  created_at: string
+  target: { type: 'track' | 'album'; title: string; artist: string; album_id: number | null; has_cover: boolean; cover_v: number } | null
+}
+/** A video file in library/video (the NAS), registered or not. */
+export interface VideoFile {
+  path: string
+  size: number
+  video_id: number | null
 }
 export interface VideoResult {
   youtube_id: string

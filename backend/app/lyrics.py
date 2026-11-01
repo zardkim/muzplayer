@@ -68,6 +68,14 @@ def _from_tags(path: Path) -> list[str]:
     return [t for t in found if t.strip()]
 
 
+def synced_in_tags(path: Path) -> bool:
+    """Whether the tags hold synced lyrics (LRC); the scanner keeps the answer (tracks.lrc_tag)."""
+    try:
+        return any(parse(t)["synced"] for t in _from_tags(path))
+    except Exception:  # unreadable tags: no lyrics
+        return False
+
+
 def parse(text: str) -> dict:
     """Returns {"synced": [[seconds, line], ...] | None, "plain": str | None}."""
     text = text.translate(INVISIBLE).replace("\r\n", "\n").replace("\r", "\n").strip()

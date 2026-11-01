@@ -27,7 +27,8 @@
     "folders": "Folders",
     "back": "Back",
     "forward": "Forward",
-    "radio": "Radio"
+    "radio": "Radio",
+    "videos": "Music videos"
   },
   "search": {
     "label": "Search",
@@ -806,9 +807,10 @@
     "added": "Video added",
     "kind": "Kind",
     "kinds": {
-      "mv": "Music video",
-      "live": "Live",
-      "cover": "Cover",
+      "mv": "Music videos",
+      "concert": "Concerts",
+      "tv": "TV",
+      "fan": "Fan videos",
       "other": "Other"
     },
     "paste": "Add by YouTube link",
@@ -821,7 +823,27 @@
     "remove": "Remove",
     "removeConfirm": "Remove ‘{title}’ from the list?",
     "resumeMusic": "Resume music",
-    "minutes": "{m}:{s}"
+    "minutes": "{m}:{s}",
+    "pageTitle": "Music videos",
+    "pageSub": "{n} videos",
+    "all": "All",
+    "pageEmpty": "No videos yet. Add YouTube videos from a song’s or an album’s menu (Watch videos).",
+    "forSong": "Song",
+    "forAlbumShort": "Album",
+    "more": "Show more",
+    "play": "Play video",
+    "nas": "NAS",
+    "addFile": "Add NAS videos",
+    "filesTitle": "Add NAS videos",
+    "filesHint": "Video files in library/video on the NAS (sub-folders too). Pick a kind and add them.",
+    "noFolder": "There is no library/video folder. Make a video folder in library inside the muzplayer folder on the NAS, put video files in it and open this again.",
+    "noFiles": "No video files in the video folder (mp4, m4v, webm, mov, mkv).",
+    "fileTitle": "Title",
+    "fileCantPlay": "This browser can’t play this video format (H.264/AAC MP4 works best).",
+    "changeKind": "Change kind",
+    "results": "{n} results",
+    "trackVideo": "Find and add videos",
+    "pickKind": "Kind:"
   },
   "folders": {
     "root": "Music",
@@ -989,5 +1011,11 @@
     "storage_covers": "Covers and artist photos",
     "storage_transcode": "Conversion cache",
     "note": "Plays and rankings count each person's latest 1000 plays; all-time plays count everything."
+  },
+  "lyricsSheet": {
+    "title": "Lyrics: {title}",
+    "none": "No lyrics.",
+    "show": "Show LRC lyrics",
+    "synced": "Synced lyrics (LRC)"
   }
 }

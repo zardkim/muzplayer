@@ -25,6 +25,8 @@ class Settings:
     music_dir: Path = Path(os.getenv("MUSIC_DIR", "/library/music"))
     # audiobooks are on while this folder exists and holds something (unset: always off)
     books_root: Path | None = _path("AUDIOBOOK_DIR")
+    # music videos on the NAS (library/video): registered one by one on the Music videos page
+    video_dir: Path = Path(os.getenv("VIDEO_DIR", "/library/video"))
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))
     # settings changed in the app (API keys): conf/settings.json
     conf_dir: Path = Path(os.getenv("CONF_DIR", "/conf"))

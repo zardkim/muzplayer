@@ -1,30 +1,31 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ExternalLink, Play, Search, Trash2 } from '@lucide/vue'
+import { ExternalLink, Film, Play, Search, Trash2 } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Video, VideoKind, VideoResult } from '../types'
+import { VIDEO_KINDS, type Video, type VideoKind, type VideoResult } from '../types'
 import BaseModal from './BaseModal.vue'
 
-// Videos of an album or a song (ui.videoTarget): watch them with YouTube's own player, add more
-// from a YouTube search (or a pasted link). Videos never go into the music queue: YouTube's terms
+// Videos of an album or a song (ui.videoTarget): watch them with YouTube's own player (or, for a
+// file on the NAS linked to it, the browser's), add more from a YouTube search (or a pasted link). Videos never go into the music queue: YouTube's terms
 // don't allow playing just their sound, and iPhones stop embedded videos when the screen locks.
 const { t } = useI18n()
 const ui = useUi()
 const player = usePlayer()
 const target = computed(() => ui.videoTarget!)
-const KINDS: VideoKind[] = ['mv', 'live', 'cover', 'other']
+const KINDS = VIDEO_KINDS
 
 const videos = ref<Video[]>([])
 const current = ref<Video | null>(null)
 const playError = ref<'embed' | 'gone' | null>(null)
 const pausedMusic = ref(false)
 const adding = ref(false)
-const kind = ref<VideoKind>('mv')
+// search by the song (or album) itself; the kind is picked for each video when it is added
+const picking = ref<string | null>(null) // the result (YouTube id) or 'link' whose kind is being picked
 const q = ref('')
 const results = ref<VideoResult[] | null>(null)
 const searching = ref(false)
@@ -35,29 +36,30 @@ const base = computed(() => (target.value.albumId ? `/albums/${target.value.albu
 const grouped = computed(() => KINDS.map((k) => ({ kind: k, items: videos.value.filter((v) => v.kind === k) })).filter((g) => g.items.length))
 const youtubeSearchUrl = computed(() => `https://www.youtube.com/results?${new URLSearchParams({ search_query: q.value })}`)
 
-function suggestion(k: VideoKind) {
+function suggestion() {
   const { artist, title } = target.value
-  return { mv: `${artist} ${title} MV`, live: `${artist} ${title} live`, cover: `${title} cover`, other: `${artist} ${title}` }[k].trim()
+  return `${artist} ${title}`.trim()
 }
 
 async function load() {
   videos.value = (await api<{ items: Video[] }>(`${base.value}/videos`)).items
+  // lists showing the song update its YouTube mark
+  if (target.value.trackId) ui.videoChanged = { trackId: target.value.trackId, has: videos.value.length > 0 }
 }
 
 onMounted(async () => {
-  q.value = suggestion(kind.value)
+  q.value = suggestion()
   try {
     await load()
     if (!videos.value.length) adding.value = true
+    const want = target.value.play
+    const first = want === 'first' ? videos.value[0] : videos.value.find((v) => v.id === want)
+    if (first) watch(first)
   } catch (e) {
     error.value = errorMessage(e)
   }
 })
 
-function setKind(k: VideoKind) {
-  if (q.value === suggestion(kind.value)) q.value = suggestion(k) // keep what the user typed
-  kind.value = k
-}
 
 // ---- YouTube's IFrame player ----
 type YTPlayer = { loadVideoById(id: string): void; destroy(): void }
@@ -86,19 +88,25 @@ function youtubeApi(): Promise<YTNamespace> {
 async function watch(v: Video) {
   current.value = v
   playError.value = null
+  if (v.source === 'file') {
+    // the browser plays it (template); YouTube's player goes
+    yt?.destroy()
+    yt = null
+    return
+  }
   await nextTick()
   if (yt) {
-    yt.loadVideoById(v.youtube_id)
+    yt.loadVideoById(v.youtube_id!)
     return
   }
   const YT = await youtubeApi()
-  if (!host.value || current.value?.id !== v.id) return
+  if (!host.value || current.value?.id !== v.id || !v.youtube_id) return
   // YouTube replaces the element it is given with its iframe: give it one Vue doesn't track
   const el = document.createElement('div')
   host.value.replaceChildren(el)
   yt = new YT.Player(el, {
     host: 'https://www.youtube-nocookie.com',
-    videoId: v.youtube_id,
+    videoId: v.youtube_id!,
     width: '100%',
     height: '100%',
     playerVars: { autoplay: 1, playsinline: 1, rel: 0 },
@@ -119,6 +127,13 @@ async function watch(v: Video) {
 function next() {
   const i = videos.value.findIndex((v) => v.id === current.value?.id)
   if (i >= 0 && i + 1 < videos.value.length) watch(videos.value[i + 1])
+}
+
+function filePlaying() {
+  if (player.playing) {
+    player.toggle() // the song pauses while a video plays
+    pausedMusic.value = true
+  }
 }
 
 function resumeMusic() {
@@ -143,10 +158,11 @@ async function search() {
   }
 }
 
-async function add(video: string, result?: VideoResult) {
+async function add(video: string, kind: VideoKind, result?: VideoResult) {
   error.value = ''
+  picking.value = null
   try {
-    const body = { video, kind: kind.value, album_id: target.value.albumId ?? null, track_id: target.value.trackId ?? null }
+    const body = { video, kind, album_id: target.value.albumId ?? null, track_id: target.value.trackId ?? null }
     const v = await api<Video>('/videos', { method: 'POST', body })
     if (result) result.added = true
     link.value = ''
@@ -174,7 +190,7 @@ async function remove(v: Video) {
 }
 
 const length = (sec: number | null) => (sec == null ? '' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`)
-const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
+const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefault.jpg` : '')
 </script>
 
 <template>
@@ -183,10 +199,22 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
       <!-- player -->
       <div v-if="current" class="flex flex-col gap-2">
         <div class="relative aspect-video overflow-hidden rounded-xl bg-black">
-          <div ref="host" class="absolute inset-0" />
+          <video
+            v-if="current.source === 'file'"
+            :key="current.id"
+            :src="`/api/v1/videos/${current.id}/file`"
+            controls
+            autoplay
+            playsinline
+            class="absolute inset-0 h-full w-full"
+            @play="filePlaying"
+            @ended="next"
+            @error="playError = 'embed'"
+          />
+          <div v-else ref="host" class="absolute inset-0" />
           <div v-if="playError" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink p-4 text-center text-[14px] text-on-ink">
-            <p>{{ playError === 'gone' ? t('videos.unavailable') : t('videos.notEmbeddable') }}</p>
-            <a :href="`https://www.youtube.com/watch?v=${current.youtube_id}`" target="_blank" rel="noopener" class="flex h-10 items-center gap-1.5 rounded-full bg-bg px-4 text-ink">
+            <p>{{ current.source === 'file' ? t('videos.fileCantPlay') : playError === 'gone' ? t('videos.unavailable') : t('videos.notEmbeddable') }}</p>
+            <a v-if="current.source !== 'file'" :href="`https://www.youtube.com/watch?v=${current.youtube_id}`" target="_blank" rel="noopener" class="flex h-10 items-center gap-1.5 rounded-full bg-bg px-4 text-ink">
               <ExternalLink :size="16" />{{ t('videos.openYoutube') }}
             </a>
           </div>
@@ -202,8 +230,9 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
         <div v-for="v in g.items" :key="v.id" class="flex items-center gap-3 rounded-xl py-1.5" :class="current?.id === v.id ? 'bg-accent-soft' : ''">
           <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="`${t('common.play')}: ${v.title}`" @click="watch(v)">
             <span class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-surface">
-              <img :src="thumb(v.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
-              <Play :size="18" class="absolute inset-0 m-auto text-white drop-shadow" fill="currentColor" />
+              <img v-if="v.youtube_id" :src="thumb(v.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
+              <Film v-else :size="22" :stroke-width="1.4" class="absolute inset-0 m-auto text-muted" />
+              <Play v-if="v.youtube_id" :size="18" class="absolute inset-0 m-auto text-white drop-shadow" fill="currentColor" />
             </span>
             <span class="flex min-w-0 flex-col">
               <span class="line-clamp-2 text-[14px] leading-snug">{{ v.title }}</span>
@@ -219,21 +248,6 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
       <!-- add -->
       <button v-if="!adding" type="button" class="h-11 rounded-full border border-line-strong text-[15px]" @click="adding = true">{{ t('videos.add') }}</button>
       <section v-else class="flex flex-col gap-3 rounded-2xl bg-surface p-3.5">
-        <div class="flex flex-wrap gap-1.5" role="radiogroup" :aria-label="t('videos.kind')">
-          <button
-            v-for="k in KINDS"
-            :key="k"
-            type="button"
-            role="radio"
-            :aria-checked="kind === k"
-            class="h-9 rounded-full px-3.5 text-[14px]"
-            :class="kind === k ? 'bg-ink text-on-ink' : 'bg-bg'"
-            @click="setKind(k)"
-          >
-            {{ t(`videos.kinds.${k}`) }}
-          </button>
-        </div>
-
         <template v-if="appConfig.youtubeSearch">
           <form class="flex gap-2" role="search" @submit.prevent="search">
             <label for="video-q" class="sr-only">{{ t('videos.search') }}</label>
@@ -243,8 +257,9 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
             </button>
           </form>
           <p v-if="searching" class="text-[14px] text-muted" role="status">{{ t('common.loading') }}</p>
+          <p v-else-if="results" class="text-[13px] text-muted">{{ t('videos.results', { n: results.length }) }}</p>
           <ul v-if="results" class="flex flex-col gap-1">
-            <li v-for="r in results" :key="r.youtube_id" class="flex items-center gap-3 py-1">
+            <li v-for="r in results" :key="r.youtube_id" class="flex flex-wrap items-center gap-3 py-1">
               <a :href="`https://www.youtube.com/watch?v=${r.youtube_id}`" target="_blank" rel="noopener" class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-bg">
                 <img :src="thumb(r.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
                 <span v-if="r.duration" class="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[11px] text-white">{{ length(r.duration) }}</span>
@@ -258,10 +273,18 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
                 class="h-9 flex-none rounded-full px-3.5 text-[14px] disabled:opacity-50"
                 :class="r.added ? 'text-muted' : 'bg-ink text-on-ink'"
                 :disabled="r.added"
-                @click="add(r.youtube_id, r)"
+                :aria-expanded="picking === r.youtube_id"
+                @click="picking = picking === r.youtube_id ? null : r.youtube_id"
               >
                 {{ r.added ? t('videos.registered') : t('videos.register') }}
               </button>
+              <!-- what kind of video it is: picking one adds it -->
+              <div v-if="picking === r.youtube_id" class="flex w-full flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
+                <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
+                <button v-for="k in KINDS" :key="k" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="add(r.youtube_id, k, r)">
+                  {{ t(`videos.kinds.${k}`) }}
+                </button>
+              </div>
             </li>
           </ul>
         </template>
@@ -273,11 +296,17 @@ const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
         </template>
 
         <!-- a link always works, also when a search can't find it -->
-        <form class="flex gap-2" @submit.prevent="add(link)">
+        <form class="flex gap-2" @submit.prevent="picking = 'link'">
           <label for="video-link" class="sr-only">{{ t('videos.paste') }}</label>
           <input id="video-link" v-model="link" inputmode="url" maxlength="500" :placeholder="t('videos.pastePlaceholder')" class="h-11 min-w-0 flex-1 rounded-full bg-bg px-4 text-[15px] outline-none focus:ring-2 focus:ring-ink" />
           <button type="submit" class="h-11 flex-none rounded-full border border-line-strong bg-bg px-4 text-[15px] disabled:opacity-40" :disabled="link.trim().length < 11">{{ t('videos.register') }}</button>
         </form>
+        <div v-if="picking === 'link' && link.trim().length >= 11" class="flex flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
+          <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
+          <button v-for="k in KINDS" :key="k" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="add(link, k)">
+            {{ t(`videos.kinds.${k}`) }}
+          </button>
+        </div>
         <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>
       </section>
     </div>

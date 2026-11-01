@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MonitorPlay, Star } from '@lucide/vue'
+import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MicVocal, Star } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { duration } from '../format'
+import { openPlayer } from '../playerNav'
 import { useProgressive } from '../progressive'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
@@ -12,6 +13,7 @@ import type { Track } from '../types'
 import { useLongPress, useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 import StarRating from './StarRating.vue'
+import YoutubeIcon from './YoutubeIcon.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -21,6 +23,7 @@ const props = withDefaults(
     numbered?: boolean // show track_no instead of the list position
     ranked?: boolean // chart: show chart_position (list position when missing)
     editable?: boolean // playlist mode: remove / move up / move down
+    videoButtons?: boolean // album page: every song gets the YouTube button (grey: none yet, find and add)
   }>(),
   { showCover: true, showAlbum: true },
 )
@@ -34,7 +37,7 @@ const ui = useUi()
 const shown = useProgressive(() => props.tracks)
 // row labels looked up once per list, not several times per row (a long list spent much of its time here)
 const L = computed(() => ({
-  select: t('common.select'), play: t('common.play'), videos: t('common.videos'), missing: t('common.missingFile'),
+  select: t('common.select'), play: t('common.play'), videos: t('videos.play'), findVideos: t('videos.trackVideo'), lyrics: t('lyricsSheet.show'), missing: t('common.missingFile'),
   unknownArtist: t('common.unknownArtist'), unknownAlbum: t('common.unknownAlbum'),
   favAdd: t('common.favoriteAdd'), popular: t('common.popular'), favRemove: t('common.favoriteRemove'), more: t('common.moreActions'),
 }))
@@ -84,6 +87,25 @@ async function rate(track: Track, stars: number | null) {
 function videos(track: Track) {
   menuOpen.value = null
   ui.videoTarget = { trackId: track.id, title: track.title, artist: track.artist }
+}
+
+// the icons before the heart: play a video added to the song (or, without one, find and add one); its synced lyrics
+function playVideo(track: Track) {
+  ui.videoTarget = { trackId: track.id, title: track.title, artist: track.artist, play: track.has_video ? 'first' : undefined }
+}
+// videos added or removed in the video sheet: the mark follows
+watch(
+  () => ui.videoChanged,
+  (c) => {
+    if (!c) return
+    for (const tr of props.tracks) if (tr.id === c.trackId) tr.has_video = c.has
+  },
+)
+function showLyrics(track: Track) {
+  if (isCurrent(track) && player.mode === 'music') {
+    ui.lyricsOpen = true // the song playing: its lyrics in time, in the player
+    openPlayer('lyrics')
+  } else ui.lyricsTarget = { trackId: track.id, title: track.title, artist: track.artist }
 }
 
 const isCurrent = (track: Track) => player.current?.id === track.id
@@ -215,7 +237,6 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
             <span class="flex min-w-0 items-center gap-1.5">
               <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
               <span v-if="track.popular && ui.playerPrefs.showPopular" class="flex flex-none items-center gap-0.5 rounded-full bg-accent-soft px-1.5 text-[11px] font-medium leading-[18px] text-accent"><Flame :size="11" :stroke-width="2" />{{ L.popular }}</span>
-              <MonitorPlay v-if="track.has_video" :size="15" :stroke-width="1.5" class="flex-none text-muted" :aria-label="L.videos" />
             </span>
             <span class="truncate text-[14px] font-light text-muted">
               <template v-if="track.missing">{{ L.missing }}</template>
@@ -230,6 +251,20 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
         <span class="hidden w-14 flex-none font-display text-[14px] text-muted md:block">{{ duration(track.duration) }}</span>
 
         <span class="flex flex-none items-center">
+          <button
+            v-if="(track.has_video || videoButtons) && !track.missing"
+            type="button"
+            class="grid size-9 place-items-center md:size-10"
+            :class="track.has_video ? '' : 'opacity-35 grayscale hover:opacity-70'"
+            :aria-label="`${track.has_video ? L.videos : L.findVideos}: ${track.title}`"
+            :title="track.has_video ? L.videos : L.findVideos"
+            @click="playVideo(track)"
+          >
+            <YoutubeIcon :size="22" />
+          </button>
+          <button v-if="track.has_lrc && !track.missing" type="button" class="grid size-9 place-items-center text-muted hover:text-ink md:size-10" :aria-label="`${L.lyrics}: ${track.title}`" :title="L.lyrics" @click="showLyrics(track)">
+            <MicVocal :size="19" :stroke-width="1.4" />
+          </button>
           <button
             type="button"
             class="grid size-11 place-items-center"

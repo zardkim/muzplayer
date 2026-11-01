@@ -27,7 +27,8 @@
     "folders": "폴더",
     "back": "뒤로",
     "forward": "앞으로",
-    "radio": "라디오"
+    "radio": "라디오",
+    "videos": "뮤직비디오"
   },
   "search": {
     "label": "검색",
@@ -807,8 +808,9 @@
     "kind": "종류",
     "kinds": {
       "mv": "뮤직비디오",
-      "live": "라이브",
-      "cover": "커버",
+      "concert": "콘서트 영상",
+      "tv": "TV 영상",
+      "fan": "팬 영상",
       "other": "기타"
     },
     "paste": "YouTube 주소로 등록",
@@ -821,7 +823,27 @@
     "remove": "삭제",
     "removeConfirm": "‘{title}’ 영상을 목록에서 뺄까요?",
     "resumeMusic": "음악 이어 듣기",
-    "minutes": "{m}:{s}"
+    "minutes": "{m}:{s}",
+    "pageTitle": "뮤직비디오",
+    "pageSub": "영상 {n}개",
+    "all": "전체",
+    "pageEmpty": "아직 등록된 영상이 없습니다. 곡이나 앨범의 메뉴에서 ‘영상 보기’를 눌러 YouTube 영상을 등록하세요.",
+    "forSong": "곡",
+    "forAlbumShort": "앨범",
+    "more": "더 보기",
+    "play": "영상 재생",
+    "nas": "NAS",
+    "addFile": "NAS 영상 등록",
+    "filesTitle": "NAS 영상 등록",
+    "filesHint": "NAS의 library/video 폴더(하위 폴더 포함)에 넣은 영상 파일입니다. 종류를 고르고 등록하세요.",
+    "noFolder": "library/video 폴더가 없습니다. NAS의 muzplayer 폴더 안 library에 video 폴더를 만들고 영상 파일을 넣은 뒤 다시 열어 주세요.",
+    "noFiles": "video 폴더에 영상 파일이 없습니다(mp4, m4v, webm, mov, mkv).",
+    "fileTitle": "제목",
+    "fileCantPlay": "이 브라우저에서 재생할 수 없는 영상 형식입니다(H.264/AAC MP4를 권장).",
+    "changeKind": "종류 바꾸기",
+    "results": "검색 결과 {n}개",
+    "trackVideo": "영상 검색·등록",
+    "pickKind": "분류 선택:"
   },
   "folders": {
     "root": "음악",
@@ -989,5 +1011,11 @@
     "storage_covers": "커버·아티스트 사진",
     "storage_transcode": "변환 캐시",
     "note": "재생 수·순위는 사용자마다 최근 1000곡 기록으로 셉니다. 누적 재생은 전체 기간입니다."
+  },
+  "lyricsSheet": {
+    "title": "{title} 가사",
+    "none": "가사가 없습니다.",
+    "show": "LRC 가사 보기",
+    "synced": "시간에 맞춘 가사(LRC)"
   }
 }

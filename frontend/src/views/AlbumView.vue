@@ -123,7 +123,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
         </div>
       </div>
     </div>
-    <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" />
+    <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" video-buttons />
     <AlbumNotesSheet v-if="notesOpen" :album-id="album.id" :text="album.description" :source="album.description_source" @close="notesOpen = false" @saved="notesSaved" />
   </div>
 </template>

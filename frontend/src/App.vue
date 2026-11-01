@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -20,7 +20,9 @@ import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
 import CoverArt from './components/CoverArt.vue'
+import FileVideoSheet from './components/FileVideoSheet.vue'
 import LivePlayer from './components/LivePlayer.vue'
+import LyricsSheet from './components/LyricsSheet.vue'
 import NowPlaying from './components/NowPlaying.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
@@ -96,6 +98,8 @@ useOverlayHistory(router, [
   { open: () => ui.queueOpen, close: () => (ui.queueOpen = false) },
   { open: () => !!ui.playlistPicker, close: () => (ui.playlistPicker = null) },
   { open: () => !!ui.videoTarget, close: () => (ui.videoTarget = null) },
+  { open: () => !!ui.lyricsTarget, close: () => (ui.lyricsTarget = null) },
+  { open: () => !!ui.fileVideo, close: () => (ui.fileVideo = null) },
 ])
 
 router.afterEach(async (to, from, failure) => {
@@ -137,6 +141,7 @@ const sideNav = computed(() => [
   libraryItem.value,
   { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },
+  { key: 'videos', to: '/videos', label: 'nav.videos', icon: Clapperboard },
   ...(appConfig.audiobooks ? [books] : []),
   { key: 'favorites', to: '/favorites', label: 'nav.favorites', icon: Heart },
   { key: 'history', to: '/history', label: 'nav.history', icon: History },
@@ -147,6 +152,7 @@ const tabs = computed(() => [
   libraryItem.value,
   { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },
+  { key: 'videos', to: '/videos', label: 'nav.videos', icon: Clapperboard },
   ...(appConfig.audiobooks ? [books] : []),
   { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
   { key: 'explore', to: '/search', label: 'nav.explore', icon: Search },
@@ -374,7 +380,9 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
     <DevicesSheet v-if="ui.devicesOpen && auth.user" />
+    <LyricsSheet v-if="ui.lyricsTarget" :key="ui.lyricsTarget.trackId" />
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
+    <FileVideoSheet v-if="ui.fileVideo" :key="ui.fileVideo.id" />
   </div>
 
   <div

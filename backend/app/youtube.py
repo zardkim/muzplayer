@@ -73,12 +73,13 @@ def _seconds(iso: str) -> int | None:
 
 
 def search(q: str) -> list[dict]:
-    """Up to 15 videos that can be played on other sites. Costs 101 of the 10,000 daily units."""
+    """Up to 50 videos (the most one call gives) that can be played on other sites. Costs 101 of the
+    10,000 daily units, whatever the number."""
     if not configured():
         raise YoutubeError("youtube_not_configured")
     data = _get(
         SEARCH_URL,
-        {"part": "snippet", "type": "video", "videoEmbeddable": "true", "maxResults": 15, "q": q, "regionCode": "KR"},
+        {"part": "snippet", "type": "video", "videoEmbeddable": "true", "maxResults": 50, "q": q, "regionCode": "KR"},
         key=True,
     )
     items = [i for i in data.get("items", []) if i.get("id", {}).get("videoId")]

@@ -41,6 +41,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_VERSION=${APP_VERSION} \
     MUSIC_DIR=/library/music \
     AUDIOBOOK_DIR=/library/audiobook \
+    VIDEO_DIR=/library/video \
     DATA_DIR=/data \
     CONF_DIR=/conf \
     STATIC_DIR=/app/static

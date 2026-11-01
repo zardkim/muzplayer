@@ -20,6 +20,7 @@ from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import Session, defer
 
 from . import search_index
+from .lyrics import synced_in_tags
 from .config import settings
 from .db import SessionLocal
 from .models import (
@@ -518,6 +519,7 @@ def _apply_tags(
     _set_info(track, info)
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
     track.tag_kind = tag_kind(raw)
+    track.lrc_tag = synced_in_tags(path)
     for key, value in replaygain(raw).items():
         setattr(track, key, value)
     _classify(cache, track, raw, path, place, cover_tries)
@@ -681,9 +683,14 @@ def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, i
     return changed
 
 
+def lrc_key(path: str) -> str:
+    """Song.mp3 and Song.lrc (any case) give the same key."""
+    return os.path.splitext(path)[0].casefold()
+
+
 def _walk(
     root: Path, on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(), exts=AUDIO_EXTS,
-    start: Path | None = None,
+    start: Path | None = None, lrc: set[str] | None = None,
 ):
     """Yields (path, is_symlink) for audio files under root, following symlinked folders and mounts.
 
@@ -692,6 +699,7 @@ def _walk(
     Top-level folders named in skip_top (NFC) are not entered, nor folders in skip_paths
     (absolute, normalized: the audiobook folder when it sits inside the music folder).
     start: walk only this folder under root (a per-folder scan).
+    lrc: filled with lrc_key() of the .lrc files seen (lyrics next to songs).
     """
     stack = [start or root]
     visited: set[tuple[int, int]] = set()
@@ -724,13 +732,16 @@ def _walk(
             except OSError as exc:
                 on_error(Path(entry.path), exc)
                 continue
-            if os.path.splitext(entry.name)[1].lower() in exts:
-                yield Path(entry.path), entry.is_symlink()  # from the directory listing: no extra call
+            ext = os.path.splitext(entry.name)[1].lower()
+            if ext in exts:
+                yield Path(entry.path), entry.is_symlink()
+            elif ext == ".lrc" and lrc is not None:
+                lrc.add(lrc_key(entry.path))  # from the directory listing: no extra call
 
 
 def _collect(
     root: Path, existing: dict[str, Track], on_error, skip_top: set[str], skip_paths: frozenset[str] = frozenset(),
-    start: Path | None = None,
+    start: Path | None = None, lrc: set[str] | None = None,
 ) -> list[tuple[str, Path, os.stat_result]]:
     """Lists (relative path, path, stat) for each real file. The one stat per file is reused
     for the size/mtime check, which on a NAS share is most of the cost of a rescan.
@@ -740,7 +751,7 @@ def _collect(
     album files), as when files were told apart by their real path.
     """
     by_inode: dict[tuple[int, int], list[tuple[str, Path, os.stat_result, bool]]] = {}
-    for path, is_link in _walk(root, on_error, skip_top, skip_paths, start=start):
+    for path, is_link in _walk(root, on_error, skip_top, skip_paths, start=start, lrc=lrc):
         rel = os.path.relpath(path, root)
         try:
             rel.encode("utf-8")
@@ -867,6 +878,7 @@ def _scan(job_id: int) -> None:
                         file_error(item[0], exc)
                         cache = _Cache(db, cache.moves)
             for rel, track, is_new in done:
+                track.lrc_file = lrc_key(str(root / rel)) in lrc_files
                 existing[rel] = track
                 if is_new:
                     job.added += 1
@@ -879,7 +891,8 @@ def _scan(job_id: int) -> None:
         books_dir = settings.books_root
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
         excluded = {p for p, k in kinds.items() if k == "excluded"}
-        files = [] if scope in excluded else _collect(root, existing, on_error, excluded, skip_paths, start)
+        lrc_files: set[str] = set()
+        files = [] if scope in excluded else _collect(root, existing, on_error, excluded, skip_paths, start, lrc_files)
         if not files and scope not in excluded and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
             raise RuntimeError(f"library_empty: no audio files found under {start or root}")
@@ -912,8 +925,16 @@ def _scan(job_id: int) -> None:
                         except Exception:  # unreadable header: don't try on every scan
                             track.sample_rate = track.bit_depth = track.bitrate = 0
                         changed = True
+                    # lyrics: a .lrc added or removed next to it; the tags looked at once (scanned before this was kept)
+                    lyrics = False
+                    has_file = lrc_key(str(path)) in lrc_files
+                    if track.lrc_file != has_file:
+                        track.lrc_file, lyrics = has_file, True
+                    if track.lrc_tag is None:
+                        track.lrc_tag, lyrics = synced_in_tags(path), True
                     if changed:
                         job.updated += 1
+                    if changed or lyrics:
                         pending += 1
                 except Exception as exc:
                     file_error(rel, exc)

@@ -139,6 +139,9 @@ class Track(Base):
     rg_track_peak: Mapped[float | None] = mapped_column(Float)
     rg_album_gain: Mapped[float | None] = mapped_column(Float)
     rg_album_peak: Mapped[float | None] = mapped_column(Float)
+    # synced lyrics (LRC) in the tags (NULL = not looked at yet), and a Song.lrc next to the file
+    lrc_tag: Mapped[bool | None] = mapped_column(Boolean)
+    lrc_file: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)
     chart_position: Mapped[int | None] = mapped_column(Integer)
     # set on a duplicate copy (e.g. the same song in an older chart week): lists show only the canonical one
@@ -416,21 +419,27 @@ class PlayCount(Base):
 
 
 class Video(Base):
-    """A YouTube video for an album or a song: music video, live, a cover by someone else.
-    Shared by everyone, like the library."""
+    """A music video: a YouTube video added to an album or a song, or a video file on the NAS
+    (library/video, file_path relative to it; a song or album is optional). Shared by everyone."""
 
     __tablename__ = "videos"
     __table_args__ = (
-        CheckConstraint("num_nonnulls(album_id, track_id) = 1", name="ck_videos_target"),
+        CheckConstraint(
+            "(youtube_id IS NOT NULL AND file_path IS NULL AND num_nonnulls(album_id, track_id) = 1)"
+            " OR (file_path IS NOT NULL AND youtube_id IS NULL AND num_nonnulls(album_id, track_id) <= 1)",
+            name="ck_videos_source",
+        ),
         UniqueConstraint("album_id", "youtube_id"),
         UniqueConstraint("track_id", "youtube_id"),
+        UniqueConstraint("file_path"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     album_id: Mapped[int | None] = mapped_column(ForeignKey("albums.id", ondelete="CASCADE"), index=True)
     track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
-    youtube_id: Mapped[str] = mapped_column(String(16))
-    kind: Mapped[str] = mapped_column(String(16))  # mv | live | cover | other
+    youtube_id: Mapped[str | None] = mapped_column(String(16))
+    file_path: Mapped[str | None] = mapped_column(String(1000))
+    kind: Mapped[str] = mapped_column(String(16))  # mv | concert | tv | fan | other
     title: Mapped[str] = mapped_column(String(500))
     channel: Mapped[str] = mapped_column(String(200), default="")
     position: Mapped[int] = mapped_column(Integer, default=0)

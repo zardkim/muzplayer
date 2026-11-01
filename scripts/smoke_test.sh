@@ -75,6 +75,7 @@ check "search index built" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["
 # lyrics: the song's own, else looked up once (needs the internet: only the shape is checked) and kept
 check "lyrics answer" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics" | j 'sorted(d)')" "['plain', 'synced']"
 check "lyrics answer again" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/$fid/lyrics")" 200
+check "songs say whether they have LRC lyrics" "$(curl -s -b "$A" "$BASE/tracks?limit=1" | j '"has_lrc" in d["items"][0]')" True
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
@@ -175,6 +176,9 @@ sid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/js
 check "smart playlist follows its rules" "$(curl -s -b "$A" "$BASE/playlists/$sid" | j "$tid in [e['track']['id'] for e in d['entries']]")" True
 check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$sid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}")" 400
 check "video needs a YouTube link" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"not a youtube link\",\"kind\":\"mv\",\"album_id\":$aid}")" 400
+check "music videos page lists videos" "$(curl -s -b "$A" "$BASE/videos?kind=mv" | j 'sorted(d)')" "['items', 'total']"
+check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
+check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
 
 # sign-up: closed by default; with approval an account waits, then logs in once approved
