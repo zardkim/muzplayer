@@ -251,6 +251,14 @@ export interface VideoListItem extends Video {
   created_at: string
   target: { type: 'track' | 'album'; title: string; artist: string; album_id: number | null; has_cover: boolean; cover_v: number } | null
 }
+/** A person's video playlist (and, opened, its videos). */
+export interface VideoPlaylist {
+  id: number
+  name: string
+  count: number
+  thumb: string | null // the first YouTube video's id, for a picture
+  entries?: { entry_id: number; video: VideoListItem }[]
+}
 /** A video file in library/video (the NAS), registered or not. */
 export interface VideoFile {
   path: string

@@ -40,7 +40,8 @@
     "tab_tracks": "Songs",
     "tab_albums": "Albums",
     "tab_artists": "Artists",
-    "tab_books": "Audiobooks"
+    "tab_books": "Audiobooks",
+    "tab_videos": "Music videos"
   },
   "login": {
     "username": "Username",
@@ -843,7 +844,30 @@
     "changeKind": "Change kind",
     "results": "{n} results",
     "trackVideo": "Find and add videos",
-    "pickKind": "Kind:"
+    "pickKind": "Kind:",
+    "viewAll": "All files",
+    "viewFolders": "By folder",
+    "rootFolder": "video (top)",
+    "addFolder": "Add whole folder",
+    "folderCount": "{n} files · {done} added",
+    "playAll": "Play all",
+    "shufflePlay": "Shuffle",
+    "shuffle": "Shuffle",
+    "repeat": "Repeat",
+    "prevVideo": "Previous video",
+    "nextVideo": "Next video",
+    "skip": "Skip to the next video",
+    "upNext": "Playing {n} of {total}",
+    "addToPlaylist": "Add to a video playlist",
+    "addedTo": "Added to ‘{name}’",
+    "newPlaylist": "New video playlist",
+    "count": "{n} videos",
+    "videoPlaylist": "Video playlist",
+    "videoPlaylists": "Video playlists",
+    "playlistEmpty": "No videos yet. On the Music videos page, use a video’s ⋮ menu → Add to a video playlist.",
+    "renamePlaylist": "Rename",
+    "deletePlaylist": "Delete playlist",
+    "noPlaylists": "No video playlists yet."
   },
   "folders": {
     "root": "Music",

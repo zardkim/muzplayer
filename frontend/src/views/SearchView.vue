@@ -5,7 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { ChevronRight, Radio, Search } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
-import type { Album, Artist, Book, Chart, CollectionsHome, Genre, Page, Track } from '../types'
+import type { Album, Artist, Book, Chart, CollectionsHome, Genre, Page, Track, VideoListItem } from '../types'
+import { useUi } from '../stores/ui'
+import VideoCard from '../components/VideoCard.vue'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import BookGrid from '../components/BookGrid.vue'
@@ -24,6 +26,8 @@ const artists = ref<Artist[]>([])
 const genres = ref<Genre[]>([])
 const charts = ref<Chart[]>([])
 const books = ref<Book[]>([])
+const videos = ref<VideoListItem[]>([])
+const ui = useUi()
 const loaded = ref(false)
 
 // stable colour per artist tile, dark enough for white text
@@ -31,14 +35,14 @@ const TILE = ['#A34A6E', '#3F6FB5', '#5B4BD6', '#8A6516', '#2F7D6D', '#B0482D', 
 const tileColor = (name: string) => TILE[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % TILE.length]
 
 // search results, one tab per kind ("all" shows the first few of each)
-type Kind = 'tracks' | 'albums' | 'artists' | 'books'
-const PAGE: Record<Kind, number> = { tracks: 50, albums: 36, artists: 48, books: 36 }
-const total = reactive<Record<Kind, number>>({ tracks: 0, albums: 0, artists: 0, books: 0 })
+type Kind = 'tracks' | 'albums' | 'artists' | 'videos' | 'books'
+const PAGE: Record<Kind, number> = { tracks: 50, albums: 36, artists: 48, videos: 24, books: 36 }
+const total = reactive<Record<Kind, number>>({ tracks: 0, albums: 0, artists: 0, videos: 0, books: 0 })
 const busy = ref(false)
 // (kept on the page, not in the URL: the page is kept alive per URL, so a tab change would reload it)
 const tab = ref<Kind | 'all'>('all')
 const tabs = computed(() =>
-  (['tracks', 'albums', 'artists', 'books'] as Kind[]).filter((k) => total[k] > 0).map((k) => ({ key: k, label: t(`search.tab_${k}`), n: total[k] })),
+  (['tracks', 'albums', 'artists', 'videos', 'books'] as Kind[]).filter((k) => total[k] > 0).map((k) => ({ key: k, label: t(`search.tab_${k}`), n: total[k] })),
 )
 function pick(key: Kind | 'all') {
   tab.value = key
@@ -49,9 +53,10 @@ async function fetchKind(kind: Kind, offset: number) {
   if (kind === 'tracks') return api<Page<Track>>(`/tracks${query({ q, limit: n, offset, sort: 'relevance' })}`)
   if (kind === 'albums') return api<Page<Album>>(`/albums${query({ q, limit: n, offset, sort: 'title' })}`)
   if (kind === 'artists') return api<Page<Artist>>(`/artists${query({ q, limit: n, offset })}`)
+  if (kind === 'videos') return api<Page<VideoListItem>>(`/videos${query({ q, limit: n, offset })}`)
   return api<Page<Book>>(`/books${query({ q, limit: n, offset })}`)
 }
-const lists = { tracks, albums, artists, books } as const
+const lists = { tracks, albums, artists, videos, books } as const
 async function more(kind: Kind) {
   busy.value = true
   try {
@@ -64,7 +69,7 @@ async function more(kind: Kind) {
 
 onMounted(async () => {
   if (q) {
-    const kinds: Kind[] = appConfig.audiobooks ? ['tracks', 'albums', 'artists', 'books'] : ['tracks', 'albums', 'artists']
+    const kinds: Kind[] = appConfig.audiobooks ? ['tracks', 'albums', 'artists', 'videos', 'books'] : ['tracks', 'albums', 'artists', 'videos']
     await Promise.all(
       kinds.map(async (k) => {
         const r = await fetchKind(k, 0).catch(() => ({ items: [], total: 0 }))
@@ -86,6 +91,11 @@ onMounted(async () => {
   }
   loaded.value = true
 })
+
+// a video plays in the video player, the other results after it
+function playVideo(v: VideoListItem) {
+  ui.videoQueue = { items: videos.value, start: videos.value.indexOf(v) }
+}
 
 function submit() {
   if (text.value.trim()) router.push({ name: 'search', query: { q: text.value.trim() } })
@@ -136,6 +146,12 @@ function submit() {
           <button type="button" class="flex items-center gap-1 self-start text-lg font-bold" @click="pick('albums')">{{ t('search.tab_albums') }} <ChevronRight :size="18" :stroke-width="1.6" /></button>
           <AlbumGrid :albums="albums.slice(0, 12)" row />
         </section>
+        <section v-if="videos.length" class="flex flex-col gap-3">
+          <button type="button" class="flex items-center gap-1 self-start text-lg font-bold" @click="pick('videos')">{{ t('search.tab_videos') }} <ChevronRight :size="18" :stroke-width="1.6" /></button>
+          <ul class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+            <li v-for="v in videos.slice(0, 4)" :key="v.id"><VideoCard :video="v" @play="playVideo(v)" /></li>
+          </ul>
+        </section>
         <section v-if="books.length" class="flex flex-col gap-3">
           <button type="button" class="flex items-center gap-1 self-start text-lg font-bold" @click="pick('books')">{{ t('search.tab_books') }} <ChevronRight :size="18" :stroke-width="1.6" /></button>
           <BookGrid :books="books.slice(0, 12)" row />
@@ -154,6 +170,9 @@ function submit() {
             </span>
           </RouterLink>
         </li>
+      </ul>
+      <ul v-else-if="tab === 'videos'" class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <li v-for="v in videos" :key="v.id"><VideoCard :video="v" @play="playVideo(v)" /></li>
       </ul>
       <BookGrid v-else-if="tab === 'books'" :books="books" />
       <button

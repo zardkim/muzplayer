@@ -8,14 +8,14 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .. import youtube
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, Track, User, Video
+from ..models import Album, Artist, Track, User, Video, VideoPlaylist, VideoPlaylistItem
 from ..security import api_error, current_user
 
 router = APIRouter()
@@ -52,45 +52,62 @@ def _list(db: Session, user: User, **target) -> dict:
     return {"items": [video_out(v, user) for v in rows]}
 
 
+_album_of_track = aliased(Album)
+
+
+def _listing(*extra):
+    """Videos with their song or album, for lists (Music videos page, search, video playlists)."""
+    return (
+        select(
+            Video, Track.title, Track.artist_text, Track.album_id, _album_of_track.cover_path,
+            _album_of_track.cover_version, Album.title, Artist.name, Album.cover_path, Album.cover_version, *extra,
+        )
+        .outerjoin(Track, Track.id == Video.track_id)
+        .outerjoin(_album_of_track, _album_of_track.id == Track.album_id)
+        .outerjoin(Album, Album.id == Video.album_id)
+        .outerjoin(Artist, Artist.id == Album.album_artist_id)
+    )
+
+
+def list_item(row, user: User) -> dict:
+    v, t_title, t_artist, t_album, t_cover, t_cover_v, a_title, a_artist, a_cover, a_cover_v = row[:10]
+    if v.track_id is None and v.album_id is None:
+        target = None
+    elif v.track_id is not None:
+        target = {"type": "track", "title": t_title, "artist": t_artist or "", "album_id": t_album,
+                  "has_cover": bool(t_cover), "cover_v": t_cover_v if t_cover else 0}
+    else:
+        target = {"type": "album", "title": a_title, "artist": a_artist or "", "album_id": v.album_id,
+                  "has_cover": bool(a_cover), "cover_v": a_cover_v if a_cover else 0}
+    return {**video_out(v, user), "target": target}
+
+
+def _matches(q: str):
+    """Search: the video's title or channel, the song or album it belongs to, its artist, or the file's path."""
+    pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    return or_(
+        Video.title.ilike(pattern), Video.channel.ilike(pattern), Video.file_path.ilike(pattern),
+        Track.title.ilike(pattern), Track.artist_text.ilike(pattern), Album.title.ilike(pattern), Artist.name.ilike(pattern),
+    )
+
+
 @router.get("/videos")
 def all_videos(
-    kind: Literal["mv", "live", "cover", "other"] | None = None,
+    kind: Kind | None = None,
+    q: str = Query("", max_length=200),
     offset: int = Query(0, ge=0),
     limit: int = Query(60, ge=1, le=200),
     user: User = Depends(current_user),
     db: Session = Depends(get_db, scope="function"),
 ):
-    """Every video added (the Music videos page), YouTube and NAS files, newest first, each with its
-    song or album (a NAS file may have none)."""
-    album_of_track = aliased(Album)
+    """Every video added (the Music videos page; with q, the search), YouTube and NAS files, newest
+    first, each with its song or album (a NAS file may have none)."""
     cond = [Video.kind == kind] if kind else []
-    total = db.scalar(select(func.count(Video.id)).where(*cond))
-    rows = db.execute(
-        select(
-            Video, Track.title, Track.artist_text, Track.album_id, album_of_track.cover_path, album_of_track.cover_version,
-            Album.title, Artist.name, Album.cover_path, Album.cover_version,
-        )
-        .outerjoin(Track, Track.id == Video.track_id)
-        .outerjoin(album_of_track, album_of_track.id == Track.album_id)
-        .outerjoin(Album, Album.id == Video.album_id)
-        .outerjoin(Artist, Artist.id == Album.album_artist_id)
-        .where(*cond)
-        .order_by(Video.created_at.desc(), Video.id.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    items = []
-    for v, t_title, t_artist, t_album, t_cover, t_cover_v, a_title, a_artist, a_cover, a_cover_v in rows:
-        if v.track_id is None and v.album_id is None:
-            target = None
-        elif v.track_id is not None:
-            target = {"type": "track", "title": t_title, "artist": t_artist or "", "album_id": t_album,
-                      "has_cover": bool(t_cover), "cover_v": t_cover_v if t_cover else 0}
-        else:
-            target = {"type": "album", "title": a_title, "artist": a_artist or "", "album_id": v.album_id,
-                      "has_cover": bool(a_cover), "cover_v": a_cover_v if a_cover else 0}
-        items.append({**video_out(v, user), "target": target})
-    return {"items": items, "total": total}
+    if q.strip():
+        cond.append(_matches(q.strip()))
+    total = db.scalar(select(func.count()).select_from(_listing().where(*cond).subquery()))
+    rows = db.execute(_listing().where(*cond).order_by(Video.created_at.desc(), Video.id.desc()).offset(offset).limit(limit))
+    return {"items": [list_item(r, user) for r in rows], "total": total}
 
 
 @router.get("/albums/{album_id}/videos")
@@ -281,3 +298,127 @@ def video_file(video_id: int, _: User = Depends(current_user), db: Session = Dep
     if path is None:
         raise api_error(404, "not_found")
     return FileResponse(path, media_type=VIDEO_TYPES.get(path.suffix.lower(), "application/octet-stream"))
+
+
+# ---- video playlists (each person's own) ----
+class VideoPlaylistIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class VideoIdsIn(BaseModel):
+    video_ids: list[int] = Field(min_length=1, max_length=1000)
+
+
+class EntryOrderIn(BaseModel):
+    entry_ids: list[int]
+
+
+def _own(db: Session, user: User, playlist_id: int) -> VideoPlaylist:
+    playlist = db.get(VideoPlaylist, playlist_id)
+    if playlist is None or playlist.user_id != user.id:
+        raise api_error(404, "not_found")
+    return playlist
+
+
+def _playlist_out(p: VideoPlaylist, count: int, thumb: str | None = None) -> dict:
+    return {"id": p.id, "name": p.name, "count": count, "thumb": thumb, "updated_at": p.updated_at}
+
+
+@router.get("/video-playlists")
+def video_playlists(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    rows = db.execute(
+        select(VideoPlaylist, func.count(VideoPlaylistItem.id))
+        .outerjoin(VideoPlaylistItem, VideoPlaylistItem.playlist_id == VideoPlaylist.id)
+        .where(VideoPlaylist.user_id == user.id)
+        .group_by(VideoPlaylist.id)
+        .order_by(VideoPlaylist.updated_at.desc())
+    ).all()
+    # a picture for each: its first YouTube video's
+    first = (
+        select(VideoPlaylistItem.playlist_id, Video.youtube_id)
+        .join(Video, Video.id == VideoPlaylistItem.video_id)
+        .where(VideoPlaylistItem.playlist_id.in_([p.id for p, _ in rows]), Video.youtube_id.is_not(None))
+        .order_by(VideoPlaylistItem.playlist_id, VideoPlaylistItem.position)
+        .distinct(VideoPlaylistItem.playlist_id)
+    )
+    thumbs = dict(db.execute(first).all()) if rows else {}
+    return {"items": [_playlist_out(p, n, thumbs.get(p.id)) for p, n in rows]}
+
+
+@router.post("/video-playlists", status_code=201)
+def create_video_playlist(body: VideoPlaylistIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    playlist = VideoPlaylist(user_id=user.id, name=body.name.strip())
+    db.add(playlist)
+    db.commit()
+    return _playlist_out(playlist, 0)
+
+
+@router.get("/video-playlists/{playlist_id}")
+def video_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    playlist = _own(db, user, playlist_id)
+    rows = db.execute(
+        _listing(VideoPlaylistItem.id)
+        .join(VideoPlaylistItem, VideoPlaylistItem.video_id == Video.id)
+        .where(VideoPlaylistItem.playlist_id == playlist.id)
+        .order_by(VideoPlaylistItem.position, VideoPlaylistItem.id)
+    ).all()
+    entries = [{"entry_id": r[-1], "video": list_item(r, user)} for r in rows]
+    return {**_playlist_out(playlist, len(entries)), "entries": entries}
+
+
+@router.patch("/video-playlists/{playlist_id}")
+def rename_video_playlist(
+    playlist_id: int, body: VideoPlaylistIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    playlist = _own(db, user, playlist_id)
+    playlist.name = body.name.strip()
+    db.commit()
+    count = db.scalar(select(func.count()).where(VideoPlaylistItem.playlist_id == playlist.id))
+    return _playlist_out(playlist, count)
+
+
+@router.delete("/video-playlists/{playlist_id}", status_code=204)
+def delete_video_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    db.delete(_own(db, user, playlist_id))
+    db.commit()
+
+
+@router.post("/video-playlists/{playlist_id}/videos", status_code=204)
+def add_to_video_playlist(
+    playlist_id: int, body: VideoIdsIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    playlist = _own(db, user, playlist_id)
+    valid = set(db.scalars(select(Video.id).where(Video.id.in_(body.video_ids))))
+    position = db.scalar(
+        select(func.coalesce(func.max(VideoPlaylistItem.position), -1)).where(VideoPlaylistItem.playlist_id == playlist.id)
+    )
+    for video_id in body.video_ids:
+        if video_id in valid:
+            position += 1
+            db.add(VideoPlaylistItem(playlist_id=playlist.id, video_id=video_id, position=position))
+    playlist.updated_at = func.now()
+    db.commit()
+
+
+@router.delete("/video-playlists/{playlist_id}/videos/{entry_id}", status_code=204)
+def remove_from_video_playlist(
+    playlist_id: int, entry_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    playlist = _own(db, user, playlist_id)
+    db.execute(delete(VideoPlaylistItem).where(VideoPlaylistItem.id == entry_id, VideoPlaylistItem.playlist_id == playlist.id))
+    playlist.updated_at = func.now()
+    db.commit()
+
+
+@router.put("/video-playlists/{playlist_id}/order", status_code=204)
+def reorder_video_playlist(
+    playlist_id: int, body: EntryOrderIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    playlist = _own(db, user, playlist_id)
+    entries = {e.id: e for e in db.scalars(select(VideoPlaylistItem).where(VideoPlaylistItem.playlist_id == playlist.id))}
+    if set(body.entry_ids) != set(entries) or len(body.entry_ids) != len(entries):
+        raise api_error(400, "invalid_order")
+    for position, entry_id in enumerate(body.entry_ids):
+        entries[entry_id].position = position
+    playlist.updated_at = func.now()
+    db.commit()

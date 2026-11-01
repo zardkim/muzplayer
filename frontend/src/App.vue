@@ -20,7 +20,6 @@ import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
 import CoverArt from './components/CoverArt.vue'
-import FileVideoSheet from './components/FileVideoSheet.vue'
 import LivePlayer from './components/LivePlayer.vue'
 import LyricsSheet from './components/LyricsSheet.vue'
 import NowPlaying from './components/NowPlaying.vue'
@@ -30,6 +29,8 @@ import PlaylistPicker from './components/PlaylistPicker.vue'
 import DevicesSheet from './components/DevicesSheet.vue'
 import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
+import VideoPlayer from './components/VideoPlayer.vue'
+import VideoPlaylistPicker from './components/VideoPlaylistPicker.vue'
 import StationBadge from './components/StationBadge.vue'
 
 const { t } = useI18n()
@@ -87,6 +88,7 @@ watch(
   () => {
     ui.playerOpen = false
     ui.queueOpen = false
+    ui.videoQueue = null
   },
 )
 
@@ -99,7 +101,8 @@ useOverlayHistory(router, [
   { open: () => !!ui.playlistPicker, close: () => (ui.playlistPicker = null) },
   { open: () => !!ui.videoTarget, close: () => (ui.videoTarget = null) },
   { open: () => !!ui.lyricsTarget, close: () => (ui.lyricsTarget = null) },
-  { open: () => !!ui.fileVideo, close: () => (ui.fileVideo = null) },
+  { open: () => !!ui.videoPick, close: () => (ui.videoPick = null) },
+  { open: () => !!ui.videoQueue, close: () => (ui.videoQueue = null) },
 ])
 
 router.afterEach(async (to, from, failure) => {
@@ -157,7 +160,7 @@ const tabs = computed(() => [
   { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
   { key: 'explore', to: '/search', label: 'nav.explore', icon: Search },
 ])
-const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/settings', '/admin']
+const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/video-playlists', '/settings', '/admin']
 function active(key: string, to: string) {
   if (key === 'library') return inLibrary.value
   if (key === 'home') return route.path === '/'
@@ -382,7 +385,8 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <DevicesSheet v-if="ui.devicesOpen && auth.user" />
     <LyricsSheet v-if="ui.lyricsTarget" :key="ui.lyricsTarget.trackId" />
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
-    <FileVideoSheet v-if="ui.fileVideo" :key="ui.fileVideo.id" />
+    <VideoPlayer v-if="ui.videoQueue" />
+    <VideoPlaylistPicker v-if="ui.videoPick" />
   </div>
 
   <div

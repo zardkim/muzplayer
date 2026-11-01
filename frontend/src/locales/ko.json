@@ -28,7 +28,7 @@
     "back": "뒤로",
     "forward": "앞으로",
     "radio": "라디오",
-    "videos": "뮤직비디오"
+    "videos": "뮤직 영상"
   },
   "search": {
     "label": "검색",
@@ -40,7 +40,8 @@
     "tab_tracks": "곡",
     "tab_albums": "앨범",
     "tab_artists": "아티스트",
-    "tab_books": "오디오북"
+    "tab_books": "오디오북",
+    "tab_videos": "뮤직 영상"
   },
   "login": {
     "username": "아이디",
@@ -824,7 +825,7 @@
     "removeConfirm": "‘{title}’ 영상을 목록에서 뺄까요?",
     "resumeMusic": "음악 이어 듣기",
     "minutes": "{m}:{s}",
-    "pageTitle": "뮤직비디오",
+    "pageTitle": "뮤직 영상",
     "pageSub": "영상 {n}개",
     "all": "전체",
     "pageEmpty": "아직 등록된 영상이 없습니다. 곡이나 앨범의 메뉴에서 ‘영상 보기’를 눌러 YouTube 영상을 등록하세요.",
@@ -843,7 +844,30 @@
     "changeKind": "종류 바꾸기",
     "results": "검색 결과 {n}개",
     "trackVideo": "영상 검색·등록",
-    "pickKind": "분류 선택:"
+    "pickKind": "분류 선택:",
+    "viewAll": "전체 목록",
+    "viewFolders": "폴더별",
+    "rootFolder": "video (최상위)",
+    "addFolder": "폴더 전체 등록",
+    "folderCount": "{n}개 · 등록 {done}개",
+    "playAll": "전체 재생",
+    "shufflePlay": "무작위 재생",
+    "shuffle": "무작위 재생",
+    "repeat": "반복 재생",
+    "prevVideo": "이전 영상",
+    "nextVideo": "다음 영상",
+    "skip": "다음 영상으로",
+    "upNext": "재생 순서 {n} / {total}",
+    "addToPlaylist": "영상 플레이리스트에 추가",
+    "addedTo": "‘{name}’에 추가했습니다",
+    "newPlaylist": "새 영상 플레이리스트",
+    "count": "영상 {n}개",
+    "videoPlaylist": "영상 플레이리스트",
+    "videoPlaylists": "영상 플레이리스트",
+    "playlistEmpty": "아직 영상이 없습니다. 뮤직 영상 페이지에서 영상의 ⋮ 메뉴 → ‘영상 플레이리스트에 추가’로 담으세요.",
+    "renamePlaylist": "이름 바꾸기",
+    "deletePlaylist": "플레이리스트 삭제",
+    "noPlaylists": "아직 영상 플레이리스트가 없습니다."
   },
   "folders": {
     "root": "음악",

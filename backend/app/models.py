@@ -445,3 +445,25 @@ class Video(Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
     added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class VideoPlaylist(Base):
+    """A person's playlist of music videos (YouTube and NAS files), played one after another or shuffled."""
+
+    __tablename__ = "video_playlists"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class VideoPlaylistItem(Base):
+    __tablename__ = "video_playlist_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("video_playlists.id", ondelete="CASCADE"), index=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+

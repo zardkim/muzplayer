@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { X } from '@lucide/vue'
 import { useSwipe } from '../swipe'
 
-defineProps<{ title: string }>()
+// wide: a bigger dialog on a PC (video search and lists); video: bigger still (watching videos)
+defineProps<{ title: string; wide?: boolean; video?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
 
@@ -42,8 +43,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       role="dialog"
       aria-modal="true"
       :aria-label="title"
-      class="pb-safe max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-bg p-5 shadow-2xl sm:max-w-md sm:rounded-3xl"
-      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+      class="pb-safe w-full overflow-y-auto rounded-t-3xl bg-bg p-5 shadow-2xl sm:rounded-3xl"
+      :class="[video ? 'max-h-[92vh] sm:max-h-[94vh] sm:max-w-6xl sm:p-7' : wide ? 'max-h-[85vh] sm:max-h-[90vh] sm:max-w-3xl sm:p-7' : 'max-h-[85vh] sm:max-w-md', settling ? 'transition-transform duration-200 ease-out' : '']"
       :style="pulled ? { transform: `translateY(${pulled}px)` } : undefined"
       @touchstart="pull.onTouchstart"
       @touchmove="pull.onTouchmove"

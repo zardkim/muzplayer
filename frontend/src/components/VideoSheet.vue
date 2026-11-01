@@ -8,6 +8,7 @@ import { errorMessage } from '../i18n'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type Video, type VideoKind, type VideoResult } from '../types'
+import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 
 // Videos of an album or a song (ui.videoTarget): watch them with YouTube's own player (or, for a
@@ -62,28 +63,8 @@ onMounted(async () => {
 
 
 // ---- YouTube's IFrame player ----
-type YTPlayer = { loadVideoById(id: string): void; destroy(): void }
-type YTNamespace = { Player: new (el: HTMLElement, opts: object) => YTPlayer; PlayerState: { PLAYING: number; ENDED: number } }
 const host = ref<HTMLElement | null>(null)
 let yt: YTPlayer | null = null
-
-function youtubeApi(): Promise<YTNamespace> {
-  const w = window as unknown as { YT?: YTNamespace & { loaded?: number }; onYouTubeIframeAPIReady?: () => void }
-  if (w.YT?.Player) return Promise.resolve(w.YT)
-  return new Promise((resolve) => {
-    const prev = w.onYouTubeIframeAPIReady
-    w.onYouTubeIframeAPIReady = () => {
-      prev?.()
-      resolve(w.YT!)
-    }
-    if (!document.querySelector('script[data-yt-api]')) {
-      const s = document.createElement('script')
-      s.src = 'https://www.youtube.com/iframe_api'
-      s.dataset.ytApi = ''
-      document.head.append(s)
-    }
-  })
-}
 
 async function watch(v: Video) {
   current.value = v
@@ -194,11 +175,11 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
 </script>
 
 <template>
-  <BaseModal :title="target.albumId ? t('videos.forAlbum') : t('videos.forTrack', { title: target.title })" @close="ui.videoTarget = null">
+  <BaseModal video :title="target.albumId ? t('videos.forAlbum') : t('videos.forTrack', { title: target.title })" @close="ui.videoTarget = null">
     <div class="flex flex-col gap-4">
       <!-- player -->
       <div v-if="current" class="flex flex-col gap-2">
-        <div class="relative aspect-video overflow-hidden rounded-xl bg-black">
+        <div class="relative mx-auto aspect-video w-full overflow-hidden rounded-xl bg-black" style="max-width: calc((94vh - 220px) * 16 / 9)">
           <video
             v-if="current.source === 'file'"
             :key="current.id"
@@ -229,7 +210,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
         <h3 class="text-[13px] font-medium text-muted">{{ t(`videos.kinds.${g.kind}`) }}</h3>
         <div v-for="v in g.items" :key="v.id" class="flex items-center gap-3 rounded-xl py-1.5" :class="current?.id === v.id ? 'bg-accent-soft' : ''">
           <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="`${t('common.play')}: ${v.title}`" @click="watch(v)">
-            <span class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-surface">
+            <span class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-surface sm:w-40">
               <img v-if="v.youtube_id" :src="thumb(v.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
               <Film v-else :size="22" :stroke-width="1.4" class="absolute inset-0 m-auto text-muted" />
               <Play v-if="v.youtube_id" :size="18" class="absolute inset-0 m-auto text-white drop-shadow" fill="currentColor" />
@@ -260,7 +241,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
           <p v-else-if="results" class="text-[13px] text-muted">{{ t('videos.results', { n: results.length }) }}</p>
           <ul v-if="results" class="flex flex-col gap-1">
             <li v-for="r in results" :key="r.youtube_id" class="flex flex-wrap items-center gap-3 py-1">
-              <a :href="`https://www.youtube.com/watch?v=${r.youtube_id}`" target="_blank" rel="noopener" class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-bg">
+              <a :href="`https://www.youtube.com/watch?v=${r.youtube_id}`" target="_blank" rel="noopener" class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-bg sm:w-40">
                 <img :src="thumb(r.youtube_id)" alt="" loading="lazy" class="h-full w-full object-cover" />
                 <span v-if="r.duration" class="absolute bottom-1 right-1 rounded bg-black/75 px-1 text-[11px] text-white">{{ length(r.duration) }}</span>
               </a>

@@ -20,6 +20,7 @@ export const router = createRouter({
     { path: '/artists/:id', name: 'artist', component: () => import('./views/ArtistView.vue'), props: true },
     { path: '/radio', name: 'radio', component: () => import('./views/RadioView.vue') },
     { path: '/videos', name: 'videos', component: () => import('./views/VideosView.vue') },
+    { path: '/video-playlists/:id', name: 'video-playlist', component: () => import('./views/VideoPlaylistView.vue'), props: true },
     { path: '/charts', name: 'charts', component: () => import('./views/CollectionsView.vue') },
     { path: '/charts/list', name: 'chart-list', component: () => import('./views/ChartsView.vue') },
     { path: '/charts/:id', name: 'chart', component: () => import('./views/ChartView.vue'), props: true },

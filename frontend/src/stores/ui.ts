@@ -76,8 +76,10 @@ export const useUi = defineStore('ui', () => {
   const videoTarget = ref<{ albumId?: number; trackId?: number; title: string; artist: string; play?: number | 'first' } | null>(null)
   // a song's videos changed in the video sheet: lists showing it update their YouTube mark
   const videoChanged = ref<{ trackId: number; has: boolean } | null>(null)
-  // a video file from the NAS playing in its own sheet (App.vue)
-  const fileVideo = ref<import('../types').Video | null>(null)
+  // the video player (App.vue): videos one after another (or shuffled), from start
+  const videoQueue = ref<{ items: import('../types').VideoListItem[]; start: number; shuffle?: boolean; title?: string } | null>(null)
+  // videos to put in a video playlist (the picker, App.vue)
+  const videoPick = ref<import('../types').VideoListItem[] | null>(null)
   // the lyrics sheet (App.vue): a song's lyrics from a list, without playing it
   const lyricsTarget = ref<{ trackId: number; title: string; artist: string } | null>(null)
 
@@ -123,7 +125,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, fileVideo,
+    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick,
     barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })
