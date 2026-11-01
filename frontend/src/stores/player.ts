@@ -6,6 +6,7 @@ import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
 import { attachOutputs } from '../outputs'
+import { loadStations, regionOf } from '../radio'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, RadioStation, Track } from '../types'
 import { useUi } from './ui'
@@ -434,7 +435,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function next(auto = false) {
-    if (mode.value === 'live') return
+    if (mode.value === 'live') return void (auto || stepStation(1))
     if (mode.value === 'book') return nextChapter()
     if (!queue.value.length) return
     if (auto && repeat.value === 'one') {
@@ -451,7 +452,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function prev() {
-    if (mode.value === 'live') return
+    if (mode.value === 'live') return void stepStation(-1)
     if (mode.value === 'book') return prevChapter()
     if (audio.currentTime > 3 || index.value <= 0) {
       seek(0)
@@ -673,6 +674,20 @@ export const usePlayer = defineStore('player', () => {
     audio.play().catch((e: Error) => {
       if (e?.name === 'NotAllowedError') blocked.value = true
     })
+  }
+
+  /** The next (1) or previous (-1) station of the region the current one is listed under (Radio page). */
+  async function stepStation(dir: 1 | -1) {
+    const st = station.value
+    if (!st) return
+    try {
+      const region = regionOf(st, useUi().views.radio)
+      const list = (await loadStations()).stations.filter((s) => s.regions.includes(region))
+      const i = list.findIndex((s) => s.id === st.id)
+      if (list.length > 1 && station.value?.id === st.id) playStation(list[(i + dir + list.length) % list.length])
+    } catch {
+      /* the list didn't load: stay on this station */
+    }
   }
 
   function stopStation() {
@@ -999,9 +1014,9 @@ export const usePlayer = defineStore('player', () => {
     const ms = navigator.mediaSession
     const isBook = mode.value === 'book'
     if (mode.value === 'live') {
-      // a live station: play and pause only
+      // a live station: play, pause, and the next or previous station
       const live: [MediaSessionAction, MediaSessionActionHandler | null][] = [
-        ['play', () => startLive()], ['pause', () => audio.pause()], ['previoustrack', null], ['nexttrack', null],
+        ['play', () => startLive()], ['pause', () => audio.pause()], ['previoustrack', () => prev()], ['nexttrack', () => next()],
         ['seekbackward', null], ['seekforward', null], ['seekto', null],
       ]
       for (const [action, handler] of live) {
@@ -1037,6 +1052,7 @@ export const usePlayer = defineStore('player', () => {
     mode,
     station,
     playStation,
+    stepStation,
     stopStation,
     book,
     bookPos,

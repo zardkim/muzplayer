@@ -7,7 +7,7 @@ import type { ViewMode } from '../types'
 
 // List (목록형), covers (커버형: big artwork) or grid (격자형: small, dense artwork) for one page;
 // remembered per page in this browser.
-const props = defineProps<{ page: string; fallback: ViewMode }>()
+const props = defineProps<{ page: string; fallback: ViewMode; only?: ViewMode[] }>()
 const { t } = useI18n()
 const ui = useUi()
 const mode = computed({
@@ -18,7 +18,7 @@ const modes = [
   { key: 'list' as const, icon: List },
   { key: 'cover' as const, icon: LayoutGrid },
   { key: 'grid' as const, icon: Grid3x3 },
-]
+].filter((m) => !props.only || props.only.includes(m.key))
 </script>
 
 <template>

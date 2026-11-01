@@ -20,6 +20,7 @@ import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
 import CoverArt from './components/CoverArt.vue'
+import LivePlayer from './components/LivePlayer.vue'
 import NowPlaying from './components/NowPlaying.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
@@ -368,6 +369,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     </div>
 
     <BookPlayer v-if="ui.playerOpen && player.mode === 'book'" />
+    <LivePlayer v-else-if="ui.playerOpen && player.mode === 'live'" />
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />

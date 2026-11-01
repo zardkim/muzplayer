@@ -25,6 +25,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import weakref
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -48,6 +49,37 @@ class Unavailable(Exception):
 
 class Busy(Exception):
     """Too many stations playing at once."""
+
+
+class _Lease:
+    """One of the MAX_RELAYS slots, given back exactly once with whatever else the relay holds.
+
+    Given back without awaiting anything: when the listener leaves, the stream's task is cancelled
+    and an await in its cleanup would be cancelled too (the slot was never given back, and after six
+    station changes every station answered 429). Also given back if the response never started.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._done = False
+        self.cleanup = None
+
+    def release(self) -> None:
+        with self._lock:
+            if self._done:
+                return
+            self._done = True
+        try:
+            if self.cleanup:
+                self.cleanup()
+        finally:
+            _slots.release()
+
+
+def _end_ffmpeg(proc: subprocess.Popen, stop: threading.Event) -> None:
+    stop.set()
+    proc.kill()
+    threading.Thread(target=proc.wait, daemon=True, name="radio-reap").start()  # no zombie
 
 
 def _open(url: str):
@@ -129,16 +161,19 @@ async def relay(station: dict) -> tuple[AsyncIterator[bytes], str]:
     """(the station's audio, its content type) for a StreamingResponse. Raises Unavailable or Busy."""
     if not _slots.acquire(blocking=False):
         raise Busy
+    lease = _Lease()
     try:
         url, ctype = await asyncio.to_thread(resolve, station)
     except BaseException:
-        _slots.release()
+        lease.release()
         raise
     if not _is_hls(url, ctype):
-        return _passthrough(url), ("audio/aac" if "aac" in ctype else ctype or "audio/mpeg")
+        body = _passthrough(url, lease)
+        weakref.finalize(body, lease.release)
+        return body, ("audio/aac" if "aac" in ctype else ctype or "audio/mpeg")
     exe = transcode.ffmpeg()
     if exe is None:
-        _slots.release()
+        lease.release()
         raise Unavailable("no ffmpeg")
     proc = subprocess.Popen(
         [exe, "-hide_banner", "-nostdin", "-loglevel", "error", "-i", "pipe:0", "-vn",
@@ -146,11 +181,14 @@ async def relay(station: dict) -> tuple[AsyncIterator[bytes], str]:
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
     )
     stop = threading.Event()
+    lease.cleanup = lambda: _end_ffmpeg(proc, stop)
     threading.Thread(target=_feed, args=(station, url, proc.stdin, stop), daemon=True, name="radio-feed").start()
-    return _from_ffmpeg(proc, stop), "audio/mpeg"
+    body = _from_ffmpeg(proc, lease)
+    weakref.finalize(body, lease.release)
+    return body, "audio/mpeg"
 
 
-async def _from_ffmpeg(proc: subprocess.Popen, stop: threading.Event) -> AsyncIterator[bytes]:
+async def _from_ffmpeg(proc: subprocess.Popen, lease: _Lease) -> AsyncIterator[bytes]:
     fd = proc.stdout.fileno()
     try:
         while True:
@@ -159,13 +197,10 @@ async def _from_ffmpeg(proc: subprocess.Popen, stop: threading.Event) -> AsyncIt
                 return
             yield chunk
     finally:  # the listener left (or the station ended): stop fetching and ffmpeg
-        stop.set()
-        proc.kill()
-        await asyncio.to_thread(proc.wait)
-        _slots.release()
+        lease.release()
 
 
-async def _passthrough(url: str) -> AsyncIterator[bytes]:
+async def _passthrough(url: str, lease: _Lease) -> AsyncIterator[bytes]:
     resp = None
     try:
         resp = await asyncio.to_thread(_open, url)
@@ -183,7 +218,7 @@ async def _passthrough(url: str) -> AsyncIterator[bytes]:
     finally:
         if resp is not None:
             resp.close()
-        _slots.release()
+        lease.release()
 
 
 def station_out(s: dict) -> dict:

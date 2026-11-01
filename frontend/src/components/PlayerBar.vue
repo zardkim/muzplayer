@@ -70,15 +70,15 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     @touchend="swipe.onTouchend"
     @touchcancel="swipe.onTouchcancel"
   >
-    <!-- live radio: the station; a tap opens the radio page -->
+    <!-- live radio: the station; a tap opens the radio player -->
     <template v-if="live">
-      <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3">
+      <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
         <StationBadge :stn="live.stn" :logo="live.logo" class="size-11 text-[12px]" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-[15px]">{{ live.name }}</span>
           <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ t('radio.live') }}</span>
         </span>
-      </RouterLink>
+      </button>
       <button type="button" class="grid size-11 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
         <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="24" :stroke="1.6" />
       </button>
@@ -141,13 +141,13 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
   <!-- desktop floating player: audiobook -->
   <!-- desktop: live radio -->
   <div v-else-if="live" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
-    <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3.5">
+    <button type="button" class="flex min-w-0 flex-1 items-center gap-3.5 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
       <StationBadge :stn="live.stn" :logo="live.logo" class="size-[52px] text-[14px]" />
       <span class="flex min-w-0 flex-col">
         <span class="truncate text-[15px]">{{ live.name }}</span>
         <span class="flex items-center gap-1.5 text-[13px] font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
       </span>
-    </RouterLink>
+    </button>
     <button type="button" class="grid size-12 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
       <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="28" :stroke="1.6" />
     </button>
