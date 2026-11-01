@@ -879,9 +879,14 @@
     "alreadyThere": "Already in ‘{name}’",
     "linkedTo": "Linked to {song}",
     "unlinked": "Unlinked from its song",
-    "autoLink": "Link to its song",
     "unlink": "Unlink from the song",
-    "autoLinkHint": "A file named ‘Artist - Title’ or after a song is linked to that song in the library."
+    "autoLinkHint": "A file named ‘Artist - Title’ or after a song is linked to that song in the library.",
+    "linkSong": "Link to a song",
+    "linkTitle": "Link to a song",
+    "linkHint": "Type a song title or artist and pick the song.",
+    "linkSearch": "Find a song",
+    "linkNone": "No songs found.",
+    "liked": "Liked"
   },
   "folders": {
     "root": "Music",

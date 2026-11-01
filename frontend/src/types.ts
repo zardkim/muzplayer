@@ -251,6 +251,7 @@ export interface Video {
 export interface VideoListItem extends Video {
   created_at: string
   target: { type: 'track' | 'album'; title: string; artist: string; album_id: number | null; has_cover: boolean; cover_v: number } | null
+  is_favorite?: boolean // this person liked it
 }
 /** A person's video playlist (and, opened, its videos). */
 export interface VideoPlaylist {

@@ -186,6 +186,8 @@ check "video playlist deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}'
 check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/thumb")" 404
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
 check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
+check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
+check "liked videos answer" "$(curl -s -b "$A" "$BASE/videos?liked=true" | j 'sorted(d)')" "['items', 'total']"
 check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
 

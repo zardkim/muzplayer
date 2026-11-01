@@ -9,14 +9,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, StringConstraints, model_validator
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, Track, User, Video, VideoPlaylist, VideoPlaylistItem
+from ..models import Album, Artist, Track, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
 from ..security import api_error, current_user
 
 router = APIRouter()
@@ -60,12 +60,18 @@ def _list(db: Session, user: User, **target) -> dict:
 _album_of_track = aliased(Album)
 
 
-def _listing(*extra):
-    """Videos with their song or album, for lists (Music videos page, search, video playlists)."""
+def _liked(user_id: int):
+    return exists().where(VideoFavorite.user_id == user_id, VideoFavorite.video_id == Video.id).correlate(Video)
+
+
+def _listing(user_id: int, *extra):
+    """Videos with their song or album and whether this person liked them, for lists (Music videos
+    page, search, video playlists); extra columns come last."""
     return (
         select(
             Video, Track.title, Track.artist_text, Track.album_id, _album_of_track.cover_path,
-            _album_of_track.cover_version, Album.title, Artist.name, Album.cover_path, Album.cover_version, *extra,
+            _album_of_track.cover_version, Album.title, Artist.name, Album.cover_path, Album.cover_version,
+            _liked(user_id), *extra,
         )
         .outerjoin(Track, Track.id == Video.track_id)
         .outerjoin(_album_of_track, _album_of_track.id == Track.album_id)
@@ -75,7 +81,7 @@ def _listing(*extra):
 
 
 def list_item(row, user: User) -> dict:
-    v, t_title, t_artist, t_album, t_cover, t_cover_v, a_title, a_artist, a_cover, a_cover_v = row[:10]
+    v, t_title, t_artist, t_album, t_cover, t_cover_v, a_title, a_artist, a_cover, a_cover_v, liked = row[:11]
     if v.track_id is None and v.album_id is None:
         target = None
     elif v.track_id is not None:
@@ -84,7 +90,7 @@ def list_item(row, user: User) -> dict:
     else:
         target = {"type": "album", "title": a_title, "artist": a_artist or "", "album_id": v.album_id,
                   "has_cover": bool(a_cover), "cover_v": a_cover_v if a_cover else 0}
-    return {**video_out(v, user), "target": target}
+    return {**video_out(v, user), "target": target, "is_favorite": bool(liked)}
 
 
 def _matches(q: str):
@@ -100,6 +106,7 @@ def _matches(q: str):
 def all_videos(
     kind: Kind | None = None,
     q: str = Query("", max_length=200),
+    liked: bool = False,  # only the videos this person liked
     offset: int = Query(0, ge=0),
     limit: int = Query(60, ge=1, le=200),
     user: User = Depends(current_user),
@@ -110,8 +117,10 @@ def all_videos(
     cond = [Video.kind == kind] if kind else []
     if q.strip():
         cond.append(_matches(q.strip()))
-    total = db.scalar(select(func.count()).select_from(_listing().where(*cond).subquery()))
-    rows = db.execute(_listing().where(*cond).order_by(Video.created_at.desc(), Video.id.desc()).offset(offset).limit(limit))
+    if liked:
+        cond.append(_liked(user.id))
+    total = db.scalar(select(func.count()).select_from(_listing(user.id).where(*cond).subquery()))
+    rows = db.execute(_listing(user.id).where(*cond).order_by(Video.created_at.desc(), Video.id.desc()).offset(offset).limit(limit))
     return {"items": [list_item(r, user) for r in rows], "total": total}
 
 
@@ -361,27 +370,49 @@ def add_video_file(body: VideoFileIn, user: User = Depends(current_user), db: Se
         db.rollback()
         raise api_error(409, "video_exists") from None
     video_thumbs.make_later(video.id, path)
-    return list_item(db.execute(_listing().where(Video.id == video.id)).one(), user)
+    return list_item(db.execute(_listing(user.id).where(Video.id == video.id)).one(), user)
 
 
 class LinkIn(BaseModel):
-    auto: bool = True  # find its song from its name; false: no song
+    track_id: int | None = None  # the song picked (Music videos page: searched for by a keyword)
+    auto: bool = False  # find its song from its name instead; neither: no song
 
 
 @router.post("/videos/{video_id}/link")
 def link_video(video_id: int, body: LinkIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """A NAS file's song: found again from its name, or let go. 404 code video_no_song when none fits."""
+    """A NAS file's song: the one picked, found again from its name (404 video_no_song when none
+    fits), or none."""
     video = _editable(db, user, video_id)
     if not video.file_path:
         raise api_error(400, "not_a_file")
-    track_id = guess_track(db, video.file_path, video.title) if body.auto else None
-    if body.auto and track_id is None:
-        raise api_error(404, "video_no_song")
+    if body.track_id is not None:
+        if db.get(Track, body.track_id) is None:
+            raise api_error(404, "not_found")
+        track_id = body.track_id
+    else:
+        track_id = guess_track(db, video.file_path, video.title) if body.auto else None
+        if body.auto and track_id is None:
+            raise api_error(404, "video_no_song")
     video.track_id, video.album_id = track_id, None
     db.commit()
-    return list_item(db.execute(_listing().where(Video.id == video.id)).one(), user)
+    return list_item(db.execute(_listing(user.id).where(Video.id == video.id)).one(), user)
 
 
+
+
+@router.put("/videos/{video_id}/favorite", status_code=204)
+def like_video(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    if db.get(Video, video_id) is None:
+        raise api_error(404, "not_found")
+    if db.get(VideoFavorite, (user.id, video_id)) is None:
+        db.add(VideoFavorite(user_id=user.id, video_id=video_id))
+        db.commit()
+
+
+@router.delete("/videos/{video_id}/favorite", status_code=204)
+def unlike_video(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    db.execute(delete(VideoFavorite).where(VideoFavorite.user_id == user.id, VideoFavorite.video_id == video_id))
+    db.commit()
 
 
 @router.get("/videos/{video_id}/thumb")
@@ -477,7 +508,7 @@ def create_video_playlist(body: VideoPlaylistIn, user: User = Depends(current_us
 def video_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     playlist = _own(db, user, playlist_id)
     rows = db.execute(
-        _listing(VideoPlaylistItem.id)
+        _listing(user.id, VideoPlaylistItem.id)
         .join(VideoPlaylistItem, VideoPlaylistItem.video_id == Video.id)
         .where(VideoPlaylistItem.playlist_id == playlist.id)
         .order_by(VideoPlaylistItem.position, VideoPlaylistItem.id)

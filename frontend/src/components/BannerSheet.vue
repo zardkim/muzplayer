@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { chartSource } from '../format'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api'
@@ -127,7 +128,7 @@ async function reset() {
         <fieldset v-if="canShare" class="flex flex-col gap-1.5">
           <legend class="mb-1 text-[14px] font-medium">{{ t('banner.scope') }}</legend>
           <label class="flex items-center gap-2 text-[15px]"><input v-model="scope" type="radio" value="collection" /> {{ t('banner.scopeCollection') }}</label>
-          <label class="flex items-center gap-2 text-[15px]"><input v-model="scope" type="radio" value="source" /> {{ t('banner.scopeSource', { source: chart.source }) }}</label>
+          <label class="flex items-center gap-2 text-[15px]"><input v-model="scope" type="radio" value="source" /> {{ t('banner.scopeSource', { source: chartSource(chart.source) || chart.source }) }}</label>
         </fieldset>
         <div class="flex gap-2">
           <button type="button" class="h-11 flex-1 rounded-full bg-ink text-[15px] text-on-ink disabled:opacity-40" :disabled="!!busy" @click="apply">{{ t('banner.apply') }}</button>
@@ -154,7 +155,7 @@ async function reset() {
 
       <p class="text-[12px] leading-relaxed text-muted">{{ t('banner.costNote') }}</p>
       <button v-if="ownAi" type="button" class="text-left text-[14px] text-accent underline disabled:opacity-40" :disabled="!!busy" @click="reset">
-        {{ ownAi.scope === 'source' ? t('banner.resetSource', { source: chart.source }) : t('banner.reset') }}
+        {{ ownAi.scope === 'source' ? t('banner.resetSource', { source: chartSource(chart.source) || chart.source }) : t('banner.reset') }}
       </button>
     </div>
   </BaseModal>

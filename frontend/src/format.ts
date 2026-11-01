@@ -36,3 +36,9 @@ export function codec(track: { format: string; sample_rate?: number; bit_depth?:
   }
   return track.bitrate ? `${name} ${track.bitrate}k` : name
 }
+
+/** A chart source's name to put before "차트"/"chart" in a label: "멜론 차트" -> "멜론", so "{source} 차트"
+ * doesn't say it twice ('' for a source named just "차트"). */
+export function chartSource(source: string): string {
+  return source.replace(/\s*(?:차트|charts?)\s*$/i, '').trim()
+}

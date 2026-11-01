@@ -879,9 +879,14 @@
     "alreadyThere": "이미 ‘{name}’에 있는 영상입니다",
     "linkedTo": "곡에 연결: {song}",
     "unlinked": "곡 연결을 해제했습니다",
-    "autoLink": "곡 자동 연결",
     "unlink": "곡 연결 해제",
-    "autoLinkHint": "파일 이름이 ‘가수 - 제목’이나 곡 제목이면 라이브러리의 곡에 자동으로 연결됩니다."
+    "autoLinkHint": "파일 이름이 ‘가수 - 제목’이나 곡 제목이면 라이브러리의 곡에 자동으로 연결됩니다.",
+    "linkSong": "곡 연결",
+    "linkTitle": "곡 연결",
+    "linkHint": "곡 제목이나 가수를 입력하고, 연결할 곡을 고르세요.",
+    "linkSearch": "곡 검색",
+    "linkNone": "검색 결과가 없습니다.",
+    "liked": "좋아요"
   },
   "folders": {
     "root": "음악",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { EllipsisVertical, Play } from '@lucide/vue'
+import { ChevronDown, EllipsisVertical, Heart, ListPlus, Play, Tag } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
@@ -10,14 +10,27 @@ import CoverArt from './CoverArt.vue'
 import VideoThumb from './VideoThumb.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
-// One music video in a grid: its picture plays it; the menu puts it in a video playlist and lets
-// who added it (or an admin) change its kind or remove it; a NAS file also its title, and its
-// thumbnail made again from another scene.
+// One music video in a grid: its picture plays it. Under the title: like it, its kind (who added it,
+// or an admin, may change it), put it in a video playlist. The ⋮ menu: a NAS file's title,
+// thumbnail (another scene) and song (picked from a search), and removing it.
 const props = defineProps<{ video: VideoListItem }>()
-const emit = defineEmits<{ play: []; changed: [] }>()
+const emit = defineEmits<{ play: []; changed: []; liked: [boolean] }>()
 const { t } = useI18n()
 const ui = useUi()
 const menu = ref(false)
+const kindMenu = ref(false)
+const liked = ref(!!props.video.is_favorite)
+async function like() {
+  const on = !liked.value
+  liked.value = on
+  try {
+    await api(`/videos/${props.video.id}/favorite`, { method: on ? 'PUT' : 'DELETE' })
+    emit('liked', on)
+  } catch (e) {
+    liked.value = !on
+    ui.notify(errorMessage(e), true)
+  }
+}
 const menuUp = ref(false) // cards low on the screen open their menu upwards
 function toggleMenu(e: MouseEvent) {
   menuUp.value = (e.currentTarget as HTMLElement).getBoundingClientRect().top > window.innerHeight / 2
@@ -25,7 +38,7 @@ function toggleMenu(e: MouseEvent) {
 }
 
 async function setKind(kind: VideoKind) {
-  menu.value = false
+  kindMenu.value = false
   try {
     await api(`/videos/${props.video.id}`, { method: 'PATCH', body: { kind } })
     emit('changed')
@@ -58,12 +71,16 @@ async function remakeThumb() {
     remaking.value = false
   }
 }
-// a NAS file's song: found from its name, or let go
-async function link(auto: boolean) {
+// a NAS file's song: picked from a search (the link sheet, App.vue), or let go
+function pickSong() {
+  menu.value = false
+  ui.videoLink = props.video
+}
+async function unlink() {
   menu.value = false
   try {
-    const v = await api<VideoListItem>(`/videos/${props.video.id}/link`, { method: 'POST', body: { auto } })
-    ui.notify(v.target ? t('videos.linkedTo', { song: `${v.target.title} · ${v.target.artist}` }) : t('videos.unlinked'))
+    await api<VideoListItem>(`/videos/${props.video.id}/link`, { method: 'POST', body: {} })
+    ui.notify(t('videos.unlinked'))
     emit('changed')
   } catch (e) {
     ui.notify(errorMessage(e), true)
@@ -81,6 +98,7 @@ async function remove() {
 }
 function outside(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest('[data-video-menu]')) menu.value = false
+  if (!(e.target as HTMLElement).closest('[data-kind-menu]')) kindMenu.value = false
 }
 onMounted(() => document.addEventListener('click', outside))
 onUnmounted(() => document.removeEventListener('click', outside))
@@ -98,37 +116,63 @@ onUnmounted(() => document.removeEventListener('click', outside))
     </button>
     <div class="flex items-start gap-1">
       <span class="line-clamp-2 min-w-0 flex-1 text-[15px] leading-snug">{{ video.title }}</span>
-      <span class="relative -mr-2 -mt-1.5" data-video-menu>
+      <span v-if="video.can_edit" class="relative -mr-2 -mt-1.5" data-video-menu>
         <button type="button" class="grid size-9 place-items-center text-muted hover:text-ink" :aria-label="t('common.moreActions')" :aria-expanded="menu" @click="toggleMenu">
           <EllipsisVertical :size="18" :stroke-width="1.4" />
         </button>
         <div v-if="menu" class="absolute right-0 z-30 flex w-52 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[14px] shadow-xl" :class="menuUp ? 'bottom-9' : 'top-9'">
-          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), (ui.videoPick = [video])">{{ t('videos.addToPlaylist') }}</button>
-          <template v-if="video.can_edit">
+          <!-- NAS files: their title, thumbnail and song are ours to change -->
+          <template v-if="video.file_path">
+            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
+            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
+            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickSong">{{ t('videos.linkSong') }}</button>
+            <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
             <div class="my-1 border-t border-line" />
-            <!-- NAS files: their title and thumbnail are ours to change -->
-            <template v-if="video.file_path">
-              <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
-              <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
-              <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="link(false)">{{ t('videos.unlink') }}</button>
-              <button v-else type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="link(true)">{{ t('videos.autoLink') }}</button>
-              <div class="my-1 border-t border-line" />
-            </template>
-            <p class="px-4 pb-1 pt-1.5 text-[12px] text-muted">{{ t('videos.changeKind') }}</p>
-            <button
-              v-for="k in VIDEO_KINDS"
-              :key="k"
-              type="button"
-              class="px-4 py-2 text-left hover:bg-surface"
-              :class="video.kind === k ? 'font-medium text-accent' : ''"
-              :disabled="video.kind === k"
-              @click="setKind(k)"
-            >{{ t(`videos.kinds.${k}`) }}</button>
-            <div class="my-1 border-t border-line" />
-            <button type="button" class="px-4 py-2.5 text-left text-danger hover:bg-surface" @click="remove">{{ t('videos.remove') }}</button>
           </template>
+          <button type="button" class="px-4 py-2.5 text-left text-danger hover:bg-surface" @click="remove">{{ t('videos.remove') }}</button>
         </div>
       </span>
+    </div>
+    <!-- like, kind, video playlist -->
+    <div class="-ml-2 -mt-1 flex items-center gap-0.5">
+      <button
+        type="button"
+        class="grid size-9 place-items-center rounded-full hover:bg-surface"
+        :class="liked ? 'text-like' : 'text-muted hover:text-ink'"
+        :aria-label="liked ? t('common.favoriteRemove') : t('common.favoriteAdd')"
+        :aria-pressed="liked"
+        :title="liked ? t('common.favoriteRemove') : t('common.favoriteAdd')"
+        @click="like"
+      >
+        <Heart :size="18" :stroke-width="1.5" :fill="liked ? 'currentColor' : 'none'" />
+      </button>
+      <span class="relative" data-kind-menu>
+        <button
+          type="button"
+          class="flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] text-muted"
+          :class="video.can_edit ? 'hover:bg-surface hover:text-ink' : 'cursor-default'"
+          :aria-label="`${t('videos.kind')}: ${t(`videos.kinds.${video.kind}`)}`"
+          :title="video.can_edit ? t('videos.changeKind') : t('videos.kind')"
+          :aria-expanded="video.can_edit ? kindMenu : undefined"
+          @click="video.can_edit && (kindMenu = !kindMenu)"
+        >
+          <Tag :size="15" :stroke-width="1.5" />{{ t(`videos.kinds.${video.kind}`) }}<ChevronDown v-if="video.can_edit" :size="14" :stroke-width="1.5" />
+        </button>
+        <div v-if="kindMenu" class="absolute left-0 top-9 z-30 flex w-40 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[14px] shadow-xl">
+          <button
+            v-for="k in VIDEO_KINDS"
+            :key="k"
+            type="button"
+            class="px-4 py-2 text-left hover:bg-surface"
+            :class="video.kind === k ? 'font-medium text-accent' : ''"
+            :disabled="video.kind === k"
+            @click="setKind(k)"
+          >{{ t(`videos.kinds.${k}`) }}</button>
+        </div>
+      </span>
+      <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('videos.addToPlaylist')" :title="t('videos.addToPlaylist')" @click="ui.videoPick = [video]">
+        <ListPlus :size="18" :stroke-width="1.5" />
+      </button>
     </div>
     <RouterLink
       v-if="video.target?.album_id"

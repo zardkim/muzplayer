@@ -447,6 +447,16 @@ class Video(Base):
     added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+class VideoFavorite(Base):
+    """A video someone liked (their own, like song favorites)."""
+
+    __tablename__ = "video_favorites"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), primary_key=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class VideoPlaylist(Base):
     """A person's playlist of music videos (YouTube and NAS files), played one after another or shuffled."""
 

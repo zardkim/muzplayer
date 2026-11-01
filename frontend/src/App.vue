@@ -31,6 +31,7 @@ import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import VideoPlaylistPicker from './components/VideoPlaylistPicker.vue'
+import VideoLinkSheet from './components/VideoLinkSheet.vue'
 import StationBadge from './components/StationBadge.vue'
 
 const { t } = useI18n()
@@ -102,6 +103,7 @@ useOverlayHistory(router, [
   { open: () => !!ui.videoTarget, close: () => (ui.videoTarget = null) },
   { open: () => !!ui.lyricsTarget, close: () => (ui.lyricsTarget = null) },
   { open: () => !!ui.videoPick, close: () => (ui.videoPick = null) },
+  { open: () => !!ui.videoLink, close: () => (ui.videoLink = null) },
   { open: () => !!ui.videoQueue, close: () => (ui.videoQueue = null) },
 ])
 
@@ -387,6 +389,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
     <VideoPlayer v-if="ui.videoQueue" />
     <VideoPlaylistPicker v-if="ui.videoPick" />
+    <VideoLinkSheet v-if="ui.videoLink" :key="ui.videoLink.id" />
   </div>
 
   <div

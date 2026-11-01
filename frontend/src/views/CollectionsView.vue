@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { chartSource } from '../format'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight } from '@lucide/vue'
@@ -34,7 +35,7 @@ onMounted(async () => {
 
       <section v-for="s in home.sources" :key="`s-${s.source}`" class="flex flex-col gap-3.5">
         <RouterLink :to="{ name: 'chart-list', query: { kind: 'chart', source: s.source || undefined } }" class="flex items-center gap-1 text-[22px] font-bold">
-          {{ s.source ? t('charts.sourceRow', { source: s.source }) : t('charts.charts') }}
+          {{ s.source && chartSource(s.source) ? t('charts.sourceRow', { source: chartSource(s.source) }) : t('charts.charts') }}
           <ChevronRight :size="22" :stroke-width="1.6" />
         </RouterLink>
         <ChartGrid :charts="s.items" row />

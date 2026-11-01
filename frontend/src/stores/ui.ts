@@ -80,6 +80,10 @@ export const useUi = defineStore('ui', () => {
   const videoQueue = ref<{ items: import('../types').VideoListItem[]; start: number; shuffle?: boolean; title?: string } | null>(null)
   // a NAS video's thumbnail made again: its new address (the browser keeps the old one a day)
   const thumbBust = ref<Record<number, number>>({})
+  // a NAS video whose song is being picked (App.vue: search by a keyword, pick the song)
+  const videoLink = ref<import('../types').VideoListItem | null>(null)
+  // a video's song changed there: lists showing it load again
+  const videoLinked = ref(0)
   // videos to put in a video playlist (the picker, App.vue)
   const videoPick = ref<import('../types').VideoListItem[] | null>(null)
   // the lyrics sheet (App.vue): a song's lyrics from a list, without playing it
@@ -127,7 +131,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust,
+    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, videoLink, videoLinked,
     barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })

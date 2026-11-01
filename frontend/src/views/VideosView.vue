@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderPlus, Play, Shuffle } from '@lucide/vue'
+import { FolderPlus, Heart, Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
@@ -26,6 +26,11 @@ const kind = computed({
   get: () => (ui.views.videoKind as VideoKind | undefined) || null,
   set: (v: VideoKind | null) => (ui.views = { ...ui.views, videoKind: v ?? '' }),
 })
+// only the videos this person liked (with a kind, or all of them)
+const likedOnly = computed({
+  get: () => ui.views.videoLiked === '1',
+  set: (v: boolean) => (ui.views = { ...ui.views, videoLiked: v ? '1' : '' }),
+})
 // all kinds: a section per kind; one kind: just its videos
 const sections = computed(() =>
   (kind.value ? [kind.value] : VIDEO_KINDS)
@@ -38,7 +43,7 @@ async function load(more = false) {
   error.value = ''
   try {
     const r = await api<{ items: VideoListItem[]; total: number }>(
-      `/videos${query({ kind: kind.value ?? undefined, offset: more ? items.value.length : 0, limit: PAGE })}`,
+      `/videos${query({ kind: kind.value ?? undefined, liked: likedOnly.value ? 'true' : undefined, offset: more ? items.value.length : 0, limit: PAGE })}`,
     )
     items.value = more ? [...items.value, ...r.items] : r.items
     total.value = r.total
@@ -49,7 +54,14 @@ async function load(more = false) {
   }
 }
 onMounted(() => load())
-watch(kind, () => load())
+watch([kind, likedOnly], () => load())
+// a video's song picked (the link sheet): its card shows it
+watch(() => ui.videoLinked, () => load())
+// unliked while only liked ones show: it goes
+function liked(v: VideoListItem, on: boolean) {
+  v.is_favorite = on
+  if (likedOnly.value && !on) load()
+}
 // NAS files were added: the list follows
 watch(addingFiles, (open) => !open && load())
 
@@ -70,6 +82,15 @@ function playAll(shuffle: boolean) {
 
     <div class="flex items-start gap-3">
       <div class="-mr-5 flex min-w-0 flex-1 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:flex-wrap md:pr-0">
+        <button
+          type="button"
+          class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-4 text-[15px]"
+          :class="likedOnly ? 'border-like bg-like text-white' : 'border-line-strong bg-bg'"
+          :aria-pressed="likedOnly"
+          @click="likedOnly = !likedOnly"
+        >
+          <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" />{{ t('videos.liked') }}
+        </button>
         <button
           v-for="k in [null, ...VIDEO_KINDS]"
           :key="k ?? 'all'"
@@ -106,7 +127,7 @@ function playAll(shuffle: boolean) {
       <h2 v-if="!kind" class="text-[19px] font-bold">{{ t(`videos.kinds.${s.kind}`) }} <span class="text-[14px] font-normal text-muted">{{ s.items.length }}</span></h2>
       <ul class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <li v-for="v in s.items" :key="v.id">
-          <VideoCard :video="v" @play="play(v)" @changed="load()" />
+          <VideoCard :video="v" @play="play(v)" @changed="load()" @liked="(on) => liked(v, on)" />
         </li>
       </ul>
     </section>
