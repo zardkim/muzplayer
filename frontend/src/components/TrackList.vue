@@ -6,6 +6,7 @@ import { errorMessage } from '../i18n'
 import { duration } from '../format'
 import { openPlayer } from '../playerNav'
 import { useProgressive } from '../progressive'
+import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
@@ -33,6 +34,7 @@ const { t } = useI18n()
 const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
+const isAdmin = computed(() => !!useAuth().user?.is_admin) // only an admin finds and adds videos
 // rows (i stays the index into props.tracks: play, select and the menu use the whole list)
 const shown = useProgressive(() => props.tracks)
 // row labels looked up once per list, not several times per row (a long list spent much of its time here)
@@ -95,7 +97,7 @@ function playVideo(track: Track) {
 }
 // the icon columns line up: a row without lyrics (or a video) keeps the room when another row has them
 const lyricsColumn = computed(() => props.tracks.some((tr) => tr.has_lyrics && !tr.missing))
-const videoColumn = computed(() => props.videoButtons || props.tracks.some((tr) => tr.has_video && !tr.missing))
+const videoColumn = computed(() => (props.videoButtons && isAdmin.value) || props.tracks.some((tr) => tr.has_video && !tr.missing))
 // videos added or removed in the video sheet: the mark follows
 watch(
   () => ui.videoChanged,
@@ -260,7 +262,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
           </button>
           <span v-else-if="lyricsColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
           <button
-            v-if="(track.has_video || videoButtons) && !track.missing"
+            v-if="(track.has_video || (videoButtons && isAdmin)) && !track.missing"
             type="button"
             class="grid size-9 place-items-center md:size-10"
             :class="track.has_video ? '' : 'opacity-35 grayscale hover:opacity-70'"
@@ -303,7 +305,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
                 <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.startRadio(track))">{{ t('common.startRadio') }}</button>
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
+                <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
               </template>
               <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
               <RouterLink v-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>

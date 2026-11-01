@@ -5,6 +5,7 @@ import { ExternalLink, Play, Search, Trash2 } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
+import { useAuth } from '../stores/auth'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type Video, type VideoKind, type VideoResult } from '../types'
@@ -18,6 +19,7 @@ import VideoThumb from './VideoThumb.vue'
 const { t } = useI18n()
 const ui = useUi()
 const player = usePlayer()
+const canAdd = computed(() => !!useAuth().user?.is_admin) // adding videos is an admin's; the others watch
 const target = computed(() => ui.videoTarget!)
 const KINDS = VIDEO_KINDS
 
@@ -53,7 +55,7 @@ onMounted(async () => {
   q.value = suggestion()
   try {
     await load()
-    if (!videos.value.length) adding.value = true
+    if (!videos.value.length && canAdd.value) adding.value = true
     const want = target.value.play
     const first = want === 'first' ? videos.value[0] : videos.value.find((v) => v.id === want)
     if (first) watch(first)
@@ -227,8 +229,8 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
       </section>
 
       <!-- add -->
-      <button v-if="!adding" type="button" class="h-11 rounded-full border border-line-strong text-[15px]" @click="adding = true">{{ t('videos.add') }}</button>
-      <section v-else class="flex flex-col gap-3 rounded-2xl bg-surface p-3.5">
+      <button v-if="!adding && canAdd" type="button" class="h-11 rounded-full border border-line-strong text-[15px]" @click="adding = true">{{ t('videos.add') }}</button>
+      <section v-else-if="canAdd" class="flex flex-col gap-3 rounded-2xl bg-surface p-3.5">
         <template v-if="appConfig.youtubeSearch">
           <form class="flex gap-2" role="search" @submit.prevent="search">
             <label for="video-q" class="sr-only">{{ t('videos.search') }}</label>

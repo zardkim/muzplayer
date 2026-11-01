@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { FolderPlus, Heart, Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
+import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
 import PageHeader from '../components/PageHeader.vue'
@@ -11,10 +12,11 @@ import VideoFilesSheet from '../components/VideoFilesSheet.vue'
 import VideoCard from '../components/VideoCard.vue'
 
 // Music videos: the YouTube videos added to songs and albums (album page, a song's menu) and the
-// video files registered from the NAS (library/video), by kind. A video plays large in the video
+// video files an admin registered from the NAS (library/video), by kind. A video plays large in the video
 // player (App.vue), the others of the page after it; or all of them, shuffled.
 const { t } = useI18n()
 const ui = useUi()
+const auth = useAuth()
 const PAGE = 200
 
 const items = ref<VideoListItem[]>([])
@@ -103,11 +105,11 @@ function playAll(shuffle: boolean) {
           {{ k ? t(`videos.kinds.${k}`) : t('videos.all') }}
         </button>
       </div>
-      <button type="button" class="hidden h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink md:flex" @click="addingFiles = true">
+      <button v-if="auth.user?.is_admin" type="button" class="hidden h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink md:flex" @click="addingFiles = true">
         <FolderPlus :size="17" :stroke-width="1.6" />{{ t('videos.addFile') }}
       </button>
     </div>
-    <button type="button" class="-mt-2 flex h-10 items-center gap-1.5 self-start rounded-full bg-ink px-4 text-[14px] text-on-ink md:hidden" @click="addingFiles = true">
+    <button v-if="auth.user?.is_admin" type="button" class="-mt-2 flex h-10 items-center gap-1.5 self-start rounded-full bg-ink px-4 text-[14px] text-on-ink md:hidden" @click="addingFiles = true">
       <FolderPlus :size="16" :stroke-width="1.6" />{{ t('videos.addFile') }}
     </button>
 

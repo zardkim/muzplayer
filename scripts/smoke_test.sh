@@ -190,6 +190,8 @@ vpl=$(curl -s -b "$A" -X POST "$BASE/video-playlists" -H 'content-type: applicat
 check "video playlist made" "$(curl -s -b "$A" "$BASE/video-playlists/$vpl" | j '[d["name"], d["count"]]')" "['smoke videos', 0]"
 check "video playlist deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/video-playlists/$vpl")" 204
 check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/thumb")" 404
+check "only an admin adds YouTube videos" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"dQw4w9WgXcQ\",\"kind\":\"mv\",\"album_id\":$aid}")" 403
+check "only an admin registers NAS videos" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/videos/files")" 403
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
 check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404

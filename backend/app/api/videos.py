@@ -1,5 +1,6 @@
 """Music videos: YouTube videos of albums and songs, and video files on the NAS (library/video).
-Anyone may add one; the person who added it or an admin may change or remove it."""
+Admins add, change and remove them; everyone watches them, likes them and puts them in their own
+video playlists."""
 
 import os
 import re
@@ -17,7 +18,7 @@ from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Artist, Track, TrackGenre, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
-from ..security import api_error, current_user
+from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def video_out(v: Video, user: User) -> dict:
         "channel": v.channel,
         "album_id": v.album_id,
         "track_id": v.track_id,
-        "can_edit": user.is_admin or v.added_by == user.id,
+        "can_edit": user.is_admin,
         "created_at": v.created_at,
     }
 
@@ -226,10 +227,10 @@ def search_videos(
     q: str = Query(min_length=1, max_length=200),
     album_id: int | None = None,
     track_id: int | None = None,
-    _: User = Depends(current_user),
+    _: User = Depends(admin_user),
     db: Session = Depends(get_db, scope="function"),
 ):
-    """YouTube search results to pick from; `added` marks those already on this album/song."""
+    """YouTube search results to pick from (adding videos is an admin's); `added` marks those already on this album/song."""
     try:
         results = youtube.search(q.strip())
     except youtube.YoutubeError as exc:
@@ -255,7 +256,7 @@ class VideoIn(BaseModel):
 
 
 @router.post("/videos", status_code=201)
-def add_video(body: VideoIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+def add_video(body: VideoIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     youtube_id = youtube.video_id(body.video)
     if youtube_id is None:
         raise api_error(400, "video_bad_link")
@@ -292,7 +293,7 @@ def _editable(db: Session, user: User, video_id: int) -> Video:
     video = db.get(Video, video_id)
     if video is None:
         raise api_error(404, "not_found")
-    if not (user.is_admin or video.added_by == user.id):
+    if not user.is_admin:
         raise api_error(403, "forbidden")
     return video
 
@@ -398,8 +399,9 @@ def guess_track(db: Session, rel: str, title: str | None = None) -> int | None:
 
 
 @router.get("/videos/files")
-def video_files(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """The video files in library/video (sub-folders too), each saying whether it is registered."""
+def video_files(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """The video files in library/video (sub-folders too), each saying whether it is registered.
+    Registering the NAS's files is an admin's job (everyone watches them)."""
     root = _video_root()
     if not root.is_dir():
         return {"folder": False, "items": []}
@@ -437,7 +439,7 @@ class VideoFileIn(BaseModel):
 
 
 @router.post("/videos/files", status_code=201)
-def add_video_file(body: VideoFileIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+def add_video_file(body: VideoFileIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     path = _inside(body.path)
     if path is None:
         raise api_error(404, "not_found")
