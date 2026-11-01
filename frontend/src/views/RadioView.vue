@@ -48,7 +48,7 @@ function tune(s: RadioStation) {
 
     <!-- what is on now -->
     <div v-if="live" class="flex items-center gap-3.5 rounded-2xl bg-surface p-3.5">
-      <StationBadge :stn="live.stn" class="size-12 text-[15px]" />
+      <StationBadge :stn="live.stn" :logo="live.logo" class="size-12 text-[15px]" />
       <span class="flex min-w-0 flex-1 flex-col">
         <span class="flex items-center gap-2"><span class="rounded bg-danger px-1.5 text-[11px] font-bold leading-[18px] text-white">LIVE</span><span class="truncate text-[17px] font-medium">{{ live.name }}</span></span>
         <span class="text-[13px] font-light text-muted">{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
@@ -85,7 +85,7 @@ function tune(s: RadioStation) {
           :aria-pressed="live?.id === s.id"
           @click="tune(s)"
         >
-          <StationBadge :stn="s.stn" class="size-11 text-[13px]" />
+          <StationBadge :stn="s.stn" :logo="s.logo" class="size-11 text-[13px]" />
           <span class="min-w-0 flex-1 truncate text-[16px]" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
           <PlayerIcons v-if="live?.id === s.id" :name="player.playing ? 'pause' : 'play'" :size="18" :stroke="1.8" class="mr-1.5 flex-none text-accent" />
         </button>

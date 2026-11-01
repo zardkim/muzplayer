@@ -27,6 +27,7 @@ import PlaylistPicker from './components/PlaylistPicker.vue'
 import DevicesSheet from './components/DevicesSheet.vue'
 import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
+import StationBadge from './components/StationBadge.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -344,6 +345,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         <div v-else class="pointer-events-auto flex justify-end">
           <button type="button" class="glass flex h-12 items-center gap-1.5 rounded-full pl-1.5 pr-3" :aria-label="t('player.showBar')" @click="ui.barHidden = false">
             <CoverArt v-if="player.current && player.mode === 'music'" :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" class="size-9" />
+            <StationBadge v-else-if="player.mode === 'live' && player.station" :stn="player.station.stn" :logo="player.station.logo" class="size-9 text-[11px]" />
             <span v-else class="grid size-9 place-items-center"><PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="18" :stroke="1.6" /></span>
             <ChevronUp :size="18" :stroke-width="1.6" />
           </button>

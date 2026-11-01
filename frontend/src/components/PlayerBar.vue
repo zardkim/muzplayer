@@ -73,7 +73,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     <!-- live radio: the station; a tap opens the radio page -->
     <template v-if="live">
       <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3">
-        <StationBadge :stn="live.stn" class="size-11 text-[12px]" />
+        <StationBadge :stn="live.stn" :logo="live.logo" class="size-11 text-[12px]" />
         <span class="flex min-w-0 flex-col">
           <span class="truncate text-[15px]">{{ live.name }}</span>
           <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ t('radio.live') }}</span>
@@ -142,7 +142,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
   <!-- desktop: live radio -->
   <div v-else-if="live" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
     <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3.5">
-      <StationBadge :stn="live.stn" class="size-[52px] text-[14px]" />
+      <StationBadge :stn="live.stn" :logo="live.logo" class="size-[52px] text-[14px]" />
       <span class="flex min-w-0 flex-col">
         <span class="truncate text-[15px]">{{ live.name }}</span>
         <span class="flex items-center gap-1.5 text-[13px] font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>

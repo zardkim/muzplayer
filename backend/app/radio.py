@@ -187,4 +187,4 @@ async def _passthrough(url: str) -> AsyncIterator[bytes]:
 
 
 def station_out(s: dict) -> dict:
-    return {"id": s["id"], "name": s["name"], "stn": s["stn"], "regions": s["regions"]}
+    return {"id": s["id"], "name": s["name"], "stn": s["stn"], "regions": s["regions"], "logo": s.get("logo")}

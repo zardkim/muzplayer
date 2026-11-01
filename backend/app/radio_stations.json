@@ -9,7 +9,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio",
@@ -21,7 +22,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-3radio",
@@ -33,7 +35,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm",
@@ -45,7 +48,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-2fm",
@@ -57,7 +61,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs-2fm"
  },
  {
   "id": "kbs-hanminjok",
@@ -69,7 +74,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "mbc-sfm",
@@ -81,7 +87,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "mbc-sfm"
  },
  {
   "id": "mbc-fm4u",
@@ -93,7 +100,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "mbc-fm4u"
  },
  {
   "id": "mbc-chm",
@@ -105,7 +113,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-lovefm",
@@ -117,7 +126,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "sbs-love"
  },
  {
   "id": "sbs-powerfm",
@@ -129,7 +139,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "sbs-power"
  },
  {
   "id": "sbs-dmb",
@@ -141,7 +152,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "sbs"
  },
  {
   "id": "ebs-fm",
@@ -161,7 +173,8 @@
    "chungbuk",
    "gangwon",
    "jeju"
-  ]
+  ],
+  "logo": "ebs"
  },
  {
   "id": "ebs-bandi",
@@ -181,7 +194,8 @@
    "chungbuk",
    "gangwon",
    "jeju"
-  ]
+  ],
+  "logo": "ebs"
  },
  {
   "id": "obs",
@@ -192,7 +206,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "obs"
  },
  {
   "id": "ifm",
@@ -203,7 +218,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "ifm"
  },
  {
   "id": "ytn",
@@ -214,7 +230,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "ytn"
  },
  {
   "id": "tbs-fm",
@@ -226,7 +243,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "tbs"
  },
  {
   "id": "tbs-efm",
@@ -238,7 +256,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "tbs"
  },
  {
   "id": "tbn",
@@ -261,7 +280,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-mfm",
@@ -273,7 +293,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-joy4u",
@@ -293,7 +314,8 @@
    "chungbuk",
    "gangwon",
    "jeju"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc",
@@ -304,7 +326,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "bbs",
@@ -315,7 +338,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "bbs"
  },
  {
   "id": "cpbc",
@@ -326,7 +350,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "cpbc"
  },
  {
   "id": "wbs",
@@ -379,7 +404,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "logo": "afn"
  },
  {
   "id": "community-gwanakfm",
@@ -476,7 +502,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-busan",
@@ -489,7 +516,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-busan",
@@ -502,7 +530,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-ulsan",
@@ -515,7 +544,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1radio-changwon",
@@ -528,7 +558,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-changwon",
@@ -541,7 +572,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-changwon",
@@ -554,7 +586,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-jinju",
@@ -567,7 +600,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "mbc-sfm-busan",
@@ -580,7 +614,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-busan",
@@ -593,7 +628,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-sfm-ulsan",
@@ -606,7 +642,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-ulsan",
@@ -619,7 +656,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-sfm-changwon",
@@ -632,7 +670,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-changwon",
@@ -645,7 +684,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-lovefm-busan",
@@ -658,7 +698,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "knn"
  },
  {
   "id": "sbs-powerfm-busan",
@@ -671,7 +712,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "knn"
  },
  {
   "id": "sbs-powerfm-ulsan",
@@ -684,7 +726,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "ubc"
  },
  {
   "id": "tbn-busan",
@@ -733,7 +776,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-mfm-busan",
@@ -746,7 +790,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-sfm-ulsan",
@@ -759,7 +804,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-sfm-gyeongnam",
@@ -772,7 +818,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-busan",
@@ -784,7 +831,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "febc-ulsan",
@@ -796,7 +844,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "febc-changwon",
@@ -808,7 +857,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "bbs-busan",
@@ -820,7 +870,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "bbs"
  },
  {
   "id": "cpbc-busan",
@@ -832,7 +883,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "logo": "cpbc"
  },
  {
   "id": "wbs-busan",
@@ -892,7 +944,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-daegu",
@@ -905,7 +958,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-daegu",
@@ -918,7 +972,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-andong",
@@ -931,7 +986,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1radio-pohang",
@@ -944,7 +1000,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "mbc-sfm-daegu",
@@ -957,7 +1014,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-daegu",
@@ -970,7 +1028,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-daegu",
@@ -983,7 +1042,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "tbc"
  },
  {
   "id": "tbn-daegu",
@@ -1020,7 +1080,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-mfm-daegu",
@@ -1033,7 +1094,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-sfm-pohang",
@@ -1046,7 +1108,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-daegu",
@@ -1058,7 +1121,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "febc-pohang",
@@ -1070,7 +1134,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "cpbc-daegu",
@@ -1082,7 +1147,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "logo": "cpbc"
  },
  {
   "id": "wbs-daegu",
@@ -1167,7 +1233,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-gwangju",
@@ -1180,7 +1247,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-gwangju",
@@ -1193,7 +1261,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-mokpo",
@@ -1206,7 +1275,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1fm-mokpo",
@@ -1219,7 +1289,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-suncheon",
@@ -1232,7 +1303,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "mbc-sfm-gwangju",
@@ -1245,7 +1317,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-gwangju",
@@ -1258,7 +1331,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-sfm-mokpo",
@@ -1271,7 +1345,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-mokpo",
@@ -1284,7 +1359,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-sfm-yeosu",
@@ -1297,7 +1373,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-yeosu",
@@ -1310,7 +1387,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-gwangju",
@@ -1323,7 +1401,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "kbc"
  },
  {
   "id": "tbn-gwangju",
@@ -1348,7 +1427,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-mfm-gwangju",
@@ -1361,7 +1441,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-sfm-jeonnam",
@@ -1374,7 +1455,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-gwangju",
@@ -1386,7 +1468,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "febc-mokpo",
@@ -1398,7 +1481,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "febc-jeonnam",
@@ -1410,7 +1494,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "bbs-gwangju",
@@ -1422,7 +1507,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "bbs"
  },
  {
   "id": "cpbc-gwangju",
@@ -1434,7 +1520,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "logo": "cpbc"
  },
  {
   "id": "wbs-gwangju",
@@ -1518,7 +1605,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-jeonju",
@@ -1531,7 +1619,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-jeonju",
@@ -1544,7 +1633,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "mbc-sfm-jeonju",
@@ -1557,7 +1647,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-jeonju",
@@ -1570,7 +1661,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-jeonju",
@@ -1583,7 +1675,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "jtv"
  },
  {
   "id": "tbn-jeonbuk",
@@ -1608,7 +1701,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-jeonbuk",
@@ -1620,7 +1714,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "wbs-jeonbuk",
@@ -1644,7 +1739,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "logo": "afn"
  },
  {
   "id": "community-jcfm",
@@ -1669,7 +1765,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-daejeon",
@@ -1682,7 +1779,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-daejeon",
@@ -1695,7 +1793,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "mbc-sfm-daejeon",
@@ -1708,7 +1807,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-daejeon",
@@ -1721,7 +1821,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-daejeon",
@@ -1734,7 +1835,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "tjb"
  },
  {
   "id": "tbn-daejeon",
@@ -1771,7 +1873,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-daejeon",
@@ -1783,7 +1886,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "kugak-daejeon",
@@ -1832,7 +1936,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-cheongju",
@@ -1845,7 +1950,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-cheongju",
@@ -1858,7 +1964,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-chungju",
@@ -1871,7 +1978,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1fm-chungju",
@@ -1884,7 +1992,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "mbc-sfm-cheongju",
@@ -1897,7 +2006,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-cheongju",
@@ -1910,7 +2020,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-cheongju",
@@ -1923,7 +2034,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "cjb"
  },
  {
   "id": "tbn-chungbuk",
@@ -1948,7 +2060,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "community-obn",
@@ -1973,7 +2086,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-chuncheon",
@@ -1986,7 +2100,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-chuncheon",
@@ -1999,7 +2114,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-gangneung",
@@ -2012,7 +2128,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1fm-gangneung",
@@ -2025,7 +2142,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1radio-wonju",
@@ -2038,7 +2156,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-1fm-wonju",
@@ -2051,7 +2170,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "mbc-sfm-chuncheon",
@@ -2064,7 +2184,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-chuncheon",
@@ -2077,7 +2198,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-wonju",
@@ -2090,7 +2212,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-sfm-gangneung",
@@ -2103,7 +2226,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "mbc-fm4u-gangneung",
@@ -2116,7 +2240,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "mbc"
  },
  {
   "id": "sbs-powerfm-chuncheon",
@@ -2129,7 +2254,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "g1"
  },
  {
   "id": "tbn-gangwon",
@@ -2154,7 +2280,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "cbs-sfm-youngdong",
@@ -2167,7 +2294,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-gangwon",
@@ -2179,7 +2307,8 @@
   },
   "regions": [
    "gangwon"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "kbs-1radio-jeju",
@@ -2192,7 +2321,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "kbs-1radio"
  },
  {
   "id": "kbs-2radio-jeju",
@@ -2205,7 +2335,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "kbs-1fm-jeju",
@@ -2218,7 +2349,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "kbs"
  },
  {
   "id": "tbn-jeju",
@@ -2243,7 +2375,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "cbs"
  },
  {
   "id": "febc-jeju",
@@ -2255,7 +2388,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "febc"
  },
  {
   "id": "bbs-jeju",
@@ -2267,7 +2401,8 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "bbs"
  },
  {
   "id": "arirang",
@@ -2278,6 +2413,7 @@
   },
   "regions": [
    "jeju"
-  ]
+  ],
+  "logo": "arirang"
  }
 ]
