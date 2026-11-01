@@ -31,9 +31,6 @@ const videos = ref<VideoListItem[]>([])
 const ui = useUi()
 const loaded = ref(false)
 
-// stable colour per artist tile, dark enough for white text
-const TILE = ['#A34A6E', '#3F6FB5', '#5B4BD6', '#8A6516', '#2F7D6D', '#B0482D', '#6B5B95', '#3D5A80']
-const tileColor = (name: string) => TILE[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % TILE.length]
 
 // search results, one tab per kind ("all" shows the first few of each)
 type Kind = 'tracks' | 'albums' | 'artists' | 'videos' | 'books'
@@ -85,7 +82,7 @@ onMounted(async () => {
       api<Page<Artist>>('/artists?limit=500').catch(() => ({ items: [], total: 0 })),
     ])
     genres.value = [...g.items].sort((a, b) => b.track_count - a.track_count).slice(0, 16)
-    artists.value = [...ar.items].sort((a, b) => b.track_count - a.track_count).slice(0, 8)
+    artists.value = [...ar.items].sort((a, b) => b.track_count - a.track_count).slice(0, 12)
   }
   loaded.value = true
 })
@@ -208,17 +205,18 @@ function submit(q: string = text.value) {
       </section>
       <section v-if="artists.length" class="flex flex-col gap-3.5">
         <RouterLink to="/artists" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.artists') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
-        <div class="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          <RouterLink
-            v-for="a in artists"
-            :key="a.id"
-            :to="{ name: 'artist', params: { id: a.id } }"
-            class="flex h-[76px] items-center rounded-md px-4 text-[17px] font-bold text-white"
-            :style="{ background: tileColor(a.name) }"
-          >
-            <span class="line-clamp-2">{{ a.name }}</span>
-          </RouterLink>
-        </div>
+        <!-- one row of round photos (as on the artists page), scrolled sideways -->
+        <ul class="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:px-0">
+          <li v-for="a in artists" :key="a.id" class="w-[104px] flex-none md:w-[132px]">
+            <RouterLink :to="{ name: 'artist', params: { id: a.id } }" class="flex flex-col items-center gap-2.5 text-center">
+              <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" size="thumb" class="w-full" />
+              <span class="flex w-full min-w-0 flex-col">
+                <span class="truncate text-[15px]">{{ a.name }}</span>
+                <span class="truncate text-[13px] font-light text-muted">{{ t('common.tracks', a.track_count) }}</span>
+              </span>
+            </RouterLink>
+          </li>
+        </ul>
       </section>
     </template>
   </div>

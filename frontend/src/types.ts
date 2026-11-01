@@ -202,6 +202,7 @@ export interface Playlist {
   id: number
   name: string
   kind: 'manual' | 'smart'
+  is_default?: boolean // each person's own default list: always there, first, can't be deleted
   rules: SmartRules | null
   track_count: number | null // null for a smart playlist until it is opened
   cover?: { id: number; v: number } | null // its first song's album cover (the list's card)
@@ -259,6 +260,7 @@ export interface VideoPlaylist {
   name: string
   count: number
   thumb: string | null // the first YouTube video's id, for a picture
+  is_default?: boolean // as Playlist.is_default
   entries?: { entry_id: number; video: VideoListItem }[]
 }
 /** A video file in library/video (the NAS), registered or not. */

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { api } from '../api'
-import type { Playlist, Track } from '../types'
+import type { Playlist, Track, VideoPlaylist } from '../types'
 
 /** Shared per-user state used across views: likes and stars set here (overriding what lists
  * loaded earlier say) and the playlist list. */
@@ -10,6 +10,7 @@ export const useLibrary = defineStore('library', () => {
   const favoriteOverrides = reactive(new Map<number, boolean>())
   const ratingOverrides = reactive(new Map<number, number | null>())
   const playlists = ref<Playlist[]>([])
+  const videoPlaylists = ref<VideoPlaylist[]>([]) // the sidebar, My Music, the playlists page and the video picker
 
   function isFavorite(track: Track) {
     return favoriteOverrides.get(track.id) ?? track.is_favorite
@@ -46,6 +47,10 @@ export const useLibrary = defineStore('library', () => {
     playlists.value = (await api<{ items: Playlist[] }>('/playlists')).items
   }
 
+  async function loadVideoPlaylists() {
+    videoPlaylists.value = (await api<{ items: VideoPlaylist[] }>('/video-playlists')).items
+  }
+
   async function createPlaylist(name: string) {
     const p = await api<Playlist>('/playlists', { method: 'POST', body: { name } })
     await loadPlaylists()
@@ -63,7 +68,8 @@ export const useLibrary = defineStore('library', () => {
     favoriteOverrides.clear()
     ratingOverrides.clear()
     playlists.value = []
+    videoPlaylists.value = []
   }
 
-  return { isFavorite, toggleFavorite, rating, rate, playlists, loadPlaylists, createPlaylist, addToPlaylist, reset }
+  return { isFavorite, toggleFavorite, rating, rate, playlists, loadPlaylists, videoPlaylists, loadVideoPlaylists, createPlaylist, addToPlaylist, reset }
 })

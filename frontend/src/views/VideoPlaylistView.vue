@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { ArrowDown, ArrowUp, Pencil, Play, Shuffle, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
+import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { VideoPlaylist } from '../types'
 import PageHeader from '../components/PageHeader.vue'
@@ -16,6 +17,7 @@ const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const router = useRouter()
 const ui = useUi()
+const library = useLibrary()
 const playlist = ref<VideoPlaylist | null>(null)
 const error = ref('')
 const entries = computed(() => playlist.value?.entries ?? [])
@@ -39,6 +41,7 @@ async function act(fn: () => Promise<unknown>) {
   try {
     await fn()
     await load()
+    library.loadVideoPlaylists().catch(() => {})
   } catch (e) {
     ui.notify(errorMessage(e), true)
   }
@@ -59,6 +62,7 @@ async function destroy() {
   if (!confirm(t('playlists.deleteConfirm', { name: playlist.value!.name }))) return
   try {
     await api(`/video-playlists/${props.id}`, { method: 'DELETE' })
+    library.loadVideoPlaylists().catch(() => {})
     router.replace({ name: 'playlists' })
   } catch (e) {
     ui.notify(errorMessage(e), true)
@@ -81,7 +85,7 @@ async function destroy() {
         <button type="button" class="grid size-11 place-items-center rounded-full border border-line-strong" :aria-label="t('videos.renamePlaylist')" :title="t('videos.renamePlaylist')" @click="rename">
           <Pencil :size="17" :stroke-width="1.5" />
         </button>
-        <button type="button" class="grid size-11 place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('videos.deletePlaylist')" :title="t('videos.deletePlaylist')" @click="destroy">
+        <button v-if="!playlist.is_default" type="button" class="grid size-11 place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('videos.deletePlaylist')" :title="t('videos.deletePlaylist')" @click="destroy">
           <Trash2 :size="17" :stroke-width="1.5" />
         </button>
       </div>

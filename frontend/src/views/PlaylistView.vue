@@ -116,7 +116,7 @@ async function destroy() {
       <button v-else type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
         <Pencil :size="16" :stroke-width="1.4" />
       </button>
-      <button type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
+      <button v-if="!playlist.is_default" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
         <Trash2 :size="16" :stroke-width="1.4" />
       </button>
     </div>

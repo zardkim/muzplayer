@@ -27,11 +27,10 @@ const router = useRouter()
 const favorites = ref<Track[]>([])
 const mixes = ref<Mix[]>([])
 const historyCount = ref(0)
-const videoLists = ref<VideoPlaylist[]>([])
 
 onMounted(async () => {
   library.loadPlaylists().catch(() => {})
-  api<{ items: VideoPlaylist[] }>('/video-playlists').then((r) => (videoLists.value = r.items), () => {})
+  library.loadVideoPlaylists().catch(() => {})
   api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
   const [f, h] = await Promise.all([
     api<{ items: Track[] }>('/favorites').catch(() => ({ items: [] })),
@@ -49,6 +48,7 @@ async function create() {
   try {
     if (creating.value === 'videos') {
       const p = await api<VideoPlaylist>('/video-playlists', { method: 'POST', body: { name: newName.value.trim() } })
+      library.loadVideoPlaylists().catch(() => {})
       creating.value = null
       router.push({ name: 'video-playlist', params: { id: p.id } })
       return
@@ -86,13 +86,13 @@ async function create() {
     <!-- video playlists -->
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between">
-        <RouterLink to="/playlists" class="text-[22px] font-bold">{{ t('videos.myVideoPlaylists') }}</RouterLink>
+        <RouterLink :to="{ path: '/playlists', hash: '#video-playlists' }" class="text-[22px] font-bold">{{ t('videos.myVideoPlaylists') }}</RouterLink>
         <button type="button" class="flex h-[34px] items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" @click="(newName = ''), (creating = 'videos')">
           <Plus :size="16" :stroke-width="1.6" />{{ t('videos.newPlaylist') }}
         </button>
       </div>
-      <p v-if="!videoLists.length" class="font-light text-muted">{{ t('videos.noPlaylists') }}</p>
-      <RouterLink v-for="p in videoLists" :key="p.id" :to="{ name: 'video-playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
+      <p v-if="!library.videoPlaylists.length" class="font-light text-muted">{{ t('videos.noPlaylists') }}</p>
+      <RouterLink v-for="p in library.videoPlaylists" :key="p.id" :to="{ name: 'video-playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
         <span class="relative grid aspect-video w-[84px] flex-none place-items-center overflow-hidden rounded-lg bg-surface">
           <img v-if="p.thumb" :src="youtubeThumb(p.thumb)" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
           <ListVideo v-else :size="22" :stroke-width="1.3" />

@@ -558,18 +558,24 @@ def _own(db: Session, user: User, playlist_id: int) -> VideoPlaylist:
     return playlist
 
 
+DEFAULT_VIDEO_NAMES = {"ko": "기본 영상 플레이리스트", "en": "My video playlist"}
+
+
 def _playlist_out(p: VideoPlaylist, count: int, thumb: str | None = None) -> dict:
-    return {"id": p.id, "name": p.name, "count": count, "thumb": thumb, "updated_at": p.updated_at}
+    return {"id": p.id, "name": p.name, "count": count, "thumb": thumb, "is_default": p.is_default, "updated_at": p.updated_at}
 
 
 @router.get("/video-playlists")
 def video_playlists(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    from .me import ensure_default
+
+    ensure_default(db, VideoPlaylist, user, DEFAULT_VIDEO_NAMES)
     rows = db.execute(
         select(VideoPlaylist, func.count(VideoPlaylistItem.id))
         .outerjoin(VideoPlaylistItem, VideoPlaylistItem.playlist_id == VideoPlaylist.id)
         .where(VideoPlaylist.user_id == user.id)
         .group_by(VideoPlaylist.id)
-        .order_by(VideoPlaylist.updated_at.desc())
+        .order_by(VideoPlaylist.is_default.desc(), VideoPlaylist.updated_at.desc())
     ).all()
     # a picture for each: its first YouTube video's
     first = (
@@ -617,7 +623,10 @@ def rename_video_playlist(
 
 @router.delete("/video-playlists/{playlist_id}", status_code=204)
 def delete_video_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    db.delete(_own(db, user, playlist_id))
+    playlist = _own(db, user, playlist_id)
+    if playlist.is_default:
+        raise api_error(400, "default_playlist")  # everyone keeps theirs
+    db.delete(playlist)
     db.commit()
 
 

@@ -228,6 +228,8 @@ class Playlist(Base):
     # manual: tracks put in by hand; smart: rules (see smart.py) worked out each time it is opened
     kind: Mapped[str] = mapped_column(String(16), default="manual", server_default="manual")
     rules: Mapped[dict | None] = mapped_column(JSON)
+    # each person's default playlist (made for them, can't be deleted; one per person)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -465,6 +467,7 @@ class VideoPlaylist(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # as Playlist.is_default
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

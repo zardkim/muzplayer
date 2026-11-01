@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { nextTick, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, ListMusic, ListVideo, Plus, Sparkles, Zap } from '@lucide/vue'
 import { api } from '../api'
@@ -18,6 +18,7 @@ const { t } = useI18n()
 const library = useLibrary()
 const ui = useUi()
 const router = useRouter()
+const route = useRoute()
 const name = ref('')
 const smartOpen = ref(false)
 const aiOpen = ref(false)
@@ -34,19 +35,21 @@ function smartSaved(p: Playlist) {
   router.push({ name: 'playlist', params: { id: p.id } })
 }
 // video playlists (music videos played one after another or shuffled)
-const videoLists = ref<VideoPlaylist[]>([])
 const videoName = ref('')
-async function loadVideoLists() {
-  videoLists.value = (await api<{ items: VideoPlaylist[] }>('/video-playlists')).items
-}
-onMounted(() => {
+onMounted(async () => {
   library.loadPlaylists().catch(() => {})
-  loadVideoLists().catch(() => {})
+  await library.loadVideoPlaylists().catch(() => {})
+  // from My Music's "my video playlists": straight to them
+  if (route.hash === '#video-playlists') {
+    await nextTick()
+    document.getElementById('video-playlists')?.scrollIntoView({ block: 'start' })
+  }
 })
 async function createVideoList() {
   if (!videoName.value.trim()) return
   try {
     const p = await api<VideoPlaylist>('/video-playlists', { method: 'POST', body: { name: videoName.value.trim() } })
+    library.loadVideoPlaylists().catch(() => {})
     router.push({ name: 'video-playlist', params: { id: p.id } })
   } catch (e) {
     ui.notify(errorMessage(e), true)
@@ -99,7 +102,7 @@ async function create() {
     </ul>
 
     <!-- video playlists -->
-    <section class="mt-4 flex flex-col gap-4">
+    <section id="video-playlists" class="mt-4 flex scroll-mt-4 flex-col gap-4">
       <h2 class="text-[22px] font-bold">{{ t('videos.videoPlaylists') }}</h2>
       <form class="flex max-w-md gap-2" @submit.prevent="createVideoList">
         <label for="vpl-name" class="sr-only">{{ t('videos.newPlaylist') }}</label>
@@ -108,9 +111,9 @@ async function create() {
           <Plus :size="18" :stroke-width="1.6" />{{ t('common.create') }}
         </button>
       </form>
-      <p v-if="!videoLists.length" class="font-light text-muted">{{ t('videos.noPlaylists') }}</p>
+      <p v-if="!library.videoPlaylists.length" class="font-light text-muted">{{ t('videos.noPlaylists') }}</p>
       <ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
-        <li v-for="p in videoLists" :key="p.id">
+        <li v-for="p in library.videoPlaylists" :key="p.id">
           <RouterLink :to="{ name: 'video-playlist', params: { id: p.id } }" class="flex min-h-[72px] items-center gap-3.5 border-b border-surface">
             <span class="relative grid aspect-video w-[84px] flex-none place-items-center overflow-hidden rounded-lg bg-surface">
               <img v-if="p.thumb" :src="youtubeThumb(p.thumb)" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />

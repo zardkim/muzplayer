@@ -133,7 +133,8 @@
     "radio_busy": "Too many people are listening to the radio now. Try again shortly.",
     "radio_unavailable": "Couldn't get this station's stream now.",
     "thumb_failed": "Couldn’t make a thumbnail: this video format isn’t supported.",
-    "video_no_song": "No song matches its name. Rename it ‘Artist - Title’ and try again."
+    "video_no_song": "No song matches its name. Rename it ‘Artist - Title’ and try again.",
+    "default_playlist": "The default playlist can’t be deleted."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -894,7 +895,8 @@
     "nextUp": "Up next",
     "similarVideos": "Similar music videos",
     "similarArtists": "Similar artists",
-    "myVideoPlaylists": "My video playlists"
+    "myVideoPlaylists": "My video playlists",
+    "pickerEmpty": "No video playlists yet. Type a name above and press Create to make one with this video in it."
   },
   "folders": {
     "root": "Music",

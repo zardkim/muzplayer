@@ -7,10 +7,12 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import ai_playlist
 from ..ai_banner import AiError
+from ..config import settings
 from ..db import get_db
 from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistTrack, Track, User
 from ..security import api_error, current_user
@@ -29,11 +31,26 @@ def own_playlist(db: Session, user: User, playlist_id: int) -> Playlist:
     return playlist
 
 
+DEFAULT_NAMES = {"ko": "기본 플레이리스트", "en": "My playlist"}
+
+
+def ensure_default(db: Session, model, user: User, names: dict[str, str]) -> None:
+    """Gives the person their default list (a playlist or a video playlist) the first time."""
+    if db.scalar(select(model.id).where(model.user_id == user.id, model.is_default)) is not None:
+        return
+    db.add(model(user_id=user.id, name=names.get(settings.default_locale, names["en"]), is_default=True))
+    try:
+        db.commit()
+    except IntegrityError:  # made by another request meanwhile
+        db.rollback()
+
+
 def playlist_out(p: Playlist, track_count: int | None) -> dict:
     return {
         "id": p.id,
         "name": p.name,
         "kind": p.kind,
+        "is_default": p.is_default,
         "rules": p.rules,
         "track_count": track_count,  # None for a smart playlist: known once it is opened
         "created_at": p.created_at,
@@ -65,12 +82,13 @@ class OrderIn(BaseModel):
 
 @router.get("/playlists")
 def list_playlists(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    ensure_default(db, Playlist, user, DEFAULT_NAMES)
     rows = db.execute(
         select(Playlist, func.count(PlaylistTrack.id))
         .outerjoin(PlaylistTrack, PlaylistTrack.playlist_id == Playlist.id)
         .where(Playlist.user_id == user.id)
         .group_by(Playlist.id)
-        .order_by(Playlist.updated_at.desc())
+        .order_by(Playlist.is_default.desc(), Playlist.updated_at.desc())
     )
     rows = rows.all()
     # a cover for each list's card (home screen): its first song's album that has one
@@ -162,7 +180,10 @@ def update_playlist(
 
 @router.delete("/playlists/{playlist_id}", status_code=204)
 def delete_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    db.delete(own_playlist(db, user, playlist_id))
+    playlist = own_playlist(db, user, playlist_id)
+    if playlist.is_default:
+        raise api_error(400, "default_playlist")  # everyone keeps theirs
+    db.delete(playlist)
     db.commit()
 
 
