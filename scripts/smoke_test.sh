@@ -243,7 +243,7 @@ python3 - "$(find "$MUSIC" -type f -name '*.mp3' -not -path '*smoke-damaged*' | 
 import os, sys
 d = open(sys.argv[1], "rb").read()
 cut = 10 + sum((b & 0x7F) << (7 * (3 - i)) for i, b in enumerate(d[6:10])) if d[:3] == b"ID3" else 0
-open(sys.argv[2], "wb").write(d[:cut] + os.urandom(3_000_000) + d[cut:])
+open(sys.argv[2], "wb").write(d[:cut] + bytes(3_000_000) + d[cut:])  # zeros: never mistaken for audio
 PY
 check "scan with a damaged MP3" "$(scan)" done
 did=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j '[t["id"] for t in d["items"] if t["damaged"]][0] if any(t["damaged"] for t in d["items"]) else ""')
