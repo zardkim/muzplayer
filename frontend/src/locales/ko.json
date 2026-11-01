@@ -893,7 +893,8 @@
     "liked": "좋아요",
     "nextUp": "다음 영상",
     "similarVideos": "비슷한 음악 영상",
-    "similarArtists": "비슷한 아티스트"
+    "similarArtists": "비슷한 아티스트",
+    "myVideoPlaylists": "내 영상 플레이리스트"
   },
   "folders": {
     "root": "음악",

@@ -144,6 +144,7 @@ const libraryItem = computed(() => ({ key: 'library', to: ui.views.library || '/
 const books = { key: 'books', to: '/books', label: 'nav.audiobooks', icon: BookHeadphones }
 const sideNav = computed(() => [
   { key: 'home', to: '/', label: 'nav.home', icon: House },
+  { key: 'explore', to: '/search', label: 'nav.search', icon: Search },
   libraryItem.value,
   { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },

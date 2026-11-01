@@ -893,7 +893,8 @@
     "liked": "Liked",
     "nextUp": "Up next",
     "similarVideos": "Similar music videos",
-    "similarArtists": "Similar artists"
+    "similarArtists": "Similar artists",
+    "myVideoPlaylists": "My video playlists"
   },
   "folders": {
     "root": "Music",

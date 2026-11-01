@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Clock, Download, Heart, ListMusic, Plus, Settings, Users, Zap } from '@lucide/vue'
+import { ChevronRight, Clock, Download, Heart, ListMusic, ListVideo, Plus, Settings, Users, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { canSave, offline } from '../offline'
@@ -10,7 +10,8 @@ import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Mix, Track } from '../types'
+import type { Mix, Track, VideoPlaylist } from '../types'
+import { youtubeThumb } from '../youtube'
 import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
@@ -26,9 +27,11 @@ const router = useRouter()
 const favorites = ref<Track[]>([])
 const mixes = ref<Mix[]>([])
 const historyCount = ref(0)
+const videoLists = ref<VideoPlaylist[]>([])
 
 onMounted(async () => {
   library.loadPlaylists().catch(() => {})
+  api<{ items: VideoPlaylist[] }>('/video-playlists').then((r) => (videoLists.value = r.items), () => {})
   api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
   const [f, h] = await Promise.all([
     api<{ items: Track[] }>('/favorites').catch(() => ({ items: [] })),
@@ -38,13 +41,20 @@ onMounted(async () => {
   historyCount.value = new Set(h.items.map((x) => x.id)).size
 })
 
-const creating = ref(false)
+// a new playlist of songs, or of videos
+const creating = ref<'songs' | 'videos' | null>(null)
 const newName = ref('')
 async function create() {
   if (!newName.value.trim()) return
   try {
+    if (creating.value === 'videos') {
+      const p = await api<VideoPlaylist>('/video-playlists', { method: 'POST', body: { name: newName.value.trim() } })
+      creating.value = null
+      router.push({ name: 'video-playlist', params: { id: p.id } })
+      return
+    }
     const p = await library.createPlaylist(newName.value.trim())
-    creating.value = false
+    creating.value = null
     router.push({ name: 'playlist', params: { id: p.id } })
   } catch (e) {
     ui.notify(errorMessage(e), true)
@@ -56,9 +66,42 @@ async function create() {
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('library.title')" />
 
-    <section v-if="mixes.length" class="flex flex-col gap-3">
-      <h2 class="text-[22px] font-bold">{{ t('library.mixes') }}</h2>
-      <MixCards :mixes="mixes" />
+    <section class="flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <RouterLink to="/playlists" class="text-[22px] font-bold">{{ t('nav.playlists') }}</RouterLink>
+        <button type="button" class="flex h-[34px] items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" @click="(newName = ''), (creating = 'songs')">
+          <Plus :size="16" :stroke-width="1.6" />{{ t('playlists.new') }}
+        </button>
+      </div>
+      <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
+      <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
+        <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="22" :stroke-width="1.3" /><ListMusic v-else :size="22" :stroke-width="1.3" /></span>
+        <span class="flex flex-col">
+          <span class="text-[17px]">{{ p.name }}</span>
+          <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
+        </span>
+      </RouterLink>
+    </section>
+
+    <!-- video playlists -->
+    <section class="flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <RouterLink to="/playlists" class="text-[22px] font-bold">{{ t('videos.myVideoPlaylists') }}</RouterLink>
+        <button type="button" class="flex h-[34px] items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" @click="(newName = ''), (creating = 'videos')">
+          <Plus :size="16" :stroke-width="1.6" />{{ t('videos.newPlaylist') }}
+        </button>
+      </div>
+      <p v-if="!videoLists.length" class="font-light text-muted">{{ t('videos.noPlaylists') }}</p>
+      <RouterLink v-for="p in videoLists" :key="p.id" :to="{ name: 'video-playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
+        <span class="relative grid aspect-video w-[84px] flex-none place-items-center overflow-hidden rounded-lg bg-surface">
+          <img v-if="p.thumb" :src="youtubeThumb(p.thumb)" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
+          <ListVideo v-else :size="22" :stroke-width="1.3" />
+        </span>
+        <span class="flex flex-col">
+          <span class="text-[17px]">{{ p.name }}</span>
+          <span class="text-sm font-light text-muted">{{ t('videos.count', { n: p.count }) }}</span>
+        </span>
+      </RouterLink>
     </section>
 
     <button
@@ -81,6 +124,12 @@ async function create() {
       </span>
     </button>
 
+
+    <section v-if="mixes.length" class="flex flex-col gap-3">
+      <h2 class="text-[22px] font-bold">{{ t('library.mixes') }}</h2>
+      <MixCards :mixes="mixes" />
+    </section>
+
     <nav class="flex flex-col">
       <RouterLink to="/favorites" class="flex h-[58px] items-center gap-4">
         <Heart :size="26" :stroke-width="1.2" /><span class="flex-1 text-lg font-light">{{ t('nav.favorites') }}</span>
@@ -102,24 +151,8 @@ async function create() {
       </RouterLink>
     </nav>
 
-    <section class="flex flex-col gap-3">
-      <div class="flex items-center justify-between">
-        <RouterLink to="/playlists" class="text-[22px] font-bold">{{ t('nav.playlists') }}</RouterLink>
-        <button type="button" class="flex h-[34px] items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" @click="creating = true">
-          <Plus :size="16" :stroke-width="1.6" />{{ t('playlists.new') }}
-        </button>
-      </div>
-      <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
-      <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
-        <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="22" :stroke-width="1.3" /><ListMusic v-else :size="22" :stroke-width="1.3" /></span>
-        <span class="flex flex-col">
-          <span class="text-[17px]">{{ p.name }}</span>
-          <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
-        </span>
-      </RouterLink>
-    </section>
 
-    <BaseModal v-if="creating" :title="t('playlists.new')" @close="creating = false">
+    <BaseModal v-if="creating" :title="creating === 'videos' ? t('videos.newPlaylist') : t('playlists.new')" @close="creating = null">
       <form class="flex flex-col gap-4" @submit.prevent="create">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('playlists.name') }}
