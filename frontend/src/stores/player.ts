@@ -7,11 +7,11 @@ import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
 import { attachOutputs } from '../outputs'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
-import type { Album, BookDetail, Chapter, Page, Track } from '../types'
+import type { Album, BookDetail, Chapter, Page, RadioStation, Track } from '../types'
 import { useUi } from './ui'
 
 type Repeat = 'off' | 'all' | 'one'
-type Mode = 'music' | 'book'
+type Mode = 'music' | 'book' | 'live' // live: a radio station (radio.py relays it)
 
 const SETTINGS_KEY = 'muz.player'
 const queueKey = (userId: number) => `muz.queue.${userId}`
@@ -94,6 +94,7 @@ export const usePlayer = defineStore('player', () => {
   // ---- audiobook state: the music queue stays as it is while a book plays ----
   const mode = ref<Mode>('music')
   const book = ref<BookDetail | null>(null)
+  const station = ref<RadioStation | null>(null) // mode 'live'
   const fileIndex = ref(0)
   const bookPos = ref(0) // seconds on the whole-book timeline
   const rate = ref(1)
@@ -172,7 +173,8 @@ export const usePlayer = defineStore('player', () => {
     }),
   )
   watch([mode, () => book.value?.id], () => {
-    if (userId !== null) save(bookKey(userId), { id: book.value?.id ?? null, mode: mode.value })
+    // (a radio station isn't brought back after a reload: the music queue is)
+    if (userId !== null) save(bookKey(userId), { id: book.value?.id ?? null, mode: mode.value === 'live' ? 'music' : mode.value })
   })
   watch(volume, (v) => (audio.volume = v), { immediate: true })
 
@@ -187,6 +189,7 @@ export const usePlayer = defineStore('player', () => {
     playing.value = false
     mode.value = 'music'
     book.value = null
+    station.value = null
     bookPos.value = 0
     knownUpdatedAt = ''
     clearSleep()
@@ -199,6 +202,7 @@ export const usePlayer = defineStore('player', () => {
     const track = current.value
     if (!track) return
     if (mode.value === 'book') leaveBook()
+    else if (mode.value === 'live') leaveLive()
     if (loadedKey !== `t${track.id}`) {
       // fetched ahead: no wait on the network; saved for offline: sw.js answers from the device
       const src = trackSrc(track)
@@ -403,6 +407,11 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function toggle() {
+    if (mode.value === 'live') {
+      if (playing.value) audio.pause()
+      else startLive()
+      return
+    }
     if (mode.value === 'book') {
       if (playing.value) audio.pause()
       else resumeBook()
@@ -425,6 +434,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function next(auto = false) {
+    if (mode.value === 'live') return
     if (mode.value === 'book') return nextChapter()
     if (!queue.value.length) return
     if (auto && repeat.value === 'one') {
@@ -441,6 +451,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function prev() {
+    if (mode.value === 'live') return
     if (mode.value === 'book') return prevChapter()
     if (audio.currentTime > 3 || index.value <= 0) {
       seek(0)
@@ -450,6 +461,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function seek(seconds: number) {
+    if (mode.value === 'live') return
     if (mode.value === 'book') return seekBook(seconds)
     if (!current.value) return
     if (loadedKey !== `t${current.value.id}`) startCurrent()
@@ -600,7 +612,8 @@ export const usePlayer = defineStore('player', () => {
 
   function openBook(detail: BookDetail, position: number, autoplay: boolean) {
     if (mode.value === 'book' && book.value && book.value.id !== detail.id) saveProgress()
-    if (mode.value === 'music') audio.pause()
+    if (mode.value !== 'book') audio.pause()
+    station.value = null
     mode.value = 'book'
     book.value = detail
     knownUpdatedAt = detail.progress?.updated_at ?? ''
@@ -634,6 +647,48 @@ export const usePlayer = defineStore('player', () => {
     } else {
       seekBook(bookPos.value - (pausedAt ? RESUME_REWIND : 0), true)
     }
+  }
+
+  // ---- live radio (radio.py relays the station; Radio page) ----
+  /** A station, live. Music and books keep their place: playing one of them ends the radio. */
+  function playStation(st: RadioStation) {
+    if (mode.value === 'book') leaveBook()
+    stopTail()
+    audio.pause()
+    mode.value = 'live'
+    station.value = st
+    loadedKey = `r${st.id}`
+    bindMediaSession()
+    updateMediaSession()
+    startLive()
+  }
+
+  /** (Re)connects: a paused station picks up at "now", not where it stopped. */
+  function startLive() {
+    const st = station.value
+    if (!st) return
+    audio.src = `/api/v1/radio/${encodeURIComponent(st.id)}/stream?t=${Date.now()}`
+    currentTime.value = 0
+    duration.value = 0
+    audio.play().catch((e: Error) => {
+      if (e?.name === 'NotAllowedError') blocked.value = true
+    })
+  }
+
+  function stopStation() {
+    audio.pause()
+    audio.removeAttribute('src')
+    audio.load()
+    leaveLive()
+    setPlaying(false)
+    updateMediaSession()
+  }
+
+  function leaveLive() {
+    station.value = null
+    mode.value = 'music'
+    loadedKey = null
+    bindMediaSession()
   }
 
   function leaveBook() {
@@ -795,6 +850,7 @@ export const usePlayer = defineStore('player', () => {
     }
   })
   audio.addEventListener('ended', () => {
+    if (mode.value === 'live') return setPlaying(false) // the station's stream ended
     if (mode.value !== 'book') return next(true)
     const b = book.value
     if (b && fileIndex.value + 1 < b.files.length) {
@@ -817,6 +873,7 @@ export const usePlayer = defineStore('player', () => {
   audio.addEventListener('timeupdate', () => {
     if (mode.value === 'music' && pendingSeek !== null) return // the position of a reload for a seek
     currentTime.value = audio.currentTime
+    if (mode.value === 'live') return // listening time only: no history, crossfade or position
     if (mode.value === 'book') {
       if (pendingSeek !== null) return // still the old position of a file being swapped in
       const f = book.value?.files[fileIndex.value]
@@ -852,6 +909,11 @@ export const usePlayer = defineStore('player', () => {
   }
   audio.addEventListener('error', () => {
     if (!audio.getAttribute('src')) return
+    if (mode.value === 'live') {
+      useUi().notify(i18n.global.t('radio.failed'), true)
+      audio.pause()
+      return
+    }
     if (mode.value === 'book') {
       // no "next track" for a book: stop and retry this file on the next play
       useUi().notify(errorMessage({ code: 'playbackStopped' }), true)
@@ -890,6 +952,15 @@ export const usePlayer = defineStore('player', () => {
     if (!('mediaSession' in navigator)) return
     const t = i18n.global.t
     const b = book.value
+    if (mode.value === 'live' && station.value) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: station.value.name,
+        artist: t('radio.live'),
+        album: t('radio.title'),
+        artwork: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+      })
+      return
+    }
     if (mode.value === 'book' && b) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: chapter.value?.title || b.title,
@@ -927,6 +998,21 @@ export const usePlayer = defineStore('player', () => {
     if (!('mediaSession' in navigator)) return
     const ms = navigator.mediaSession
     const isBook = mode.value === 'book'
+    if (mode.value === 'live') {
+      // a live station: play and pause only
+      const live: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+        ['play', () => startLive()], ['pause', () => audio.pause()], ['previoustrack', null], ['nexttrack', null],
+        ['seekbackward', null], ['seekforward', null], ['seekto', null],
+      ]
+      for (const [action, handler] of live) {
+        try {
+          ms.setActionHandler(action, handler)
+        } catch {
+          /* unsupported action */
+        }
+      }
+      return
+    }
     const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
       ['play', () => (isBook ? resumeBook() : startCurrent())],
       ['pause', () => audio.pause()],
@@ -949,6 +1035,9 @@ export const usePlayer = defineStore('player', () => {
 
   return {
     mode,
+    station,
+    playStation,
+    stopStation,
     book,
     bookPos,
     fileIndex,

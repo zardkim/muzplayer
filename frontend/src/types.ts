@@ -289,3 +289,11 @@ export interface Page<T> {
 
 /** How a list page shows its items: list (목록형), cover (커버형: big artwork), grid (격자형: small artwork). */
 export type ViewMode = 'list' | 'cover' | 'grid'
+
+/** A live radio station (backend radio.py; the list comes from radio.bsod.kr). */
+export interface RadioStation {
+  id: string
+  name: string
+  stn: string // broadcaster: kbs, mbc, sbs, cbs, ...
+  regions: string[] // seoul, busan, ...
+}

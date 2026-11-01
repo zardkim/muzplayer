@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Search } from '@lucide/vue'
+import { ChevronRight, Radio, Search } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
 import type { Album, Artist, Book, Chart, CollectionsHome, Genre, Page, Track } from '../types'
@@ -168,6 +168,14 @@ function submit() {
     </template>
 
     <template v-else>
+      <RouterLink to="/radio" class="flex items-center gap-4 rounded-2xl bg-surface p-4 hover:bg-surface-2">
+        <span class="grid size-12 flex-none place-items-center rounded-full bg-danger text-white"><Radio :size="24" :stroke-width="1.6" /></span>
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="text-[17px] font-medium">{{ t('radio.explore') }}</span>
+          <span class="truncate text-sm font-light text-muted">{{ t('radio.exploreSub') }}</span>
+        </span>
+        <ChevronRight :size="20" class="text-subtle" />
+      </RouterLink>
       <section v-if="charts.length" class="flex flex-col gap-3.5">
         <RouterLink to="/charts" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.charts') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
         <ChartGrid :charts="charts" row />

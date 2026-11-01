@@ -197,6 +197,14 @@ jid=$(curl -s -b "$A" "$BASE/admin/users" | j '[u["id"] for u in d["items"] if u
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/admin/users/$jid"
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/signup" -H 'content-type: application/json' -d '{"mode":"off"}'
 
+# radio (stations from radio.bsod.kr; a live check needs the internet, so only the list and errors here)
+check "radio stations listed" "$(curl -s -b "$U" "$BASE/radio/stations" | j 'len(d["stations"]) > 100 and len(d["regions"]) == 9')" True
+check "unknown station" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/radio/nope/stream")" 404
+check "radio needs a login" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/radio/stations")" 401
+# statistics: admin only
+check "statistics" "$(curl -s -b "$A" "$BASE/admin/stats" | j 'sorted(d)')" "['days', 'library', 'plays', 'storage', 'users']"
+check "statistics admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/stats")" 403
+
 # duplicate artists/genres and album descriptions: admin only
 check "duplicate names admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/duplicates/artist")" 403
 check "duplicate name suggestions" "$(curl -s -b "$A" "$BASE/admin/duplicates/genre" | j 'sorted(d)')" "['groups', 'merged']"

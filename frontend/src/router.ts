@@ -18,6 +18,7 @@ export const router = createRouter({
     { path: '/albums/:id', name: 'album', component: () => import('./views/AlbumView.vue'), props: true },
     { path: '/artists', name: 'artists', component: () => import('./views/ArtistsView.vue') },
     { path: '/artists/:id', name: 'artist', component: () => import('./views/ArtistView.vue'), props: true },
+    { path: '/radio', name: 'radio', component: () => import('./views/RadioView.vue') },
     { path: '/charts', name: 'charts', component: () => import('./views/CollectionsView.vue') },
     { path: '/charts/list', name: 'chart-list', component: () => import('./views/ChartsView.vue') },
     { path: '/charts/:id', name: 'chart', component: () => import('./views/ChartView.vue'), props: true },
@@ -36,6 +37,7 @@ export const router = createRouter({
     { path: '/more', redirect: '/library' },
     { path: '/settings/:section?', name: 'settings', component: () => import('./views/SettingsView.vue'), props: true },
     { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { admin: true } },
+    { path: '/admin/stats', name: 'stats', component: () => import('./views/StatsView.vue'), meta: { admin: true } },
     { path: '/:rest(.*)', redirect: '/' },
   ],
 })

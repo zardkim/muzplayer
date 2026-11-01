@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Plus, RefreshCw } from '@lucide/vue'
+import { ChartColumn, Plus, RefreshCw } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { dateTime } from '../format'
@@ -343,7 +343,11 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
 
 <template>
   <div class="flex flex-col gap-7">
-    <PageHeader :title="t('admin.title')" />
+    <PageHeader :title="t('admin.title')">
+      <template #actions>
+        <RouterLink to="/admin/stats" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink"><ChartColumn :size="16" :stroke-width="1.6" />{{ t('stats.title') }}</RouterLink>
+      </template>
+    </PageHeader>
 
     <section class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">

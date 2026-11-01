@@ -1,0 +1,2283 @@
+[
+ {
+  "id": "kbs-1radio",
+  "name": "KBS 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-2radio",
+  "name": "KBS 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-3radio",
+  "name": "KBS 3라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "3radio"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-1fm",
+  "name": "KBS 1FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-2fm",
+  "name": "KBS 2FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2fm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-hanminjok",
+  "name": "KBS 한민족방송",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "hanminjok"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "mbc-sfm",
+  "name": "MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "mbc-fm4u",
+  "name": "MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "mbc-chm",
+  "name": "MBC mini 올댓뮤직",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "chm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "sbs-lovefm",
+  "name": "SBS 러브FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "lovefm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "sbs-powerfm",
+  "name": "SBS 파워FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "sbs-dmb",
+  "name": "SBS 고릴라디오M",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "dmb"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "ebs-fm",
+  "name": "EBS FM",
+  "stn": "ebs",
+  "q": {
+   "stn": "ebs",
+   "ch": "fm"
+  },
+  "regions": [
+   "seoul",
+   "busan",
+   "daegu",
+   "gwangju",
+   "jeonbuk",
+   "daejeon",
+   "chungbuk",
+   "gangwon",
+   "jeju"
+  ]
+ },
+ {
+  "id": "ebs-bandi",
+  "name": "EBS 반디 외국어 전문",
+  "stn": "ebs",
+  "q": {
+   "stn": "ebs",
+   "ch": "bandi"
+  },
+  "regions": [
+   "seoul",
+   "busan",
+   "daegu",
+   "gwangju",
+   "jeonbuk",
+   "daejeon",
+   "chungbuk",
+   "gangwon",
+   "jeju"
+  ]
+ },
+ {
+  "id": "obs",
+  "name": "OBS 라디오",
+  "stn": "obs",
+  "q": {
+   "stn": "obs"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "ifm",
+  "name": "iFM 경인방송",
+  "stn": "ifm",
+  "q": {
+   "stn": "ifm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "ytn",
+  "name": "YTN 라디오",
+  "stn": "ytn",
+  "q": {
+   "stn": "ytn"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "tbs-fm",
+  "name": "TBS FM",
+  "stn": "tbs",
+  "q": {
+   "stn": "tbs",
+   "ch": "fm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "tbs-efm",
+  "name": "TBS eFM",
+  "stn": "tbs",
+  "q": {
+   "stn": "tbs",
+   "ch": "efm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "tbn",
+  "name": "TBN 경인교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "cbs-sfm",
+  "name": "CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "cbs-mfm",
+  "name": "CBS 음악FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "mfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "cbs-joy4u",
+  "name": "CBS JOY4U",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "joy4u"
+  },
+  "regions": [
+   "seoul",
+   "busan",
+   "daegu",
+   "gwangju",
+   "jeonbuk",
+   "daejeon",
+   "chungbuk",
+   "gangwon",
+   "jeju"
+  ]
+ },
+ {
+  "id": "febc",
+  "name": "FEBC 서울극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "bbs",
+  "name": "BBS 서울불교방송",
+  "stn": "bbs",
+  "q": {
+   "stn": "bbs"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "cpbc",
+  "name": "CPBC 가톨릭평화방송",
+  "stn": "cpbc",
+  "q": {
+   "stn": "cpbc"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "wbs",
+  "name": "WBS 서울원음방송",
+  "stn": "wbs",
+  "q": {
+   "stn": "wbs"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kookbang",
+  "name": "국방FM",
+  "stn": "kookbang",
+  "q": {
+   "stn": "kookbang"
+  },
+  "regions": [
+   "seoul",
+   "busan",
+   "daegu",
+   "gwangju",
+   "jeonbuk",
+   "daejeon",
+   "chungbuk",
+   "gangwon",
+   "jeju"
+  ]
+ },
+ {
+  "id": "kugak",
+  "name": "국악방송",
+  "stn": "kugak",
+  "q": {
+   "stn": "kugak"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "afn-humphreys",
+  "name": "AFN FM Humphreys",
+  "stn": "afn",
+  "q": {
+   "stn": "afn",
+   "city": "humphreys"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-gwanakfm",
+  "name": "관악FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "gwanakfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-mapofm",
+  "name": "마포FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "mapofm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-seongnamfm",
+  "name": "성남FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "seongnamfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-sdmfm",
+  "name": "서대문FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "sdmfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-sonefm",
+  "name": "수원FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "sonefm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-gurifm",
+  "name": "GO구리FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "gurifm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "community-dwfm",
+  "name": "단원FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "dwfm"
+  },
+  "regions": [
+   "seoul"
+  ]
+ },
+ {
+  "id": "kbs-1radio-busan",
+  "name": "KBS부산 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-2radio-busan",
+  "name": "KBS부산 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1fm-busan",
+  "name": "KBS부산 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1radio-ulsan",
+  "name": "KBS울산 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1radio-changwon",
+  "name": "KBS창원 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-2radio-changwon",
+  "name": "KBS창원 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1fm-changwon",
+  "name": "KBS창원 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1radio-jinju",
+  "name": "KBS진주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "jinju"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-sfm-busan",
+  "name": "부산MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-busan",
+  "name": "부산MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-sfm-ulsan",
+  "name": "울산MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-ulsan",
+  "name": "울산MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-sfm-changwon",
+  "name": "MBC경남 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-changwon",
+  "name": "MBC경남 FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "sbs-lovefm-busan",
+  "name": "KNN 러브FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "lovefm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-busan",
+  "name": "KNN 파워FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-ulsan",
+  "name": "UBC 그린FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "tbn-busan",
+  "name": "TBN 부산교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "tbn-ulsan",
+  "name": "TBN 울산교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "tbn-gyeongnam",
+  "name": "TBN 경남교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "gyeongnam"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "cbs-sfm-busan",
+  "name": "부산CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "cbs-mfm-busan",
+  "name": "부산CBS 음악FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "mfm",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "cbs-sfm-ulsan",
+  "name": "울산CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "cbs-sfm-gyeongnam",
+  "name": "경남CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "gyeongnam"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "febc-busan",
+  "name": "FEBC 부산극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "febc-ulsan",
+  "name": "FEBC 울산극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "ulsan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "febc-changwon",
+  "name": "FEBC 창원극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "changwon"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "bbs-busan",
+  "name": "BBS 부산불교방송",
+  "stn": "bbs",
+  "q": {
+   "stn": "bbs",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "cpbc-busan",
+  "name": "CPBC 부산가톨릭평화방송",
+  "stn": "cpbc",
+  "q": {
+   "stn": "cpbc",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "wbs-busan",
+  "name": "WBS 부산원음방송",
+  "stn": "wbs",
+  "q": {
+   "stn": "wbs",
+   "city": "busan"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "befm",
+  "name": "부산영어방송",
+  "stn": "befm",
+  "q": {
+   "stn": "befm"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "community-yeonjefm",
+  "name": "연제공동체라디오",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "yeonjefm"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "community-namhaefm",
+  "name": "남해FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "namhaefm"
+  },
+  "regions": [
+   "busan"
+  ]
+ },
+ {
+  "id": "kbs-1radio-daegu",
+  "name": "KBS대구 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "kbs-2radio-daegu",
+  "name": "KBS대구 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "kbs-1fm-daegu",
+  "name": "KBS대구 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "kbs-1radio-andong",
+  "name": "KBS안동 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "andong"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "kbs-1radio-pohang",
+  "name": "KBS포항 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "pohang"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "mbc-sfm-daegu",
+  "name": "대구MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-daegu",
+  "name": "대구MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-daegu",
+  "name": "TBC 드림FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "tbn-daegu",
+  "name": "TBN 대구교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "tbn-gyeongbuk",
+  "name": "TBN 경북교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "gyeongbuk"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "cbs-sfm-daegu",
+  "name": "대구CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "cbs-mfm-daegu",
+  "name": "대구CBS 음악FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "mfm",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "cbs-sfm-pohang",
+  "name": "포항CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "pohang"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "febc-daegu",
+  "name": "FEBC 대구극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "febc-pohang",
+  "name": "FEBC 포항극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "pohang"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "cpbc-daegu",
+  "name": "CPBC 대구가톨릭평화방송",
+  "stn": "cpbc",
+  "q": {
+   "stn": "cpbc",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "wbs-daegu",
+  "name": "WBS 대구원음방송",
+  "stn": "wbs",
+  "q": {
+   "stn": "wbs",
+   "city": "daegu"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "community-scnfm",
+  "name": "성서공동체FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "scnfm"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "community-daegufm",
+  "name": "대구동구FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "daegufm"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "community-yeongjufm",
+  "name": "영주FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "yeongjufm"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "community-sjfm",
+  "name": "성주FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "sjfm"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "community-sangjufm",
+  "name": "상주FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "sangjufm"
+  },
+  "regions": [
+   "daegu"
+  ]
+ },
+ {
+  "id": "kbs-1radio-gwangju",
+  "name": "KBS광주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-2radio-gwangju",
+  "name": "KBS광주 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-1fm-gwangju",
+  "name": "KBS광주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-1radio-mokpo",
+  "name": "KBS목포 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "mokpo"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-1fm-mokpo",
+  "name": "KBS목포 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "mokpo"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-1radio-suncheon",
+  "name": "KBS순천 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "suncheon"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-sfm-gwangju",
+  "name": "광주MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-gwangju",
+  "name": "광주MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-sfm-mokpo",
+  "name": "목포MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "mokpo"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-mokpo",
+  "name": "목포MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "mokpo"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-sfm-yeosu",
+  "name": "여수MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "yeosu"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-yeosu",
+  "name": "여수MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "yeosu"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-gwangju",
+  "name": "KBC 마이FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "tbn-gwangju",
+  "name": "TBN 광주교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "cbs-sfm-gwangju",
+  "name": "광주CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "cbs-mfm-gwangju",
+  "name": "광주CBS 음악FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "mfm",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "cbs-sfm-jeonnam",
+  "name": "전남CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "jeonnam"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "febc-gwangju",
+  "name": "FEBC 광주극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "febc-mokpo",
+  "name": "FEBC 목포극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "mokpo"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "febc-jeonnam",
+  "name": "FEBC 전남동부극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "jeonnam"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "bbs-gwangju",
+  "name": "BBS 광주불교방송",
+  "stn": "bbs",
+  "q": {
+   "stn": "bbs",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "cpbc-gwangju",
+  "name": "CPBC 광주가톨릭평화방송",
+  "stn": "cpbc",
+  "q": {
+   "stn": "cpbc",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "wbs-gwangju",
+  "name": "WBS 광주원음방송",
+  "stn": "wbs",
+  "q": {
+   "stn": "wbs",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "ggn",
+  "name": "글로벌광주방송",
+  "stn": "ggn",
+  "q": {
+   "stn": "ggn"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kugak-gwangju",
+  "name": "광주국악방송",
+  "stn": "kugak",
+  "q": {
+   "stn": "kugak",
+   "city": "gwangju"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "community-kjfm",
+  "name": "광주FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "kjfm"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "community-crfm",
+  "name": "GBS고려방송",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "crfm"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "community-suncheonfm",
+  "name": "순천미디어네트워크",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "suncheonfm"
+  },
+  "regions": [
+   "gwangju"
+  ]
+ },
+ {
+  "id": "kbs-1radio-jeonju",
+  "name": "KBS전주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "kbs-2radio-jeonju",
+  "name": "KBS전주 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "kbs-1fm-jeonju",
+  "name": "KBS전주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "mbc-sfm-jeonju",
+  "name": "전주MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-jeonju",
+  "name": "전주MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-jeonju",
+  "name": "JTV 매직FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "jeonju"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "tbn-jeonbuk",
+  "name": "TBN 전북교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "jeonbuk"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "cbs-sfm-jeonbuk",
+  "name": "전북CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "jeonbuk"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "febc-jeonbuk",
+  "name": "FEBC 전북극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "jeonbuk"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "wbs-jeonbuk",
+  "name": "WBS 전북원음방송",
+  "stn": "wbs",
+  "q": {
+   "stn": "wbs",
+   "city": "jeonbuk"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "afn-kunsan",
+  "name": "AFN FM Kunsan",
+  "stn": "afn",
+  "q": {
+   "stn": "afn",
+   "city": "kunsan"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "community-jcfm",
+  "name": "전주FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "jcfm"
+  },
+  "regions": [
+   "jeonbuk"
+  ]
+ },
+ {
+  "id": "kbs-1radio-daejeon",
+  "name": "KBS대전 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "kbs-2radio-daejeon",
+  "name": "KBS대전 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "kbs-1fm-daejeon",
+  "name": "KBS대전 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "mbc-sfm-daejeon",
+  "name": "대전MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-daejeon",
+  "name": "대전MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-daejeon",
+  "name": "TJB 파워FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "tbn-daejeon",
+  "name": "TBN 대전교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "tbn-chungnam",
+  "name": "TBN 충남교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "chungnam"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "cbs-sfm-daejeon",
+  "name": "대전CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "febc-daejeon",
+  "name": "FEBC 대전극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "kugak-daejeon",
+  "name": "대전국악방송",
+  "stn": "kugak",
+  "q": {
+   "stn": "kugak",
+   "city": "daejeon"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "community-sejongfm",
+  "name": "세종FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "sejongfm"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "community-hanbatfm",
+  "name": "한밭FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "hanbatfm"
+  },
+  "regions": [
+   "daejeon"
+  ]
+ },
+ {
+  "id": "kbs-1radio-cheongju",
+  "name": "KBS청주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "kbs-2radio-cheongju",
+  "name": "KBS청주 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "kbs-1fm-cheongju",
+  "name": "KBS청주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "kbs-1radio-chungju",
+  "name": "KBS충주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "chungju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "kbs-1fm-chungju",
+  "name": "KBS충주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "chungju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "mbc-sfm-cheongju",
+  "name": "MBC충북 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-cheongju",
+  "name": "MBC충북 FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-cheongju",
+  "name": "CJB 조이FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "tbn-chungbuk",
+  "name": "TBN 충북교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "chungbuk"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "cbs-sfm-cheongju",
+  "name": "충북CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "cheongju"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "community-obn",
+  "name": "옥천FM",
+  "stn": "community",
+  "q": {
+   "stn": "community",
+   "ch": "obn"
+  },
+  "regions": [
+   "chungbuk"
+  ]
+ },
+ {
+  "id": "kbs-1radio-chuncheon",
+  "name": "KBS춘천 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-2radio-chuncheon",
+  "name": "KBS춘천 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1fm-chuncheon",
+  "name": "KBS춘천 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1radio-gangneung",
+  "name": "KBS강릉 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "gangneung"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1fm-gangneung",
+  "name": "KBS강릉 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "gangneung"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1radio-wonju",
+  "name": "KBS원주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "wonju"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1fm-wonju",
+  "name": "KBS원주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "wonju"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "mbc-sfm-chuncheon",
+  "name": "춘천MBC 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-chuncheon",
+  "name": "춘천MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-wonju",
+  "name": "원주MBC FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "wonju"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "mbc-sfm-gangneung",
+  "name": "MBC강원영동 표준FM",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "sfm",
+   "city": "gangneung"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "mbc-fm4u-gangneung",
+  "name": "MBC강원영동 FM4U",
+  "stn": "mbc",
+  "q": {
+   "stn": "mbc",
+   "ch": "fm4u",
+   "city": "gangneung"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "sbs-powerfm-chuncheon",
+  "name": "G1 프레쉬FM",
+  "stn": "sbs",
+  "q": {
+   "stn": "sbs",
+   "ch": "powerfm",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "tbn-gangwon",
+  "name": "TBN 강원교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "gangwon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "cbs-sfm-chuncheon",
+  "name": "춘천CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "chuncheon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "cbs-sfm-youngdong",
+  "name": "강원영동CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "youngdong"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "febc-gangwon",
+  "name": "FEBC 강원극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "gangwon"
+  },
+  "regions": [
+   "gangwon"
+  ]
+ },
+ {
+  "id": "kbs-1radio-jeju",
+  "name": "KBS제주 1라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1radio",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "kbs-2radio-jeju",
+  "name": "KBS제주 2라디오",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "2radio",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "kbs-1fm-jeju",
+  "name": "KBS제주 음악FM",
+  "stn": "kbs",
+  "q": {
+   "stn": "kbs",
+   "ch": "1fm",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "tbn-jeju",
+  "name": "TBN 제주교통방송",
+  "stn": "tbn",
+  "q": {
+   "stn": "tbn",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "cbs-sfm-jeju",
+  "name": "제주CBS 표준FM",
+  "stn": "cbs",
+  "q": {
+   "stn": "cbs",
+   "ch": "sfm",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "febc-jeju",
+  "name": "FEBC 제주극동방송",
+  "stn": "febc",
+  "q": {
+   "stn": "febc",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "bbs-jeju",
+  "name": "BBS 제주불교방송",
+  "stn": "bbs",
+  "q": {
+   "stn": "bbs",
+   "city": "jeju"
+  },
+  "regions": [
+   "jeju"
+  ]
+ },
+ {
+  "id": "arirang",
+  "name": "Arirang Radio",
+  "stn": "arirang",
+  "q": {
+   "stn": "arirang"
+  },
+  "regions": [
+   "jeju"
+  ]
+ }
+]

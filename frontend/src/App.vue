@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -132,6 +132,7 @@ const sideNav = computed(() => [
   { key: 'home', to: '/', label: 'nav.home', icon: House },
   libraryItem.value,
   { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
+  { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },
   ...(appConfig.audiobooks ? [books] : []),
   { key: 'favorites', to: '/favorites', label: 'nav.favorites', icon: Heart },
   { key: 'history', to: '/history', label: 'nav.history', icon: History },
@@ -149,7 +150,7 @@ function active(key: string, to: string) {
   if (key === 'library') return inLibrary.value
   if (key === 'home') return route.path === '/'
   if (key === 'mymusic') return myMusicPaths.some((p) => route.path.startsWith(p))
-  if (key === 'explore') return ['/search', '/charts'].some((p) => route.path.startsWith(p))
+  if (key === 'explore') return ['/search', '/charts', '/radio'].some((p) => route.path.startsWith(p))
   return route.path.startsWith(to)
 }
 
@@ -169,7 +170,7 @@ function parentPage(): RouteLocationRaw {
   const parents: Record<string, string> = {
     album: '/albums', artist: '/artists', folders: '/folders', tracks: '/genres', playlist: '/playlists', chart: '/charts',
     'chart-list': '/charts', book: '/books', mix: '/library', playlists: '/library', favorites: '/library', history: '/library',
-    settings: '/library', admin: '/library',
+    settings: '/library', admin: '/library', stats: '/admin',
   }
   return parents[String(route.name)] ?? '/'
 }

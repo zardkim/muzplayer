@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import search_index
-from .api import admin, auth, books, cast, collections, library, marks, me, mixes, remote, videos
+from .api import admin, auth, books, cast, collections, library, marks, me, mixes, radio, remote, videos
 from .config import settings
 from .db import SessionLocal
 from .scanner import mark_interrupted_jobs, start_auto_scan
@@ -32,7 +32,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="muzplayer", version=settings.version, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 API = "/api/v1"
-for module in (auth, library, collections, me, marks, mixes, videos, admin, books, remote, cast):
+for module in (auth, library, collections, me, marks, mixes, videos, admin, books, remote, cast, radio):
     app.include_router(module.router, prefix=API)
 
 

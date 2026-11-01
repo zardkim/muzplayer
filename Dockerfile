@@ -7,7 +7,8 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- ffmpeg: only what music needs (decode the library's formats, encode MP3, change volume; the
-# null muxer with pcm_s16le decodes a damaged MP3 to measure it: scanner._read_damaged) ----
+# null muxer with pcm_s16le decodes a damaged MP3 to measure it: scanner._read_damaged; mpegts for
+# radio HLS segments: radio.py) ----
 # Debian's ffmpeg package would add about 600 MB; this static build is a few MB.
 FROM python:3.12-slim AS ffmpeg
 ARG FFMPEG_VERSION=7.1.1
@@ -25,7 +26,7 @@ RUN ./configure --disable-everything --disable-autodetect --disable-doc --disabl
       --enable-static --disable-shared --extra-ldexeflags=-static \
       --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le --enable-muxer=mp3,null \
       --enable-protocol=file,pipe \
-      --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff \
+      --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff,mpegts \
       --enable-parser=mpegaudio,flac,aac,vorbis,opus \
       --enable-decoder=mp3,mp3float,flac,aac,alac,vorbis,opus,wmav1,wmav2,wmapro,wmalossless,ape,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_u8,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be \
       --enable-filter=aresample,aformat,anull,volume \

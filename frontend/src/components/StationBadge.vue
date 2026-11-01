@@ -1,0 +1,21 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+
+// A radio station's mark: its broadcaster's short name on a colour of its own (no logos are used).
+const props = defineProps<{ stn: string }>()
+const MARKS: Record<string, [string, string]> = {
+  kbs: ['KBS', '#1f4e9c'], mbc: ['MBC', '#2b2b2b'], sbs: ['SBS', '#0b6bb5'], ebs: ['EBS', '#6aa52b'],
+  cbs: ['CBS', '#d1342d'], tbn: ['TBN', '#0f8a7a'], febc: ['극동', '#5a3d8a'], bbs: ['BBS', '#c27a12'],
+  wbs: ['원음', '#3d7a3a'], cpbc: ['평화', '#245a8f'], kugak: ['국악', '#8a3b2e'], afn: ['AFN', '#3b4a5a'],
+  tbs: ['TBS', '#e2483d'], obs: ['OBS', '#2a5db0'], ifm: ['iFM', '#e07a1f'], ytn: ['YTN', '#174ea6'],
+  befm: ['BeFM', '#1d8fbf'], ggn: ['경기', '#2f8f5b'], arirang: ['ARR', '#b3253a'], kookbang: ['국방', '#4b5d2e'],
+  community: ['FM', '#6b6b6b'],
+}
+const mark = computed(() => MARKS[props.stn] ?? [props.stn.slice(0, 3).toUpperCase(), '#555'])
+</script>
+
+<template>
+  <span class="grid flex-none place-items-center rounded-full font-display font-bold text-white" :style="{ background: mark[1] }" aria-hidden="true">
+    <span class="text-[0.8em] leading-none">{{ mark[0] }}</span>
+  </span>
+</template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, MicVocal, Volume2, VolumeX } from '@lucide/vue'
+import { ChevronDown, MicVocal, Square, Volume2, VolumeX } from '@lucide/vue'
 import { duration } from '../format'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
@@ -16,6 +16,7 @@ import PlayerIcons from './PlayerIcons.vue'
 import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
 import SkipIcon from './SkipIcon.vue'
+import StationBadge from './StationBadge.vue'
 
 // Desktop: floating pill at the bottom of the content column, with the line being sung;
 // it can be tucked away (App.vue then shows a small button to bring it back).
@@ -29,6 +30,7 @@ const ui = useUi()
 const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
+const live = computed(() => (player.mode === 'live' ? player.station : null))
 
 // phone mini player: swipe sideways for the next / previous song, up to open the player, down (or
 // the ∨ at its end) to tuck it away (App.vue then shows a small button; it comes back by itself
@@ -37,13 +39,13 @@ const slide = ref(0)
 const sliding = ref(false)
 const swipe = useSwipe({
   axes: ['x', 'y'],
-  allow: (axis) => axis === 'x' ? !isBook.value && !!player.current : true,
+  allow: (axis) => axis === 'x' ? !isBook.value && !live.value && !!player.current : true,
   move: (axis, dx) => {
     if (axis === 'x') slide.value = dx * 0.6
   },
   end: ({ axis, dx, dy, fast }) => {
     if (axis === 'y') {
-      if (dy < -30 && (player.current || isBook.value)) ui.playerOpen = true
+      if (dy < -30 && !live.value && (player.current || isBook.value)) ui.playerOpen = true
       else if (dy > 30) ui.barHidden = true
       return
     }
@@ -68,7 +70,22 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     @touchend="swipe.onTouchend"
     @touchcancel="swipe.onTouchcancel"
   >
-    <template v-if="isBook && player.book">
+    <!-- live radio: the station; a tap opens the radio page -->
+    <template v-if="live">
+      <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3">
+        <StationBadge :stn="live.stn" class="size-11 text-[12px]" />
+        <span class="flex min-w-0 flex-col">
+          <span class="truncate text-[15px]">{{ live.name }}</span>
+          <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ t('radio.live') }}</span>
+        </span>
+      </RouterLink>
+      <button type="button" class="grid size-11 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
+        <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="24" :stroke="1.6" />
+      </button>
+      <button type="button" class="grid size-11 place-items-center" :aria-label="t('radio.stop')" @click="player.stopStation()"><Square :size="16" :stroke-width="2" /></button>
+      <button type="button" class="grid w-8 flex-none place-items-center self-stretch text-muted" :aria-label="t('player.hideBar')" @click="ui.barHidden = true"><ChevronDown :size="18" :stroke-width="1.6" /></button>
+    </template>
+    <template v-else-if="isBook && player.book">
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
         <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
@@ -122,6 +139,30 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
   </div>
 
   <!-- desktop floating player: audiobook -->
+  <!-- desktop: live radio -->
+  <div v-else-if="live" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
+    <RouterLink to="/radio" class="flex min-w-0 flex-1 items-center gap-3.5">
+      <StationBadge :stn="live.stn" class="size-[52px] text-[14px]" />
+      <span class="flex min-w-0 flex-col">
+        <span class="truncate text-[15px]">{{ live.name }}</span>
+        <span class="flex items-center gap-1.5 text-[13px] font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
+      </span>
+    </RouterLink>
+    <button type="button" class="grid size-12 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
+      <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="28" :stroke="1.6" />
+    </button>
+    <button type="button" class="grid size-11 place-items-center" :aria-label="t('radio.stop')" :title="t('radio.stop')" @click="player.stopStation()"><Square :size="18" :stroke-width="2" /></button>
+    <button type="button" class="grid size-10 place-items-center" :aria-label="t('player.volume')" @click="player.volume = player.volume > 0 ? 0 : 1">
+      <VolumeX v-if="player.volume === 0" :size="20" :stroke-width="1.3" />
+      <Volume2 v-else :size="20" :stroke-width="1.3" />
+    </button>
+    <div class="w-24">
+      <SeekBar :value="player.volume" :max="1" :label="t('player.volume')" fill="var(--color-ink)" @change="(v) => (player.volume = v)" @preview="(v) => v !== null && (player.volume = v)" />
+    </div>
+    <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('player.hideBar')" :title="t('player.hideBar')" @click="ui.barHidden = true">
+      <ChevronDown :size="18" :stroke-width="1.6" />
+    </button>
+  </div>
   <div v-else-if="isBook && player.book" :aria-label="t('player.nowPlaying')" class="glass flex h-[76px] items-center gap-4 rounded-full px-3.5">
     <button type="button" class="size-[52px] flex-none" :aria-label="t('player.open')" @click="ui.playerOpen = true">
       <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" />

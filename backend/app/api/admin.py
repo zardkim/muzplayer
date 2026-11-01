@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, album_notes, appconf, artist_images, merge, search_index, youtube
+from .. import ai_banner, album_notes, appconf, artist_images, merge, search_index, stats, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -539,3 +539,9 @@ def rebuild_search_index(_: User = Depends(admin_user), db: Session = Depends(ge
     db.execute(update(LibraryState).values(search_version=0))
     db.commit()
     search_index.rebuild_in_background()
+
+
+@router.get("/stats")
+def statistics(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """The statistics page: library, people, plays of the last 30 days, disk (stats.py)."""
+    return stats.collect(db)
