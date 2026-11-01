@@ -14,6 +14,7 @@ import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
 import { useRemote } from './stores/remote'
+import { connectNative } from './native'
 import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
@@ -33,6 +34,7 @@ const library = useLibrary()
 const player = usePlayer()
 const ui = useUi()
 useRemote() // this tab is a device other devices of this person can see and control
+connectNative() // inside the Windows app: its tray and shortcuts (native.ts)
 const route = useRoute()
 const router = useRouter()
 
@@ -141,6 +143,8 @@ const sideNav = computed(() => [
 const tabs = computed(() => [
   { key: 'home', to: '/', label: 'nav.home', icon: House },
   libraryItem.value,
+  { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
+  { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },
   ...(appConfig.audiobooks ? [books] : []),
   { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
   { key: 'explore', to: '/search', label: 'nav.explore', icon: Search },
@@ -150,9 +154,19 @@ function active(key: string, to: string) {
   if (key === 'library') return inLibrary.value
   if (key === 'home') return route.path === '/'
   if (key === 'mymusic') return myMusicPaths.some((p) => route.path.startsWith(p))
-  if (key === 'explore') return ['/search', '/charts', '/radio'].some((p) => route.path.startsWith(p))
+  if (key === 'explore') return route.path.startsWith('/search')
   return route.path.startsWith(to)
 }
+
+// the phone tab bar scrolls sideways when the tabs don't fit: keep the current one in view
+const tabBar = ref<HTMLElement | null>(null)
+watch(
+  () => route.path,
+  async () => {
+    await nextTick()
+    tabBar.value?.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  },
+)
 
 // back / forward: arrows in the PC top bar; on phones a back button above pages below the tabs
 // (an installed app has no browser buttons). Read again on every page change.
@@ -334,17 +348,19 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
             <ChevronUp :size="18" :stroke-width="1.6" />
           </button>
         </div>
-        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto grid h-[72px] items-center rounded-full px-1.5" :style="{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }">
+        <nav :aria-label="t('nav.mainMenu')" class="glass pointer-events-auto h-[72px] overflow-hidden rounded-full">
+          <div ref="tabBar" class="flex h-full items-center overflow-x-auto px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <RouterLink
             v-for="tab in tabs"
             :key="tab.key"
             :to="tab.to"
-            class="flex h-[60px] flex-col items-center justify-center gap-[3px] rounded-full text-[11px]"
+            class="flex h-[60px] min-w-[68px] flex-1 shrink-0 flex-col items-center justify-center gap-[3px] whitespace-nowrap rounded-full px-1 text-[11px]"
             :class="active(tab.key, tab.to) ? 'bg-surface-2 font-medium' : ''"
             :aria-current="active(tab.key, tab.to) ? 'page' : undefined"
           >
             <component :is="tab.icon" :size="24" :stroke-width="active(tab.key, tab.to) ? 2 : 1.4" />{{ t(tab.label) }}
           </RouterLink>
+          </div>
         </nav>
       </div>
     </div>

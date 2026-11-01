@@ -6,6 +6,7 @@ import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { install, installPrompt, isIos, isStandalone } from '../pwa'
+import { native } from '../native'
 import { useAuth } from '../stores/auth'
 import { SKIPS, usePlayer } from '../stores/player'
 import { CACHE_SIZES, CROSSFADES, PREFETCH_COUNTS, useUi } from '../stores/ui'
@@ -207,7 +208,8 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
 
         <section v-if="shown === 'install'" class="flex flex-col gap-3">
           <h2 class="hidden text-[22px] font-bold md:block">{{ t('settings.installTitle') }}</h2>
-          <p v-if="isStandalone" class="font-light text-muted">{{ t('settings.installed') }}</p>
+          <p v-if="native" class="font-light text-muted">{{ t('settings.inWindowsApp', { v: native.version }) }}</p>
+          <p v-else-if="isStandalone" class="font-light text-muted">{{ t('settings.installed') }}</p>
           <button v-else-if="installPrompt" type="button" class="h-11 self-start rounded-full bg-ink px-5 text-[15px] text-on-ink" @click="install">{{ t('settings.installApp') }}</button>
           <p v-else-if="isIos" class="font-light text-muted">{{ t('settings.installIos') }}</p>
           <p v-else class="font-light text-muted">{{ t('settings.installOther') }}</p>
