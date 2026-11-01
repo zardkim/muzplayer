@@ -6,7 +6,8 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
-# ---- ffmpeg: only what music needs (decode the library's formats, encode MP3, change volume) ----
+# ---- ffmpeg: only what music needs (decode the library's formats, encode MP3, change volume; the
+# null muxer with pcm_s16le decodes a damaged MP3 to measure it: scanner._read_damaged) ----
 # Debian's ffmpeg package would add about 600 MB; this static build is a few MB.
 FROM python:3.12-slim AS ffmpeg
 ARG FFMPEG_VERSION=7.1.1
@@ -22,13 +23,14 @@ RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o 
 RUN ./configure --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-network \
       --disable-ffplay --disable-ffprobe --disable-avdevice --disable-swscale --disable-x86asm \
       --enable-static --disable-shared --extra-ldexeflags=-static \
-      --enable-libmp3lame --enable-encoder=libmp3lame --enable-muxer=mp3 \
+      --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le --enable-muxer=mp3,null \
       --enable-protocol=file,pipe \
       --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff \
       --enable-parser=mpegaudio,flac,aac,vorbis,opus \
       --enable-decoder=mp3,mp3float,flac,aac,alac,vorbis,opus,wmav1,wmav2,wmapro,wmalossless,ape,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_u8,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be \
       --enable-filter=aresample,aformat,anull,volume \
- && make -j"$(nproc)" ffmpeg && strip ffmpeg && ./ffmpeg -hide_banner -encoders | grep -q libmp3lame
+ && make -j"$(nproc)" ffmpeg && strip ffmpeg && ./ffmpeg -hide_banner -encoders | grep -q libmp3lame \
+ && ./ffmpeg -hide_banner -encoders | grep -q pcm_s16le && ./ffmpeg -hide_banner -muxers | grep -q ' null '
 
 # ---- runtime ----
 FROM python:3.12-slim
