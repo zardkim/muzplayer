@@ -279,7 +279,10 @@
     "empty": "Tap the heart to collect songs you like.",
     "songs": "Songs",
     "albums": "Albums",
-    "albumsEmpty": "Tap the heart on an album to collect albums you like."
+    "albumsEmpty": "Tap the heart on an album to collect albums you like.",
+    "videos": "Music videos",
+    "videosEmpty": "No liked music videos yet. Tap ♡ on a music video.",
+    "likedVideos": "Liked music videos"
   },
   "history": {
     "title": "Recently played",

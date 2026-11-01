@@ -83,7 +83,7 @@ export const useAuth = defineStore('auth', () => {
   }
 
   // this person's own settings, kept on the server (the same on every device)
-  async function updateSettings(body: { record_history?: boolean; home_sections?: { key: string; on: boolean }[] }) {
+  async function updateSettings(body: { record_history?: boolean; home_sections?: { key: string; on: boolean }[]; prefs?: object }) {
     user.value = await api<User>('/auth/me', { method: 'PATCH', body })
   }
 

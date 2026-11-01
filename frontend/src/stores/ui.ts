@@ -37,6 +37,8 @@ export interface PlayerPrefs {
 }
 export const CROSSFADES = [0, 2, 4, 6, 8]
 export const LYRICS_SIZES = [0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75] // times the lyrics' normal size
+// settings that fit one device only: not sent to the account (prefsSync.ts)
+export const PLAYER_PREFS_DEVICE: (keyof PlayerPrefs)[] = ['prefetchWifi', 'prefetchCellular', 'cacheMB']
 export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
 export const CACHE_SIZES = [256, 512, 1024, 2048]
 const PLAYER_PREFS: PlayerPrefs = {

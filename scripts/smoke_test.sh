@@ -116,6 +116,7 @@ check "a song already in a playlist isn't added twice" "$(curl -s -b "$A" -X POS
 check "a playlist name of spaces is refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PATCH "$BASE/playlists/$pid" -H 'content-type: application/json' -d '{"name":"   "}')" 422
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlists don't show mine" "$(curl -s -b "$U" "$BASE/playlists" | j "$pid in [p['id'] for p in d['items']]")" False
+check "settings are kept with the account" "$(curl -s -b "$U" -X PATCH "$BASE/auth/me" -H 'content-type: application/json' -d '{"prefs":{"v":1,"t":1,"theme":"spotify"}}' >/dev/null; curl -s -b "$U" "$BASE/auth/me" | j 'd["prefs"]["theme"]')" spotify
 check "everyone has a default playlist" "$(curl -s -b "$U" "$BASE/playlists" | j '[p["is_default"] for p in d["items"]]')" "[True]"
 dpl=$(curl -s -b "$U" "$BASE/playlists" | j 'd["items"][0]["id"]')
 check "the default playlist can't be deleted" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/playlists/$dpl")" 400

@@ -287,6 +287,7 @@ export interface User {
   is_active: boolean
   record_history: boolean // off: plays leave no history or play count
   home_sections: { key: string; on: boolean }[] | null // home rows in order; null = the default
+  prefs?: Record<string, unknown> | null // the app's settings kept with the account (prefsSync.ts)
   pending?: boolean // signed up, waiting for an admin to approve
   created_at?: string | null
   last_login_at?: string | null

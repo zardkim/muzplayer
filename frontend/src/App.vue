@@ -15,6 +15,7 @@ import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
 import { useRemote } from './stores/remote'
 import { connectNative } from './native'
+import { startPrefsSync } from './prefsSync'
 import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
@@ -42,6 +43,7 @@ const player = usePlayer()
 const ui = useUi()
 useRemote() // this tab is a device other devices of this person can see and control
 connectNative() // inside the Windows app: its tray and shortcuts (native.ts)
+startPrefsSync() // the settings page's choices, the same on every device (kept with the account)
 const route = useRoute()
 const router = useRouter()
 

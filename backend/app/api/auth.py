@@ -1,8 +1,9 @@
+import json
 import time
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,7 @@ def user_out(user: User) -> dict:
         "is_active": user.is_active,
         "record_history": user.record_history,
         "home_sections": user.home_sections,
+        "prefs": user.prefs,
         "pending": user.pending,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
@@ -302,6 +304,13 @@ class HomeSection(BaseModel):
 class SettingsIn(BaseModel):
     record_history: bool | None = None
     home_sections: list[HomeSection] | None = Field(None, max_length=20)
+    prefs: dict | None = None  # the app's settings as a whole (it knows their shape)
+
+    @model_validator(mode="after")
+    def small(self):
+        if self.prefs is not None and len(json.dumps(self.prefs)) > 20_000:
+            raise ValueError("prefs too large")
+        return self
 
 
 @router.patch("/auth/me")
@@ -311,6 +320,8 @@ def update_me(body: SettingsIn, user: User = Depends(current_user), db: Session 
         user.record_history = body.record_history
     if body.home_sections is not None:
         user.home_sections = [s.model_dump() for s in body.home_sections]
+    if body.prefs is not None:
+        user.prefs = body.prefs
     db.commit()
     return user_out(user)
 
