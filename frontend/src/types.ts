@@ -265,6 +265,7 @@ export interface VideoFile {
   path: string
   size: number
   video_id: number | null
+  linked?: string // just registered: the song it was linked to ("title · artist")
 }
 export interface VideoResult {
   youtube_id: string

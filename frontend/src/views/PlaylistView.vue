@@ -130,7 +130,7 @@ async function destroy() {
           {{ t('playlists.name') }}
           <input v-model="newName" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
         </label>
-        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink">{{ t('common.save') }}</button>
+        <button type="submit" class="h-12 rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="!newName.trim()">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
   </div>

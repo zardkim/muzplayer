@@ -2,7 +2,9 @@
 Always scoped to the session user."""
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field, ValidationError
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -39,13 +41,17 @@ def playlist_out(p: Playlist, track_count: int | None) -> dict:
     }
 
 
+# a name: spaces around it dropped, then something must be left
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
 class PlaylistIn(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    name: Name
     rules: Rules | None = None  # given: a smart playlist
 
 
 class PlaylistPatch(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=200)
+    name: Name | None = None
     rules: Rules | None = None  # smart playlists only
 
 
@@ -160,23 +166,33 @@ def delete_playlist(playlist_id: int, user: User = Depends(current_user), db: Se
     db.commit()
 
 
-@router.post("/playlists/{playlist_id}/tracks", status_code=204)
+@router.post("/playlists/{playlist_id}/tracks")
 def add_tracks(
     playlist_id: int, body: TrackIdsIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
 ):
     playlist = own_playlist(db, user, playlist_id)
     if playlist.kind == "smart":
         raise api_error(400, "smart_playlist")  # its songs come from its rules
+    """Adds the songs not in the list yet: {"added": n, "skipped": songs already there}."""
     valid = set(db.scalars(select(Track.id).where(Track.id.in_(body.track_ids))))
+    there = set(db.scalars(select(PlaylistTrack.track_id).where(PlaylistTrack.playlist_id == playlist.id)))
     position = db.scalar(
         select(func.coalesce(func.max(PlaylistTrack.position), -1)).where(PlaylistTrack.playlist_id == playlist.id)
     )
+    added = skipped = 0
     for track_id in body.track_ids:
-        if track_id in valid:
-            position += 1
-            db.add(PlaylistTrack(playlist_id=playlist.id, track_id=track_id, position=position))
+        if track_id not in valid:
+            continue
+        if track_id in there:
+            skipped += 1
+            continue
+        there.add(track_id)
+        position += 1
+        added += 1
+        db.add(PlaylistTrack(playlist_id=playlist.id, track_id=track_id, position=position))
     playlist.updated_at = func.now()
     db.commit()
+    return {"added": added, "skipped": skipped}
 
 
 @router.delete("/playlists/{playlist_id}/tracks/{entry_id}", status_code=204)

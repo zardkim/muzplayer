@@ -26,8 +26,8 @@ onMounted(async () => {
 
 async function addTo(id: number, listName: string) {
   try {
-    await api(`/video-playlists/${id}/videos`, { method: 'POST', body: { video_ids: videos.map((v) => v.id) } })
-    ui.notify(t('videos.addedTo', { name: listName }))
+    const r = await api<{ added: number; skipped: number }>(`/video-playlists/${id}/videos`, { method: 'POST', body: { video_ids: videos.map((v) => v.id) } })
+    ui.notify(r.added ? t('videos.addedTo', { name: listName }) : t('videos.alreadyThere', { name: listName }))
     ui.videoPick = null
   } catch (e) {
     error.value = errorMessage(e)

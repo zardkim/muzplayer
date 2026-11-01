@@ -2,17 +2,18 @@
 Anyone may add one; the person who added it or an admin may change or remove it."""
 
 import os
+import re
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from .. import video_thumbs, youtube
+from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Artist, Track, User, Video, VideoPlaylist, VideoPlaylistItem
@@ -22,6 +23,9 @@ router = APIRouter()
 
 KINDS = ("mv", "concert", "tv", "fan", "other")
 Kind = Literal["mv", "concert", "tv", "fan", "other"]
+# a name or title: spaces around it dropped, then something must be left
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 # what browsers play in <video> (mkv/mov only when their codecs are H.264/AAC, the usual case)
 VIDEO_EXTS = {".mp4", ".m4v", ".webm", ".mov", ".mkv", ".ogv"}
 VIDEO_TYPES = {".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
@@ -184,7 +188,7 @@ def add_video(body: VideoIn, user: User = Depends(current_user), db: Session = D
 
 class VideoPatch(BaseModel):
     kind: Kind | None = None
-    title: str | None = Field(None, min_length=1, max_length=500)
+    title: Title | None = None
     position: int | None = Field(None, ge=0, le=10_000)
 
 
@@ -234,6 +238,69 @@ def _inside(rel: str) -> Path | None:
     return path
 
 
+# ---- a NAS file's song, found from its name ----
+# [MV], (Official Video), 【4K】, (직캠)...: not part of the song's title
+_NOISE_IN_BRACKETS = re.compile(
+    r"[\[(【（][^\])】）]*?(?:m/?v|official|video|lyric|live|4k|8k|1080p|720p|hd|uhd|audio|teaser|가사|뮤비|뮤직\s*비디오|직캠|공식|"
+    r"stage|performance|교차|무대|special|clip|remaster)[^\])】）]*[\])】）]",
+    re.I,
+)
+_NOISE_WORDS = re.compile(r"\b(?:official\s+(?:music\s+)?video|music\s+video|m/?v|4k|8k|1080p|720p|2160p|hd|uhd|remastered)\b", re.I)
+_BRACKETS = re.compile(r"[\[(【（][^\])】）]*[\])】）]")
+
+
+def _clean(text: str) -> str:
+    return search_index.norm(_NOISE_WORDS.sub(" ", _NOISE_IN_BRACKETS.sub(" ", text)))
+
+
+def _bare(title: str) -> str:
+    """A song's title without its brackets: "밤편지 (Live)" -> "밤편지"."""
+    return search_index.norm(_BRACKETS.sub(" ", title))
+
+
+def guess_track(db: Session, rel: str, title: str | None = None) -> int | None:
+    """The song a NAS video is of, when its name says so without doubt: "Artist - Title" (either way
+    round), the title alone, or the title in a folder named after the artist. None when no song or
+    songs of different artists fit."""
+    path = Path(rel)
+    folder = path.parent.name if path.parent != Path(".") else ""
+    guesses: list[tuple[str, str]] = []  # (artist or "", title), the likeliest first
+    for text in dict.fromkeys(t for t in (title, path.stem) if t):
+        text = text.replace("_", " ")
+        if " - " in text:
+            a, b = (s.strip() for s in text.split(" - ", 1))
+            guesses += [(a, b), (b, a)]
+        if folder:
+            guesses.append((folder, text))
+        guesses.append(("", text))
+        if " - " in text:
+            guesses.append(("", b))  # the artist written another way ("IU" for "아이유"): the title alone
+    for artist, song in guesses:
+        wants = {w for w in (_clean(song), _bare(song)) if w}  # as written; without anything in brackets
+        if not wants:
+            continue
+        words = min(wants, key=len).split()
+        pattern = "%" + "%".join(w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") for w in words) + "%"
+        rows = db.execute(
+            select(Track.id, Track.title, Track.artist_text, Album.kind)
+            .outerjoin(Album, Album.id == Track.album_id)
+            .where(Track.missing_at.is_(None), Track.canonical_track_id.is_(None), Track.title.ilike(pattern))
+            .limit(200)
+        ).all()
+        hits = [r for r in rows if wants & {search_index.norm(r.title), _bare(r.title)}]
+        if artist:
+            who = _clean(artist)
+            hits = [r for r in hits if who and (who in search_index.norm(r.artist_text) or search_index.norm(r.artist_text) in who)]
+        if not hits:
+            continue
+        if len({search_index.norm(r.artist_text) for r in hits}) > 1:
+            return None  # the same title by different artists: don't guess
+        # one song (perhaps on several albums): its album copy before a chart's
+        hits.sort(key=lambda r: (r.kind == "chart", r.id))
+        return hits[0].id
+    return None
+
+
 @router.get("/videos/files")
 def video_files(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """The video files in library/video (sub-folders too), each saying whether it is registered."""
@@ -279,9 +346,13 @@ def add_video_file(body: VideoFileIn, user: User = Depends(current_user), db: Se
     if path is None:
         raise api_error(404, "not_found")
     rel = os.path.relpath(path, _video_root().resolve())
+    title = (body.title or "").strip() or Path(rel).stem
+    track_id = body.track_id
+    if track_id is None and body.album_id is None:
+        track_id = guess_track(db, rel, title)  # its song, when the name says so
     video = Video(
-        file_path=rel, kind=body.kind, title=(body.title or "").strip() or Path(rel).stem,
-        channel="", track_id=body.track_id, album_id=body.album_id, added_by=user.id,
+        file_path=rel, kind=body.kind, title=title,
+        channel="", track_id=track_id, album_id=body.album_id, added_by=user.id,
     )
     db.add(video)
     try:
@@ -290,7 +361,27 @@ def add_video_file(body: VideoFileIn, user: User = Depends(current_user), db: Se
         db.rollback()
         raise api_error(409, "video_exists") from None
     video_thumbs.make_later(video.id, path)
-    return video_out(video, user)
+    return list_item(db.execute(_listing().where(Video.id == video.id)).one(), user)
+
+
+class LinkIn(BaseModel):
+    auto: bool = True  # find its song from its name; false: no song
+
+
+@router.post("/videos/{video_id}/link")
+def link_video(video_id: int, body: LinkIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A NAS file's song: found again from its name, or let go. 404 code video_no_song when none fits."""
+    video = _editable(db, user, video_id)
+    if not video.file_path:
+        raise api_error(400, "not_a_file")
+    track_id = guess_track(db, video.file_path, video.title) if body.auto else None
+    if body.auto and track_id is None:
+        raise api_error(404, "video_no_song")
+    video.track_id, video.album_id = track_id, None
+    db.commit()
+    return list_item(db.execute(_listing().where(Video.id == video.id)).one(), user)
+
+
 
 
 @router.get("/videos/{video_id}/thumb")
@@ -331,7 +422,7 @@ def video_file(video_id: int, _: User = Depends(current_user), db: Session = Dep
 
 # ---- video playlists (each person's own) ----
 class VideoPlaylistIn(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    name: Name
 
 
 class VideoIdsIn(BaseModel):
@@ -412,21 +503,31 @@ def delete_video_playlist(playlist_id: int, user: User = Depends(current_user), 
     db.commit()
 
 
-@router.post("/video-playlists/{playlist_id}/videos", status_code=204)
+@router.post("/video-playlists/{playlist_id}/videos")
 def add_to_video_playlist(
     playlist_id: int, body: VideoIdsIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
 ):
     playlist = _own(db, user, playlist_id)
+    """Adds the videos not in the list yet: {"added": n, "skipped": videos already there}."""
     valid = set(db.scalars(select(Video.id).where(Video.id.in_(body.video_ids))))
+    there = set(db.scalars(select(VideoPlaylistItem.video_id).where(VideoPlaylistItem.playlist_id == playlist.id)))
     position = db.scalar(
         select(func.coalesce(func.max(VideoPlaylistItem.position), -1)).where(VideoPlaylistItem.playlist_id == playlist.id)
     )
+    added = skipped = 0
     for video_id in body.video_ids:
-        if video_id in valid:
-            position += 1
-            db.add(VideoPlaylistItem(playlist_id=playlist.id, video_id=video_id, position=position))
+        if video_id not in valid:
+            continue
+        if video_id in there:
+            skipped += 1
+            continue
+        there.add(video_id)
+        position += 1
+        added += 1
+        db.add(VideoPlaylistItem(playlist_id=playlist.id, video_id=video_id, position=position))
     playlist.updated_at = func.now()
     db.commit()
+    return {"added": added, "skipped": skipped}
 
 
 @router.delete("/video-playlists/{playlist_id}/videos/{entry_id}", status_code=204)

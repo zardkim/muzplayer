@@ -52,9 +52,11 @@ export const useLibrary = defineStore('library', () => {
     return p
   }
 
+  /** Songs already in the list are not added twice: {added, skipped}. */
   async function addToPlaylist(playlistId: number, tracks: Track[]) {
-    await api(`/playlists/${playlistId}/tracks`, { method: 'POST', body: { track_ids: tracks.map((t) => t.id) } })
+    const r = await api<{ added: number; skipped: number }>(`/playlists/${playlistId}/tracks`, { method: 'POST', body: { track_ids: tracks.map((t) => t.id) } })
     await loadPlaylists()
+    return r
   }
 
   function reset() {

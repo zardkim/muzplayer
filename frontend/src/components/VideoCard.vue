@@ -58,6 +58,17 @@ async function remakeThumb() {
     remaking.value = false
   }
 }
+// a NAS file's song: found from its name, or let go
+async function link(auto: boolean) {
+  menu.value = false
+  try {
+    const v = await api<VideoListItem>(`/videos/${props.video.id}/link`, { method: 'POST', body: { auto } })
+    ui.notify(v.target ? t('videos.linkedTo', { song: `${v.target.title} · ${v.target.artist}` }) : t('videos.unlinked'))
+    emit('changed')
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
 async function remove() {
   menu.value = false
   if (!confirm(t('videos.removeConfirm', { title: props.video.title }))) return
@@ -99,6 +110,8 @@ onUnmounted(() => document.removeEventListener('click', outside))
             <template v-if="video.file_path">
               <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
               <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
+              <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="link(false)">{{ t('videos.unlink') }}</button>
+              <button v-else type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="link(true)">{{ t('videos.autoLink') }}</button>
               <div class="my-1 border-t border-line" />
             </template>
             <p class="px-4 pb-1 pt-1.5 text-[12px] text-muted">{{ t('videos.changeKind') }}</p>

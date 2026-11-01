@@ -19,8 +19,8 @@ async function add(playlistId: number) {
   if (!ui.playlistPicker || busy.value) return
   busy.value = true
   try {
-    await library.addToPlaylist(playlistId, ui.playlistPicker)
-    ui.notify(t('common.added'))
+    const r = await library.addToPlaylist(playlistId, ui.playlistPicker)
+    ui.notify(r.added ? (r.skipped ? t('playlists.addedSkipped', { n: r.added, skipped: r.skipped }) : t('common.added')) : t('playlists.alreadyThere'))
     ui.playlistPicker = null
   } catch (e) {
     ui.notify(errorMessage(e), true)

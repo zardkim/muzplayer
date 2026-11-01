@@ -111,6 +111,8 @@ curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type:
 check "second user login" "$(login "$U" smokeuser smokepass1)" 200
 pid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke"}' | j 'd["id"]')
 curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}"
+check "a song already in a playlist isn't added twice" "$(curl -s -b "$A" -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j '[d["added"], d["skipped"]]')" "[0, 1]"
+check "a playlist name of spaces is refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PATCH "$BASE/playlists/$pid" -H 'content-type: application/json' -d '{"name":"   "}')" 422
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlist list empty" "$(curl -s -b "$U" "$BASE/playlists" | j 'len(d["items"])')" 0
 
@@ -183,6 +185,7 @@ check "video playlist made" "$(curl -s -b "$A" "$BASE/video-playlists/$vpl" | j 
 check "video playlist deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/video-playlists/$vpl")" 204
 check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/thumb")" 404
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
+check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"
 

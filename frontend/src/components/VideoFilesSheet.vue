@@ -5,7 +5,7 @@ import { ChevronDown, Film, Folder } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type Video, type VideoFile, type VideoKind } from '../types'
+import { VIDEO_KINDS, type VideoFile, type VideoKind, type VideoListItem } from '../types'
 import BaseModal from './BaseModal.vue'
 import VideoThumb from './VideoThumb.vue'
 
@@ -53,8 +53,10 @@ onMounted(async () => {
 
 async function register(f: VideoFile): Promise<boolean> {
   try {
-    const v = await api<Video>('/videos/files', { method: 'POST', body: { path: f.path, kind: kind.value, title: titles.value[f.path] } })
+    // the server links it to its song when the name says which (Artist - Title, ...)
+    const v = await api<VideoListItem>('/videos/files', { method: 'POST', body: { path: f.path, kind: kind.value, title: titles.value[f.path] } })
     f.video_id = v.id
+    if (v.target) f.linked = `${v.target.title} · ${v.target.artist}`
     return true
   } catch (e) {
     ui.notify(errorMessage(e), true)
@@ -87,7 +89,7 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
 <template>
   <BaseModal wide :title="t('videos.filesTitle')" @close="emit('close')">
     <div class="flex flex-col gap-4">
-      <p class="text-[14px] leading-relaxed text-muted">{{ t('videos.filesHint') }}</p>
+      <p class="text-[14px] leading-relaxed text-muted">{{ t('videos.filesHint') }} {{ t('videos.autoLinkHint') }}</p>
       <div class="flex flex-wrap items-center gap-1.5" role="radiogroup" :aria-label="t('videos.kind')">
         <button
           v-for="k in VIDEO_KINDS"
@@ -151,6 +153,7 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
                   class="h-9 min-w-0 rounded-lg bg-bg px-2.5 text-[14px] outline-none focus:ring-2 focus:ring-ink disabled:opacity-60"
                 />
                 <span class="truncate text-[12px] text-muted">{{ g.dir === null ? f.path : nameOf(f.path) }} · {{ size(f.size) }}</span>
+                <span v-if="f.linked" class="truncate text-[12px] text-accent">♪ {{ t('videos.linkedTo', { song: f.linked }) }}</span>
               </span>
               <button
                 type="button"

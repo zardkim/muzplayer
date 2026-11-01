@@ -128,7 +128,8 @@
     "too_many_signups": "Too many sign-ups. Try again later.",
     "radio_busy": "Too many people are listening to the radio now. Try again shortly.",
     "radio_unavailable": "Couldn't get this station's stream now.",
-    "thumb_failed": "Couldn’t make a thumbnail: this video format isn’t supported."
+    "thumb_failed": "Couldn’t make a thumbnail: this video format isn’t supported.",
+    "video_no_song": "No song matches its name. Rename it ‘Artist - Title’ and try again."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -264,7 +265,9 @@
     "emptyTracks": "Add songs from any list with the ⋯ menu.",
     "deleteConfirm": "Delete the playlist “{name}”?",
     "chooseTitle": "Choose a playlist",
-    "smart": "Smart"
+    "smart": "Smart",
+    "addedSkipped": "Added {n} (skipped {skipped} already there)",
+    "alreadyThere": "Already in this playlist"
   },
   "favorites": {
     "title": "Liked",
@@ -872,7 +875,13 @@
     "renameVideo": "Rename",
     "remakeThumb": "New thumbnail (another scene)",
     "thumbMade": "Made a new thumbnail",
-    "thumbMaking": "Making a thumbnail…"
+    "thumbMaking": "Making a thumbnail…",
+    "alreadyThere": "Already in ‘{name}’",
+    "linkedTo": "Linked to {song}",
+    "unlinked": "Unlinked from its song",
+    "autoLink": "Link to its song",
+    "unlink": "Unlink from the song",
+    "autoLinkHint": "A file named ‘Artist - Title’ or after a song is linked to that song in the library."
   },
   "folders": {
     "root": "Music",
