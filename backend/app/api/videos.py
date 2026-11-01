@@ -9,14 +9,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, StringConstraints, model_validator
-from sqlalchemy import delete, exists, func, or_, select
+from sqlalchemy import case, delete, exists, func, literal, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, Track, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
+from ..models import Album, Artist, Track, TrackGenre, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
 from ..security import api_error, current_user
 
 router = APIRouter()
@@ -122,6 +122,93 @@ def all_videos(
     total = db.scalar(select(func.count()).select_from(_listing(user.id).where(*cond).subquery()))
     rows = db.execute(_listing(user.id).where(*cond).order_by(Video.created_at.desc(), Video.id.desc()).offset(offset).limit(limit))
     return {"items": [list_item(r, user) for r in rows], "total": total}
+
+
+# ---- what is like a video (the video player, under it) ----
+_TrackOfVideo = aliased(Track)
+_AlbumOfVideo = aliased(Album)
+
+
+def _seed(db: Session, video: Video) -> tuple[int | None, list[int]]:
+    """(artist id, genre ids) of the song or album a video belongs to."""
+    if video.track_id is not None:
+        track = db.get(Track, video.track_id)
+        artist_id = track.artist_id if track else None
+        genres = list(db.scalars(select(TrackGenre.genre_id).where(TrackGenre.track_id == video.track_id)))
+    elif video.album_id is not None:
+        album = db.get(Album, video.album_id)
+        artist_id = album.album_artist_id if album else None
+        genres = list(db.scalars(
+            select(TrackGenre.genre_id).join(Track, Track.id == TrackGenre.track_id).where(Track.album_id == video.album_id).distinct()
+        ))
+    else:
+        return None, []
+    return artist_id, genres
+
+
+@router.get("/videos/{video_id}/related")
+def related(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """Similar music videos (the same artist, a shared genre, the same kind; a little chance mixes
+    them) and similar artists (the library's artists most often in this one's genres)."""
+    from .library import image_v, present_tracks
+
+    video = db.get(Video, video_id)
+    if video is None:
+        raise api_error(404, "not_found")
+    artist_id, genres = _seed(db, video)
+
+    # each video's artist: its song's, or its album's
+    v_artist = func.coalesce(_TrackOfVideo.artist_id, _AlbumOfVideo.album_artist_id)
+    v_track_genre = exists().where(TrackGenre.track_id == Video.track_id, TrackGenre.genre_id.in_(genres or [-1]))
+    v_album_genre = exists().where(
+        Track.album_id == Video.album_id, TrackGenre.track_id == Track.id, TrackGenre.genre_id.in_(genres or [-1])
+    )
+    score = (
+        (case((v_artist == artist_id, 4), else_=0) if artist_id is not None else literal(0))
+        + case((or_(v_track_genre, v_album_genre), 3), else_=0)
+        + case((Video.kind == video.kind, 1), else_=0)
+        + func.random() * 2
+    )
+    ids = list(db.scalars(
+        select(Video.id)
+        .outerjoin(_TrackOfVideo, _TrackOfVideo.id == Video.track_id)
+        .outerjoin(_AlbumOfVideo, _AlbumOfVideo.id == Video.album_id)
+        .where(Video.id != video.id)
+        .order_by(score.desc())
+        .limit(12)
+    ))
+    rows = {r[0].id: r for r in db.execute(_listing(user.id).where(Video.id.in_(ids)))} if ids else {}
+    videos = [list_item(rows[i], user) for i in ids if i in rows]
+
+    artists = []
+    if genres:
+        shared = func.count(func.distinct(TrackGenre.genre_id))
+        found = db.execute(
+            select(Artist, shared.label("n"))
+            .join(Track, Track.artist_id == Artist.id)
+            .join(TrackGenre, TrackGenre.track_id == Track.id)
+            .where(TrackGenre.genre_id.in_(genres), present_tracks(), Track.chart_id.is_(None),
+                   *( [Artist.id != artist_id] if artist_id is not None else []))
+            .group_by(Artist.id)
+            .order_by(shared.desc(), func.count(Track.id).desc())
+            .limit(10)
+        ).all()
+        artists = [{"id": a.id, "name": a.name, "image_v": image_v(a)} for a, _ in found]
+    # untagged genres (or few artists in them): the artists of the similar videos fill in
+    if len(artists) < 10 and ids:
+        have = {a["id"] for a in artists} | ({artist_id} if artist_id is not None else set())
+        by_video = dict(db.execute(
+            select(Video.id, v_artist)
+            .outerjoin(_TrackOfVideo, _TrackOfVideo.id == Video.track_id)
+            .outerjoin(_AlbumOfVideo, _AlbumOfVideo.id == Video.album_id)
+            .where(Video.id.in_(ids))
+        ).all())
+        more = [by_video.get(i) for i in ids]
+        more = list(dict.fromkeys(a for a in more if a is not None and a not in have))[: 10 - len(artists)]
+        if more:
+            found = {a.id: a for a in db.scalars(select(Artist).where(Artist.id.in_(more)))}
+            artists += [{"id": a.id, "name": a.name, "image_v": image_v(found[a.id])} for a in (found[i] for i in more if i in found)]
+    return {"videos": videos, "artists": artists}
 
 
 @router.get("/albums/{album_id}/videos")

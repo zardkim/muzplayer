@@ -41,7 +41,11 @@
     "tab_albums": "앨범",
     "tab_artists": "아티스트",
     "tab_books": "오디오북",
-    "tab_videos": "뮤직 영상"
+    "tab_videos": "뮤직 영상",
+    "recent": "최근 검색어",
+    "clearRecent": "전체 삭제",
+    "removeRecent": "최근 검색어 삭제",
+    "noRecent": "최근 검색어가 없습니다."
   },
   "login": {
     "username": "아이디",
@@ -886,7 +890,10 @@
     "linkHint": "곡 제목이나 가수를 입력하고, 연결할 곡을 고르세요.",
     "linkSearch": "곡 검색",
     "linkNone": "검색 결과가 없습니다.",
-    "liked": "좋아요"
+    "liked": "좋아요",
+    "nextUp": "다음 영상",
+    "similarVideos": "비슷한 음악 영상",
+    "similarArtists": "비슷한 아티스트"
   },
   "folders": {
     "root": "음악",

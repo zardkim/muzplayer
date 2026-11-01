@@ -2,16 +2,17 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Radio, Search } from '@lucide/vue'
+import { ChevronRight, Clock, X } from '@lucide/vue'
 import { api, query } from '../api'
 import { appConfig } from '../config'
-import type { Album, Artist, Book, Chart, CollectionsHome, Genre, Page, Track, VideoListItem } from '../types'
+import type { Album, Artist, Book, Genre, Page, Track, VideoListItem } from '../types'
+import { useSearchHistory } from '../searchHistory'
+import SearchBox from '../components/SearchBox.vue'
 import { useUi } from '../stores/ui'
 import VideoCard from '../components/VideoCard.vue'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import BookGrid from '../components/BookGrid.vue'
-import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import TrackList from '../components/TrackList.vue'
 
@@ -24,7 +25,7 @@ const tracks = ref<Track[]>([])
 const albums = ref<Album[]>([])
 const artists = ref<Artist[]>([])
 const genres = ref<Genre[]>([])
-const charts = ref<Chart[]>([])
+const history = useSearchHistory()
 const books = ref<Book[]>([])
 const videos = ref<VideoListItem[]>([])
 const ui = useUi()
@@ -69,6 +70,7 @@ async function more(kind: Kind) {
 
 onMounted(async () => {
   if (q) {
+    history.add(q) // what was searched, from here or the top bar
     const kinds: Kind[] = appConfig.audiobooks ? ['tracks', 'albums', 'artists', 'videos', 'books'] : ['tracks', 'albums', 'artists', 'videos']
     await Promise.all(
       kinds.map(async (k) => {
@@ -78,14 +80,10 @@ onMounted(async () => {
       }),
     )
   } else {
-    const [g, ar, ch] = await Promise.all([
+    const [g, ar] = await Promise.all([
       api<{ items: Genre[] }>('/genres').catch(() => ({ items: [] })),
       api<Page<Artist>>('/artists?limit=500').catch(() => ({ items: [], total: 0 })),
-      api<CollectionsHome>('/collections/home').catch(() => null),
     ])
-    // the newest week of each chart source and today's themes
-    const seen = new Set<number>()
-    charts.value = ch ? [...ch.hero, ...ch.picks].filter((c) => !seen.has(c.id) && seen.add(c.id)).slice(0, 12) : []
     genres.value = [...g.items].sort((a, b) => b.track_count - a.track_count).slice(0, 16)
     artists.value = [...ar.items].sort((a, b) => b.track_count - a.track_count).slice(0, 8)
   }
@@ -97,19 +95,15 @@ function playVideo(v: VideoListItem) {
   ui.videoQueue = { items: videos.value, start: videos.value.indexOf(v) }
 }
 
-function submit() {
-  if (text.value.trim()) router.push({ name: 'search', query: { q: text.value.trim() } })
+function submit(q: string = text.value) {
+  if (q.trim()) router.push({ name: 'search', query: { q: q.trim() } })
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-7">
     <PageHeader :title="t('explore.title')" />
-    <form role="search" class="flex h-[50px] items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="submit">
-      <Search :size="22" :stroke-width="1.4" class="text-muted" aria-hidden="true" />
-      <label for="explore-search" class="sr-only">{{ t('search.label') }}</label>
-      <input id="explore-search" v-model="text" type="search" enterkeyhint="search" :placeholder="t('search.placeholder')" class="min-w-0 flex-1 bg-transparent text-[17px] font-light outline-none placeholder:text-muted" />
-    </form>
+    <SearchBox id="explore-search" v-model="text" large :placeholder="t('search.placeholder')" @submit="submit" />
 
     <template v-if="q">
       <h2 class="text-[22px] font-bold">{{ t('search.resultsFor', { q }) }}</h2>
@@ -187,17 +181,19 @@ function submit() {
     </template>
 
     <template v-else>
-      <RouterLink to="/radio" class="flex items-center gap-4 rounded-2xl bg-surface p-4 hover:bg-surface-2">
-        <span class="grid size-12 flex-none place-items-center rounded-full bg-danger text-white"><Radio :size="24" :stroke-width="1.6" /></span>
-        <span class="flex min-w-0 flex-1 flex-col">
-          <span class="text-[17px] font-medium">{{ t('radio.explore') }}</span>
-          <span class="truncate text-sm font-light text-muted">{{ t('radio.exploreSub') }}</span>
-        </span>
-        <ChevronRight :size="20" class="text-subtle" />
-      </RouterLink>
-      <section v-if="charts.length" class="flex flex-col gap-3.5">
-        <RouterLink to="/charts" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.charts') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
-        <ChartGrid :charts="charts" row />
+      <!-- recent searches (this device) -->
+      <section class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-[22px] font-bold">{{ t('search.recent') }}</h2>
+          <button v-if="history.recent.value.length" type="button" class="text-[14px] text-muted hover:text-ink" @click="history.clear()">{{ t('search.clearRecent') }}</button>
+        </div>
+        <p v-if="!history.recent.value.length" class="font-light text-muted">{{ t('search.noRecent') }}</p>
+        <div v-else class="flex flex-wrap gap-2">
+          <span v-for="r in history.recent.value" :key="r" class="flex h-10 items-center rounded-full border border-line-strong pl-3.5 pr-1">
+            <button type="button" class="flex items-center gap-1.5 text-[15px] font-light" @click="submit(r)"><Clock :size="14" :stroke-width="1.5" class="text-muted" />{{ r }}</button>
+            <button type="button" class="ml-1 grid size-8 place-items-center rounded-full text-muted hover:text-ink" :aria-label="`${t('search.removeRecent')}: ${r}`" @click="history.remove(r)"><X :size="14" :stroke-width="1.6" /></button>
+          </span>
+        </div>
       </section>
       <section v-if="genres.length" class="flex flex-col gap-3.5">
         <RouterLink to="/genres" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.genres') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>

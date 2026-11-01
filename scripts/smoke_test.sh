@@ -75,6 +75,7 @@ check "search index built" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["
 # lyrics: the song's own, else looked up once (needs the internet: only the shape is checked) and kept
 check "lyrics answer" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics" | j 'sorted(d)')" "['plain', 'synced']"
 check "lyrics answer again" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/$fid/lyrics")" 200
+check "search box suggests words" "$(curl -s -b "$A" "$BASE/search/suggest?q=a" | j 'sorted(d)')" "['items']"
 check "songs say whether they have lyrics" "$(curl -s -b "$A" "$BASE/tracks?limit=1" | j '"has_lyrics" in d["items"][0]')" True
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
 check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t in d["items"]].count('"$tid"')')" 1
@@ -187,6 +188,7 @@ check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/nul
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
 check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
+check "no similar videos of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/related")" 404
 check "liked videos answer" "$(curl -s -b "$A" "$BASE/videos?liked=true" | j 'sorted(d)')" "['items', 'total']"
 check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"

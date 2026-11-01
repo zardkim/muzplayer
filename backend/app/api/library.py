@@ -585,3 +585,56 @@ def lyrics(track_id: int, _: User = Depends(current_user), db: Session = Depends
             found = fetched
     cache = "private, max-age=600" if found["synced"] or found["plain"] else "no-cache"
     return JSONResponse(found, headers={"Cache-Control": cache})
+
+
+@router.get("/search/suggest")
+def search_suggest(
+    q: str = Query(min_length=1, max_length=100),
+    limit: int = Query(8, ge=1, le=20),
+    _: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """Words to search for while typing (the search box): artists, albums and songs of the library
+    whose names match (Korean initials too), the ones starting with it first; each name once."""
+    conds_a = search_index.matches(Artist.search_text, q)
+    conds_b = search_index.matches(Album.search_text, q)
+    conds_t = search_index.matches(Track.search_text, q)
+    has_songs = exists().where(Track.artist_id == Artist.id, present_tracks(), Track.chart_id.is_(None)).correlate(Artist)
+    found: list[tuple[str, str, str]] = []  # (text, kind, under it)
+    found += [(n, "artist", "") for (n,) in db.execute(select(Artist.name).where(has_songs, *conds_a).limit(limit * 3))]
+    found += [
+        (title, "album", artist or "")
+        for title, artist in db.execute(
+            select(Album.title, AlbumArtist.name)
+            .outerjoin(AlbumArtist, AlbumArtist.id == Album.album_artist_id)
+            .where(not_chart(), *conds_b)
+            .limit(limit * 6)  # some match by their artist only: dropped below
+        )
+    ]
+    found += [
+        (title, "track", artist or "")
+        for title, artist in db.execute(select(Track.title, Track.artist_text).where(listed_tracks(), *conds_t).limit(limit * 10))
+    ]
+    want = search_index.norm(q)
+    bare = want.replace(" ", "")
+
+    def own(text: str) -> bool:
+        """The name itself has it (an album or song found by its artist is not suggested by its title)."""
+        return want in search_index.norm(text) or (bool(bare) and bare in search_index.norm(search_index.initials(text)))  # norm: as indexed (ㅂ -> its conjoining form)
+
+    found = [f for f in found if f[1] == "artist" or own(f[0])]
+
+    def rank(item: tuple[str, str, str]) -> tuple:
+        name = search_index.norm(item[0])
+        return (not name.startswith(want), want not in name, {"artist": 0, "album": 1, "track": 2}[item[1]], len(name))
+
+    out, seen = [], set()
+    for text, kind, sub in sorted(found, key=rank):
+        key = search_index.norm(text)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append({"text": text, "kind": kind, "sub": sub})
+        if len(out) >= limit:
+            break
+    return {"items": out}

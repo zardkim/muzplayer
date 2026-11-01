@@ -41,7 +41,11 @@
     "tab_albums": "Albums",
     "tab_artists": "Artists",
     "tab_books": "Audiobooks",
-    "tab_videos": "Music videos"
+    "tab_videos": "Music videos",
+    "recent": "Recent searches",
+    "clearRecent": "Clear all",
+    "removeRecent": "Remove",
+    "noRecent": "No recent searches."
   },
   "login": {
     "username": "Username",
@@ -886,7 +890,10 @@
     "linkHint": "Type a song title or artist and pick the song.",
     "linkSearch": "Find a song",
     "linkNone": "No songs found.",
-    "liked": "Liked"
+    "liked": "Liked",
+    "nextUp": "Up next",
+    "similarVideos": "Similar music videos",
+    "similarArtists": "Similar artists"
   },
   "folders": {
     "root": "Music",

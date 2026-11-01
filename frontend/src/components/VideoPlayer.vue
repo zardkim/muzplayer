@@ -2,22 +2,25 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ExternalLink, ListPlus, Repeat, Shuffle } from '@lucide/vue'
+import { api } from '../api'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { VideoListItem } from '../types'
 import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 import PlayerIcons from './PlayerIcons.vue'
+import ArtistPhoto from './ArtistPhoto.vue'
 import VideoThumb from './VideoThumb.vue'
 
 // The video player (ui.videoQueue): videos played large, one after another or shuffled, YouTube
 // ones with YouTube's player, NAS files with the browser's. From the Music videos page, a search,
-// or a video playlist. The music pauses while a video plays.
+// or a video playlist. The music pauses while a video plays. Under it: what plays next, similar
+// music videos (one picked plays now) and similar artists (their pages).
 const { t } = useI18n()
 const ui = useUi()
 const player = usePlayer()
 const queue = ui.videoQueue!
-const items = queue.items
+const items = [...queue.items] // a similar video picked joins it
 
 const shuffle = ref(!!queue.shuffle)
 const repeat = ref(false)
@@ -63,9 +66,6 @@ function replay() {
 }
 function prev() {
   if (pos.value > 0) pos.value--
-}
-function jump(i: number) {
-  pos.value = order.value.indexOf(i)
 }
 
 // ---- YouTube's IFrame player (made once, given each YouTube video in turn) ----
@@ -114,6 +114,34 @@ async function show(v: VideoListItem | undefined) {
 }
 
 watch(current, (v) => show(v))
+
+// ---- similar music videos and artists (of the one playing) ----
+type Related = { videos: VideoListItem[]; artists: { id: number; name: string; image_v: number }[] }
+const related = ref<Related | null>(null)
+watch(
+  () => current.value?.id,
+  async (id) => {
+    if (!id) return
+    try {
+      const r = await api<Related>(`/videos/${id}/related`)
+      if (current.value?.id === id) related.value = r
+    } catch {
+      related.value = null
+    }
+  },
+  { immediate: true },
+)
+const upNext = computed(() => (pos.value + 1 < order.value.length ? items[order.value[pos.value + 1]] : null))
+/** A similar video: played now, the rest of the list after it. */
+function playRelated(v: VideoListItem) {
+  let i = items.findIndex((x) => x.id === v.id)
+  if (i < 0) i = items.push(v) - 1
+  const at = order.value.indexOf(i)
+  if (at >= 0) order.value.splice(at, 1)
+  const here = order.value.indexOf(order.value[pos.value])
+  order.value.splice(here + 1, 0, i)
+  pos.value = here + 1
+}
 onMounted(() => {
   arrange(Math.min(Math.max(queue.start, 0), items.length - 1))
   show(current.value)
@@ -181,25 +209,36 @@ function close() {
       </div>
       <button v-if="pausedMusic" type="button" class="-mt-2 self-start text-[14px] text-accent underline" @click="player.toggle(), (pausedMusic = false)">{{ t('videos.resumeMusic') }}</button>
 
-      <!-- up next: in play order -->
-      <section v-if="order.length > 1" class="flex flex-col gap-1">
-        <h3 class="text-[13px] font-medium text-muted">{{ t('videos.upNext', { n: pos + 1, total: order.length }) }}</h3>
-        <ol class="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-          <li v-for="(i, k) in order" :key="`${i}-${k}`">
-            <button
-              type="button"
-              class="flex w-full items-center gap-3 rounded-xl p-1.5 text-left"
-              :class="k === pos ? 'bg-accent-soft' : 'hover:bg-surface'"
-              :aria-current="k === pos"
-              @click="jump(i)"
-            >
-              <span class="relative aspect-video w-24 flex-none overflow-hidden rounded-lg bg-surface">
-                <VideoThumb :video="items[i]" :icon="18" :length="false" />
+      <!-- what plays next (the whole order stays behind the arrows and shuffle) -->
+      <button v-if="upNext" type="button" class="-mt-1 flex min-w-0 items-center gap-2 self-start text-[13px] text-muted hover:text-ink" @click="next">
+        <span class="flex-none">{{ t('videos.nextUp') }}</span><span class="truncate text-ink">{{ upNext.title }}</span>
+      </button>
+
+      <!-- similar music videos -->
+      <section v-if="related?.videos.length" class="flex flex-col gap-2">
+        <h3 class="text-[15px] font-bold">{{ t('videos.similarVideos') }}</h3>
+        <ul class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
+          <li v-for="v in related.videos" :key="v.id">
+            <button type="button" class="group flex w-full flex-col gap-1.5 text-left" :aria-label="`${t('videos.play')}: ${v.title}`" @click="playRelated(v)">
+              <span class="relative block aspect-video w-full overflow-hidden rounded-lg bg-surface">
+                <VideoThumb :video="v" :icon="20" />
               </span>
-              <span class="line-clamp-2 min-w-0 text-[13px] leading-snug" :class="k === pos ? 'font-medium text-accent' : ''">{{ items[i].title }}</span>
+              <span class="line-clamp-2 text-[13px] leading-snug">{{ v.title }}</span>
+              <span v-if="v.target" class="truncate text-[12px] text-muted">{{ v.target.artist || v.target.title }}</span>
             </button>
           </li>
-        </ol>
+        </ul>
+      </section>
+
+      <!-- similar artists: their pages -->
+      <section v-if="related?.artists.length" class="flex flex-col gap-2">
+        <h3 class="text-[15px] font-bold">{{ t('videos.similarArtists') }}</h3>
+        <div class="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          <RouterLink v-for="a in related.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex w-20 flex-none flex-col items-center gap-1.5 text-center">
+            <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-20" />
+            <span class="line-clamp-2 text-[12px] leading-tight">{{ a.name }}</span>
+          </RouterLink>
+        </div>
       </section>
     </div>
   </BaseModal>

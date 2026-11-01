@@ -29,6 +29,7 @@ import PlaylistPicker from './components/PlaylistPicker.vue'
 import DevicesSheet from './components/DevicesSheet.vue'
 import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
+import SearchBox from './components/SearchBox.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import VideoPlaylistPicker from './components/VideoPlaylistPicker.vue'
 import VideoLinkSheet from './components/VideoLinkSheet.vue'
@@ -312,11 +313,14 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
             <ArrowRight :size="19" :stroke-width="1.6" />
           </button>
         </div>
-        <form role="search" class="flex h-[46px] max-w-[420px] flex-1 items-center gap-2.5 rounded-full bg-surface px-[18px]" @submit.prevent="search">
-          <Search :size="20" :stroke-width="1.4" class="text-muted" aria-hidden="true" />
-          <label for="top-search" class="sr-only">{{ t('search.label') }}</label>
-          <input id="top-search" v-model="searchText" type="search" :placeholder="t(searchBooks ? 'books.searchPlaceholder' : 'search.placeholder')" class="min-w-0 flex-1 bg-transparent text-[15px] font-light outline-none placeholder:text-muted" />
-        </form>
+        <SearchBox
+          id="top-search"
+          v-model="searchText"
+          class="max-w-[420px] flex-1"
+          :placeholder="t(searchBooks ? 'books.searchPlaceholder' : 'search.placeholder')"
+          :suggest="!searchBooks"
+          @submit="search"
+        />
         <AccountMenu avatar />
       </header>
 
