@@ -307,6 +307,18 @@ def video_thumb(video_id: int, _: User = Depends(current_user), db: Session = De
     return FileResponse(thumb, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
 
 
+@router.post("/videos/{video_id}/thumb", status_code=204)
+def remake_video_thumb(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A NAS file's thumbnail made again from another scene (who added it, or an admin)."""
+    video = _editable(db, user, video_id)
+    path = _inside(video.file_path) if video.file_path else None
+    if path is None:
+        raise api_error(404, "not_found")
+    db.close()
+    if not video_thumbs.remake(video_id, path):
+        raise api_error(503, "thumb_failed")
+
+
 @router.get("/videos/{video_id}/file")
 def video_file(video_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """The file itself, for <video> (seeking uses Range requests)."""

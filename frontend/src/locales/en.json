@@ -127,7 +127,8 @@
     "signup_closed": "Sign-up is closed.",
     "too_many_signups": "Too many sign-ups. Try again later.",
     "radio_busy": "Too many people are listening to the radio now. Try again shortly.",
-    "radio_unavailable": "Couldn't get this station's stream now."
+    "radio_unavailable": "Couldn't get this station's stream now.",
+    "thumb_failed": "Couldn’t make a thumbnail: this video format isn’t supported."
   },
   "common": {
     "unknownArtist": "Unknown artist",
@@ -867,7 +868,11 @@
     "playlistEmpty": "No videos yet. On the Music videos page, use a video’s ⋮ menu → Add to a video playlist.",
     "renamePlaylist": "Rename",
     "deletePlaylist": "Delete playlist",
-    "noPlaylists": "No video playlists yet."
+    "noPlaylists": "No video playlists yet.",
+    "renameVideo": "Rename",
+    "remakeThumb": "New thumbnail (another scene)",
+    "thumbMade": "Made a new thumbnail",
+    "thumbMaking": "Making a thumbnail…"
   },
   "folders": {
     "root": "Music",

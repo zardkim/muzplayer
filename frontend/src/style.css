@@ -150,6 +150,8 @@ input[type="range"].seek::-moz-range-thumb {
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+/* only on boxes without bottom padding of their own: being outside Tailwind's layers it wins over
+   pb-5 and the like (with one, use pb-[calc(1.25rem+env(safe-area-inset-bottom))]) */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }

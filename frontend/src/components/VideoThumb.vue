@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Film } from '@lucide/vue'
+import { useUi } from '../stores/ui'
 import type { Video } from '../types'
 import { youtubeThumb } from '../youtube'
 
@@ -10,9 +11,16 @@ const props = withDefaults(defineProps<{ video: Pick<Video, 'id' | 'youtube_id'>
   icon: 22,
   length: true,
 })
+const ui = useUi()
 const failed = ref(false)
 watch(() => props.video.id, () => (failed.value = false))
-const src = computed(() => (props.video.youtube_id ? youtubeThumb(props.video.youtube_id) : `/api/v1/videos/${props.video.id}/thumb`))
+// ?v: the browser keeps thumbnails a day; a new version of them (video_thumbs.VERSION) is a new address
+const src = computed(() => {
+  if (props.video.youtube_id) return youtubeThumb(props.video.youtube_id)
+  const bust = ui.thumbBust[props.video.id]
+  return `/api/v1/videos/${props.video.id}/thumb?v=2${bust ? `&t=${bust}` : ''}`
+})
+watch(src, () => (failed.value = false))
 const time = computed(() => {
   const s = props.video.duration
   if (!s) return ''

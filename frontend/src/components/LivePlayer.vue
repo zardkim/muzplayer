@@ -148,7 +148,7 @@ const flick = useSwipe({
         </div>
       </div>
 
-      <div class="pb-safe mt-auto grid grid-cols-2 gap-2 pb-5 pt-8">
+      <div class="mt-auto grid grid-cols-2 gap-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-8">
         <button type="button" class="flex h-11 items-center justify-center gap-1.5 rounded-full border border-line-strong text-[14px]" @click="toList">
           <Radio :size="16" :stroke-width="1.6" />{{ t('radio.allStations') }}
         </button>

@@ -9,21 +9,22 @@ RUN npm run build
 # ---- ffmpeg: only what music needs (decode the library's formats, encode MP3, change volume; the
 # null muxer with pcm_s16le decodes a damaged MP3 to measure it: scanner._read_damaged; mpegts for
 # radio HLS segments: radio.py), and one frame of a music video on the NAS as a JPEG thumbnail
-# (video_thumbs.py: H.264/HEVC/VP8/VP9/MPEG-4 in mp4/mov/mkv/webm/avi, scaled down) ----
+# (video_thumbs.py: H.264/HEVC/VP8/VP9/MPEG-4 in mp4/mov/mkv/webm/avi, scaled down). Built with its
+# assembly (nasm): without it, swscale's fast paths drew pink stripes and decoding is slower ----
 # Debian's ffmpeg package would add about 600 MB; this static build is a few MB.
 FROM python:3.12-slim AS ffmpeg
 ARG FFMPEG_VERSION=7.1.1
 # from ffmpeg.org, release signature checked (key FCF986EA15E6E293A5644F10B4322F04D67658D8)
 ARG FFMPEG_SHA256=733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential ca-certificates curl xz-utils libmp3lame-dev \
+ && apt-get install -y --no-install-recommends build-essential ca-certificates curl xz-utils libmp3lame-dev nasm \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o ffmpeg.tar.xz \
  && echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c - \
  && tar xf ffmpeg.tar.xz --strip-components=1
 RUN ./configure --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-network \
-      --disable-ffplay --disable-ffprobe --disable-avdevice --disable-x86asm \
+      --disable-ffplay --disable-ffprobe --disable-avdevice \
       --enable-static --disable-shared --extra-ldexeflags=-static \
       --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le,mjpeg --enable-muxer=mp3,null,image2 \
       --enable-protocol=file,pipe \

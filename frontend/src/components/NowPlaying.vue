@@ -173,7 +173,7 @@ const flick = useSwipe({
         <SeekBar :value="player.currentTime" :max="player.duration" :label="t('player.seek')" track="color-mix(in srgb, var(--color-ink) 12%, transparent)" @change="player.seek" @preview="(v) => (preview = v)" />
       </div>
 
-      <div class="pb-safe relative flex flex-1 flex-col px-5 pb-6">
+      <div class="relative flex flex-1 flex-col px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div class="flex items-center justify-between font-display text-sm text-soft">
           <span>{{ duration(preview ?? player.currentTime) }}</span>
           <span class="flex items-center gap-2">

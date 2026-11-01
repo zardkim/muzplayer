@@ -170,7 +170,7 @@ const flick = useSwipe({
 
       <p class="mt-2 text-center text-[13px] text-muted">{{ t('player.bookLeft', { time: longDuration(bookLeft) }) }}</p>
 
-      <div class="pb-safe mt-auto grid grid-cols-3 gap-2 pb-5 pt-4">
+      <div class="mt-auto grid grid-cols-3 gap-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4">
         <button type="button" class="flex h-11 items-center justify-center gap-1.5 rounded-full border border-line-strong text-[14px]" :aria-label="t('player.speed')" @click="sheet = 'speed'">
           <span class="font-display font-semibold">{{ player.rate }}×</span>
         </button>

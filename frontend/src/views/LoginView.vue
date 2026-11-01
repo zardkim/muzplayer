@@ -66,7 +66,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="pb-safe mx-auto flex min-h-dvh max-w-sm flex-col px-6 pb-8 pt-[calc(env(safe-area-inset-top)+24px)]">
+  <div class="mx-auto flex min-h-dvh max-w-sm flex-col px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+24px)]">
     <div class="-mr-3 flex justify-end"><LanguageMenu /></div>
     <div class="flex flex-1 flex-col justify-center gap-10">
       <div class="flex flex-col items-center gap-4">
