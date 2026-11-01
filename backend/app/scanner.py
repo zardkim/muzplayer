@@ -43,6 +43,21 @@ RANK_PREFIX = re.compile(r"^\s*(\d{1,3})(?:[\s._\-)\]]+)")
 DISC_DIR = re.compile(r"^(?:cd|disc|disk)\s*[-_.]?\s*(\d+)$", re.IGNORECASE)
 BANNER_NAMES = ("banner.jpg", "banner.jpeg", "banner.png", "banner.webp")
 
+# Folders a NAS, Windows or a Mac makes for itself: never music, never shown. By prefix: . (hidden,
+# .dav, .Trash-1000) and @ (Synology @eaDir, @tmp); the rest by name (casefolded), so a real album
+# folder such as "#1 Hits" or "$uicideboy$" stays.
+SYSTEM_DIR_PREFIXES = (".", "@")
+SYSTEM_DIR_NAMES = {
+    "#recycle", "#snapshot", "$recycle.bin", "recycler", "system volume information", "lost+found",
+    "recycle bin", "trash", "trashes", "휴지통", "eadir", "easydir", "network trash folder", "temporary items",
+}
+
+
+def system_dir(name: str) -> bool:
+    """A recycle bin, thumbnail cache or other folder the system made (see SYSTEM_DIR_NAMES)."""
+    return name.startswith(SYSTEM_DIR_PREFIXES) or nfc(name).casefold() in SYSTEM_DIR_NAMES
+
+
 _lock = threading.Lock()
 _cancel = threading.Event()  # set by an admin's "stop scan"; checked between files
 
@@ -666,7 +681,7 @@ def _walk(
                     skipped = (directory == root and nfc(entry.name) in skip_top) or (
                         os.path.normpath(entry.path) in skip_paths
                     )
-                    if not entry.name.startswith("@") and not skipped:  # @: Synology @eaDir etc.
+                    if not system_dir(entry.name) and not skipped:  # recycle bins, @eaDir...
                         stack.append(Path(entry.path))
                     continue
                 if entry.is_symlink() and not os.path.exists(entry.path):

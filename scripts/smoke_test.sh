@@ -221,6 +221,14 @@ if [ "$(curl -s "$BASE/config" | j 'd["audiobooks"]')" = True ]; then
   fi
 fi
 
+# recycle bins and NAS thumbnail folders are never scanned or listed
+scan >/dev/null  # a whole-library scan to compare with
+before=$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["scanned"]')
+mkdir -p "$MUSIC/#recycle"; cp "$(find "$MUSIC" -type f -name '*.mp3' | head -1)" "$MUSIC/#recycle/smoke-trash.mp3"
+check "scan with a recycle bin" "$(scan)" done
+check "recycle bin not indexed or listed" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["scanned"]')/$(curl -s -b "$A" "$BASE/admin/folders" | j '"#recycle" in [f["path"] for f in d["items"]]')" "$before/False"
+rm -rf "$MUSIC/#recycle"
+
 # removing a file hides it but keeps it in playlists
 path=$(find "$MUSIC" -type f -name '*.mp3' | head -1)
 MOVED="$path"

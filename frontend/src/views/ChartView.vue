@@ -6,18 +6,16 @@ import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
-import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { ChartDetail, CollectionBanner } from '../types'
 import BannerCard from '../components/BannerCard.vue'
 import BannerSheet from '../components/BannerSheet.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const auth = useAuth()
-const player = usePlayer()
 const ui = useUi()
 const chart = ref<ChartDetail | null>(null)
 const error = ref('')
@@ -52,10 +50,7 @@ function applied(banner: CollectionBanner | null) {
     </BannerCard>
     <h1 class="sr-only">{{ chart.title }}</h1>
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="player.playTracks(chart.tracks, 0, { shuffle: false })">
-        <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
-      </button>
-      <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="player.playTracks(chart.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+      <PlayActions :tracks="chart.tracks" />
       <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="ui.playlistPicker = chart.tracks">{{ t('charts.copyToPlaylist') }}</button>
     </div>
     <TrackList :tracks="chart.tracks" :ranked="chart.tracks.some((tr) => tr.chart_position != null)" />

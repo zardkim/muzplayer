@@ -3,11 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api, query } from '../api'
-import { usePlayer } from '../stores/player'
 import type { Genre, Page, Track } from '../types'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import PageHeader from '../components/PageHeader.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
 import TrackTiles from '../components/TrackTiles.vue'
 import ViewToggle from '../components/ViewToggle.vue'
@@ -17,7 +16,6 @@ import type { ViewMode } from '../types'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const player = usePlayer()
 const ui = useUi()
 const view = computed(() => (ui.views.tracks as ViewMode) || 'list')
 const sort = computed(() => (typeof route.query.sort === 'string' ? route.query.sort : 'title'))
@@ -60,10 +58,7 @@ const sorts = [
     <div class="flex items-center gap-2">
     <!-- the buttons scroll in their own space; the view switch keeps its place beside them -->
     <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none]">
-      <button type="button" class="flex h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: false })">
-        <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
-      </button>
-      <button type="button" class="h-[38px] flex-none rounded-full border border-line-strong px-4 text-[15px]" :disabled="!items.length" @click="player.playTracks(items, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+      <PlayActions :tracks="items" :add="false" />
       <template v-if="!genreId">
         <span class="mx-1 w-px flex-none bg-line" />
         <button

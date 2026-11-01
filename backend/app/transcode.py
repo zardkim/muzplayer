@@ -23,7 +23,6 @@ import os
 import shutil
 import subprocess
 import threading
-import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 

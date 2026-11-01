@@ -180,7 +180,8 @@
     "view_grid": "격자형",
     "startRadio": "이 곡으로 라디오",
     "popular": "인기",
-    "playNextDone": "\"{title}\" 다음에 재생"
+    "playNextDone": "\"{title}\" 다음에 재생",
+    "repeatAll": "반복 재생"
   },
   "home": {
     "recent": "최근 재생",

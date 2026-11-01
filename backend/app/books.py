@@ -185,7 +185,8 @@ def _read_book(
     for rel, disc in entries:
         path = root / rel
         st = path.stat()
-        raw, length = _read_tags(path)
+        raw, info = _read_tags(path)
+        length = info["duration"]
         if not length:
             raise ValueError(f"unknown duration: {rel}")
         track = re.match(r"\s*(\d+)", _first(raw, "tracknumber") or "")

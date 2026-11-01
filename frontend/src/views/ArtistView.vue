@@ -5,17 +5,15 @@ import { Camera } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
-import { usePlayer } from '../stores/player'
 import type { ArtistDetail } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import ArtistPhotoSheet from '../components/ArtistPhotoSheet.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
-const player = usePlayer()
 const auth = useAuth()
 const photoSheet = ref(false)
 const artist = ref<ArtistDetail | null>(null)
@@ -63,10 +61,7 @@ function photoChanged() {
           <template v-if="artist.albums.length">{{ t('common.albums', artist.albums.length) }} · </template>{{ t('common.tracks', artist.tracks.length) }}
         </span>
         <div v-if="artist.tracks.length" class="flex flex-wrap justify-center gap-2 md:justify-start">
-          <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink px-[22px] text-[15px] text-on-ink" @click="player.playTracks(artist.tracks, 0, { shuffle: false })">
-            <PlayerIcons name="play" :size="16" :stroke="1.8" />{{ t('common.listenAll') }}
-          </button>
-          <button type="button" class="h-11 rounded-full border border-line-strong px-5 text-[15px]" @click="player.playTracks(artist.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+          <PlayActions :tracks="artist.tracks" large />
         </div>
         <a v-if="artist.image_credit" :href="artist.image_credit.url" target="_blank" rel="noopener noreferrer" class="text-[12px] font-light text-subtle hover:text-muted hover:underline">
           {{ t('artists.photoCredit', { title: artist.image_credit.title }) }}

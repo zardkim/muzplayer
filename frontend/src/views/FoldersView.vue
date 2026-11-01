@@ -5,18 +5,16 @@ import { useI18n } from 'vue-i18n'
 import { ChevronRight, Folder } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
-import { usePlayer } from '../stores/player'
 import type { FolderListing } from '../types'
 import CoverArt from '../components/CoverArt.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
 
 // The music folder as scanned: subfolders, then the songs directly in this folder.
 // Each level is its own history entry (?path=), so back goes up one level.
 const { t } = useI18n()
 const route = useRoute()
-const player = usePlayer()
 const path = typeof route.query.path === 'string' ? route.query.path : ''
 const listing = ref<FolderListing | null>(null)
 const error = ref('')
@@ -78,10 +76,7 @@ const sub = computed(() => {
 
     <section v-if="listing?.tracks.length" class="flex flex-col gap-3">
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="player.playTracks(listing.tracks, 0, { shuffle: false })">
-          <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
-        </button>
-        <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="player.playTracks(listing.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+        <PlayActions :tracks="listing.tracks" />
       </div>
       <TrackList :tracks="listing.tracks" show-cover show-album />
     </section>

@@ -19,7 +19,7 @@ import re
 import threading
 import unicodedata
 
-from sqlalchemy import ColumnElement, select, update
+from sqlalchemy import ColumnElement, false, select, update
 from sqlalchemy.orm import Session
 
 from .models import Album, Artist, LibraryState, Track
@@ -73,6 +73,8 @@ def _escape(word: str) -> str:
 def matches(column, q: str) -> list[ColumnElement[bool]]:
     """Conditions for a query: each of its words somewhere in the column's search_text."""
     words = list(dict.fromkeys(norm(q).split()))[:MAX_WORDS]
+    if not words:  # only punctuation ("!!!"): nothing matches, rather than everything
+        return [false()]
     return [column.like(f"%{_escape(w)}%") for w in words]
 
 

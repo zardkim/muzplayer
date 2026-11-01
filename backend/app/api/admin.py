@@ -16,7 +16,7 @@ from ..models import (
 )
 from ..scanner import (
     FOLDER_KINDS, in_folder, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running,
-    start_scan,
+    start_scan, system_dir,
 )
 from ..security import admin_user, api_error, delete_user_sessions, hash_password, now
 from .auth import user_out
@@ -157,11 +157,12 @@ def suggest_kind(name: str) -> str | None:
 @router.get("/folders")
 def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Top-level folders of the library with their kind and how many tracks they hold."""
-    kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder))}
+    # (recycle bins, @eaDir and the like are never listed: scanner.system_dir)
+    kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder)) if not system_dir(f.path)}
     names: set[str] = set()
     try:
         for entry in os.scandir(settings.music_dir):
-            if not entry.name.startswith((".", "@")) and entry.is_dir(follow_symlinks=True):
+            if not system_dir(entry.name) and entry.is_dir(follow_symlinks=True):
                 names.add(nfc(entry.name))
     except OSError:
         pass  # library not mounted: still show the stored kinds
@@ -234,7 +235,8 @@ def list_users(_: User = Depends(admin_user), db: Session = Depends(get_db, scop
 
 @router.post("/users", status_code=201)
 def create_user(body: UserCreate, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
-    if db.scalar(select(User.id).where(User.username == body.username)) is not None:
+    # "Admin" next to "admin" would be two accounts people can't tell apart (sign-up checks the same)
+    if db.scalar(select(User.id).where(func.lower(User.username) == body.username.lower())) is not None:
         raise api_error(409, "username_taken")
     user = User(
         username=body.username,
@@ -493,6 +495,7 @@ def search_notes(album_id: int, q: str = Query("", max_length=200), _: User = De
     if not q.strip():
         artist = db.get(Artist, album.album_artist_id) if album.album_artist_id else None
         q = f"{artist.name if artist else ''} {album.title}".strip()
+    db.commit()  # the sites take seconds: don't hold a pool connection meanwhile
     return {"q": q, "items": album_notes.search(q)}
 
 
@@ -501,6 +504,7 @@ def fetch_notes(album_id: int, provider: str = Query(pattern="^(bugs|melon)$"), 
                 _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """The introduction on that Bugs/Melon album page, to look at before saving."""
     _album(db, album_id)
+    db.commit()  # as above
     try:
         text = album_notes.fetch(provider, id)
     except Exception:  # noqa: BLE001 - the site didn't answer or changed

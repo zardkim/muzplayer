@@ -6,20 +6,18 @@ import { Pencil, SlidersHorizontal, Trash2 } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
-import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Playlist, PlaylistDetail } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PageHeader from '../components/PageHeader.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const router = useRouter()
-const player = usePlayer()
 const library = useLibrary()
 const ui = useUi()
 const playlist = ref<PlaylistDetail | null>(null)
@@ -109,10 +107,7 @@ async function destroy() {
   <div v-else-if="playlist" class="flex flex-col gap-5">
     <PageHeader :title="playlist.name" :sub="smart ? `${t('smart.badge')} · ${t('common.tracks', playlist.entries.length)}` : t('common.tracks', playlist.entries.length)" />
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: false })">
-        <PlayerIcons name="play" :size="14" :stroke="2" />{{ t('common.listenAll') }}
-      </button>
-      <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="player.playTracks(tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
+      <PlayActions :tracks="tracks" :add="false" />
       <button v-if="smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
       </button>

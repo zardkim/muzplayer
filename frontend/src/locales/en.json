@@ -180,7 +180,8 @@
     "view_grid": "Grid",
     "startRadio": "Start radio from this song",
     "popular": "Popular",
-    "playNextDone": "\"{title}\" plays next"
+    "playNextDone": "\"{title}\" plays next",
+    "repeatAll": "Play on repeat"
   },
   "home": {
     "recent": "Recently played",

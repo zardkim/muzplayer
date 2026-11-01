@@ -6,14 +6,13 @@ import { api } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
-import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { AlbumDetail } from '../types'
 import AccountMenu from '../components/AccountMenu.vue'
 import AlbumNotesSheet from '../components/AlbumNotesSheet.vue'
 import CoverArt from '../components/CoverArt.vue'
 import DownloadButton from '../components/DownloadButton.vue'
-import PlayerIcons from '../components/PlayerIcons.vue'
+import PlayActions from '../components/PlayActions.vue'
 import QualityBadge from '../components/QualityBadge.vue'
 import StarRating from '../components/StarRating.vue'
 import TrackList from '../components/TrackList.vue'
@@ -21,7 +20,6 @@ import TrackList from '../components/TrackList.vue'
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const auth = useAuth()
-const player = usePlayer()
 const ui = useUi()
 const album = ref<AlbumDetail | null>(null)
 const error = ref('')
@@ -107,11 +105,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
           <span v-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>
         </div>
         <div class="mt-2 flex flex-wrap gap-2">
-          <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink px-[22px] text-[15px] text-on-ink" @click="player.playTracks(album.tracks, 0, { shuffle: false })">
-            <PlayerIcons name="play" :size="16" :stroke="1.8" />{{ t('common.listenAll') }}
-          </button>
-          <button type="button" class="h-11 rounded-full border border-line-strong px-5 text-[15px]" @click="player.playTracks(album.tracks, 0, { shuffle: true })">{{ t('common.shuffleAll') }}</button>
-          <button type="button" class="h-11 rounded-full border border-line-strong px-5 text-[15px]" @click="ui.playlistPicker = album.tracks">{{ t('common.addShort') }}</button>
+          <PlayActions :tracks="album.tracks" large />
           <button
             type="button"
             class="grid size-11 place-items-center rounded-full border border-line-strong"
