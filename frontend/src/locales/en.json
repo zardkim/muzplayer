@@ -28,7 +28,8 @@
     "back": "Back",
     "forward": "Forward",
     "radio": "Radio",
-    "videos": "Music videos"
+    "videos": "Music videos",
+    "account": "Account"
   },
   "search": {
     "label": "Search",
@@ -193,7 +194,8 @@
     "startRadio": "Start radio from this song",
     "popular": "Popular",
     "playNextDone": "\"{title}\" plays next",
-    "repeatAll": "Play on repeat"
+    "repeatAll": "Play on repeat",
+    "add": "Add"
   },
   "home": {
     "recent": "Recently played",
@@ -267,12 +269,16 @@
     "new": "New playlist",
     "name": "Playlist name",
     "empty": "No playlists yet.",
-    "emptyTracks": "Add songs from any list with the ⋯ menu.",
+    "emptyTracks": "Use Add songs to search and add, or a song’s ⋮ menu.",
     "deleteConfirm": "Delete the playlist “{name}”?",
     "chooseTitle": "Choose a playlist",
     "smart": "Smart",
     "addedSkipped": "Added {n} (skipped {skipped} already there)",
-    "alreadyThere": "Already in this playlist"
+    "alreadyThere": "Already in this playlist",
+    "addSongs": "Add songs to ‘{name}’",
+    "addSongsButton": "Add songs",
+    "addHint": "Search for a song, artist or album to add.",
+    "inList": "In the list"
   },
   "favorites": {
     "title": "Liked",
@@ -846,8 +852,8 @@
     "more": "Show more",
     "play": "Play video",
     "nas": "NAS",
-    "addFile": "Add NAS videos",
-    "filesTitle": "Add NAS videos",
+    "addFile": "Add local videos",
+    "filesTitle": "Add local videos",
     "filesHint": "Video files in library/video on the NAS (sub-folders too). Pick a kind and add them.",
     "noFolder": "There is no library/video folder. Make a video folder in library inside the muzplayer folder on the NAS, put video files in it and open this again.",
     "noFiles": "No video files in the video folder (mp4, m4v, webm, mov, mkv).",
@@ -899,7 +905,10 @@
     "similarVideos": "Similar music videos",
     "similarArtists": "Similar artists",
     "myVideoPlaylists": "My video playlists",
-    "pickerEmpty": "No video playlists yet. Type a name above and press Create to make one with this video in it."
+    "pickerEmpty": "No video playlists yet. Type a name above and press Create to make one with this video in it.",
+    "addVideos": "Add videos to ‘{name}’",
+    "addVideosButton": "Add videos",
+    "searchVideos": "Search videos, songs, artists"
   },
   "folders": {
     "root": "Music",

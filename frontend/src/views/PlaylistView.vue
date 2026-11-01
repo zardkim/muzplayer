@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Pencil, SlidersHorizontal, Trash2 } from '@lucide/vue'
+import { Pencil, Plus, SlidersHorizontal, Trash2 } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -12,6 +12,7 @@ import BaseModal from '../components/BaseModal.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayActions from '../components/PlayActions.vue'
+import SearchAddSheet from '../components/SearchAddSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import TrackList from '../components/TrackList.vue'
 
@@ -25,6 +26,7 @@ const error = ref('')
 const renaming = ref(false)
 const newName = ref('')
 const editingRules = ref(false)
+const adding = ref(false) // the search-and-add sheet
 const smart = computed(() => playlist.value?.kind === 'smart')
 
 async function load() {
@@ -108,6 +110,9 @@ async function destroy() {
     <PageHeader :title="playlist.name" :sub="smart ? `${t('smart.badge')} · ${t('common.tracks', playlist.entries.length)}` : t('common.tracks', playlist.entries.length)" />
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="tracks" :add="false" />
+      <button v-if="!smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="adding = true">
+        <Plus :size="16" :stroke-width="1.8" />{{ t('playlists.addSongsButton') }}
+      </button>
       <button v-if="smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
       </button>
@@ -122,6 +127,15 @@ async function destroy() {
     </div>
     <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
     <TrackList :tracks="tracks" :editable="!smart" @remove="remove" @move="move" />
+    <SearchAddSheet
+      v-if="adding"
+      kind="tracks"
+      :list-id="playlist.id"
+      :list-name="playlist.name"
+      :has="tracks.map((x) => x.id)"
+      @added="load(), library.loadPlaylists().catch(() => {})"
+      @close="adding = false"
+    />
     <SmartRulesSheet v-if="editingRules" :playlist="playlist" @close="editingRules = false" @saved="rulesSaved" />
 
     <BaseModal v-if="renaming" :title="t('common.rename')" @close="renaming = false">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { EllipsisVertical, LogOut, MonitorSpeaker, Settings, UserPlus, Users } from '@lucide/vue'
@@ -10,13 +10,29 @@ import { useAuth } from '../stores/auth'
 import { usePlayer } from '../stores/player'
 import LanguageSwitch from './LanguageSwitch.vue'
 
-defineProps<{ avatar?: boolean }>()
+// where it sits: the PC sidebar's foot (a row with the person's name) or the phone's tab bar (a tab);
+// the menu opens above it, laid over the page (the bars around it would cut it off)
+const props = defineProps<{ variant: 'sidebar' | 'tab'; collapsed?: boolean }>()
 const { t } = useI18n()
 const auth = useAuth()
 const player = usePlayer()
 const router = useRouter()
 const ui = useUi()
 const open = ref(false)
+const trigger = ref<HTMLElement | null>(null)
+const spot = ref<{ left: number; bottom: number }>({ left: 0, bottom: 0 })
+const initial = computed(() => (auth.user?.display_name || '?').slice(0, 1).toUpperCase())
+async function toggle() {
+  open.value = !open.value
+  if (!open.value) return
+  await nextTick()
+  const r = trigger.value!.getBoundingClientRect()
+  const width = 256
+  spot.value = {
+    left: Math.max(8, Math.min(window.innerWidth - width - 8, props.variant === 'tab' ? r.right - width : r.left)),
+    bottom: window.innerHeight - r.top + 8,
+  }
+}
 
 async function logout() {
   player.reset()
@@ -55,19 +71,36 @@ onUnmounted(() => document.removeEventListener('click', close))
 <template>
   <div class="relative" data-account-menu>
     <button
-      v-if="avatar"
+      v-if="variant === 'sidebar'"
+      ref="trigger"
       type="button"
-      class="grid size-10 place-items-center rounded-full bg-ink text-[15px] font-medium text-on-ink"
+      class="flex h-11 w-full items-center gap-3 rounded-full text-left text-[15px] hover:bg-surface"
+      :class="collapsed ? 'justify-center' : 'px-1.5'"
+      :aria-label="t('nav.accountMenu')"
+      :title="collapsed ? auth.user?.display_name : undefined"
+      :aria-expanded="open"
+      @click="toggle"
+    >
+      <span class="grid size-8 flex-none place-items-center rounded-full bg-ink text-[14px] font-medium text-on-ink">{{ initial }}</span>
+      <template v-if="!collapsed">
+        <span class="min-w-0 flex-1 truncate">{{ auth.user?.display_name }}</span>
+        <EllipsisVertical :size="18" :stroke-width="1.4" class="mr-1.5 flex-none text-muted" />
+      </template>
+    </button>
+    <button
+      v-else
+      ref="trigger"
+      type="button"
+      class="flex h-[60px] min-w-[68px] flex-col items-center justify-center gap-[3px] rounded-full px-1 text-[11px]"
+      :class="open ? 'bg-surface-2 font-medium' : ''"
       :aria-label="t('nav.accountMenu')"
       :aria-expanded="open"
-      @click="open = !open"
+      @click="toggle"
     >
-      {{ (auth.user?.display_name || '?').slice(0, 1).toUpperCase() }}
+      <span class="grid size-6 place-items-center rounded-full bg-ink text-[12px] font-medium text-on-ink">{{ initial }}</span>{{ t('nav.account') }}
     </button>
-    <button v-else type="button" class="grid size-11 place-items-center" :aria-label="t('nav.accountMenu')" :aria-expanded="open" @click="open = !open">
-      <EllipsisVertical :size="24" :stroke-width="1.4" />
-    </button>
-    <div v-if="open" class="absolute right-0 top-12 z-40 flex w-64 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl">
+    <Teleport to="body">
+    <div v-if="open" data-account-menu class="fixed z-[80] flex max-h-[80vh] w-64 flex-col overflow-y-auto rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl" :style="{ left: `${spot.left}px`, bottom: `${spot.bottom}px` }">
       <div class="border-b border-line px-4 pb-3 pt-2">
         <div class="font-semibold">{{ auth.user?.display_name }}</div>
         <div class="text-[13px] text-muted">{{ auth.user?.username }}</div>
@@ -96,5 +129,6 @@ onUnmounted(() => document.removeEventListener('click', close))
       <RouterLink v-if="auth.user?.is_admin" to="/admin" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false"><Users :size="18" :stroke-width="1.4" />{{ t('nav.admin') }}</RouterLink>
       <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="logout"><LogOut :size="18" :stroke-width="1.4" />{{ t('nav.logout') }}</button>
     </div>
+    </Teleport>
   </div>
 </template>

@@ -8,7 +8,6 @@ import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import type { AlbumDetail } from '../types'
-import AccountMenu from '../components/AccountMenu.vue'
 import AlbumNotesSheet from '../components/AlbumNotesSheet.vue'
 import CoverArt from '../components/CoverArt.vue'
 import DownloadButton from '../components/DownloadButton.vue'
@@ -78,7 +77,6 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
 <template>
   <p v-if="error" class="font-light text-muted">{{ error }}</p>
   <div v-else-if="album" class="flex flex-col gap-7">
-    <div class="flex justify-end md:hidden"><AccountMenu /></div>
     <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
       <CoverArt :album-id="album.id" :has-cover="album.has_cover" :version="album.cover_v" size="large" rounded="rounded-xl" class="w-full shadow-[0_16px_40px_rgba(17,17,19,0.18)] sm:w-60" />
       <div class="flex min-w-0 flex-col gap-2.5">

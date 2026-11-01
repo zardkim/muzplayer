@@ -2,13 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, Pencil, Play, Shuffle, Trash2, X } from '@lucide/vue'
+import { ArrowDown, ArrowUp, Pencil, Play, Plus, Shuffle, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { VideoPlaylist } from '../types'
 import PageHeader from '../components/PageHeader.vue'
+import SearchAddSheet from '../components/SearchAddSheet.vue'
 import VideoThumb from '../components/VideoThumb.vue'
 
 // One video playlist: play it in order or shuffled (the video player), a video from where it is;
@@ -20,6 +21,7 @@ const ui = useUi()
 const library = useLibrary()
 const playlist = ref<VideoPlaylist | null>(null)
 const error = ref('')
+const adding = ref(false) // the search-and-add sheet
 const entries = computed(() => playlist.value?.entries ?? [])
 const videos = computed(() => entries.value.map((e) => e.video))
 
@@ -82,6 +84,9 @@ async function destroy() {
         <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-5 text-[15px] disabled:opacity-40" :disabled="!videos.length" @click="play(Math.floor(Math.random() * videos.length), true)">
           <Shuffle :size="17" :stroke-width="1.6" />{{ t('videos.shufflePlay') }}
         </button>
+        <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="adding = true">
+          <Plus :size="16" :stroke-width="1.8" />{{ t('videos.addVideosButton') }}
+        </button>
         <button type="button" class="grid size-11 place-items-center rounded-full border border-line-strong" :aria-label="t('videos.renamePlaylist')" :title="t('videos.renamePlaylist')" @click="rename">
           <Pencil :size="17" :stroke-width="1.5" />
         </button>
@@ -112,6 +117,15 @@ async function destroy() {
           </span>
         </li>
       </ol>
+      <SearchAddSheet
+        v-if="adding"
+        kind="videos"
+        :list-id="playlist.id"
+        :list-name="playlist.name"
+        :has="videos.map((v) => v.id)"
+        @added="load(), library.loadVideoPlaylists().catch(() => {})"
+        @close="adding = false"
+      />
     </template>
   </div>
 </template>

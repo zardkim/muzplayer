@@ -317,6 +317,8 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       >
         <Users :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed">{{ t('nav.admin') }}</span>
       </RouterLink>
+      <!-- the person: switch accounts, devices, settings, sign out -->
+      <AccountMenu variant="sidebar" :collapsed="ui.sidebarCollapsed" class="mt-1 flex-none" />
     </nav>
 
     <div class="relative flex min-w-0 flex-1 flex-col">
@@ -338,7 +340,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
           :suggest="!searchBooks"
           @submit="search"
         />
-        <AccountMenu avatar />
+        <span class="w-[86px] flex-none" aria-hidden="true" /><!-- balances the arrows: the search box stays in the middle -->
       </header>
 
       <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
@@ -395,6 +397,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
           >
             <component :is="tab.icon" :size="24" :stroke-width="active(tab.key, tab.to) ? 2 : 1.4" />{{ t(tab.label) }}
           </RouterLink>
+          <AccountMenu variant="tab" class="flex-1 shrink-0" />
           </div>
         </nav>
       </div>
