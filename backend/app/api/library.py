@@ -17,7 +17,7 @@ from ..lyrics import read_lyrics
 from ..models import (
     Album, AlbumFavorite, AlbumRating, Artist, Favorite, Genre, PlayCount, Track, TrackGenre, TrackRating, User, Video,
 )
-from ..scanner import COVER_SIZES, cover_file
+from ..scanner import COVER_SIZES, DAMAGED, cover_file
 from ..security import api_error, current_user
 
 router = APIRouter()
@@ -97,6 +97,8 @@ def track_out(row) -> dict:
         "rating": rating / 2 if rating else None,  # this user's stars (0.5-5), None when not rated
         "has_video": bool(has_video),
         "missing": track.missing_at is not None,
+        # an MP3 only ffmpeg could read (scanner._read_damaged): the player asks for it converted
+        "damaged": DAMAGED in (track.tag_json or {}),
     }
 
 
@@ -550,7 +552,8 @@ def serve_track(db: Session, track_id: int, request: Request, quality: str, leve
     """A song's audio as asked (also for Cast, api/cast.py)."""
     track, path = track_file(db, track_id)
     gain = transcode.level_gain((track.rg_track_gain, track.rg_track_peak, track.rg_album_gain, track.rg_album_peak), level)
-    kbps = transcode.target_kbps(track.format, track.bitrate, quality, gain) if transcode.available() else None
+    damaged = DAMAGED in (track.tag_json or {})
+    kbps = transcode.target_kbps(track.format, track.bitrate, quality, gain, damaged) if transcode.available() else None
     if kbps is None:
         media_type = AUDIO_TYPES.get(track.format) or mimetypes.guess_type(path)[0] or "application/octet-stream"
         return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, max-age=3600"})

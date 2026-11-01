@@ -30,6 +30,7 @@ export interface Track {
   year?: number | null // the album's year
   has_video?: boolean
   missing: boolean
+  damaged?: boolean // an MP3 only ffmpeg could read: played converted (server transcode)
   chart_position?: number | null // only in chart lists
 }
 

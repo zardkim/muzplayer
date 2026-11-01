@@ -229,6 +229,21 @@ check "scan with a recycle bin" "$(scan)" done
 check "recycle bin not indexed or listed" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["scanned"]')/$(curl -s -b "$A" "$BASE/admin/folders" | j '"#recycle" in [f["path"] for f in d["items"]]')" "$before/False"
 rm -rf "$MUSIC/#recycle"
 
+# an MP3 with junk after its tag ("can't sync to MPEG frame"): read with ffmpeg, played converted
+mkdir -p "$MUSIC/smoke-damaged"
+python3 - "$(find "$MUSIC" -type f -name '*.mp3' -not -path '*smoke-damaged*' | head -1)" "$MUSIC/smoke-damaged/broken.mp3" <<'PY'
+import os, sys
+d = open(sys.argv[1], "rb").read()
+cut = 10 + sum((b & 0x7F) << (7 * (3 - i)) for i, b in enumerate(d[6:10])) if d[:3] == b"ID3" else 0
+open(sys.argv[2], "wb").write(d[:cut] + os.urandom(3_000_000) + d[cut:])
+PY
+check "scan with a damaged MP3" "$(scan)" done
+did=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j '[t["id"] for t in d["items"] if t["damaged"]][0] if any(t["damaged"] for t in d["items"]) else ""')
+check "damaged MP3 indexed" "$([ -n "$did" ] && echo yes)" yes
+check "damaged MP3 streamed converted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code} %{content_type}' "$BASE/tracks/$did/stream?quality=320&whole=1")" "200 audio/mpeg"
+rm -rf "$MUSIC/smoke-damaged"
+scan >/dev/null  # it goes missing now, not in the delete check below
+
 # removing a file hides it but keeps it in playlists
 path=$(find "$MUSIC" -type f -name '*.mp3' | head -1)
 MOVED="$path"

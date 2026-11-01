@@ -38,7 +38,8 @@ export function trackSrc(track: Track): string {
   if (!appConfig.transcode) return base
   const prefs = useUi().playerPrefs
   let quality = onCellular() ? prefs.qualityCellular : prefs.quality
-  if (quality === 'orig' && !browserPlays(track.format)) quality = '320'
+  // (a damaged file: the server converts it anyway, so ask for it the way a conversion is fetched)
+  if (quality === 'orig' && (!browserPlays(track.format) || track.damaged)) quality = '320'
   const level = serverLevels() ? prefs.leveling : 'off'
   return base + query({ quality: quality === 'orig' ? null : quality, level: level === 'off' ? null : level })
 }

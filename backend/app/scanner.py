@@ -204,8 +204,39 @@ def audio_info(audio, path: Path) -> dict:
     }
 
 
+DAMAGED = "_damaged"  # in tag_json: a file only ffmpeg could read (_read_damaged); streamed converted
+
+
+def _read_damaged(path: Path, exc: Exception) -> tuple[dict[str, list[str]], dict]:
+    """An MP3 the tag library gave up on ("can't sync to MPEG frame": usually junk or a broken
+    picture before the audio). Its tags from the ID3 block, its length and quality from ffmpeg
+    decoding it. Raises the original error when ffmpeg can't decode it either."""
+    from .transcode import probe  # transcode doesn't need the scanner; only this path needs it
+
+    if path.suffix.lower() != ".mp3":
+        raise exc
+    info = probe(path)
+    if info is None:
+        raise exc
+    raw: dict[str, list[str]] = {}
+    try:
+        tags = EasyID3(path)
+        for key in tags.keys():
+            values = _text_values(tags[key])
+            if values:
+                raw[str(key).lower()] = values
+    except Exception:  # noqa: BLE001 - no readable tags: the file name stands in, as for untagged files
+        pass
+    raw[DAMAGED] = ["1"]
+    log.info("read with ffmpeg (damaged MP3): %s", path)
+    return raw, info
+
+
 def _read_info(path: Path) -> dict:
-    audio = mutagen.File(path)
+    try:
+        audio = mutagen.File(path)
+    except mutagen.MutagenError as exc:
+        return _read_damaged(path, exc)[1]
     if audio is None:
         raise ValueError("unsupported file")
     return audio_info(audio, path)
@@ -219,7 +250,10 @@ def _easy_get(tags: ID3, key: str) -> list[str]:
 
 
 def _read_tags(path: Path) -> tuple[dict[str, list[str]], dict]:
-    audio = mutagen.File(path, easy=True)
+    try:
+        audio = mutagen.File(path, easy=True)
+    except mutagen.MutagenError as exc:
+        return _read_damaged(path, exc)
     if audio is None:
         raise ValueError("unsupported file")
     raw: dict[str, list[str]] = {}

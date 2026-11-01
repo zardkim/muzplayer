@@ -609,7 +609,13 @@
     "userSaved": "Saved.",
     "joinedCol": "Joined",
     "lastLoginCol": "Last login",
-    "userSearch": "Search name or username"
+    "userSearch": "Search name or username",
+    "fileError_damaged": "No audio found, and ffmpeg can't play it either: the file looks damaged. Replace it from the source or try the open-source MP3val or MP3 Diags; otherwise delete it.",
+    "fileError_cut": "The file is cut short, or its extension doesn't match its real format. Copy it again or fix the extension.",
+    "fileError_format": "Unsupported format. Convert it to MP3, FLAC or M4A.",
+    "fileError_permission": "No permission to read it. Give the container user (PUID) read access to the shared folder.",
+    "fileError_gone": "The file or what its link points to is gone. Remove the broken link.",
+    "fileError_other": "Couldn't read this file. Check it plays elsewhere; if not, get it again."
   },
   "library": {
     "title": "My music",

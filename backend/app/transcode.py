@@ -20,6 +20,7 @@ import functools
 import logging
 import math
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -79,9 +80,46 @@ def level_gain(rg: tuple[float | None, float | None, float | None, float | None]
     return round(gain, 1)
 
 
-def target_kbps(fmt: str, bitrate: int | None, quality: str, gain: float) -> int | None:
-    """The MP3 bitrate to convert to, or None to send the file as it is."""
-    if fmt not in UNPLAYABLE and not gain:
+_DURATION = re.compile(rb"time=(\d+):(\d\d):(\d\d(?:\.\d+)?)")
+_STREAM = re.compile(rb"Audio: (\w+)[^\n]*?(\d+) Hz[^\n]*?(?:(\d+) kb/s)?\n")
+
+
+def probe(path: Path) -> dict | None:
+    """Length and quality of a file the tag library can't make sense of (an MP3 with junk or a
+    broken picture before its audio), found by decoding it: what ffmpeg can decode plays.
+    None when ffmpeg can't decode it either (or there is no ffmpeg)."""
+    exe = ffmpeg()
+    if exe is None:
+        return None
+    try:
+        out = subprocess.run(
+            [exe, "-hide_banner", "-nostdin", "-i", str(path), "-map", "0:a:0", "-f", "null", "-"],
+            capture_output=True, timeout=120,
+        ).stderr
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    times = _DURATION.findall(out)
+    stream = _STREAM.search(out)
+    if not times or stream is None:
+        return None
+    h, m, sec = times[-1]
+    duration = int(h) * 3600 + int(m) * 60 + float(sec)
+    if duration < 1:
+        return None
+    return {
+        "duration": round(duration, 3),
+        "sample_rate": int(stream.group(2)),
+        "bit_depth": 0,
+        "bitrate": int(stream.group(3) or 0),
+    }
+
+
+def target_kbps(fmt: str, bitrate: int | None, quality: str, gain: float, damaged: bool = False) -> int | None:
+    """The MP3 bitrate to convert to, or None to send the file as it is. A damaged file (scanner:
+    one only ffmpeg could read) is always converted: browsers may not get past what's broken."""
+    if damaged and quality == "orig":
+        quality = "320"
+    if fmt not in UNPLAYABLE and not gain and not damaged:
         if quality == "orig":
             return None
         if fmt in PLAYABLE_LOSSY and bitrate and bitrate <= int(quality) + 8:  # already that small

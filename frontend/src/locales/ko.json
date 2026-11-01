@@ -609,7 +609,13 @@
     "userSaved": "저장했습니다.",
     "joinedCol": "가입",
     "lastLoginCol": "최근 로그인",
-    "userSearch": "이름·아이디 검색"
+    "userSearch": "이름·아이디 검색",
+    "fileError_damaged": "오디오 데이터를 찾지 못했습니다. ffmpeg로도 재생할 수 없어 파일이 손상된 것으로 보입니다. 원본에서 다시 받아 바꾸거나 오픈소스 MP3val·MP3 Diags로 복구해 보고, 안 되면 지우세요.",
+    "fileError_cut": "파일이 중간에 잘렸거나 확장자와 실제 형식이 다릅니다. 다시 복사하거나 실제 형식에 맞게 확장자를 바꾸세요.",
+    "fileError_format": "지원하지 않는 형식입니다. 다른 형식(MP3·FLAC·M4A)으로 변환하세요.",
+    "fileError_permission": "읽을 권한이 없습니다. NAS 공유 폴더 권한에서 컨테이너 사용자(PUID)에게 읽기 권한을 주세요.",
+    "fileError_gone": "파일이나 바로가기가 가리키는 곳이 없습니다. 깨진 바로가기를 지우세요.",
+    "fileError_other": "이 파일을 읽지 못했습니다. 다른 플레이어에서 재생되는지 확인하고, 안 되면 다시 받으세요."
   },
   "library": {
     "title": "내 음악",
