@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 // Phone: on a page opened from a list (an album from the albums, an artist, a chart, an audiobook,
@@ -11,7 +11,7 @@ import { useRoute, useRouter } from 'vue-router'
 interface Sibling { path: string; label: string }
 
 const DETAIL = ['/albums/:', '/artists/:', '/charts/:', '/books/:', '/playlists/:', '/video-playlists/:', '/mixes/:', '/tracks?genre', '/folders?path']
-const FAR = 90 // px: a swipe this long counts (or a quick one of half that)
+const FAR = 90 // px: a swipe this long counts (or a flick that way)
 
 function parse(href: string) {
   const u = new URL(href, location.origin)
@@ -61,25 +61,56 @@ function ownsSideways(target: Element | null, root: HTMLElement) {
 export function useSiblingSwipe(el: Ref<HTMLElement | null>) {
   const route = useRoute()
   const router = useRouter()
-  const dx = ref(0)
-  const settling = ref(false)
+  // for the hint at the edge (SwipeHint.vue), updated once a frame: which way, and how far of FAR
+  const dir = ref<-1 | 0 | 1>(0)
+  const progress = ref(0)
   const here = () => siblings.findIndex((s) => s.path === parse(route.fullPath).path)
+  const next = (d: number) => {
+    const i = here()
+    return i < 0 || d === 0 ? null : (d < 0 ? siblings[i + 1] : siblings[i - 1]) ?? null
+  }
   // what the swipe under way would open: to the left the next one, to the right the previous one
-  const target = computed(() => {
-    const i = dx.value === 0 ? -1 : here()
-    if (i < 0) return null
-    return dx.value < 0 ? siblings[i + 1] ?? null : siblings[i - 1] ?? null
-  })
+  const target = computed(() => next(dir.value))
+  const ready = computed(() => progress.value >= 1)
 
   let x0 = 0
   let y0 = 0
-  let t0 = 0
+  let dx = 0
   let tracking = false
   let sideways: boolean | null = null
+  let busy = false // a page sliding out or in
+  let frame = 0
+  let samples: [number, number][] = [] // the last moves (time, x), for the speed at release
+
+  /** The page where the finger has it: 1:1 when there is a page that way, a rubber band when not. */
+  function follow() {
+    frame = 0
+    if (!el.value) return
+    const d = dx < 0 ? -1 : dx > 0 ? 1 : 0
+    const w = el.value.clientWidth || window.innerWidth
+    const x = next(d) ? dx : d * (1 - 1 / ((Math.abs(dx) * 0.55) / w + 1)) * w * 0.5
+    el.value.style.transition = ''
+    el.value.style.transform = `translate3d(${x}px,0,0)`
+    dir.value = d
+    progress.value = Math.min(1, Math.abs(dx) / FAR)
+  }
+  function slide(x: number, ms: number, ease: string, opacity = 1) {
+    const box = el.value
+    if (!box) return Promise.resolve()
+    box.style.transition = `transform ${ms}ms ${ease}, opacity ${ms}ms ${ease}`
+    box.style.transform = `translate3d(${x}px,0,0)`
+    box.style.opacity = String(opacity)
+    return new Promise<void>((done) => window.setTimeout(done, ms))
+  }
+  function clear() {
+    const box = el.value
+    if (!box) return
+    box.style.transition = box.style.transform = box.style.opacity = box.style.willChange = ''
+  }
 
   function start(e: TouchEvent) {
     tracking = false
-    if (e.touches.length !== 1 || !el.value) return
+    if (busy || e.touches.length !== 1 || !el.value) return
     const x = e.touches[0].clientX
     // the screen's edges belong to the browser's own back / forward swipe
     if (x < 20 || x > window.innerWidth - 20) return
@@ -87,33 +118,66 @@ export function useSiblingSwipe(el: Ref<HTMLElement | null>) {
     if (ownsSideways(e.target as Element, el.value)) return
     tracking = true
     sideways = null
+    dx = 0
     x0 = x
     y0 = e.touches[0].clientY
-    t0 = performance.now()
+    samples = [[performance.now(), x]]
   }
   function move(e: TouchEvent) {
     if (!tracking) return
-    const mx = e.touches[0].clientX - x0
+    const x = e.touches[0].clientX
+    const mx = x - x0
     const my = e.touches[0].clientY - y0
     if (sideways === null) {
-      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return
-      sideways = Math.abs(mx) > Math.abs(my) * 1.5
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return
+      sideways = Math.abs(mx) > Math.abs(my) * 1.2
       if (!sideways) {
         tracking = false
         return
       }
+      el.value!.style.willChange = 'transform'
     }
-    dx.value = mx
+    if (e.cancelable) e.preventDefault() // no scrolling up and down under a sideways swipe
+    dx = mx
+    samples.push([performance.now(), x])
+    if (samples.length > 5) samples.shift()
+    if (!frame) frame = requestAnimationFrame(follow)
   }
-  function end() {
+  async function end() {
     if (!tracking || !sideways) return
     tracking = false
-    const fast = Math.abs(dx.value) / Math.max(1, performance.now() - t0) > 0.5
-    const go = target.value && (Math.abs(dx.value) > FAR || (fast && Math.abs(dx.value) > FAR / 2))
-    if (go) void router.replace(target.value!.path)
-    settling.value = true
-    dx.value = 0
-    window.setTimeout(() => (settling.value = false), 200)
+    cancelAnimationFrame(frame)
+    frame = 0
+    const [t1, xa] = samples[0]
+    const [t2, xb] = samples[samples.length - 1]
+    const speed = (xb - xa) / Math.max(1, t2 - t1) // px per ms, + to the right
+    const d = dx < 0 ? -1 : 1
+    const to = next(d)
+    // far enough, or flung that way
+    const go = to && (Math.abs(dx) > FAR || (speed * d > 0.35 && Math.abs(dx) > 40))
+    dir.value = 0
+    progress.value = 0
+    if (!go) {
+      await slide(0, 320, 'cubic-bezier(0.2, 0.9, 0.3, 1)')
+      clear()
+      return
+    }
+    busy = true
+    const w = el.value?.clientWidth || window.innerWidth
+    // out the way it was going (quicker when flung), the next one in from the other side
+    await slide(d * w, Math.max(140, Math.min(260, (w - Math.abs(dx)) / Math.max(0.8, Math.abs(speed)))), 'cubic-bezier(0.2, 0.7, 0.4, 1)', 0.4)
+    await router.replace(to!.path).catch(() => {})
+    await nextTick()
+    const box = el.value
+    if (box) {
+      box.style.transition = 'none'
+      box.style.transform = `translate3d(${-d * w * 0.35}px,0,0)`
+      box.style.opacity = '0'
+      void box.offsetWidth // (the start position takes effect before the slide)
+      await slide(0, 320, 'cubic-bezier(0.2, 0.9, 0.3, 1)')
+    }
+    clear()
+    busy = false
   }
 
   watch(
@@ -129,7 +193,8 @@ export function useSiblingSwipe(el: Ref<HTMLElement | null>) {
       if (now) {
         now.addEventListener('click', onClick, true)
         now.addEventListener('touchstart', start, { passive: true })
-        now.addEventListener('touchmove', move, { passive: true })
+        // not passive: once a swipe is sideways the page must not also scroll
+        now.addEventListener('touchmove', move, { passive: false })
         now.addEventListener('touchend', end)
         now.addEventListener('touchcancel', end)
       }
@@ -140,8 +205,5 @@ export function useSiblingSwipe(el: Ref<HTMLElement | null>) {
     if (el.value) remember(e, el.value)
   }
 
-  // the page follows the finger a little (less where there is nothing more that way)
-  const shift = computed(() => (dx.value === 0 ? 0 : target.value ? dx.value * 0.35 : dx.value * 0.12))
-  const ready = computed(() => Math.abs(dx.value) > FAR)
-  return { dx, shift, target, ready, settling }
+  return { dir, progress, target, ready }
 }

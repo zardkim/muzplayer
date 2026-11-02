@@ -67,7 +67,7 @@ function settle(apply: () => void, after?: () => void) {
   window.setTimeout(() => {
     settling.value = false
     after?.()
-  }, 220)
+  }, 300)
 }
 const pull = useSwipe({
   axes: ['y'],
@@ -76,7 +76,6 @@ const pull = useSwipe({
   end: ({ dy, fast }) => {
     if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
       ui.playerOpen = false
-      dragY.value = 0
     })
     else settle(() => (dragY.value = 0))
   },
@@ -121,7 +120,8 @@ const flick = useSwipe({
     :aria-label="t('player.nowPlaying')"
     ref="sheet"
     class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
-    :class="dragY ? 'overflow-hidden' : ''"
+    :class="[dragY ? 'overflow-hidden' : '', settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : '']"
+    :style="dragY ? { transform: `translate3d(0,${dragY}px,0)` } : undefined"
     @touchstart="pull.onTouchstart"
     @touchmove="pull.onTouchmove"
     @touchend="pull.onTouchend"
@@ -129,8 +129,6 @@ const flick = useSwipe({
   >
     <div
       class="relative mx-auto flex min-h-full max-w-md flex-col md:my-6 md:min-h-0 md:overflow-hidden md:rounded-3xl md:shadow-2xl"
-      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
-      :style="dragY ? { transform: `translateY(${dragY}px)` } : undefined"
     >
       <div
         class="pointer-events-none absolute inset-x-[-80px] bottom-[-80px] top-[40%] opacity-50"
@@ -147,7 +145,7 @@ const flick = useSwipe({
           v-else
           type="button"
           class="block w-full"
-          :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+          :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
           :style="coverX ? { transform: `translateX(${coverX}px)` } : undefined"
           :aria-label="t('player.showLyrics')"
           @click="coverTap"

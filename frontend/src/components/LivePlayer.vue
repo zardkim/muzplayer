@@ -43,7 +43,7 @@ function settle(apply: () => void, after?: () => void) {
   window.setTimeout(() => {
     settling.value = false
     after?.()
-  }, 200)
+  }, 300)
 }
 const pull = useSwipe({
   axes: ['y'],
@@ -52,7 +52,6 @@ const pull = useSwipe({
   end: ({ dy, fast }) => {
     if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
       close()
-      dragY.value = 0
     })
     else settle(() => (dragY.value = 0))
   },
@@ -76,6 +75,8 @@ const flick = useSwipe({
     :aria-label="t('player.nowPlaying')"
     ref="scroller"
     class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
+    :class="[dragY ? 'overflow-hidden' : '', settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : '']"
+    :style="dragY ? { transform: `translate3d(0,${dragY}px,0)` } : undefined"
     @touchstart="pull.onTouchstart"
     @touchmove="pull.onTouchmove"
     @touchend="pull.onTouchend"
@@ -83,8 +84,6 @@ const flick = useSwipe({
   >
     <div
       class="relative mx-auto flex min-h-full max-w-md flex-col px-5 pt-[calc(env(safe-area-inset-top)+8px)] md:my-6 md:min-h-0 md:rounded-3xl md:shadow-2xl"
-      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
-      :style="dragY ? { transform: `translateY(${dragY}px)` } : undefined"
     >
       <div class="flex items-center justify-between">
         <span class="pl-1 text-[13px] font-light text-muted">{{ region ? t(`radio.region_${region}`) : '' }}</span>
@@ -95,7 +94,7 @@ const flick = useSwipe({
 
       <div
         class="mt-6 flex justify-center"
-        :class="settling ? 'transition-transform duration-200 ease-out' : ''"
+        :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
         :style="logoX ? { transform: `translateX(${logoX}px)` } : undefined"
         @touchstart="flick.onTouchstart"
         @touchmove="flick.onTouchmove"

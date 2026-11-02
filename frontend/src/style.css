@@ -189,3 +189,84 @@ input[type="range"].seek::-moz-range-thumb {
 .bottom-safe {
   bottom: calc(env(safe-area-inset-bottom) + 14px);
 }
+
+/* Sheets and panels move like a phone's own: in quickly and settling softly, out a little faster.
+   The full players (App.vue) come up from the bottom; the queue comes in from the side; the sheets
+   (BaseModal) rise from the bottom on a phone and grow in a little in the middle of a PC screen. */
+.sheet-up-enter-active {
+  transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-up-leave-active {
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.7, 0.2);
+}
+.sheet-up-enter-from,
+.sheet-up-leave-to {
+  transform: translate3d(0, 100%, 0);
+}
+.panel-in-enter-active,
+.panel-in-leave-active {
+  transition: background-color 280ms ease;
+}
+.panel-in-enter-active > aside {
+  transition: transform 400ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.panel-in-leave-active > aside {
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.7, 0.2);
+}
+.panel-in-enter-from,
+.panel-in-leave-to {
+  background-color: transparent;
+}
+.panel-in-enter-from > aside,
+.panel-in-leave-to > aside {
+  transform: translate3d(100%, 0, 0);
+}
+
+/* (the dimming fades, not the box: the sheet in it stays solid) */
+@keyframes dim-in {
+  from { background-color: transparent; }
+}
+@keyframes dim-out {
+  to { background-color: transparent; }
+}
+@keyframes rise-in {
+  from { transform: translate3d(0, 100%, 0); }
+}
+@keyframes sink-out {
+  to { transform: translate3d(0, 100%, 0); }
+}
+@keyframes grow-in {
+  from { opacity: 0; transform: scale(0.96); }
+}
+@keyframes shrink-out {
+  to { opacity: 0; transform: scale(0.97); }
+}
+.modal-backdrop {
+  animation: dim-in 280ms ease;
+}
+.modal-backdrop.modal-leaving {
+  animation: dim-out 260ms ease forwards;
+}
+.modal-sheet {
+  animation: rise-in 420ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.modal-leaving .modal-sheet {
+  animation: sink-out 260ms cubic-bezier(0.4, 0, 0.7, 0.2) forwards;
+}
+@media (min-width: 640px) {
+  .modal-sheet {
+    animation: grow-in 240ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .modal-leaving .modal-sheet {
+    animation: shrink-out 180ms ease forwards;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-up-enter-active, .sheet-up-leave-active, .panel-in-enter-active, .panel-in-leave-active,
+  .panel-in-enter-active > aside, .panel-in-leave-active > aside {
+    transition: none;
+  }
+  .modal-backdrop, .modal-backdrop.modal-leaving, .modal-sheet, .modal-leaving .modal-sheet {
+    animation: none;
+  }
+}

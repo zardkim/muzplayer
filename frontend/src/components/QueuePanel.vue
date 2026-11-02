@@ -25,9 +25,9 @@ const swipe = useSwipe({
     offset.value = close ? window.innerWidth : 0
     window.setTimeout(() => {
       settling.value = false
-      if (close) ui.queueOpen = false
-      offset.value = 0
-    }, 200)
+      if (close) ui.queueOpen = false // (it stays out of sight while it goes)
+      else offset.value = 0
+    }, 300)
   },
 })
 </script>
@@ -37,8 +37,8 @@ const swipe = useSwipe({
     <aside
       :aria-label="t('player.queue')"
       class="pt-safe pb-safe flex h-full w-full max-w-sm flex-col bg-bg shadow-2xl"
-      :class="settling ? 'transition-transform duration-200 ease-out' : ''"
-      :style="offset ? { transform: `translateX(${offset}px)` } : undefined"
+      :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
+      :style="offset ? { transform: `translate3d(${offset}px,0,0)` } : undefined"
       @touchstart="swipe.onTouchstart"
       @touchmove="swipe.onTouchmove"
       @touchend="swipe.onTouchend"
