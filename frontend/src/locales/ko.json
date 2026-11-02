@@ -456,6 +456,13 @@
     "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
   },
   "admin": {
+    "menu_library": "스캔, 커버·검색 색인 다시 만들기",
+    "menu_folders": "폴더별 종류(앨범·컴필레이션 등)",
+    "menu_photos": "아티스트 사진 일괄 찾기",
+    "menu_keys": "AI·YouTube API 키",
+    "menu_audiobooks": "오디오북 폴더와 가져오기",
+    "menu_users": "계정, 가입 방식, 승인",
+    "menu_stats": "재생·사용자 통계",
     "title": "관리자",
     "library": "라이브러리",
     "libraryDesc": "음악 폴더의 새 파일·변경 파일·삭제 파일을 반영합니다.",

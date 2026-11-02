@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChartColumn, Plus, RefreshCw } from '@lucide/vue'
+import { ChartColumn, ChevronRight, FolderTree, Images, KeyRound, Library, Plus, RefreshCw, BookHeadphones, Users } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { dateTime } from '../format'
@@ -13,9 +13,22 @@ import BaseModal from '../components/BaseModal.vue'
 import IntegrationsCard from '../components/IntegrationsCard.vue'
 import PageHeader from '../components/PageHeader.vue'
 
+// Phones: a menu of the admin parts, each on its own screen (/admin/<part>); wide screens show them all.
+const props = defineProps<{ section?: string }>()
 const { t } = useI18n()
 const auth = useAuth()
 const ui = useUi()
+const menu = computed(() => [
+  { key: 'library', title: 'admin.library', hint: 'admin.menu_library', icon: Library },
+  { key: 'folders', title: 'admin.folders', hint: 'admin.menu_folders', icon: FolderTree },
+  { key: 'photos', title: 'admin.photosTitle', hint: 'admin.menu_photos', icon: Images },
+  { key: 'keys', title: 'admin.keysTitle', hint: 'admin.menu_keys', icon: KeyRound },
+  ...(appConfig.audiobooks ? [{ key: 'audiobooks', title: 'admin.audiobooks', hint: 'admin.menu_audiobooks', icon: BookHeadphones }] : []),
+  { key: 'users', title: 'admin.users', hint: 'admin.menu_users', icon: Users },
+])
+const open = computed(() => menu.value.find((x) => x.key === props.section) ?? null)
+// on a phone only the open part shows (none: just the menu)
+const part = (key: string) => (open.value?.key === key ? '' : 'max-md:hidden')
 
 const job = ref<ScanJob | null>(null)
 const hasMissing = ref(false)
@@ -343,13 +356,31 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
 
 <template>
   <div class="flex flex-col gap-7">
-    <PageHeader :title="t('admin.title')">
+    <!-- phone: the open part's name (back goes to the menu); wide screens: Admin over everything -->
+    <PageHeader v-if="open" :title="t(open.title)" class="md:hidden" />
+    <PageHeader :title="t('admin.title')" :class="open ? 'hidden md:flex' : ''">
       <template #actions>
-        <RouterLink to="/admin/stats" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink"><ChartColumn :size="16" :stroke-width="1.6" />{{ t('stats.title') }}</RouterLink>
+        <RouterLink to="/admin/stats" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ChartColumn :size="16" :stroke-width="1.6" />{{ t('stats.title') }}</RouterLink>
       </template>
     </PageHeader>
 
-    <section class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
+    <nav v-if="!open" :aria-label="t('admin.title')" class="-mt-3 flex flex-col md:hidden">
+      <RouterLink
+        v-for="x in [...menu, { key: 'stats', title: 'stats.title', hint: 'admin.menu_stats', icon: ChartColumn }]"
+        :key="x.key"
+        :to="x.key === 'stats' ? { name: 'stats' } : { name: 'admin', params: { section: x.key } }"
+        class="flex min-h-[64px] items-center gap-4 border-b border-surface"
+      >
+        <component :is="x.icon" :size="22" :stroke-width="1.4" class="flex-none text-muted" />
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="text-[17px]">{{ t(x.title) }}<span v-if="x.key === 'users' && pendingCount" class="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-medium text-white">{{ t('admin.pendingCount', { n: pendingCount }) }}</span></span>
+          <span class="truncate text-[13px] font-light text-muted">{{ t(x.hint) }}</span>
+        </span>
+        <ChevronRight :size="18" class="flex-none text-subtle" />
+      </RouterLink>
+    </nav>
+
+    <section :class="part('library')" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-xl font-bold">{{ t('admin.library') }}</h2>
@@ -416,7 +447,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       </div>
     </section>
 
-    <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
+    <section :class="part('folders')" class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
       <div>
         <h2 class="text-xl font-bold">{{ t('admin.folders') }}</h2>
         <p class="mt-1 text-sm font-light text-muted">{{ t('admin.foldersDesc') }}</p>
@@ -455,7 +486,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <p class="text-[13px] leading-relaxed text-muted">{{ t('admin.foldersHelp') }}</p>
     </section>
 
-    <section v-if="photos" class="flex flex-col gap-3 rounded-2xl border border-line p-5 md:p-6">
+    <section v-if="photos" :class="part('photos')" class="flex flex-col gap-3 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-xl font-bold">{{ t('admin.photosTitle') }}</h2>
@@ -472,9 +503,9 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <p v-if="photos.state === 'failed'" class="text-[13px] text-danger">{{ t('admin.photosFailed') }}</p>
     </section>
 
-    <IntegrationsCard :counts="aiStatus" />
+    <IntegrationsCard :counts="aiStatus" :class="part('keys')" />
 
-    <section v-if="appConfig.audiobooks && bookStatus" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
+    <section v-if="appConfig.audiobooks && bookStatus" :class="part('audiobooks')" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
       <div>
         <h2 class="text-xl font-bold">{{ t('admin.audiobooks') }}</h2>
         <p class="mt-1 break-all text-sm font-light text-muted">{{ t('admin.audiobooksFolder', { folder: bookStatus.folder }) }}</p>
@@ -535,7 +566,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       </div>
     </section>
 
-    <section class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
+    <section :class="part('users')" class="flex flex-col gap-4 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold">{{ t('admin.users') }}<span v-if="pendingCount" class="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-medium text-white">{{ t('admin.pendingCount', { n: pendingCount }) }}</span></h2>
         <button type="button" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm" @click="adding = true"><Plus :size="16" />{{ t('admin.addUser') }}</button>
@@ -552,7 +583,8 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <input v-if="users.length > 6" v-model="userFilter" type="search" :placeholder="t('admin.userSearch')" class="h-10 min-w-0 flex-1 rounded-full bg-surface px-4 text-sm outline-none focus:ring-2 focus:ring-ink sm:max-w-60" />
       </div>
       <p class="-mt-1 text-[13px] font-light text-muted">{{ t(`admin.signupHelp_${signupMode}`) }}</p>
-      <div class="overflow-x-auto">
+      <!-- relative: the header's screen-reader label stays inside the scroll box (it widened the phone page) -->
+      <div class="relative overflow-x-auto">
         <table class="w-full min-w-[820px] whitespace-nowrap text-sm">
           <thead>
             <tr class="border-b border-line text-left text-xs tracking-wide text-subtle">

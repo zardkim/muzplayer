@@ -199,6 +199,7 @@ function parentPage(): RouteLocationRaw {
   const path = typeof route.query.path === 'string' ? route.query.path : ''
   if (route.name === 'folders' && path.includes('/')) return { name: 'folders', query: { path: path.slice(0, path.lastIndexOf('/')) } }
   if (route.name === 'settings' && route.params.section) return '/settings' // a part of Settings: its menu
+  if (route.name === 'admin' && route.params.section) return '/admin' // a part of Admin (phones): its menu
   const parents: Record<string, string> = {
     album: '/albums', artist: '/artists', folders: '/folders', tracks: '/genres', playlist: '/playlists', chart: '/charts',
     'chart-list': '/charts', book: '/books', mix: '/library', playlists: '/library', favorites: '/library', history: '/library',

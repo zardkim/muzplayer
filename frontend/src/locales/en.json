@@ -456,6 +456,13 @@
     "inWindowsApp": "Running in the muzplayer Windows app {v}."
   },
   "admin": {
+    "menu_library": "Scan, rebuild covers and the search index",
+    "menu_folders": "Each folder's kind (albums, compilations, ...)",
+    "menu_photos": "Find artist photos",
+    "menu_keys": "AI and YouTube API keys",
+    "menu_audiobooks": "Audiobook folder and import",
+    "menu_users": "Accounts, sign-up, approvals",
+    "menu_stats": "Play and user statistics",
     "title": "Admin",
     "library": "Library",
     "libraryDesc": "Picks up new, changed and deleted files in the music folder.",
