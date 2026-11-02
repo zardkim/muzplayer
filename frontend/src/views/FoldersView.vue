@@ -10,6 +10,7 @@ import CoverArt from '../components/CoverArt.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
+import { matches, useListSearch } from '../listSearch'
 
 // The music folder as scanned: subfolders, then the songs directly in this folder.
 // Each level is its own history entry (?path=), so back goes up one level.
@@ -27,6 +28,11 @@ onMounted(async () => {
   }
 })
 
+// the search box narrows this folder's subfolders and songs (each level is a page of its own)
+const q = useListSearch()
+const folders = computed(() => listing.value?.folders.filter((f) => matches(f.name, q.value)) ?? [])
+const tracks = computed(() => listing.value?.tracks.filter((x) => matches(`${x.title} ${x.artist ?? ''}`, q.value)) ?? [])
+
 // root › a › b, each a link to that level
 const crumbs = computed(() => {
   const parts = path ? path.split('/') : []
@@ -41,7 +47,7 @@ const sub = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <LibraryHeader />
+    <LibraryHeader v-model:search="q" :search-label="t('folders.search')" />
 
     <nav :aria-label="t('folders.path')" class="flex min-w-0 flex-wrap items-center gap-1 text-[15px]">
       <RouterLink :to="{ name: 'folders' }" class="rounded-full px-2 py-1 hover:bg-surface" :class="crumbs.length ? 'font-light text-muted' : 'font-semibold'">{{ t('folders.root') }}</RouterLink>
@@ -59,9 +65,10 @@ const sub = computed(() => {
 
     <p v-if="error" class="text-danger">{{ error }}</p>
     <p v-else-if="listing && !listing.folders.length && !listing.tracks.length" class="font-light text-muted">{{ t('folders.empty') }}</p>
+    <p v-else-if="listing && !folders.length && !tracks.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
 
-    <ul v-if="listing?.folders.length" class="grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
-      <li v-for="f in listing.folders" :key="f.path">
+    <ul v-if="folders.length" class="grid gap-x-6 sm:grid-cols-2 xl:grid-cols-3">
+      <li v-for="f in folders" :key="f.path">
         <RouterLink :to="{ name: 'folders', query: { path: f.path } }" class="group flex min-h-[68px] items-center gap-3.5 border-b border-surface py-2">
           <CoverArt v-if="f.cover" :album-id="f.cover.id" :has-cover="true" :version="f.cover.v" rounded="rounded-lg" class="size-12 flex-none" />
           <span v-else class="grid size-12 flex-none place-items-center rounded-lg bg-surface text-muted"><Folder :size="22" :stroke-width="1.4" /></span>
@@ -74,11 +81,11 @@ const sub = computed(() => {
       </li>
     </ul>
 
-    <section v-if="listing?.tracks.length" class="flex flex-col gap-3">
+    <section v-if="tracks.length" class="flex flex-col gap-3">
       <div class="flex flex-wrap gap-2">
-        <PlayActions :tracks="listing.tracks" />
+        <PlayActions :tracks="tracks" />
       </div>
-      <TrackList :tracks="listing.tracks" show-cover show-album />
+      <TrackList :tracks="tracks" show-cover show-album />
     </section>
   </div>
 </template>

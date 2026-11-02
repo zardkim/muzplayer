@@ -13,6 +13,7 @@ import TrackList from '../components/TrackList.vue'
 import TrackTiles from '../components/TrackTiles.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
+import { useListSearch } from '../listSearch'
 import type { ViewMode } from '../types'
 
 const { t } = useI18n()
@@ -26,15 +27,22 @@ const genreName = ref('')
 const items = ref<Track[]>([])
 const total = ref(0)
 const loading = ref(false)
+const q = useListSearch(() => {
+  items.value = []
+  load()
+})
+let asked = 0
 
 async function load() {
+  const mine = ++asked
   loading.value = true
   try {
-    const page = await api<Page<Track>>(`/tracks${query({ sort: sort.value, genre_id: genreId, limit: 200, offset: items.value.length })}`)
+    const page = await api<Page<Track>>(`/tracks${query({ q: q.value.trim() || undefined, sort: sort.value, genre_id: genreId, limit: 200, offset: items.value.length })}`)
+    if (mine !== asked) return
     items.value.push(...page.items)
     total.value = page.total
   } finally {
-    loading.value = false
+    if (mine === asked) loading.value = false
   }
 }
 
@@ -56,7 +64,7 @@ const sorts = [
 <template>
   <div class="flex flex-col gap-5">
     <PageHeader v-if="genreId" :title="`#${genreName}`" :sub="t('common.tracks', total)" />
-    <LibraryHeader v-else :sub="t('common.tracks', total)">
+    <LibraryHeader v-else v-model:search="q" :search-label="t('tracks.search')" :sub="t('common.tracks', total)">
       <SelectPill :model-value="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="sorts.map((s) => ({ value: s.key, label: t(s.label) }))" @update:model-value="(s) => router.replace({ query: { ...route.query, sort: s } })" />
     </LibraryHeader>
     <div class="flex items-center gap-2">
@@ -66,6 +74,7 @@ const sorts = [
     </div>
     <ViewToggle page="tracks" fallback="list" class="flex-none" />
     </div>
+    <p v-if="!loading && !items.length && q.trim()" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <TrackList v-if="view === 'list'" :tracks="items" />
     <TrackTiles v-else :tracks="items" :dense="view === 'grid'" />
     <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">

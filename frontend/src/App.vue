@@ -2,12 +2,14 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
+import { forgetListSearches } from './listSearch'
 import { useOverlayHistory } from './overlayHistory'
 import { openPlayer } from './playerNav'
+import { PULL, usePullRefresh } from './pullRefresh'
 import { useWakeLock } from './wakeLock'
 import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
@@ -74,6 +76,7 @@ watch(
     library.reset()
     keepKey.value++ // nothing kept from the previous person
     scrolls.clear()
+    forgetListSearches()
     if (id) {
       player.restore(id)
       library.loadPlaylists().catch(() => {})
@@ -96,6 +99,15 @@ watch(
     ui.videoQueue = null
   },
 )
+
+// phone: pulled down from the top, the page loads again (the lists kept alive too); music plays on
+const refresher = usePullRefresh(mainEl, () => {
+  keepKey.value++
+  scrolls.clear()
+  ui.libraryCheckedAt = 0
+  library.loadPlaylists().catch(() => {})
+  library.loadVideoPlaylists().catch(() => {})
+})
 
 router.beforeEach((_to, from) => {
   if (mainEl.value) scrolls.set(from.fullPath, mainEl.value.scrollTop)
@@ -344,7 +356,17 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         <span class="w-[86px] flex-none" aria-hidden="true" /><!-- balances the arrows: the search box stays in the middle -->
       </header>
 
-      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
+      <div
+        v-if="refresher.pull.value > 0"
+        class="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+6px)] z-40 flex justify-center md:hidden"
+        :style="{ transform: `translateY(${refresher.pull.value - 30}px)`, opacity: Math.min(1, refresher.pull.value / PULL) }"
+        aria-hidden="true"
+      >
+        <span class="grid size-10 place-items-center rounded-full bg-bg shadow-[0_2px_10px_rgba(0,0,0,0.18)]" :class="refresher.ready.value ? 'text-ink' : 'text-muted'">
+          <RefreshCw :size="19" :stroke-width="1.8" :class="refresher.busy.value ? 'animate-spin' : ''" :style="refresher.busy.value ? undefined : { transform: `rotate(${refresher.pull.value * 4}deg)` }" />
+        </span>
+      </div>
+      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
         :class="barHidden ? 'md:pb-24' : 'md:pb-36'">
         <button v-if="showBack" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
           <ChevronLeft :size="28" :stroke-width="1.5" />

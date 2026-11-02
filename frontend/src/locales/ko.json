@@ -224,6 +224,7 @@
     "section_playlists": "플레이리스트 (랜덤 100 · 내 플레이리스트)"
   },
   "albums": {
+    "search": "앨범 이름·아티스트 검색",
     "title": "앨범",
     "count": "앨범 {n}개",
     "sortRecent": "최근 추가",
@@ -242,12 +243,14 @@
     "quality_lossless": "Lossless"
   },
   "tracks": {
+    "search": "곡 제목·가수 검색",
     "title": "곡",
     "sortTitle": "제목순",
     "sortArtist": "아티스트순",
     "sortRecent": "최근 추가"
   },
   "artists": {
+    "search": "아티스트 검색",
     "title": "아티스트",
     "albums": "앨범",
     "tracks": "곡",
@@ -262,6 +265,7 @@
     "photoCredit": "사진: 위키백과 '{title}'"
   },
   "genres": {
+    "search": "장르 검색",
     "title": "장르",
     "empty": "장르 태그가 있는 곡이 없습니다.",
     "count": "장르 {n}개",
@@ -928,6 +932,7 @@
     "searchVideos": "영상 제목, 곡, 가수 검색"
   },
   "folders": {
+    "search": "이 폴더에서 찾기",
     "root": "음악",
     "path": "폴더 위치",
     "count": "폴더 {n}개",
@@ -1064,12 +1069,13 @@
     "search": "이름, 내용, IP 검색",
     "kind": {
       "all": "전체",
-      "login": "로그인",
+      "login": "로그인·접속",
       "failed": "실패",
       "admin": "관리 변경"
     },
     "action": {
       "login": "로그인",
+      "visit": "접속",
       "logout": "로그아웃",
       "switch": "계정 전환",
       "setup": "첫 계정 만듦",

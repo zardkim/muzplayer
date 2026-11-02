@@ -131,7 +131,7 @@ def _cookie(response: Response, name: str, value: str) -> None:
 
 def start_session(db: Session, user: User, response: Response) -> None:
     token, _ = create_session(db, user.id)
-    user.last_login_at = now()
+    user.last_login_at = user.last_seen_at = now()  # signed in just now: not also a "visit"
     db.commit()
     _cookie(response, COOKIE_NAME, token)
 
@@ -201,6 +201,8 @@ def switch(body: SwitchIn, request: Request, response: Response, db: Session = D
         rest.insert(0, current)
     _cookie(response, COOKIE_NAME, token)
     set_others(response, rest)
+    user.last_seen_at = now()  # switched to just now: not also a "visit"
+    db.commit()
     activity.record("switch", user, request=request)
     return user_out(user)
 

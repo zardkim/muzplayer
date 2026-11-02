@@ -7,6 +7,7 @@ import type { Genre } from '../types'
 import { useAuth } from '../stores/auth'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
+import { matches, useListSearch } from '../listSearch'
 import SelectPill from '../components/SelectPill.vue'
 
 // Genres as colour tiles: each genre keeps its own colour (from its name), with the covers of
@@ -34,17 +35,19 @@ function colour(name: string) {
   return PALETTE[h % PALETTE.length]
 }
 
+const q = useListSearch()
+const found = computed(() => items.value.filter((g) => matches(g.name, q.value)))
 const sorted = computed(() =>
   sort.value === 'size'
-    ? [...items.value].sort((a, b) => b.track_count - a.track_count || a.name.localeCompare(b.name))
-    : items.value,
+    ? [...found.value].sort((a, b) => b.track_count - a.track_count || a.name.localeCompare(b.name))
+    : found.value,
 )
 // a few screenfuls first, more as the end comes near (a library can have hundreds of genres, each
 // tile with three covers: building them all at once, or while scrolling, makes a phone stutter)
 const PAGE = 36
 const count = ref(PAGE)
 const shown = computed(() => sorted.value.slice(0, count.value))
-watch(sort, () => (count.value = PAGE))
+watch([sort, q], () => (count.value = PAGE))
 const more = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 onMounted(() => {
@@ -58,7 +61,7 @@ onMounted(() => {
 })
 onUnmounted(() => observer?.disconnect())
 // wide tiles for the four biggest genres (only when sorted by size and there are enough)
-const wide = computed(() => (sort.value === 'size' && items.value.length >= 8 ? 4 : 0))
+const wide = computed(() => (sort.value === 'size' && !q.value.trim() && items.value.length >= 8 ? 4 : 0))
 // fanned covers: back to front
 const FAN = ['rotate-[-14deg] translate-x-[-58%]', 'rotate-[-2deg] translate-x-[-28%]', 'rotate-[16deg]']
 const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]', 'group-hover:rotate-[-4deg] group-hover:translate-x-[-34%]', 'group-hover:rotate-[22deg] group-hover:translate-x-[6%]']
@@ -66,13 +69,14 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
 
 <template>
   <div class="flex flex-col gap-6">
-    <LibraryHeader :sub="loaded && items.length ? t('genres.count', items.length) : undefined">
+    <LibraryHeader v-model:search="q" :search-label="t('genres.search')" :sub="loaded && items.length ? t('genres.count', found.length) : undefined">
       <div class="flex items-center gap-1 text-[14px]">
         <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
         <SelectPill v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="(['size', 'name'] as const).map((s) => ({ value: s, label: t(`genres.sort_${s}`) }))" />
       </div>
     </LibraryHeader>
     <p v-if="loaded && !items.length" class="font-light text-muted">{{ t('genres.empty') }}</p>
+    <p v-else-if="loaded && !found.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <MergeSheet v-if="merging" kind="genre" @close="merging = false" @changed="load" />
 
     <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">

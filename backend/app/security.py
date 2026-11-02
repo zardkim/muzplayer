@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -83,6 +83,7 @@ def session_user(db: Session, token: str) -> User | None:
 
 
 SEEN_EVERY = timedelta(minutes=1)
+BACK_AFTER = timedelta(minutes=30)  # away this long, then a request again: a "visit" in the admin's log
 
 
 def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
@@ -90,14 +91,26 @@ def current_user(request: Request, db: Session = Depends(get_db, scope="function
     row = session_user(db, token) if token else None
     if row is None:
         raise api_error(401, "not_authenticated")
-    # online on the admin page: written at most once a minute, not on every request
+    # online on the admin page: written at most once a minute, not on every request. The update
+    # is conditional, so of the requests an opened app sends at once only one counts the visit.
+    visit = False
     if row.last_seen_at is None or row.last_seen_at < now() - SEEN_EVERY:
-        row.last_seen_at = now()
+        away = row.last_seen_at is None or row.last_seen_at < now() - BACK_AFTER
+        won = db.execute(
+            update(User)
+            .where(User.id == row.id, or_(User.last_seen_at.is_(None), User.last_seen_at < now() - SEEN_EVERY))
+            .values(last_seen_at=now())
+        ).rowcount
+        visit = away and bool(won)
     # Hand the connection back now: the endpoint runs in another worker thread, and holding a
     # connection while waiting for a thread deadlocks under load (a page of covers takes every
     # thread, each waiting for a connection that a request queued behind them holds). The session
     # stays usable and the user stays in it; the endpoint's first query takes a connection again.
     db.commit()
+    if visit:
+        from . import activity  # noqa: PLC0415 - activity imports this module
+
+        activity.record("visit", row, request=request)
     return row
 
 

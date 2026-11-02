@@ -243,7 +243,7 @@ def list_users(_: User = Depends(admin_user), db: Session = Depends(get_db, scop
 
 # ---- the log (activity.py): sign-ins and admin changes, newest first ----
 LOG_KINDS = {
-    "login": ("login", "logout", "switch", "setup", "signup", "password_changed"),
+    "login": ("login", "visit", "logout", "switch", "setup", "signup", "password_changed"),
     "failed": ("login_failed", "login_locked"),
     "admin": ("admin",),
 }

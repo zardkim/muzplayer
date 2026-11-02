@@ -224,6 +224,7 @@
     "section_playlists": "Playlists (Random 100 · mine)"
   },
   "albums": {
+    "search": "Search albums or artists",
     "title": "Albums",
     "count": "{n} album | {n} albums",
     "sortRecent": "Recently added",
@@ -242,12 +243,14 @@
     "quality_lossless": "Lossless"
   },
   "tracks": {
+    "search": "Search songs or artists",
     "title": "Songs",
     "sortTitle": "Title",
     "sortArtist": "Artist",
     "sortRecent": "Recently added"
   },
   "artists": {
+    "search": "Search artists",
     "title": "Artists",
     "albums": "Albums",
     "tracks": "Songs",
@@ -262,6 +265,7 @@
     "photoCredit": "Photo: Wikipedia '{title}'"
   },
   "genres": {
+    "search": "Search genres",
     "title": "Genres",
     "empty": "No songs have genre tags.",
     "count": "{n} genres",
@@ -928,6 +932,7 @@
     "searchVideos": "Search videos, songs, artists"
   },
   "folders": {
+    "search": "Find in this folder",
     "root": "Music",
     "path": "Folder path",
     "count": "{n} folder | {n} folders",
@@ -1064,12 +1069,13 @@
     "search": "Search name, detail, IP",
     "kind": {
       "all": "All",
-      "login": "Sign-ins",
+      "login": "Sign-ins & visits",
       "failed": "Failed",
       "admin": "Admin changes"
     },
     "action": {
       "login": "Signed in",
+      "visit": "Visit",
       "logout": "Signed out",
       "switch": "Switched account",
       "setup": "First account",

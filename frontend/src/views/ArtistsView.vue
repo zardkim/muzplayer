@@ -11,6 +11,7 @@ import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
+import { useListSearch } from '../listSearch'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -22,14 +23,19 @@ const total = ref(0)
 const loading = ref(false)
 const shown = useProgressive(() => items.value)
 
+const q = useListSearch(() => reload())
+let asked = 0
+
 async function load() {
+  const mine = ++asked
   loading.value = true
   try {
-    const page = await api<Page<Artist>>(`/artists${query({ limit: 200, offset: items.value.length })}`)
+    const page = await api<Page<Artist>>(`/artists${query({ q: q.value.trim() || undefined, limit: 200, offset: items.value.length })}`)
+    if (mine !== asked) return
     items.value.push(...page.items)
     total.value = page.total
   } finally {
-    loading.value = false
+    if (mine === asked) loading.value = false
   }
 }
 onMounted(load)
@@ -41,12 +47,13 @@ function reload() {
 
 <template>
   <div class="flex flex-col gap-5">
-    <LibraryHeader :sub="t('artists.count', total)">
+    <LibraryHeader v-model:search="q" :search-label="t('artists.search')" :sub="t('artists.count', total)">
       <div class="flex items-center gap-2">
         <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
         <ViewToggle page="artists" fallback="grid" />
       </div>
     </LibraryHeader>
+    <p v-if="!loading && !items.length && q.trim()" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <ul
       v-if="view !== 'list'"
       class="grid gap-x-4 gap-y-6"

@@ -8,7 +8,9 @@ import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
 import PageHeader from '../components/PageHeader.vue'
+import SearchField from '../components/SearchField.vue'
 import SelectPill from '../components/SelectPill.vue'
+import { useListSearch } from '../listSearch'
 import VideoFilesSheet from '../components/VideoFilesSheet.vue'
 import VideoCard from '../components/VideoCard.vue'
 
@@ -47,19 +49,24 @@ const sections = computed(() =>
     .filter((s) => s.items.length),
 )
 
+const q = useListSearch(() => load())
+let asked = 0
+
 async function load(more = false) {
+  const mine = ++asked
   loading.value = true
   error.value = ''
   try {
     const r = await api<{ items: VideoListItem[]; total: number }>(
-      `/videos${query({ kind: kind.value ?? undefined, liked: likedOnly.value ? 'true' : undefined, sort: sort.value, offset: more ? items.value.length : 0, limit: PAGE })}`,
+      `/videos${query({ q: q.value.trim() || undefined, kind: kind.value ?? undefined, liked: likedOnly.value ? 'true' : undefined, sort: sort.value, offset: more ? items.value.length : 0, limit: PAGE })}`,
     )
+    if (mine !== asked) return
     items.value = more ? [...items.value, ...r.items] : r.items
     total.value = r.total
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
-    loading.value = false
+    if (mine === asked) loading.value = false
   }
 }
 onMounted(() => load())
@@ -95,8 +102,9 @@ function playAll(shuffle: boolean) {
       </template>
     </PageHeader>
 
-    <!-- liked only, the kind and the order: one row of a toggle and two drop-downs -->
+    <!-- a search, liked only, the kind and the order -->
     <div class="flex flex-wrap items-center gap-2">
+      <SearchField v-model="q" :placeholder="t('videos.searchVideos')" class="w-full sm:w-72" />
       <button
         type="button"
         class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-4 text-[15px]"
@@ -120,7 +128,7 @@ function playAll(shuffle: boolean) {
     </div>
 
     <p v-if="error" class="font-light text-muted">{{ error }}</p>
-    <p v-else-if="!loading && !items.length" class="max-w-xl font-light leading-relaxed text-muted">{{ t('videos.pageEmpty') }}</p>
+    <p v-else-if="!loading && !items.length" class="max-w-xl font-light leading-relaxed text-muted">{{ q.trim() ? t('search.noResults') : t('videos.pageEmpty') }}</p>
 
     <section v-for="s in sections" :key="s.kind" class="flex flex-col gap-3">
       <h2 v-if="!kind" class="text-[19px] font-bold">{{ t(`videos.kinds.${s.kind}`) }} <span class="text-[14px] font-normal text-muted">{{ s.items.length }}</span></h2>

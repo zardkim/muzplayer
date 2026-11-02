@@ -3,10 +3,13 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LIBRARY_ROUTES, type LibraryRoute } from '../router'
 import PageHeader from './PageHeader.vue'
+import SearchField from './SearchField.vue'
 
 // The library's pages (albums, artists, songs, genres, folders) share one header: the title and
-// their tabs (the slot sits right of the count line). Each tab is its own route, so lists stay alive and back/forward move between them.
-defineProps<{ sub?: string }>()
+// their tabs (the slot sits right of the count line), and the page's search box when it binds one.
+// Each tab is its own route, so lists stay alive and back/forward move between them.
+defineProps<{ sub?: string; searchLabel?: string }>()
+const search = defineModel<string>('search')
 const { t } = useI18n()
 const route = useRoute()
 
@@ -34,6 +37,7 @@ const LABELS: Record<LibraryRoute, string> = {
         {{ t(LABELS[name]) }}
       </RouterLink>
     </nav>
+    <SearchField v-if="search !== undefined" v-model="search" :placeholder="searchLabel ?? ''" class="mt-1 w-full sm:max-w-sm" />
     <!-- on a narrow screen the controls go to their own line rather than squeeze the count -->
     <div v-if="sub || $slots.default" class="flex min-h-8 flex-wrap items-center justify-between gap-x-3 gap-y-2">
       <p class="whitespace-nowrap text-[15px] font-light text-muted">{{ sub }}</p>
