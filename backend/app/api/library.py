@@ -554,7 +554,7 @@ def stream(
 
 
 def serve_track(db: Session, track_id: int, request: Request, quality: str, level: str, whole: bool):
-    """A song's audio as asked (also for Cast, api/cast.py)."""
+    """A song's audio as asked."""
     track, path = track_file(db, track_id)
     gain = transcode.level_gain((track.rg_track_gain, track.rg_track_peak, track.rg_album_gain, track.rg_album_peak), level)
     damaged = DAMAGED in (track.tag_json or {})

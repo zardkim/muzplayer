@@ -5,7 +5,6 @@ import { cachedSource, prepare } from '../audioCache'
 import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
-import { attachOutputs } from '../outputs'
 import { loadStations, regionOf } from '../radio'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, RadioStation, Track } from '../types'
@@ -60,7 +59,6 @@ export const usePlayer = defineStore('player', () => {
   // that also uses Web Audio counts as "ambient" sound, which stops in the background)
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
   if (session) session.type = 'playback'
-  attachOutputs(audio)
 
   const queue = ref<Track[]>([])
   const index = ref(-1)
@@ -70,19 +68,6 @@ export const usePlayer = defineStore('player', () => {
   const shuffle = ref(false)
   const repeat = ref<Repeat>('off')
   const volume = ref(1)
-  // the browser refused to start playing without a tap here (a remote play: remote.ts tells the sender)
-  const blocked = ref(false)
-  // Safari: AirPlay speakers or TVs nearby (its own picker sends this element's sound there)
-  const airplay = ref(false)
-  audio.setAttribute('x-webkit-airplay', 'allow')
-  if ('WebKitPlaybackTargetAvailabilityEvent' in window) {
-    audio.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
-      airplay.value = (e as Event & { availability: string }).availability === 'available'
-    })
-  }
-  function showAirPlay() {
-    ;(audio as HTMLAudioElement & { webkitShowPlaybackTargetPicker?: () => void }).webkitShowPlaybackTargetPicker?.()
-  }
   let userId: number | null = null
   // what the audio element holds: "t<track id>" or "b<book id>:<file index>"
   let loadedKey: string | null = null
@@ -216,22 +201,17 @@ export const usePlayer = defineStore('player', () => {
     }
     soundSetup(track)
     updateMediaSession()
-    try {
-      await audio.play()
-    } catch (e) {
-      // autoplay blocked or aborted by a newer src; the UI stays paused
-      if ((e as DOMException)?.name === 'NotAllowedError') blocked.value = true
-    }
+    // autoplay blocked or aborted by a newer src: the UI stays paused
+    await audio.play().catch(() => {})
   }
 
-  /** opts.position: start there (seconds); opts.remote: started from another device (remote.ts),
-   *  so the player view doesn't open here */
-  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean; position?: number; remote?: boolean } = {}) {
+  /** opts.position: start there (seconds) */
+  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean; position?: number } = {}) {
     const playable = tracks.filter((t) => !t.missing)
     if (!playable.length) return
     const first = tracks[startAt] && !tracks[startAt].missing ? tracks[startAt] : playable[0]
     if (opts.shuffle !== undefined) shuffle.value = opts.shuffle
-    if (!opts.remote) playStarts.value++
+    playStarts.value++
     radioOn = false
     if (shuffle.value) {
       originalOrder = playable
@@ -671,9 +651,7 @@ export const usePlayer = defineStore('player', () => {
     audio.src = `/api/v1/radio/${encodeURIComponent(st.id)}/stream?t=${Date.now()}`
     currentTime.value = 0
     duration.value = 0
-    audio.play().catch((e: Error) => {
-      if (e?.name === 'NotAllowedError') blocked.value = true
-    })
+    audio.play().catch(() => {})
   }
 
   /** The next (1) or previous (-1) station of the region the current one is listed under (Radio page). */
@@ -854,7 +832,6 @@ export const usePlayer = defineStore('player', () => {
   })
   audio.addEventListener('playing', () => {
     failures = 0
-    blocked.value = false
     lookAhead()
   })
   audio.addEventListener('pause', () => {
@@ -1087,9 +1064,6 @@ export const usePlayer = defineStore('player', () => {
     shuffle,
     repeat,
     volume,
-    blocked,
-    airplay,
-    showAirPlay,
     restore,
     reset,
     playTracks,

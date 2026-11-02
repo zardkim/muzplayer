@@ -15,7 +15,6 @@ import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
 import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
-import { useRemote } from './stores/remote'
 import { connectNative } from './native'
 import { startPrefsSync } from './prefsSync'
 import { useUi } from './stores/ui'
@@ -29,7 +28,6 @@ import NowPlaying from './components/NowPlaying.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
 import PlaylistPicker from './components/PlaylistPicker.vue'
-import DevicesSheet from './components/DevicesSheet.vue'
 import VideoSheet from './components/VideoSheet.vue'
 import QueuePanel from './components/QueuePanel.vue'
 import SearchBox from './components/SearchBox.vue'
@@ -43,7 +41,6 @@ const auth = useAuth()
 const library = useLibrary()
 const player = usePlayer()
 const ui = useUi()
-useRemote() // this tab is a device other devices of this person can see and control
 connectNative() // inside the Windows app: its tray and shortcuts (native.ts)
 startPrefsSync() // the settings page's choices, the same on every device (kept with the account)
 const route = useRoute()
@@ -301,7 +298,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         v-for="p in ui.sidebarCollapsed ? [] : library.playlists.slice(0, 10)"
         :key="p.id"
         :to="{ name: 'playlist', params: { id: p.id } }"
-        class="flex h-9 items-center truncate rounded-full px-3.5 text-[15px]"
+        class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
         :class="route.name === 'playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
       >
         <span class="truncate">{{ p.name }}</span>
@@ -314,7 +311,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         v-for="p in ui.sidebarCollapsed ? [] : library.videoPlaylists.slice(0, 10)"
         :key="`v${p.id}`"
         :to="{ name: 'video-playlist', params: { id: p.id } }"
-        class="flex h-9 items-center truncate rounded-full px-3.5 text-[15px]"
+        class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
         :class="route.name === 'video-playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
       >
         <span class="truncate">{{ p.name }}</span>
@@ -431,7 +428,6 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <NowPlaying v-else-if="ui.playerOpen" />
     <QueuePanel v-if="ui.queueOpen" />
     <PlaylistPicker v-if="ui.playlistPicker" />
-    <DevicesSheet v-if="ui.devicesOpen && auth.user" />
     <LyricsSheet v-if="ui.lyricsTarget" :key="ui.lyricsTarget.trackId" />
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
     <VideoPlayer v-if="ui.videoQueue" />

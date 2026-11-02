@@ -69,7 +69,6 @@ export const useUi = defineStore('ui', () => {
   const playerOpen = ref(false) // full-screen player (phone layout, or the PC player)
   const queueOpen = ref(false) // queue panel
   const playlistPicker = ref<Track[] | null>(null) // tracks waiting to be added to a playlist
-  const devicesOpen = ref(false) // the devices sheet: other devices, Chromecast, AirPlay
   const lyricsOpen = ref(false) // full player shows lyrics instead of the artwork
   // when App.vue last asked whether the library changed; 0 makes the next page change ask
   // (after this person changed it, e.g. applied a banner, the kept lists must not wait a minute)
@@ -133,7 +132,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    toast, notify, playerOpen, queueOpen, playlistPicker, devicesOpen, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, videoLink, videoLinked,
+    toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, videoLink, videoLinked,
     barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })

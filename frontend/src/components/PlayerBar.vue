@@ -10,7 +10,6 @@ import { useUi } from '../stores/ui'
 import { useSwipe } from '../swipe'
 import BookCover from './BookCover.vue'
 import CoverArt from './CoverArt.vue'
-import DevicesButton from './DevicesButton.vue'
 import LikeButton from './LikeButton.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import QueueIcon from './QueueIcon.vue'
@@ -249,7 +248,6 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     <button type="button" class="hidden size-10 place-items-center rounded-full hover:bg-surface xl:grid" :aria-label="t('player.lyrics')" :title="t('player.lyrics')" @click="openPlayer('lyrics')">
       <MicVocal :size="19" :stroke-width="1.3" />
     </button>
-    <DevicesButton class="size-10" :size="19" />
     <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-surface" :aria-label="t('player.queue')" :title="t('player.queue')" @click="openPlayer('queue')">
       <QueueIcon />
     </button>

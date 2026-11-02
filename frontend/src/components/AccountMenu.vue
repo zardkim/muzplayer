@@ -2,8 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { EllipsisVertical, LogOut, MonitorSpeaker, Settings, UserPlus, Users } from '@lucide/vue'
-import { useUi } from '../stores/ui'
+import { EllipsisVertical, LogOut, Settings, UserPlus, Users } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import type { Account } from '../types'
 import { useAuth } from '../stores/auth'
@@ -17,7 +16,6 @@ const { t } = useI18n()
 const auth = useAuth()
 const player = usePlayer()
 const router = useRouter()
-const ui = useUi()
 const open = ref(false)
 const trigger = ref<HTMLElement | null>(null)
 const spot = ref<{ left: number; bottom: number }>({ left: 0, bottom: 0 })
@@ -124,7 +122,6 @@ onUnmounted(() => document.removeEventListener('click', close))
         </form>
       </template>
       <RouterLink :to="{ name: 'login', query: { add: '1' } }" class="flex items-center gap-3 border-b border-line px-4 py-3 hover:bg-surface" @click="open = false"><UserPlus :size="18" :stroke-width="1.4" />{{ t('account.add') }}</RouterLink>
-      <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="(open = false), (ui.devicesOpen = true)"><MonitorSpeaker :size="18" :stroke-width="1.4" />{{ t('devices.title') }}</button>
       <RouterLink to="/settings" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false"><Settings :size="18" :stroke-width="1.4" />{{ t('nav.settings') }}</RouterLink>
       <RouterLink v-if="auth.user?.is_admin" to="/admin" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false"><Users :size="18" :stroke-width="1.4" />{{ t('nav.admin') }}</RouterLink>
       <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="logout"><LogOut :size="18" :stroke-width="1.4" />{{ t('nav.logout') }}</button>

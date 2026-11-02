@@ -14,7 +14,6 @@ import CoverArt from './CoverArt.vue'
 import LikeButton from './LikeButton.vue'
 import LyricsPanel from './LyricsPanel.vue'
 import PlayerControls from './PlayerControls.vue'
-import DevicesButton from './DevicesButton.vue'
 import QueueIcon from './QueueIcon.vue'
 import SeekBar from './SeekBar.vue'
 import SpeedButton from './SpeedButton.vue'
@@ -248,7 +247,6 @@ const flick = useSwipe({
             {{ t('player.upNextButton') }} <ChevronUp :size="16" :stroke-width="1.6" />
           </button>
           <span class="flex items-center">
-            <DevicesButton class="size-11" :size="22" />
             <button type="button" class="grid size-11 place-items-center" :aria-label="t('player.queue')" @click="ui.queueOpen = true">
               <QueueIcon />
             </button>

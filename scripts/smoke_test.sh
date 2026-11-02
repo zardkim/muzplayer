@@ -145,25 +145,6 @@ if [ "$(curl -s "$BASE/config" | j 'd.get("ai_playlists")')" = False ]; then
   check "ai playlist without a key" "$(curl -s -b "$U" -X POST "$BASE/playlists/ai" -H 'content-type: application/json' -d '{"prompt":"rainy day"}' | j 'd["detail"]')" ai_not_configured
 fi
 
-# remote control: a device listening on its event stream gets a command from another device
-ev="$TMP/events.txt"
-(timeout 4 curl -s -N -b "$A" "$BASE/remote/events?device=smokeAAAAAAAA&name=smoke" > "$ev" &)
-sleep 1
-check "remote command accepted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/remote/command" -H 'content-type: application/json' -d '{"device":"smokeBBBBBBBB","to":"smokeAAAAAAAA","cmd":"next"}')" 204
-check "another person can't reach the device" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/remote/command" -H 'content-type: application/json' -d '{"device":"smokeBBBBBBBB","to":"smokeAAAAAAAA","cmd":"next"}')" 404
-sleep 0.5
-check "command reaches the device" "$(grep -c '"cmd": "next"' "$ev")" 1
-
-# Chromecast links: signed for one song, refused when changed
-ROOT="${BASE%/api/v1}"
-csrc=$(curl -s -b "$A" -X POST "$BASE/cast/links" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j "d['$tid']['src']")
-check "cast link plays without a cookie" "$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$ROOT$csrc")" 206
-flipped=$(echo "$csrc" | python3 -c "import sys; s=sys.stdin.read().strip(); print(s[:-1] + ('0' if s[-1] != '0' else '1'))")
-check "changed cast link refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT$flipped")" 403
-other=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][1]["id"]')
-check "cast link for another song refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT${csrc/tracks\/$tid\//tracks/$other/}")" 403
-usrc=$(curl -s -b "$U" -X POST "$BASE/cast/links" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j "d['$tid']['src']")
-
 # stars, likes, play counts, mixes and smart playlists are each user's own
 aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/tracks/$tid" -H 'content-type: application/json' -d '{"rating":5}'
@@ -298,5 +279,4 @@ check "restored track visible" "$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$pid"
 curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type: application/json' -d '{"is_active":false}'
 check "disabled user session revoked" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 401
-check "disabled user's cast link refused" "$(curl -s -o /dev/null -w '%{http_code}' "$ROOT$usrc")" 403
 exit $fail
