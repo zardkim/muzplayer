@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FolderPlus, Heart, Play, Shuffle } from '@lucide/vue'
+import { ArrowDownUp, ChevronDown, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
@@ -86,52 +86,42 @@ function playAll(shuffle: boolean) {
 
 <template>
   <div class="flex flex-col gap-6">
-    <PageHeader :title="t('videos.pageTitle')" :sub="total ? t('videos.pageSub', { n: total }) : ''" />
-
-    <div class="flex items-start gap-3">
-      <div class="-mr-5 flex min-w-0 flex-1 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:flex-wrap md:pr-0">
-        <button
-          type="button"
-          class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-4 text-[15px]"
-          :class="likedOnly ? 'border-like bg-like text-white' : 'border-line-strong bg-bg'"
-          :aria-pressed="likedOnly"
-          @click="likedOnly = !likedOnly"
-        >
-          <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" />{{ t('videos.liked') }}
+    <PageHeader :title="t('videos.pageTitle')" :sub="total ? t('videos.pageSub', { n: total }) : ''">
+      <template #actions>
+        <button v-if="auth.user?.is_admin" type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-ink px-3 text-[14px] text-on-ink sm:px-4" :aria-label="t('videos.addFile')" :title="t('videos.addFile')" @click="addingFiles = true">
+          <FolderPlus :size="17" :stroke-width="1.6" /><span class="max-sm:hidden">{{ t('videos.addFile') }}</span>
         </button>
-        <button
-          v-for="k in [null, ...VIDEO_KINDS]"
-          :key="k ?? 'all'"
-          type="button"
-          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="kind === k ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
-          :aria-pressed="kind === k"
-          @click="kind = k"
-        >
-          {{ k ? t(`videos.kinds.${k}`) : t('videos.all') }}
-        </button>
-      </div>
-      <button v-if="auth.user?.is_admin" type="button" class="hidden h-[38px] flex-none items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink md:flex" @click="addingFiles = true">
-        <FolderPlus :size="17" :stroke-width="1.6" />{{ t('videos.addFile') }}
-      </button>
-    </div>
-    <button v-if="auth.user?.is_admin" type="button" class="-mt-2 flex h-10 items-center gap-1.5 self-start rounded-full bg-ink px-4 text-[14px] text-on-ink md:hidden" @click="addingFiles = true">
-      <FolderPlus :size="16" :stroke-width="1.6" />{{ t('videos.addFile') }}
-    </button>
+      </template>
+    </PageHeader>
 
-    <div class="-mt-2 flex gap-1 overflow-x-auto text-[14px] [scrollbar-width:none]" role="radiogroup" :aria-label="t('videos.sort')">
+    <!-- liked only, the kind and the order: one row of a toggle and two drop-downs -->
+    <div class="flex flex-wrap items-center gap-2">
       <button
-        v-for="s in SORTS"
-        :key="s"
         type="button"
-        role="radio"
-        :aria-checked="sort === s"
-        class="h-8 flex-none rounded-full px-3"
-        :class="sort === s ? 'bg-surface-2 font-medium' : 'font-light text-muted'"
-        @click="sort = s"
+        class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-4 text-[15px]"
+        :class="likedOnly ? 'border-like bg-like text-white' : 'border-line-strong bg-bg'"
+        :aria-pressed="likedOnly"
+        @click="likedOnly = !likedOnly"
       >
-        {{ t(`videos.sorts.${s}`) }}
+        <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" />{{ t('videos.liked') }}
       </button>
+      <label class="relative flex h-[38px] items-center rounded-full border border-line-strong bg-bg focus-within:ring-2 focus-within:ring-ink">
+        <LayoutGrid :size="15" :stroke-width="1.6" class="pointer-events-none absolute left-3.5 text-muted" aria-hidden="true" />
+        <span class="sr-only">{{ t('videos.kind') }}</span>
+        <select v-model="kind" class="h-full cursor-pointer appearance-none rounded-full bg-transparent pl-9 pr-8 text-[15px] outline-none">
+          <option :value="null">{{ t('videos.all') }}</option>
+          <option v-for="k in VIDEO_KINDS" :key="k" :value="k">{{ t(`videos.kinds.${k}`) }}</option>
+        </select>
+        <ChevronDown :size="15" :stroke-width="1.8" class="pointer-events-none absolute right-3 text-muted" aria-hidden="true" />
+      </label>
+      <label class="relative flex h-[38px] items-center rounded-full border border-line-strong bg-bg focus-within:ring-2 focus-within:ring-ink">
+        <ArrowDownUp :size="15" :stroke-width="1.6" class="pointer-events-none absolute left-3.5 text-muted" aria-hidden="true" />
+        <span class="sr-only">{{ t('videos.sort') }}</span>
+        <select v-model="sort" class="h-full cursor-pointer appearance-none rounded-full bg-transparent pl-9 pr-8 text-[15px] outline-none">
+          <option v-for="s in SORTS" :key="s" :value="s">{{ t(`videos.sorts.${s}`) }}</option>
+        </select>
+        <ChevronDown :size="15" :stroke-width="1.8" class="pointer-events-none absolute right-3 text-muted" aria-hidden="true" />
+      </label>
     </div>
 
     <div v-if="items.length" class="-mt-2 flex gap-2">

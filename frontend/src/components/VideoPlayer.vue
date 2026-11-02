@@ -10,17 +10,16 @@ import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import ArtistPhoto from './ArtistPhoto.vue'
-import VideoThumb from './VideoThumb.vue'
 
 // The video player (ui.videoQueue): videos played large, one after another or shuffled, YouTube
 // ones with YouTube's player, NAS files with the browser's. From the Music videos page, a search,
-// or a video playlist. The music pauses while a video plays. Under it: what plays next, similar
-// music videos (one picked plays now) and similar artists (their pages).
+// or a video playlist. The music pauses while a video plays. Under it: what plays next and similar
+// artists (their pages).
 const { t } = useI18n()
 const ui = useUi()
 const player = usePlayer()
 const queue = ui.videoQueue!
-const items = [...queue.items] // a similar video picked joins it
+const items = [...queue.items]
 
 const shuffle = ref(!!queue.shuffle)
 const repeat = ref(false)
@@ -115,7 +114,7 @@ async function show(v: VideoListItem | undefined) {
 
 watch(current, (v) => show(v))
 
-// ---- similar music videos and artists (of the one playing) ----
+// ---- similar artists (of the one playing) ----
 type Related = { videos: VideoListItem[]; artists: { id: number; name: string; image_v: number }[] }
 const related = ref<Related | null>(null)
 watch(
@@ -132,16 +131,6 @@ watch(
   { immediate: true },
 )
 const upNext = computed(() => (pos.value + 1 < order.value.length ? items[order.value[pos.value + 1]] : null))
-/** A similar video: played now, the rest of the list after it. */
-function playRelated(v: VideoListItem) {
-  let i = items.findIndex((x) => x.id === v.id)
-  if (i < 0) i = items.push(v) - 1
-  const at = order.value.indexOf(i)
-  if (at >= 0) order.value.splice(at, 1)
-  const here = order.value.indexOf(order.value[pos.value])
-  order.value.splice(here + 1, 0, i)
-  pos.value = here + 1
-}
 onMounted(() => {
   arrange(Math.min(Math.max(queue.start, 0), items.length - 1))
   show(current.value)
@@ -213,22 +202,6 @@ function close() {
       <button v-if="upNext" type="button" class="-mt-1 flex min-w-0 items-center gap-2 self-start text-[13px] text-muted hover:text-ink" @click="next">
         <span class="flex-none">{{ t('videos.nextUp') }}</span><span class="truncate text-ink">{{ upNext.title }}</span>
       </button>
-
-      <!-- similar music videos -->
-      <section v-if="related?.videos.length" class="flex flex-col gap-2">
-        <h3 class="text-[15px] font-bold">{{ t('videos.similarVideos') }}</h3>
-        <ul class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
-          <li v-for="v in related.videos" :key="v.id">
-            <button type="button" class="group flex w-full flex-col gap-1.5 text-left" :aria-label="`${t('videos.play')}: ${v.title}`" @click="playRelated(v)">
-              <span class="relative block aspect-video w-full overflow-hidden rounded-lg bg-surface">
-                <VideoThumb :video="v" :icon="20" />
-              </span>
-              <span class="line-clamp-2 text-[13px] leading-snug">{{ v.title }}</span>
-              <span v-if="v.target" class="truncate text-[12px] text-muted">{{ v.target.artist || v.target.title }}</span>
-            </button>
-          </li>
-        </ul>
-      </section>
 
       <!-- similar artists: their pages -->
       <section v-if="related?.artists.length" class="flex flex-col gap-2">
