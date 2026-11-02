@@ -35,6 +35,7 @@ class User(Base):
     # signed up and waiting for an admin to approve (can't log in meanwhile; api/auth.py signup)
     pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last request (online, admin page)
     # off: plays leave no history or play count (listening privately)
     record_history: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # home screen rows in order, each shown or not: [{"key": "recent", "on": true}, ...]; NULL = default
@@ -55,6 +56,20 @@ class UserSession(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ActivityLog(Base):
+    """Sign-ins and admin changes, for the admin's log page (activity.py)."""
+
+    __tablename__ = "activity_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    username: Mapped[str] = mapped_column(String(64), default="")  # kept when the account is deleted
+    action: Mapped[str] = mapped_column(String(40))
+    detail: Mapped[str] = mapped_column(String(300), default="")
+    ip: Mapped[str] = mapped_column(String(64), default="")
 
 
 class Artist(Base):

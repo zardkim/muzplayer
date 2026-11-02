@@ -82,11 +82,17 @@ def session_user(db: Session, token: str) -> User | None:
     return row if row is not None and row.is_active else None
 
 
+SEEN_EVERY = timedelta(minutes=1)
+
+
 def current_user(request: Request, db: Session = Depends(get_db, scope="function")) -> User:
     token = request.cookies.get(COOKIE_NAME)
     row = session_user(db, token) if token else None
     if row is None:
         raise api_error(401, "not_authenticated")
+    # online on the admin page: written at most once a minute, not on every request
+    if row.last_seen_at is None or row.last_seen_at < now() - SEEN_EVERY:
+        row.last_seen_at = now()
     # Hand the connection back now: the endpoint runs in another worker thread, and holding a
     # connection while waiting for a thread deadlocks under load (a page of covers takes every
     # thread, each waiting for a connection that a request queued behind them holds). The session

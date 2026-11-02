@@ -291,6 +291,18 @@ export interface User {
   pending?: boolean // signed up, waiting for an admin to approve
   created_at?: string | null
   last_login_at?: string | null
+  last_seen_at?: string | null // admin list: the last request
+  online?: boolean // admin list: seen in the last few minutes
+}
+
+export interface ActivityEntry {
+  id: number
+  at: string
+  user_id: number | null
+  username: string
+  action: string // login | logout | switch | setup | signup | password_changed | login_failed | login_locked | admin
+  detail: string
+  ip: string
 }
 
 export interface ScanJob {

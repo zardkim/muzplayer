@@ -12,7 +12,7 @@ from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
 from ..models import (
-    Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
+    ActivityLog, Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
 )
 from ..scanner import (
     FOLDER_KINDS, in_folder, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running,
@@ -228,9 +228,51 @@ class UserPatch(BaseModel):
     password: str | None = Field(default=None, min_length=8, max_length=256)
 
 
+ONLINE = timedelta(minutes=5)  # seen this recently (any request; the app asks every few minutes while open)
+
+
 @router.get("/users")
 def list_users(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
-    return {"items": [user_out(u) for u in db.scalars(select(User).order_by(User.id))]}
+    since = now() - ONLINE
+    return {"items": [
+        {**user_out(u), "last_seen_at": u.last_seen_at.isoformat() if u.last_seen_at else None,
+         "online": bool(u.last_seen_at and u.last_seen_at > since)}
+        for u in db.scalars(select(User).order_by(User.id))
+    ]}
+
+
+# ---- the log (activity.py): sign-ins and admin changes, newest first ----
+LOG_KINDS = {
+    "login": ("login", "logout", "switch", "setup", "signup", "password_changed"),
+    "failed": ("login_failed", "login_locked"),
+    "admin": ("admin",),
+}
+
+
+@router.get("/logs")
+def list_logs(
+    kind: str | None = Query(None, pattern="^(login|failed|admin)$"),
+    user_id: int | None = None,
+    q: str = Query("", max_length=100),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    _: User = Depends(admin_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    cond = []
+    if kind:
+        cond.append(ActivityLog.action.in_(LOG_KINDS[kind]))
+    if user_id is not None:
+        cond.append(ActivityLog.user_id == user_id)
+    if q.strip():
+        pattern = "%" + q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        cond.append(ActivityLog.username.ilike(pattern) | ActivityLog.detail.ilike(pattern) | ActivityLog.ip.ilike(pattern))
+    total = db.scalar(select(func.count()).select_from(ActivityLog).where(*cond))
+    rows = db.scalars(select(ActivityLog).where(*cond).order_by(ActivityLog.id.desc()).offset(offset).limit(limit))
+    return {"items": [
+        {"id": r.id, "at": r.at.isoformat(), "user_id": r.user_id, "username": r.username, "action": r.action, "detail": r.detail, "ip": r.ip}
+        for r in rows
+    ], "total": total}
 
 
 @router.post("/users", status_code=201)

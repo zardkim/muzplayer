@@ -203,7 +203,7 @@ function parentPage(): RouteLocationRaw {
   const parents: Record<string, string> = {
     album: '/albums', artist: '/artists', folders: '/folders', tracks: '/genres', playlist: '/playlists', chart: '/charts',
     'chart-list': '/charts', book: '/books', mix: '/library', playlists: '/library', favorites: '/library', history: '/library',
-    settings: '/library', admin: '/library', stats: '/admin',
+    settings: '/library', admin: '/library', stats: '/admin', logs: '/admin',
   }
   return parents[String(route.name)] ?? '/'
 }

@@ -456,6 +456,10 @@
     "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
   },
   "admin": {
+    "seenCol": "접속",
+    "online": "온라인",
+    "offline": "오프라인",
+    "menu_logs": "로그인·관리 변경 기록",
     "menu_library": "스캔, 커버·검색 색인 다시 만들기",
     "menu_folders": "폴더별 종류(앨범·컴필레이션 등)",
     "menu_photos": "아티스트 사진 일괄 찾기",
@@ -1048,6 +1052,59 @@
     "region_jeju": "제주",
     "explore": "실시간 라디오 듣기",
     "exploreSub": "KBS·MBC·SBS·CBS·EBS 등 전국 방송"
+  },
+  "logs": {
+    "title": "로그",
+    "sub": "기록 {n}개 · 180일 보관",
+    "empty": "기록이 없습니다.",
+    "user": "사용자",
+    "allUsers": "모든 사용자",
+    "search": "이름, 내용, IP 검색",
+    "kind": {
+      "all": "전체",
+      "login": "로그인",
+      "failed": "실패",
+      "admin": "관리 변경"
+    },
+    "action": {
+      "login": "로그인",
+      "logout": "로그아웃",
+      "switch": "계정 전환",
+      "setup": "첫 계정 만듦",
+      "signup": "회원가입",
+      "password_changed": "비밀번호 변경",
+      "login_failed": "로그인 실패",
+      "login_locked": "잠긴 계정"
+    },
+    "reason": {
+      "unknown": "없는 아이디",
+      "locked": "잠김",
+      "pending": "승인 대기",
+      "disabled": "사용 중지된 계정"
+    },
+    "route": {
+      "scan": "스캔",
+      "scanCancel": "스캔 중지",
+      "covers": "커버 다시 만들기",
+      "purge": "누락 곡 정리",
+      "folders": "폴더 종류 변경",
+      "userAdd": "사용자 추가",
+      "userEdit": "사용자 변경",
+      "userDelete": "사용자 삭제",
+      "signup": "회원가입 방식",
+      "keys": "외부 서비스 키",
+      "photos": "아티스트 사진 찾기",
+      "photoSet": "아티스트 사진 지정",
+      "photoRemove": "아티스트 사진 삭제",
+      "merge": "이름 합치기",
+      "unmerge": "합치기 취소",
+      "notes": "앨범 소개",
+      "searchIndex": "검색 색인 다시 만들기",
+      "absImport": "오디오북 가져오기",
+      "bannerMake": "AI 배너 만들기",
+      "bannerAdd": "배너 추가",
+      "bannerDelete": "배너 삭제"
+    }
   },
   "stats": {
     "title": "통계",

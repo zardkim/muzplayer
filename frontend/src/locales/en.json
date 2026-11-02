@@ -456,6 +456,10 @@
     "inWindowsApp": "Running in the muzplayer Windows app {v}."
   },
   "admin": {
+    "seenCol": "Seen",
+    "online": "Online",
+    "offline": "Offline",
+    "menu_logs": "Sign-ins and admin changes",
     "menu_library": "Scan, rebuild covers and the search index",
     "menu_folders": "Each folder's kind (albums, compilations, ...)",
     "menu_photos": "Find artist photos",
@@ -1048,6 +1052,59 @@
     "region_jeju": "Jeju",
     "explore": "Live radio",
     "exploreSub": "KBS, MBC, SBS, CBS, EBS and more"
+  },
+  "logs": {
+    "title": "Log",
+    "sub": "{n} entries · kept 180 days",
+    "empty": "Nothing logged.",
+    "user": "User",
+    "allUsers": "All users",
+    "search": "Search name, detail, IP",
+    "kind": {
+      "all": "All",
+      "login": "Sign-ins",
+      "failed": "Failed",
+      "admin": "Admin changes"
+    },
+    "action": {
+      "login": "Signed in",
+      "logout": "Signed out",
+      "switch": "Switched account",
+      "setup": "First account",
+      "signup": "Signed up",
+      "password_changed": "Password changed",
+      "login_failed": "Sign-in failed",
+      "login_locked": "Account locked"
+    },
+    "reason": {
+      "unknown": "unknown username",
+      "locked": "locked",
+      "pending": "awaiting approval",
+      "disabled": "disabled account"
+    },
+    "route": {
+      "scan": "Scan",
+      "scanCancel": "Scan stopped",
+      "covers": "Rebuild covers",
+      "purge": "Purge missing songs",
+      "folders": "Folder kinds",
+      "userAdd": "User added",
+      "userEdit": "User changed",
+      "userDelete": "User deleted",
+      "signup": "Sign-up mode",
+      "keys": "Service keys",
+      "photos": "Find artist photos",
+      "photoSet": "Artist photo set",
+      "photoRemove": "Artist photo removed",
+      "merge": "Names merged",
+      "unmerge": "Merge undone",
+      "notes": "Album notes",
+      "searchIndex": "Rebuild search index",
+      "absImport": "Audiobook import",
+      "bannerMake": "AI banner",
+      "bannerAdd": "Banner added",
+      "bannerDelete": "Banner deleted"
+    }
   },
   "stats": {
     "title": "Statistics",

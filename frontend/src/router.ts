@@ -38,6 +38,7 @@ export const router = createRouter({
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
     { path: '/more', redirect: '/library' },
     { path: '/settings/:section?', name: 'settings', component: () => import('./views/SettingsView.vue'), props: true },
+    { path: '/admin/logs', name: 'logs', component: () => import('./views/LogsView.vue'), meta: { admin: true } },
     { path: '/admin/stats', name: 'stats', component: () => import('./views/StatsView.vue'), meta: { admin: true } },
     { path: '/admin/:section?', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { admin: true }, props: true },
     { path: '/:rest(.*)', redirect: '/' },

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, ai_playlist, appconf, transcode, youtube
+from .. import activity, ai_banner, ai_playlist, appconf, transcode, youtube
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -75,16 +75,19 @@ class LoginIn(BaseModel):
     add: bool = False  # another account on this device: the one signed in now stays (user switching)
 
 
-def check_password(db: Session, user: User, password: str) -> None:
+def check_password(db: Session, user: User, password: str, request: Request | None = None) -> None:
     """Raises on a wrong password, counting it toward the lockout (login and switching alike)."""
     if user.locked_until and user.locked_until > now():
+        activity.record("login_locked", user, request=request)
         raise api_error(429, "account_locked")
     if not verify_password(user.password_hash, password):
         user.failed_logins += 1
-        if user.failed_logins >= MAX_FAILED_LOGINS:
+        locked = user.failed_logins >= MAX_FAILED_LOGINS
+        if locked:
             user.failed_logins = 0
             user.locked_until = now() + timedelta(minutes=LOCK_MINUTES)
         db.commit()
+        activity.record("login_failed", user, detail="locked" if locked else "", request=request)
         raise api_error(401, "invalid_credentials")
     user.failed_logins = 0
     user.locked_until = None
@@ -97,9 +100,11 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
     user = db.execute(select(User).where(User.username == body.username.strip())).scalar_one_or_none()
     if user is None:
         dummy_verify(body.password)
+        activity.record("login_failed", username=body.username.strip(), detail="unknown", request=request)
         raise api_error(401, "invalid_credentials")
-    check_password(db, user, body.password)
+    check_password(db, user, body.password, request)
     if not user.is_active:
+        activity.record("login_failed", user, detail="pending" if user.pending else "disabled", request=request)
         raise api_error(403, "pending_approval" if user.pending else "account_disabled")
     others = others_on_device(db, request)
     current = request.cookies.get(COOKIE_NAME)
@@ -108,6 +113,7 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
         others.insert(0, (current, signed_in))
     start_session(db, user, response)
     set_others(response, [t for t, u in others if u.id != user.id])
+    activity.record("login", user, request=request)
     return user_out(user)
 
 
@@ -187,7 +193,7 @@ def switch(body: SwitchIn, request: Request, response: Response, db: Session = D
     if user.is_admin:
         if not body.password:
             raise api_error(403, "password_required")
-        check_password(db, user, body.password)
+        check_password(db, user, body.password, request)
         db.commit()
     current = request.cookies.get(COOKIE_NAME)
     rest = [t for t, u in others if u.id != user.id]
@@ -195,6 +201,7 @@ def switch(body: SwitchIn, request: Request, response: Response, db: Session = D
         rest.insert(0, current)
     _cookie(response, COOKIE_NAME, token)
     set_others(response, rest)
+    activity.record("switch", user, request=request)
     return user_out(user)
 
 
@@ -204,7 +211,7 @@ class SetupIn(BaseModel):
 
 
 @router.post("/auth/setup", status_code=201)
-def setup(body: SetupIn, response: Response, db: Session = Depends(get_db, scope="function")):
+def setup(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
     """The first account, made from the login page of a fresh install, is the admin. Once any
     account exists this is closed; more accounts are added on the admin page."""
     db.execute(text("LOCK TABLE users IN EXCLUSIVE MODE"))  # two first visitors: only one wins
@@ -219,6 +226,7 @@ def setup(body: SetupIn, response: Response, db: Session = Depends(get_db, scope
     db.add(user)
     db.flush()
     start_session(db, user, response)
+    activity.record("setup", user, request=request)
     return user_out(user)
 
 
@@ -266,8 +274,10 @@ def signup(body: SignupIn, request: Request, response: Response, db: Session = D
     db.flush()
     if pending:
         db.commit()
+        activity.record("signup", user, detail="pending", request=request)
         return {"pending": True}
     start_session(db, user, response)
+    activity.record("signup", user, request=request)
     return user_out(user)
 
 
@@ -278,8 +288,11 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db, s
     listed for signing in again."""
     token = request.cookies.get(COOKIE_NAME)
     if token:
+        leaving = session_user(db, token)
         delete_session(db, token)
         db.commit()
+        if leaving is not None:
+            activity.record("logout", leaving, request=request)
     others = others_on_device(db, request)
     heir = next(((t, u) for t, u in others if not u.is_admin), None)
     if heir is not None:
@@ -332,8 +345,9 @@ class PasswordIn(BaseModel):
 
 
 @router.put("/auth/password", status_code=204)
-def change_password(body: PasswordIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+def change_password(body: PasswordIn, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     if not verify_password(user.password_hash, body.current_password):
         raise api_error(400, "wrong_password")
     user.password_hash = hash_password(body.new_password)
     db.commit()
+    activity.record("password_changed", user, request=request)

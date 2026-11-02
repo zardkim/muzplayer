@@ -110,6 +110,11 @@ curl -s -b "$A" -o /dev/null -X POST "$BASE/admin/users" -H 'content-type: appli
 uid=$(curl -s -b "$A" "$BASE/admin/users" | j '[u["id"] for u in d["items"] if u["username"]=="smokeuser"][0]')
 curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type: application/json' -d '{"is_active":true,"password":"smokepass1"}'
 check "second user login" "$(login "$U" smokeuser smokepass1)" 200
+curl -s -b "$U" -o /dev/null "$BASE/auth/me"
+check "signed-in user shows online" "$(curl -s -b "$A" "$BASE/admin/users" | j '[u["online"] for u in d["items"] if u["username"]=="smokeuser"][0]')" True
+check "log has the sign-in" "$(curl -s -b "$A" "$BASE/admin/logs?kind=login&q=smokeuser" | j 'd["items"][0]["action"]')" login
+check "log has the admin change" "$(curl -s -b "$A" "$BASE/admin/logs?kind=admin&q=smokeuser" | j '"PATCH /admin/users/{user_id}" in d["items"][0]["detail"]')" True
+check "log is admin-only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/logs")" 403
 pid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke"}' | j 'd["id"]')
 curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}"
 check "a song already in a playlist isn't added twice" "$(curl -s -b "$A" -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j '[d["added"], d["skipped"]]')" "[0, 1]"

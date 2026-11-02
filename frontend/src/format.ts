@@ -16,6 +16,17 @@ export function dateTime(value: string | null | undefined): string {
   )
 }
 
+/** "5분 전" / "5 minutes ago": how long ago, in the largest whole unit. */
+export function ago(value: string | null | undefined): string {
+  if (!value) return ''
+  const s = Math.max(0, (Date.now() - new Date(value).getTime()) / 1000)
+  const rtf = new Intl.RelativeTimeFormat(i18n.global.locale.value, { numeric: 'auto' })
+  for (const [unit, size] of [['day', 86400], ['hour', 3600], ['minute', 60]] as const) {
+    if (s >= size) return rtf.format(-Math.floor(s / size), unit)
+  }
+  return rtf.format(0, 'second')
+}
+
 /** "3시간 12분" / "3h 12m": for book lengths and time left. */
 export function longDuration(seconds: number | null | undefined): string {
   const t = i18n.global.t

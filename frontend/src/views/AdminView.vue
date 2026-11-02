@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChartColumn, ChevronRight, FolderTree, Images, KeyRound, Library, Plus, RefreshCw, BookHeadphones, Users } from '@lucide/vue'
+import { ChartColumn, ChevronRight, FolderTree, Images, KeyRound, Library, Plus, RefreshCw, BookHeadphones, ScrollText, Users } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
-import { dateTime } from '../format'
+import { ago, dateTime } from '../format'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
@@ -172,8 +172,11 @@ onMounted(() => {
   api<NonNullable<typeof aiStatus.value>>('/admin/banners/status').then((s) => (aiStatus.value = s), () => {})
   loadBooks().catch((e) => ui.notify(errorMessage(e), true))
   loadPhotos().catch(() => {})
+  usersPoll = window.setInterval(() => loadUsers().catch(() => {}), 60_000) // who is online
 })
+let usersPoll = 0
 onUnmounted(() => {
+  clearInterval(usersPoll)
   clearTimeout(poll)
   clearTimeout(photoPoll)
   clearTimeout(importPoll)
@@ -360,15 +363,16 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
     <PageHeader v-if="open" :title="t(open.title)" class="md:hidden" />
     <PageHeader :title="t('admin.title')" :class="open ? 'hidden md:flex' : ''">
       <template #actions>
+        <RouterLink to="/admin/logs" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ScrollText :size="16" :stroke-width="1.6" />{{ t('logs.title') }}</RouterLink>
         <RouterLink to="/admin/stats" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ChartColumn :size="16" :stroke-width="1.6" />{{ t('stats.title') }}</RouterLink>
       </template>
     </PageHeader>
 
     <nav v-if="!open" :aria-label="t('admin.title')" class="-mt-3 flex flex-col md:hidden">
       <RouterLink
-        v-for="x in [...menu, { key: 'stats', title: 'stats.title', hint: 'admin.menu_stats', icon: ChartColumn }]"
+        v-for="x in [...menu, { key: 'logs', title: 'logs.title', hint: 'admin.menu_logs', icon: ScrollText }, { key: 'stats', title: 'stats.title', hint: 'admin.menu_stats', icon: ChartColumn }]"
         :key="x.key"
-        :to="x.key === 'stats' ? { name: 'stats' } : { name: 'admin', params: { section: x.key } }"
+        :to="x.key === 'stats' || x.key === 'logs' ? { name: x.key } : { name: 'admin', params: { section: x.key } }"
         class="flex min-h-[64px] items-center gap-4 border-b border-surface"
       >
         <component :is="x.icon" :size="22" :stroke-width="1.4" class="flex-none text-muted" />
@@ -592,6 +596,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.idCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.roleCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.stateCol') }}</th>
+              <th class="px-3 pb-2.5 font-medium">{{ t('admin.seenCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.joinedCol') }}</th>
               <th class="px-3 pb-2.5 font-medium">{{ t('admin.lastLoginCol') }}</th>
               <th class="px-3 pb-2.5"><span class="sr-only">{{ t('common.moreActions') }}</span></th>
@@ -601,7 +606,10 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
             <tr v-for="(u, i) in shownUsers" :key="u.id" class="border-b border-surface" :class="u.pending ? 'bg-accent-soft/60' : ''">
               <td class="px-3 py-2.5">
                 <span class="flex items-center gap-2.5">
-                  <span class="grid size-8 place-items-center rounded-full text-[13px] font-medium text-white" :style="{ background: u.is_active ? avatarColors[i % avatarColors.length] : '#A1A1AA' }">{{ u.display_name.slice(0, 1).toUpperCase() }}</span>
+                  <span class="relative grid size-8 flex-none place-items-center rounded-full text-[13px] font-medium text-white" :style="{ background: u.is_active ? avatarColors[i % avatarColors.length] : '#A1A1AA' }">
+                    {{ u.display_name.slice(0, 1).toUpperCase() }}
+                    <span v-if="u.online" class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-bg bg-[#22c55e]" aria-hidden="true" />
+                  </span>
                   {{ u.display_name }}
                 </span>
               </td>
@@ -610,6 +618,10 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
                 <span class="rounded-full px-2.5 py-1 text-xs" :class="u.is_admin ? 'bg-accent-soft text-accent-strong' : 'bg-surface text-muted'">{{ u.is_admin ? t('admin.roleAdmin') : t('admin.roleUser') }}</span>
               </td>
               <td class="px-3 py-2.5" :class="u.pending ? 'font-medium text-accent-strong' : u.is_active ? '' : 'text-muted'">{{ u.pending ? t('admin.pending') : u.is_active ? t('admin.active') : t('admin.inactive') }}</td>
+              <td class="px-3 py-2.5 text-[13px]" :title="u.last_seen_at ? dateTime(u.last_seen_at) : undefined">
+                <span v-if="u.online" class="flex items-center gap-1.5 font-medium text-[#16a34a]"><span class="size-2 rounded-full bg-[#22c55e]" />{{ t('admin.online') }}</span>
+                <span v-else class="flex items-center gap-1.5 text-muted"><span class="size-2 rounded-full bg-line-strong" />{{ u.last_seen_at ? ago(u.last_seen_at) : t('admin.offline') }}</span>
+              </td>
               <td class="px-3 py-2.5 font-display text-[13px] text-muted">{{ day(u.created_at) }}</td>
               <td class="px-3 py-2.5 font-display text-[13px] text-muted" :title="u.last_login_at ? dateTime(u.last_login_at) : undefined">{{ day(u.last_login_at) }}</td>
               <td class="px-3 py-2.5">
