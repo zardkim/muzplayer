@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, ChevronRight, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -10,6 +10,7 @@ import { forgetListSearches } from './listSearch'
 import { useOverlayHistory } from './overlayHistory'
 import { openPlayer } from './playerNav'
 import { PULL, usePullRefresh } from './pullRefresh'
+import { useSiblingSwipe } from './siblingSwipe'
 import { useWakeLock } from './wakeLock'
 import { goBack, LIBRARY_ROUTES } from './router'
 import { useAuth } from './stores/auth'
@@ -105,6 +106,9 @@ const refresher = usePullRefresh(mainEl, () => {
   library.loadPlaylists().catch(() => {})
   library.loadVideoPlaylists().catch(() => {})
 })
+
+// phone: on a page opened from a list, a sideways swipe opens the next / previous one of that list
+const swiper = useSiblingSwipe(mainEl)
 
 router.beforeEach((_to, from) => {
   if (mainEl.value) scrolls.set(from.fullPath, mainEl.value.scrollTop)
@@ -363,8 +367,20 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
           <RefreshCw :size="19" :stroke-width="1.8" :class="refresher.busy.value ? 'animate-spin' : ''" :style="refresher.busy.value ? undefined : { transform: `rotate(${refresher.pull.value * 4}deg)` }" />
         </span>
       </div>
+      <!-- the one a sideways swipe opens, at the edge it comes in from -->
+      <div
+        v-if="swiper.target.value"
+        class="pointer-events-none fixed top-1/2 z-40 flex max-w-[70vw] -translate-y-1/2 items-center gap-1 rounded-full py-2 text-[14px] shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-colors md:hidden"
+        :class="[swiper.dx.value < 0 ? 'right-3 pl-4 pr-2.5' : 'left-3 flex-row-reverse pl-2.5 pr-4', swiper.ready.value ? 'bg-ink text-on-ink' : 'bg-bg text-ink']"
+        :style="{ opacity: Math.min(1, Math.abs(swiper.dx.value) / 90) }"
+        aria-hidden="true"
+      >
+        <span class="truncate">{{ swiper.target.value.label }}</span>
+        <ChevronRight :size="18" :stroke-width="1.8" class="flex-none" :class="swiper.dx.value < 0 ? '' : 'rotate-180'" />
+      </div>
       <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
-        :class="barHidden ? 'md:pb-24' : 'md:pb-36'">
+        :class="[barHidden ? 'md:pb-24' : 'md:pb-36', swiper.settling.value ? 'transition-transform duration-200' : '']"
+        :style="swiper.shift.value ? { transform: `translateX(${swiper.shift.value}px)` } : undefined">
         <button v-if="showBack" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
           <ChevronLeft :size="28" :stroke-width="1.5" />
         </button>
