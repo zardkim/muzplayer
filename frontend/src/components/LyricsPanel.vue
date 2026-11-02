@@ -75,7 +75,11 @@ watch(() => lyrics.lyrics, async () => {
               :style="{ fontSize: `${(large ? 28 : 19) * scale}px` }"
               @click="player.seek(time)"
             >
-              {{ line || '♪' }}
+              <!-- the line, then (smaller) how it is read and its translation when the lyrics have them -->
+              <template v-for="(part, k) in (line || '♪').split('\n')" :key="k">
+                <span v-if="k === 0" class="block">{{ part }}</span>
+                <span v-else class="mt-0.5 block text-[0.78em] font-normal">{{ part }}</span>
+              </template>
             </button>
           </li>
         </ol>

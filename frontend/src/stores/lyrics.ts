@@ -43,7 +43,9 @@ export const useLyrics = defineStore('lyrics', () => {
     while (i + 1 < synced.length && synced[i + 1][0] <= now) i++
     return i
   })
-  const line = computed(() => (activeIndex.value >= 0 ? lyrics.value!.synced![activeIndex.value][1] : ''))
+  // the one-line places (bottom bar, under the title) show a line's first part: a line sung may
+  // come with how it is read and its translation under it (backend lyrics.py)
+  const line = computed(() => (activeIndex.value >= 0 ? lyrics.value!.synced![activeIndex.value][1].split('\n')[0] : ''))
 
   return { lyrics, loading, activeIndex, line }
 })

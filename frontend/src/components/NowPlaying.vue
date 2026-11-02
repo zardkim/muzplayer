@@ -218,14 +218,15 @@ const flick = useSwipe({
           <span class="text-[17px] font-light text-soft">{{ player.current.artist || t('common.unknownArtist') }}<template v-if="ui.playerPrefs.showYear && player.current.year"> · {{ player.current.year }}</template></span>
           <StarRating :value="library.rating(player.current)" :size="18" @rate="rate" />
           <!-- fixed-height slot so the controls don't jump when a line appears -->
-          <span class="h-[22px] max-w-full">
+          <span class="block h-[22px] w-full overflow-hidden">
+            <!-- one line, cut with … (a long line must not wrap down onto the controls) -->
             <button
               v-if="lyricLine && !ui.lyricsOpen"
               type="button"
-              class="line-clamp-1 text-[15px] text-accent"
+              class="block w-full overflow-hidden text-center text-[15px] leading-[22px] text-accent"
               :aria-label="t('player.showLyrics')"
               @click="ui.lyricsOpen = true"
-            >{{ lyricLine }}</button>
+            ><span class="block truncate">{{ lyricLine }}</span></button>
           </span>
         </div>
 

@@ -83,21 +83,37 @@ def parse(text: str) -> dict:
     shift = int(offset.group(1)) / 1000 if offset else 0.0  # positive offset shows lines earlier
     synced: list[list] = []
     plain: list[str] = []
+    last = 0.0  # the latest time so far, in the file's order
     for line in text.split("\n"):
         line = line.strip()
         stamps = list(STAMP.finditer(line))
         if stamps and stamps[0].start() == 0:
             words = WORD_STAMP.sub("", STAMP.sub("", line)).strip()
+            times = []
             for m in stamps:
                 frac = m.group(3) or "0"
-                seconds = int(m.group(1)) * 60 + int(m.group(2)) + int(frac) / (10 ** len(frac))
-                synced.append([round(max(0.0, seconds - shift), 2), words])
+                times.append(int(m.group(1)) * 60 + int(m.group(2)) + int(frac) / (10 ** len(frac)))
+            # an empty line stamped earlier than the lines before it is a verse break ([00:00.00]
+            # between verses, as Alsong writes them), not a pause at that time
+            if not words and times[0] < last:
+                continue
+            last = max(last, times[0])  # (a repeated chorus's later times don't count here)
+            synced += [[round(max(0.0, seconds - shift), 2), words] for seconds in times]
             plain.append(words)
         elif not META.match(line):
             plain.append(line.strip())
     if len(synced) >= 2:
         synced.sort(key=lambda x: x[0])
-        return {"synced": synced, "plain": "\n".join(plain).strip() or None}
+        # lines sharing a time are one line sung (Alsong: the original, how it is read, its
+        # translation): together, one under the other, so the highlight covers all of them
+        merged: list[list] = []
+        for at, words in synced:
+            if merged and merged[-1][0] == at:
+                if words and words not in merged[-1][1].split("\n"):
+                    merged[-1][1] = f"{merged[-1][1]}\n{words}" if merged[-1][1] else words
+            else:
+                merged.append([at, words])
+        return {"synced": merged, "plain": "\n".join(plain).strip() or None}
     body = "\n".join(plain).strip()
     return {"synced": None, "plain": body or None}
 
