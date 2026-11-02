@@ -23,7 +23,7 @@
       // the colour theme picked in Settings (stores/ui.ts), applied before the first paint
       try {
         var theme = JSON.parse(localStorage.getItem('muz.ui') || '{}').theme
-        var bars = { plexamp: '#CBC5BF', spotify: '#121212' }
+        var bars = { plexamp: '#CBC5BF', spotify: '#121212', melon: '#FFFFFF' }
         if (bars[theme]) {
           document.documentElement.dataset.theme = theme
           document.querySelector('meta[name="theme-color"]').setAttribute('content', bars[theme])

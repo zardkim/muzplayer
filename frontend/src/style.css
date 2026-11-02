@@ -96,6 +96,30 @@
   transition: background 0.6s;
 }
 
+/* Melon-style: clean white pages, light grey panels, Melon's bright green for what's playing and
+   what's on (the switches, the seek bar); buttons stay dark. No cover-colour background. */
+:root[data-theme="melon"] {
+  --color-bg: #ffffff;
+  --color-surface: #f2f4f3;
+  --color-surface-2: #e8ebe9;
+  --color-line: #e6e8e7;
+  --color-line-strong: #d2d6d4;
+  --color-ink: #1a1a1a;
+  --color-muted: #767676;
+  --color-subtle: #a6a6a6;
+  --color-accent: #00a032;
+  --color-accent-strong: #008529;
+  --color-accent-soft: #e8f9ed;
+  --color-danger: #e5322d;
+  --color-on-ink: #ffffff;
+  --color-soft: #4d4d4d;
+  --color-sheet: #ffffff;
+  --glass-bg: rgb(255 255 255 / 0.94);
+  --glass-shadow: 0 6px 20px rgb(0 0 0 / 0.08);
+  --player-glow: #d9f5e2;
+  color-scheme: light;
+}
+
 html,
 body {
   background: var(--color-bg);
@@ -145,6 +169,13 @@ input[type="range"].seek::-moz-range-thumb {
   border: 0;
   border-radius: 999px;
   background: var(--color-ink);
+}
+/* Melon: the seek bar's knob in its green too */
+:root[data-theme="melon"] input[type="range"].seek::-webkit-slider-thumb {
+  background: var(--color-accent);
+}
+:root[data-theme="melon"] input[type="range"].seek::-moz-range-thumb {
+  background: var(--color-accent);
 }
 
 .pt-safe {

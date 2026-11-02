@@ -451,6 +451,7 @@
     "soundFailed": "이 브라우저가 소리 처리(이퀄라이저·크로스페이드·음량 평준화)를 거부했습니다. 음악은 그대로 재생됩니다.",
     "installOther": "브라우저 메뉴(⋮ 또는 공유)에서 \"앱 설치\"나 \"홈 화면에 추가\"를 고르세요.",
     "theme_spotify": "모던 다크 (Spotify 스타일)",
+    "theme_melon": "멜론 스타일",
     "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
   },
   "admin": {

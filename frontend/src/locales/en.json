@@ -451,6 +451,7 @@
     "soundFailed": "This browser refused sound processing (equaliser, crossfade, levelling). Music plays on as before.",
     "installOther": "Use the browser menu (⋮ or Share) and pick \"Install app\" or \"Add to Home Screen\".",
     "theme_spotify": "Modern dark (Spotify style)",
+    "theme_melon": "Melon style",
     "inWindowsApp": "Running in the muzplayer Windows app {v}."
   },
   "admin": {

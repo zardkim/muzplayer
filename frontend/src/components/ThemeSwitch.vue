@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { THEMES, useUi } from '../stores/ui'
 
 // colour themes, each with a small preview of its background, surface and accent
-const SWATCHES = { default: ['#FFFFFF', '#F4F4F5', '#D93B22'], plexamp: ['#D3CDC7', '#F8F6F3', '#CC7B19'], spotify: ['#121212', '#2A2A2A', '#1ED760'] }
+const SWATCHES = { default: ['#FFFFFF', '#F4F4F5', '#D93B22'], plexamp: ['#D3CDC7', '#F8F6F3', '#CC7B19'], spotify: ['#121212', '#2A2A2A', '#1ED760'], melon: ['#FFFFFF', '#F2F4F3', '#00A032'] }
 const { t } = useI18n()
 const ui = useUi()
 </script>
