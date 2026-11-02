@@ -252,8 +252,9 @@
     "unofficial": "비정규",
     "label": "아티스트",
     "photoTitle": "아티스트 사진 바꾸기",
-    "photoHelp": "위키백과 문서의 사진 중에서 고르세요. 아티스트 폴더에 artist.jpg가 있으면 그 사진이 우선합니다.",
-    "photoNone": "사진이 있는 문서를 찾지 못했습니다. 다른 이름으로 검색해 보세요.",
+    "photoHelp": "멜론·벅스·애플뮤직의 아티스트 사진이나 위키백과 문서의 사진 중에서 고르세요. 아티스트 폴더에 artist.jpg가 있으면 그 사진이 우선합니다.",
+    "photoSource": { "melon": "멜론", "bugs": "벅스", "apple": "Apple Music", "ko": "위키백과", "en": "Wikipedia (영어)" },
+    "photoNone": "사진을 찾지 못했습니다. 다른 이름으로 검색해 보세요.",
     "photoRemove": "사진 지우기 (자동으로 다시 찾지 않음)",
     "photoCredit": "사진: 위키백과 '{title}'"
   },

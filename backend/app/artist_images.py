@@ -1,8 +1,10 @@
 """Artist photos: an artist.jpg in the artist's folder, or a photo from Wikipedia (Wikimedia Commons).
 
 Lookups run only when an admin asks (all artists without a photo, or a pick for one artist) and
-stay well under Wikimedia's request limits. Photos are downloaded and kept in the cover folder in
-two sizes, never loaded from Wikipedia by the browser.
+stay well under Wikimedia's request limits. Picking a photo for one artist also searches Melon, Bugs
+and Apple Music's artist pages (their search pages, parsed like eztag's metadata/ scrapers do).
+Photos are downloaded and kept in the cover folder in two sizes, never loaded from those sites by
+the browser.
 """
 
 import io
@@ -16,9 +18,11 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -130,10 +134,10 @@ def folder_images(db: Session, root: Path) -> bool:
 
 # ---- Wikipedia ----
 
-def _get(url: str) -> bytes:
+def _get(url: str, headers: dict | None = None) -> bytes:
     """GET with Wikimedia's manners: a descriptive User-Agent, and on 429 wait as told and retry."""
     for attempt in range(4):
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        req = urllib.request.Request(url, headers=headers or {"User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as res:  # noqa: S310 - fixed hosts
                 return res.read(8_000_000)
@@ -159,7 +163,7 @@ def search(name: str, wiki: str, limit: int = 8) -> list[dict]:
     pages = sorted(data.get("query", {}).get("pages", []), key=lambda p: p.get("index", 99))
     return [
         {
-            "wiki": wiki,
+            "source": wiki,
             "title": p["title"],
             "description": p.get("description") or "",
             "image": p["thumbnail"]["source"],
@@ -198,7 +202,7 @@ def _by_title(name: str, wiki: str) -> dict | None:
         page = pages.get(title)
         if page and page.get("thumbnail", {}).get("source") and MUSIC.search(page.get("description", "")):
             return {
-                "wiki": wiki,
+                "source": wiki,
                 "title": page["title"],
                 "description": page.get("description", ""),
                 "image": page["thumbnail"]["source"],
@@ -227,15 +231,140 @@ def best_match(name: str) -> dict | None:
     return None
 
 
+# ---- Melon, Bugs, Apple Music ----
+
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+SITES = ("melon", "bugs", "apple")
+# where each source's photos may be downloaded from
+IMAGE_HOSTS = {
+    "ko": ("upload.wikimedia.org", "thumb.wikimedia.org"), "en": ("upload.wikimedia.org", "thumb.wikimedia.org"),
+    "melon": ("cdnimg.melon.co.kr",), "bugs": ("image.bugsm.co.kr",), "apple": (".mzstatic.com",),
+}
+
+
+def _page(url: str, referer: str) -> BeautifulSoup:
+    data = _get(url, {"User-Agent": BROWSER_UA, "Referer": referer, "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8"})
+    return BeautifulSoup(data.decode("utf-8", errors="replace"), "html.parser")
+
+
+def _text(el) -> str:
+    return re.sub(r"\s+([,)])", r"\1", re.sub(r"\s+", " ", el.get_text(" ", strip=True))).strip() if el else ""
+
+
+def _melon(name: str, limit: int) -> list[dict]:
+    soup = _page(f"https://www.melon.com/search/artist/index.htm?q={urllib.parse.quote(name)}", "https://www.melon.com/")
+    out = []
+    for li in soup.select("div.d_artist_list li"):
+        a = li.select_one("dt a.ellipsis")
+        img = li.select_one("a.thumb img")
+        m = re.search(r"goArtistDetail\('(\d+)'", a.get("href", "") if a else "")
+        src = re.sub(r"\.jpg[/?].*$", ".jpg", img.get("src") or "") if img else ""
+        if not (m and src.startswith("https://cdnimg.melon.co.kr/") and "artistcrop" in src):
+            continue  # no photo (the default picture)
+        genres = ", ".join(_text(g) for g in li.select("div.genre-info span"))
+        out.append({
+            "source": "melon", "title": (a.get("title") or "").removesuffix(" - 페이지 이동") or _text(a), "image": src,
+            "description": " · ".join(x for x in (_text(li.select_one("dd.gubun")), genres) if x),
+            "url": f"https://www.melon.com/artist/timeline.htm?artistId={m[1]}",
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _bugs(name: str, limit: int) -> list[dict]:
+    soup = _page(f"https://music.bugs.co.kr/search/artist?q={urllib.parse.quote(name)}", "https://music.bugs.co.kr/")
+    out = []
+    for fig in soup.select("ul.artistList figure.artistInfo"):
+        a = fig.select_one("a.artistTitle")
+        img = fig.select_one("a.thumbnail img")
+        m = re.search(r"/artist/(\d+)", a.get("href", "") if a else "")
+        src = (img.get("src") or "").split("?")[0] if img else ""
+        if not (m and src.startswith("https://image.bugsm.co.kr/artist/images/")):
+            continue
+        out.append({
+            "source": "bugs", "title": _text(a), "image": re.sub(r"/images/\d+/", "/images/500/", src),
+            "description": " · ".join(x for x in (_text(fig.select_one(".artistType")), _text(fig.select_one(".artistGenre"))) if x),
+            "url": f"https://music.bugs.co.kr/artist/{m[1]}",
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _apple(name: str, limit: int) -> list[dict]:
+    soup = _page(f"https://music.apple.com/kr/search?term={urllib.parse.quote(name)}", "https://music.apple.com/")
+    script = soup.find("script", id="serialized-server-data")
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def walk(node) -> None:
+        if len(out) >= limit:
+            return
+        if isinstance(node, dict):
+            desc = node.get("contentDescriptor")
+            art = (node.get("artwork") or {}).get("dictionary", {}).get("url", "") if isinstance(node.get("artwork"), dict) else ""
+            if isinstance(desc, dict) and desc.get("kind") == "artist" and art and node.get("title"):
+                ident = str(desc.get("identifiers", {}).get("storeAdamID") or desc.get("url"))
+                if ident not in seen:
+                    seen.add(ident)
+                    out.append({
+                        "source": "apple", "title": node["title"], "description": "",
+                        "image": re.sub(r"\{w\}x\{h\}(\w*)\.\{f\}", r"600x600\1.jpg", art), "url": desc.get("url", ""),
+                    })
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    if script:
+        walk(json.loads(script.get_text()))
+    return out
+
+
+def candidates(name: str, limit: int = 6) -> list[dict]:
+    """Photos for the name from Melon, Bugs, Apple Music and Wikipedia (Korean, English), all at
+    once, in that order. A site that fails is left out; ImageError when every one did."""
+    jobs = {"melon": _melon, "bugs": _bugs, "apple": _apple, "ko": lambda n, k: search(n, "ko", k), "en": lambda n, k: search(n, "en", k)}
+
+    def one(source: str) -> list[dict] | None:
+        try:
+            return jobs[source](name, limit)
+        except Exception as exc:  # noqa: BLE001 - a site down or changed: the others may still answer
+            log.warning("%s artist search failed: %s", source, exc)
+            return None
+
+    with ThreadPoolExecutor(len(jobs)) as pool:
+        found = list(pool.map(one, jobs))
+    if all(f is None for f in found):
+        raise ImageError("image_unreachable")
+    return [item for f in found if f for item in f]
+
+
+def _large(source: str, image: str) -> str:
+    """The bigger version of a picked photo."""
+    if source == "bugs":
+        return re.sub(r"/images/\d+/", "/images/1000/", image)
+    if source == "apple":
+        return re.sub(r"/\d+x\d+(\w*)\.jpg$", r"/1000x1000\1.jpg", image)
+    return image
+
+
 def use_page(db: Session, artist: Artist, page: dict) -> None:
-    """Downloads the page's photo for this artist."""
-    if not page["image"].startswith("https://upload.wikimedia.org/") and not page["image"].startswith("https://thumb.wikimedia.org/"):
+    """Downloads the picked photo (a Wikipedia article's, or a music site's) for this artist."""
+    source = page["source"]
+    url = urllib.parse.urlsplit(page["image"])
+    if url.scheme != "https" or not any(url.hostname == h or (h.startswith(".") and (url.hostname or "").endswith(h)) for h in IMAGE_HOSTS.get(source, ())):
         raise ImageError("image_bad_source")
     try:
-        data = _get(page["image"])
+        if source in WIKIS:
+            data = _get(page["image"])
+        else:
+            data = _get(_large(source, page["image"]), {"User-Agent": BROWSER_UA})
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise ImageError("image_unreachable") from exc
-    _save(artist, data, f"wiki:{page['wiki']}:{page['title']}")
+    _save(artist, data, f"wiki:{source}:{page['title']}" if source in WIKIS else f"{source}:{page['title']}")
     artist.image_checked_at = datetime.now(UTC)
 
 

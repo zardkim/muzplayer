@@ -8,7 +8,7 @@ import { useUi } from '../stores/ui'
 import type { ArtistDetail, ArtistImageCandidate } from '../types'
 import BaseModal from './BaseModal.vue'
 
-// Admin: pick the artist's photo from Wikipedia articles (Korean, then English), or remove it.
+// Admin: pick the artist's photo from Melon, Bugs, Apple Music or Wikipedia (Korean, English), or remove it.
 const props = defineProps<{ artist: ArtistDetail }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 const { t } = useI18n()
@@ -70,11 +70,11 @@ async function remove() {
       <p v-else-if="error" class="text-[14px] text-danger">{{ error }}</p>
       <p v-else-if="!items.length" class="text-[14px] text-muted">{{ t('artists.photoNone') }}</p>
       <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <li v-for="c in items" :key="`${c.wiki}:${c.title}`">
+        <li v-for="c in items" :key="`${c.source}:${c.url}:${c.image}`">
           <button type="button" class="group flex w-full flex-col gap-1.5 text-left disabled:opacity-50" :disabled="busy" @click="pick(c)">
             <img :src="c.image" alt="" loading="lazy" referrerpolicy="no-referrer" class="aspect-square w-full rounded-xl object-cover object-[50%_30%] ring-accent transition group-hover:ring-2" />
             <span class="truncate text-[14px]">{{ c.title }}</span>
-            <span class="line-clamp-2 text-[12px] font-light text-muted">{{ c.wiki.toUpperCase() }} · {{ c.description || '—' }}</span>
+            <span class="line-clamp-2 text-[12px] font-light text-muted">{{ t(`artists.photoSource.${c.source}`) }}<template v-if="c.description"> · {{ c.description }}</template></span>
           </button>
         </li>
       </ul>

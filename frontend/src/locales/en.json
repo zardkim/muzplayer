@@ -252,8 +252,9 @@
     "unofficial": "Singles & EPs",
     "label": "Artist",
     "photoTitle": "Change artist photo",
-    "photoHelp": "Pick a photo from Wikipedia articles. An artist.jpg in the artist's folder takes precedence.",
-    "photoNone": "No article with a photo found. Try another name.",
+    "photoHelp": "Pick an artist photo from Melon, Bugs, Apple Music or a Wikipedia article. An artist.jpg in the artist's folder takes precedence.",
+    "photoSource": { "melon": "Melon", "bugs": "Bugs", "apple": "Apple Music", "ko": "Wikipedia (Korean)", "en": "Wikipedia" },
+    "photoNone": "No photo found. Try another name.",
     "photoRemove": "Remove photo (not looked up again)",
     "photoCredit": "Photo: Wikipedia '{title}'"
   },

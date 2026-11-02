@@ -385,23 +385,24 @@ def artist_images_status(_: User = Depends(admin_user), db: Session = Depends(ge
 
 @router.get("/artists/{artist_id}/image-candidates")
 def artist_image_candidates(artist_id: int, q: str = "", _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
-    """Wikipedia articles with a photo for this artist (Korean, then English), to pick from."""
+    """Photos for this artist to pick from: Melon, Bugs, Apple Music, then Wikipedia (Korean, English)."""
     artist = db.get(Artist, artist_id)
     if artist is None:
         raise api_error(404, "not_found")
     name = q.strip() or artist.name
     try:
-        items = [p for wiki in artist_images.WIKIS for p in artist_images.search(name, wiki, limit=6)]
+        items = artist_images.candidates(name)
     except artist_images.ImageError as exc:
         raise api_error(502, str(exc)) from None
     return {"items": items}
 
 
 class ArtistImageIn(BaseModel):
-    wiki: str = Field(pattern="^(ko|en)$")
+    source: str = Field(pattern="^(ko|en|melon|bugs|apple)$")
     title: str = Field(min_length=1, max_length=300)
     image: str = Field(max_length=2000)
     description: str = Field(default="", max_length=500)
+    url: str = Field(default="", max_length=2000)
 
 
 @router.put("/artists/{artist_id}/image")

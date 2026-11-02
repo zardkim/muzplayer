@@ -80,7 +80,7 @@ export interface ArtistDetail {
 }
 
 export interface ArtistImageCandidate {
-  wiki: string
+  source: 'melon' | 'bugs' | 'apple' | 'ko' | 'en' // a music site, or Wikipedia in that language
   title: string
   description: string
   image: string
