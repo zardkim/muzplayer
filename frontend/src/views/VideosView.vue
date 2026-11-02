@@ -33,6 +33,12 @@ const likedOnly = computed({
   get: () => ui.views.videoLiked === '1',
   set: (v: boolean) => (ui.views = { ...ui.views, videoLiked: v ? '1' : '' }),
 })
+// the order within each kind, remembered like the filters
+const SORTS = ['recent', 'oldest', 'title', 'artist'] as const
+const sort = computed({
+  get: () => ((SORTS as readonly string[]).includes(ui.views.videoSort ?? '') ? ui.views.videoSort : 'recent'),
+  set: (v: string) => (ui.views = { ...ui.views, videoSort: v }),
+})
 // all kinds: a section per kind; one kind: just its videos
 const sections = computed(() =>
   (kind.value ? [kind.value] : VIDEO_KINDS)
@@ -45,7 +51,7 @@ async function load(more = false) {
   error.value = ''
   try {
     const r = await api<{ items: VideoListItem[]; total: number }>(
-      `/videos${query({ kind: kind.value ?? undefined, liked: likedOnly.value ? 'true' : undefined, offset: more ? items.value.length : 0, limit: PAGE })}`,
+      `/videos${query({ kind: kind.value ?? undefined, liked: likedOnly.value ? 'true' : undefined, sort: sort.value, offset: more ? items.value.length : 0, limit: PAGE })}`,
     )
     items.value = more ? [...items.value, ...r.items] : r.items
     total.value = r.total
@@ -56,7 +62,7 @@ async function load(more = false) {
   }
 }
 onMounted(() => load())
-watch([kind, likedOnly], () => load())
+watch([kind, likedOnly, sort], () => load())
 // a video's song picked (the link sheet): its card shows it
 watch(() => ui.videoLinked, () => load())
 // unliked while only liked ones show: it goes
@@ -112,6 +118,21 @@ function playAll(shuffle: boolean) {
     <button v-if="auth.user?.is_admin" type="button" class="-mt-2 flex h-10 items-center gap-1.5 self-start rounded-full bg-ink px-4 text-[14px] text-on-ink md:hidden" @click="addingFiles = true">
       <FolderPlus :size="16" :stroke-width="1.6" />{{ t('videos.addFile') }}
     </button>
+
+    <div class="-mt-2 flex gap-1 overflow-x-auto text-[14px] [scrollbar-width:none]" role="radiogroup" :aria-label="t('videos.sort')">
+      <button
+        v-for="s in SORTS"
+        :key="s"
+        type="button"
+        role="radio"
+        :aria-checked="sort === s"
+        class="h-8 flex-none rounded-full px-3"
+        :class="sort === s ? 'bg-surface-2 font-medium' : 'font-light text-muted'"
+        @click="sort = s"
+      >
+        {{ t(`videos.sorts.${s}`) }}
+      </button>
+    </div>
 
     <div v-if="items.length" class="-mt-2 flex gap-2">
       <button type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] text-on-ink" @click="playAll(false)">

@@ -816,6 +816,8 @@
     }
   },
   "videos": {
+    "sort": "정렬",
+    "sorts": { "recent": "최근 등록순", "oldest": "오래된 순", "title": "제목순", "artist": "아티스트순" },
     "title": "영상",
     "forAlbum": "앨범 영상",
     "forTrack": "{title} 영상",

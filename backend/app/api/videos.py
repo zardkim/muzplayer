@@ -108,20 +108,29 @@ def all_videos(
     kind: Kind | None = None,
     q: str = Query("", max_length=200),
     liked: bool = False,  # only the videos this person liked
+    sort: str = Query("recent", pattern="^(recent|oldest|title|artist)$"),
     offset: int = Query(0, ge=0),
     limit: int = Query(60, ge=1, le=200),
     user: User = Depends(current_user),
     db: Session = Depends(get_db, scope="function"),
 ):
     """Every video added (the Music videos page; with q, the search), YouTube and NAS files, newest
-    first, each with its song or album (a NAS file may have none)."""
+    first (or oldest, by title, by artist), each with its song or album (a NAS file may have none)."""
     cond = [Video.kind == kind] if kind else []
     if q.strip():
         cond.append(_matches(q.strip()))
     if liked:
         cond.append(_liked(user.id))
     total = db.scalar(select(func.count()).select_from(_listing(user.id).where(*cond).subquery()))
-    rows = db.execute(_listing(user.id).where(*cond).order_by(Video.created_at.desc(), Video.id.desc()).offset(offset).limit(limit))
+    # artist: the song's, else the album's, else the channel; a NAS file without any comes last
+    artist = func.lower(func.coalesce(func.nullif(Track.artist_text, ""), Artist.name, func.nullif(Video.channel, "")))
+    order = {
+        "recent": [Video.created_at.desc(), Video.id.desc()],
+        "oldest": [Video.created_at, Video.id],
+        "title": [func.lower(Video.title), Video.id],
+        "artist": [artist.nulls_last(), func.lower(Video.title), Video.id],
+    }[sort]
+    rows = db.execute(_listing(user.id).where(*cond).order_by(*order).offset(offset).limit(limit))
     return {"items": [list_item(r, user) for r in rows], "total": total}
 
 

@@ -816,6 +816,8 @@
     }
   },
   "videos": {
+    "sort": "Sort",
+    "sorts": { "recent": "Recently added", "oldest": "Oldest", "title": "Title", "artist": "Artist" },
     "title": "Videos",
     "forAlbum": "Album videos",
     "forTrack": "Videos of {title}",
