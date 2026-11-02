@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ArrowDownUp } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
 import { useAuth } from '../stores/auth'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
+import SelectPill from '../components/SelectPill.vue'
 
 // Genres as colour tiles: each genre keeps its own colour (from its name), with the covers of
 // its biggest albums fanned out in the corner. The largest genres get wide tiles up top.
@@ -67,16 +69,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
     <LibraryHeader :sub="loaded && items.length ? t('genres.count', items.length) : undefined">
       <div class="flex items-center gap-1 text-[14px]">
         <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
-        <button
-          v-for="s in (['size', 'name'] as const)"
-          :key="s"
-          type="button"
-          class="h-8 rounded-full px-3"
-          :class="sort === s ? 'bg-surface-2 font-medium' : 'font-light text-muted hover:text-ink'"
-          @click="sort = s"
-        >
-          {{ t(`genres.sort_${s}`) }}
-        </button>
+        <SelectPill v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="(['size', 'name'] as const).map((s) => ({ value: s, label: t(`genres.sort_${s}`) }))" />
       </div>
     </LibraryHeader>
     <p v-if="loaded && !items.length" class="font-light text-muted">{{ t('genres.empty') }}</p>

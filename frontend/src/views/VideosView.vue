@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownUp, ChevronDown, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
+import { ArrowDownUp, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
 import PageHeader from '../components/PageHeader.vue'
+import SelectPill from '../components/SelectPill.vue'
 import VideoFilesSheet from '../components/VideoFilesSheet.vue'
 import VideoCard from '../components/VideoCard.vue'
 
@@ -105,23 +106,8 @@ function playAll(shuffle: boolean) {
       >
         <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" />{{ t('videos.liked') }}
       </button>
-      <label class="relative flex h-[38px] items-center rounded-full border border-line-strong bg-bg focus-within:ring-2 focus-within:ring-ink">
-        <LayoutGrid :size="15" :stroke-width="1.6" class="pointer-events-none absolute left-3.5 text-muted" aria-hidden="true" />
-        <span class="sr-only">{{ t('videos.kind') }}</span>
-        <select v-model="kind" class="h-full cursor-pointer appearance-none rounded-full bg-transparent pl-9 pr-8 text-[15px] outline-none">
-          <option :value="null">{{ t('videos.all') }}</option>
-          <option v-for="k in VIDEO_KINDS" :key="k" :value="k">{{ t(`videos.kinds.${k}`) }}</option>
-        </select>
-        <ChevronDown :size="15" :stroke-width="1.8" class="pointer-events-none absolute right-3 text-muted" aria-hidden="true" />
-      </label>
-      <label class="relative flex h-[38px] items-center rounded-full border border-line-strong bg-bg focus-within:ring-2 focus-within:ring-ink">
-        <ArrowDownUp :size="15" :stroke-width="1.6" class="pointer-events-none absolute left-3.5 text-muted" aria-hidden="true" />
-        <span class="sr-only">{{ t('videos.sort') }}</span>
-        <select v-model="sort" class="h-full cursor-pointer appearance-none rounded-full bg-transparent pl-9 pr-8 text-[15px] outline-none">
-          <option v-for="s in SORTS" :key="s" :value="s">{{ t(`videos.sorts.${s}`) }}</option>
-        </select>
-        <ChevronDown :size="15" :stroke-width="1.8" class="pointer-events-none absolute right-3 text-muted" aria-hidden="true" />
-      </label>
+      <SelectPill v-model="kind" :label="t('videos.kind')" :icon="LayoutGrid" :options="[{ value: null, label: t('videos.all') }, ...VIDEO_KINDS.map((k) => ({ value: k, label: t(`videos.kinds.${k}`) }))]" />
+      <SelectPill v-model="sort" :label="t('videos.sort')" :icon="ArrowDownUp" :options="SORTS.map((s) => ({ value: s, label: t(`videos.sorts.${s}`) }))" />
     </div>
 
     <div v-if="items.length" class="-mt-2 flex gap-2">

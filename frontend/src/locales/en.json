@@ -138,6 +138,9 @@
     "default_playlist": "The default playlist can’t be deleted."
   },
   "common": {
+    "sort": "Sort",
+    "kind": "Category",
+    "region": "Region",
     "unknownArtist": "Unknown artist",
     "unknownAlbum": "Unknown album",
     "tracks": "{n} song | {n} songs",

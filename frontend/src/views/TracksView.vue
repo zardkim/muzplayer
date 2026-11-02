@@ -2,11 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ArrowDownUp } from '@lucide/vue'
 import { api, query } from '../api'
 import type { Genre, Page, Track } from '../types'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayActions from '../components/PlayActions.vue'
+import SelectPill from '../components/SelectPill.vue'
 import TrackList from '../components/TrackList.vue'
 import TrackTiles from '../components/TrackTiles.vue'
 import ViewToggle from '../components/ViewToggle.vue'
@@ -54,24 +56,13 @@ const sorts = [
 <template>
   <div class="flex flex-col gap-5">
     <PageHeader v-if="genreId" :title="`#${genreName}`" :sub="t('common.tracks', total)" />
-    <LibraryHeader v-else :sub="t('common.tracks', total)" />
+    <LibraryHeader v-else :sub="t('common.tracks', total)">
+      <SelectPill :model-value="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="sorts.map((s) => ({ value: s.key, label: t(s.label) }))" @update:model-value="(s) => router.replace({ query: { ...route.query, sort: s } })" />
+    </LibraryHeader>
     <div class="flex items-center gap-2">
     <!-- the buttons scroll in their own space; the view switch keeps its place beside them -->
     <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none]">
       <PlayActions :tracks="items" :add="false" />
-      <template v-if="!genreId">
-        <span class="mx-1 w-px flex-none bg-line" />
-        <button
-          v-for="s in sorts"
-          :key="s.key"
-          type="button"
-          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="sort === s.key ? 'border-ink' : 'border-line-strong text-muted'"
-          @click="router.replace({ query: { ...route.query, sort: s.key } })"
-        >
-          {{ t(s.label) }}
-        </button>
-      </template>
     </div>
     <ViewToggle page="tracks" fallback="list" class="flex-none" />
     </div>

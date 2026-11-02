@@ -2,10 +2,12 @@
 import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ArrowDownUp, LayoutGrid } from '@lucide/vue'
 import { api, query } from '../api'
 import type { Album, Page } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
+import SelectPill from '../components/SelectPill.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import { useUi } from '../stores/ui'
 import type { ViewMode } from '../types'
@@ -58,36 +60,12 @@ const sorts = [
 
 <template>
   <div class="flex flex-col gap-6">
-    <LibraryHeader :sub="t('albums.count', total)" />
-    <div class="flex flex-col gap-2.5">
-      <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
-        <button
-          v-for="k in kinds"
-          :key="k.key"
-          type="button"
-          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="kind === k.key ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
-          @click="router.replace({ query: { ...route.query, kind: k.key || undefined } })"
-        >
-          {{ t(k.label) }}
-        </button>
-      </div>
-      <!-- the sorts scroll in their own space; the view switch keeps its place beside them -->
-      <div class="flex items-center gap-2">
-      <div class="flex min-w-0 flex-1 gap-1 overflow-x-auto text-[14px] [scrollbar-width:none]">
-        <button
-          v-for="s in sorts"
-          :key="s.key"
-          type="button"
-          class="h-8 flex-none rounded-full px-3"
-          :class="sort === s.key ? 'bg-surface-2 font-medium' : 'font-light text-muted'"
-          @click="router.replace({ query: { ...route.query, sort: s.key } })"
-        >
-          {{ t(s.label) }}
-        </button>
-      </div>
-      <ViewToggle page="albums" fallback="cover" class="ml-auto flex-none" />
-      </div>
+    <LibraryHeader :sub="t('albums.count', total)">
+      <ViewToggle page="albums" fallback="cover" />
+    </LibraryHeader>
+    <div class="flex flex-wrap items-center gap-2">
+      <SelectPill :model-value="kind" :label="t('common.kind')" :icon="LayoutGrid" :options="kinds.map((k) => ({ value: k.key, label: t(k.label) }))" @update:model-value="(k) => router.replace({ query: { ...route.query, kind: k || undefined } })" />
+      <SelectPill :model-value="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="sorts.map((s) => ({ value: s.key, label: t(s.label) }))" @update:model-value="(s) => router.replace({ query: { ...route.query, sort: s } })" />
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ t('albums.empty') }}</p>
     <AlbumGrid :albums="items" :mode="view" />

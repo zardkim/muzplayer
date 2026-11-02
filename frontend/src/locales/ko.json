@@ -138,6 +138,9 @@
     "default_playlist": "기본 플레이리스트는 삭제할 수 없습니다."
   },
   "common": {
+    "sort": "정렬",
+    "kind": "분류",
+    "region": "지역",
     "unknownArtist": "알 수 없는 아티스트",
     "unknownAlbum": "알 수 없는 앨범",
     "tracks": "{n}곡",

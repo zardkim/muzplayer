@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Square } from '@lucide/vue'
+import { MapPin, Square } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { loadStations } from '../radio'
 import { usePlayer } from '../stores/player'
@@ -9,6 +9,7 @@ import { useUi } from '../stores/ui'
 import type { RadioStation, ViewMode } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import SelectPill from '../components/SelectPill.vue'
 import StationBadge from '../components/StationBadge.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 
@@ -65,23 +66,10 @@ function tune(s: RadioStation) {
       </button>
     </div>
 
-    <div class="flex items-start gap-3">
-    <div class="-mr-5 flex min-w-0 flex-1 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:flex-wrap md:pr-0">
-      <button
-        v-for="r in regions"
-        :key="r"
-        type="button"
-        class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-        :class="region === r ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
-        :aria-pressed="region === r"
-        @click="region = r"
-      >
-        {{ t(`radio.region_${r}`) }}
-      </button>
+    <div class="flex items-center justify-between gap-3">
+      <SelectPill v-model="region" :label="t('common.region')" :icon="MapPin" :options="regions.map((r) => ({ value: r, label: t(`radio.region_${r}`) }))" />
+      <ViewToggle page="radioView" fallback="list" :only="['list', 'cover']" />
     </div>
-    <ViewToggle page="radioView" fallback="list" :only="['list', 'cover']" class="hidden md:flex" />
-    </div>
-    <ViewToggle page="radioView" fallback="list" :only="['list', 'cover']" class="-mt-3 self-end md:hidden" />
 
     <p v-if="error" class="font-light text-muted">{{ error }}</p>
     <ul v-if="view === 'cover'" class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
