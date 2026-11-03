@@ -2,7 +2,7 @@ import { watch } from 'vue'
 import { i18n, LOCALES, setLocale, type Locale } from './i18n'
 import { useAuth } from './stores/auth'
 import { usePlayer } from './stores/player'
-import { PLAYER_PREFS_DEVICE, THEMES, useUi, type PlayerPrefs, type Theme } from './stores/ui'
+import { PLAYER_PREFS_DEVICE, RADIO_RECENT_KEPT, THEMES, useUi, type PlayerPrefs, type RadioMarks, type Theme } from './stores/ui'
 
 // The settings page's choices, kept with the account on the server, so every device, app and address
 // (the NAS's own address at home, the domain outside, the Windows app) has the same ones. Each
@@ -19,6 +19,7 @@ type Prefs = {
   player: Partial<PlayerPrefs>
   skipBack: number
   skipForward: number
+  radio?: RadioMarks
 }
 
 export function startPrefsSync() {
@@ -55,6 +56,7 @@ export function startPrefsSync() {
       player: p,
       skipBack: player.skipBack,
       skipForward: player.skipForward,
+      radio: { recent: [...ui.radio.recent], favorites: [...ui.radio.favorites] },
     }
   }
 
@@ -71,6 +73,10 @@ export function startPrefsSync() {
       }
       if (typeof s.skipBack === 'number') player.skipBack = s.skipBack
       if (typeof s.skipForward === 'number') player.skipForward = s.skipForward
+      if (s.radio && Array.isArray(s.radio.recent) && Array.isArray(s.radio.favorites)) {
+        const ids = (a: unknown[]) => a.filter((x): x is string => typeof x === 'string')
+        ui.radio = { recent: ids(s.radio.recent).slice(0, RADIO_RECENT_KEPT), favorites: ids(s.radio.favorites) }
+      }
     } finally {
       // the watcher below runs after this tick: it must not send back what just arrived
       queueMicrotask(() => (applying = false))

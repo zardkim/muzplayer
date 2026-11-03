@@ -49,13 +49,18 @@ const PLAYER_PREFS: PlayerPrefs = {
   quality: 'orig', qualityCellular: 'orig', lyricsSize: 2,
 }
 
-function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs> } {
+function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs>; radio?: RadioMarks } {
   try {
     return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
   } catch {
     return {}
   }
 }
+
+// radio stations (ids): the ones listened to lately (newest first) and the starred ones; kept with the
+// account, so every device shows the same (prefsSync.ts)
+export interface RadioMarks { recent: string[]; favorites: string[] }
+export const RADIO_RECENT_KEPT = 12
 
 export const useUi = defineStore('ui', () => {
   const toast = ref<{ text: string; error: boolean } | null>(null)
@@ -98,6 +103,7 @@ export const useUi = defineStore('ui', () => {
   const views = ref<Record<string, string>>(prefs.views ?? {})
   // colour theme; index.html applies the stored one before the first paint, this keeps it in step
   const playerPrefs = ref<PlayerPrefs>({ ...PLAYER_PREFS, ...prefs.player })
+  const radio = ref<RadioMarks>({ recent: prefs.radio?.recent ?? [], favorites: prefs.radio?.favorites ?? [] })
   const theme = ref<Theme>((THEMES as readonly string[]).includes(prefs.theme ?? '') ? (prefs.theme as Theme) : 'default')
   watch(
     theme,
@@ -110,10 +116,10 @@ export const useUi = defineStore('ui', () => {
     { immediate: true },
   )
   watch(
-    [barHidden, sidebarCollapsed, views, theme, playerPrefs],
+    [barHidden, sidebarCollapsed, views, theme, playerPrefs, radio],
     () => {
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, player: playerPrefs.value }))
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, player: playerPrefs.value, radio: radio.value }))
       } catch {
         /* not kept */
       }
@@ -132,7 +138,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, videoLink, videoLinked,
+    radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, videoLink, videoLinked,
     barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
   }
 })

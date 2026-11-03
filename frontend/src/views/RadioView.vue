@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { MapPin, Square } from '@lucide/vue'
+import { MapPin, Square, Star } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { loadStations } from '../radio'
 import { usePlayer } from '../stores/player'
@@ -9,6 +9,7 @@ import { useUi } from '../stores/ui'
 import type { RadioStation, ViewMode } from '../types'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 import SelectPill from '../components/SelectPill.vue'
 import StationBadge from '../components/StationBadge.vue'
 import ViewToggle from '../components/ViewToggle.vue'
@@ -39,6 +40,17 @@ onMounted(async () => {
   }
 })
 
+// starred stations and the ones listened to lately (any region), kept with the account
+const byId = computed(() => new Map(stations.value.map((s) => [s.id, s])))
+const pick = (ids: string[]) => ids.map((id) => byId.value.get(id)).filter((s): s is RadioStation => !!s)
+const favorites = computed(() => pick(ui.radio.favorites))
+const recent = computed(() => pick(ui.radio.recent))
+const isFavorite = (s: RadioStation) => ui.radio.favorites.includes(s.id)
+function toggleFavorite(s: RadioStation) {
+  const f = ui.radio.favorites
+  ui.radio = { ...ui.radio, favorites: isFavorite(s) ? f.filter((x) => x !== s.id) : [...f, s.id] }
+}
+
 function tune(s: RadioStation) {
   if (live.value?.id === s.id) player.toggle()
   else player.playStation(s)
@@ -66,6 +78,40 @@ function tune(s: RadioStation) {
       </button>
     </div>
 
+    <!-- starred and lately listened, from any region -->
+    <section v-if="favorites.length" class="flex flex-col gap-3">
+      <SectionTitle :title="t('radio.favorites')" />
+      <ul class="-mr-5 flex gap-3 overflow-x-auto pb-1 pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
+        <li v-for="s in favorites" :key="s.id" class="w-[92px] flex-none">
+          <button type="button" class="flex w-full flex-col items-center gap-1.5 text-center" :aria-pressed="live?.id === s.id" @click="tune(s)">
+            <span class="relative block w-full rounded-2xl" :class="live?.id === s.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''">
+              <StationBadge :stn="s.stn" :logo="s.logo" fill class="text-[18px]" />
+              <span v-if="live?.id === s.id" class="absolute bottom-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-ink text-on-ink shadow">
+                <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="13" :stroke="1.8" />
+              </span>
+            </span>
+            <span class="line-clamp-2 w-full text-[13px] leading-tight" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
+          </button>
+        </li>
+      </ul>
+    </section>
+    <section v-if="recent.length" class="flex flex-col gap-3">
+      <SectionTitle :title="t('radio.recent')" />
+      <ul class="-mr-5 flex gap-3 overflow-x-auto pb-1 pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
+        <li v-for="s in recent" :key="s.id" class="w-[92px] flex-none">
+          <button type="button" class="flex w-full flex-col items-center gap-1.5 text-center" :aria-pressed="live?.id === s.id" @click="tune(s)">
+            <span class="relative block w-full rounded-2xl" :class="live?.id === s.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''">
+              <StationBadge :stn="s.stn" :logo="s.logo" fill class="text-[18px]" />
+              <span v-if="live?.id === s.id" class="absolute bottom-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-ink text-on-ink shadow">
+                <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="13" :stroke="1.8" />
+              </span>
+            </span>
+            <span class="line-clamp-2 w-full text-[13px] leading-tight" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
+          </button>
+        </li>
+      </ul>
+    </section>
+
     <div class="flex items-center justify-between gap-3">
       <SelectPill v-model="region" :label="t('common.region')" :icon="MapPin" :options="regions.map((r) => ({ value: r, label: t(`radio.region_${r}`) }))" />
       <ViewToggle page="radioView" fallback="list" :only="['list', 'cover']" />
@@ -73,7 +119,7 @@ function tune(s: RadioStation) {
 
     <p v-if="error" class="font-light text-muted">{{ error }}</p>
     <ul v-if="view === 'cover'" class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      <li v-for="s in shown" :key="s.id">
+      <li v-for="s in shown" :key="s.id" class="relative">
         <button type="button" class="group flex w-full flex-col gap-2 text-left" :aria-pressed="live?.id === s.id" @click="tune(s)">
           <span class="relative block w-full rounded-2xl transition-shadow" :class="live?.id === s.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''">
             <StationBadge :stn="s.stn" :logo="s.logo" fill class="text-[30px] transition-transform group-active:scale-[0.97]" />
@@ -81,15 +127,18 @@ function tune(s: RadioStation) {
               <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="16" :stroke="1.8" />
             </span>
           </span>
-          <span class="truncate px-0.5 text-[15px]" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
+          <span class="truncate px-0.5 pr-8 text-[15px]" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
+        </button>
+        <button type="button" class="absolute bottom-0 right-0 grid size-8 place-items-center rounded-full" :class="isFavorite(s) ? 'text-accent' : 'text-muted hover:text-ink'" :aria-label="`${isFavorite(s) ? t('radio.unfavorite') : t('radio.favorite')}: ${s.name}`" :aria-pressed="isFavorite(s)" @click="toggleFavorite(s)">
+          <Star :size="18" :stroke-width="1.7" :fill="isFavorite(s) ? 'currentColor' : 'none'" />
         </button>
       </li>
     </ul>
     <ul v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      <li v-for="s in shown" :key="s.id">
+      <li v-for="s in shown" :key="s.id" class="flex items-center gap-1">
         <button
           type="button"
-          class="flex w-full items-center gap-3.5 rounded-2xl p-2.5 text-left transition-colors"
+          class="flex min-w-0 flex-1 items-center gap-3.5 rounded-2xl p-2.5 text-left transition-colors"
           :class="live?.id === s.id ? 'bg-accent-soft' : 'hover:bg-surface'"
           :aria-pressed="live?.id === s.id"
           @click="tune(s)"
@@ -97,6 +146,9 @@ function tune(s: RadioStation) {
           <StationBadge :stn="s.stn" :logo="s.logo" class="size-11 text-[13px]" />
           <span class="min-w-0 flex-1 truncate text-[16px]" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
           <PlayerIcons v-if="live?.id === s.id" :name="player.playing ? 'pause' : 'play'" :size="18" :stroke="1.8" class="mr-1.5 flex-none text-accent" />
+        </button>
+        <button type="button" class="grid size-10 flex-none place-items-center rounded-full" :class="isFavorite(s) ? 'text-accent' : 'text-muted hover:text-ink'" :aria-label="`${isFavorite(s) ? t('radio.unfavorite') : t('radio.favorite')}: ${s.name}`" :aria-pressed="isFavorite(s)" @click="toggleFavorite(s)">
+          <Star :size="19" :stroke-width="1.7" :fill="isFavorite(s) ? 'currentColor' : 'none'" />
         </button>
       </li>
     </ul>

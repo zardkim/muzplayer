@@ -8,7 +8,7 @@ import { isSaved } from '../offline'
 import { loadStations, regionOf } from '../radio'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, RadioStation, Track } from '../types'
-import { useUi } from './ui'
+import { RADIO_RECENT_KEPT, useUi } from './ui'
 
 type Repeat = 'off' | 'all' | 'one'
 type Mode = 'music' | 'book' | 'live' // live: a radio station (radio.py relays it)
@@ -722,6 +722,9 @@ export const usePlayer = defineStore('player', () => {
     mode.value = 'live'
     station.value = st
     loadedKey = `r${st.id}`
+    // the radio page's "listened lately" (kept with the account)
+    const ui = useUi()
+    ui.radio = { ...ui.radio, recent: [st.id, ...ui.radio.recent.filter((x) => x !== st.id)].slice(0, RADIO_RECENT_KEPT) }
     bindMediaSession()
     updateMediaSession()
     startLive()

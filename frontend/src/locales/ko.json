@@ -1056,6 +1056,10 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "unfavorite": "즐겨찾기에서 빼기",
+    "favorite": "즐겨찾기에 추가",
+    "recent": "최근 들은 채널",
+    "favorites": "즐겨찾기",
     "title": "라디오",
     "count": "방송 {n}개",
     "live": "실시간 라디오",
