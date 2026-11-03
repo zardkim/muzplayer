@@ -221,6 +221,7 @@
     "section_newAlbums": "최근 추가된 앨범",
     "random100": "랜덤 100",
     "emptyList": "재생할 곡이 없습니다.",
+    "section_stations": "스테이션",
     "section_shared": "공용 플레이리스트",
     "section_playlists": "플레이리스트 (랜덤 100 · 내 플레이리스트)"
   },
@@ -279,6 +280,23 @@
     "make": "공용 플레이리스트로 만들기",
     "open": "공용 플레이리스트 보기",
     "made": "공용 플레이리스트를 만들었습니다"
+  },
+  "stations": {
+    "title": "스테이션",
+    "random": "랜덤 100",
+    "artist": "아티스트 믹스",
+    "album": "앨범 믹스",
+    "library": "라이브러리 라디오",
+    "hidden": "숨겨진 명곡 라디오",
+    "timetravel": "시간 여행 라디오",
+    "randomalbum": "랜덤 앨범 라디오",
+    "genre": "장르 라디오",
+    "decade": "연대 라디오",
+    "pick_artist": "어떤 아티스트로 시작할까요?",
+    "pick_album": "어떤 앨범으로 시작할까요?",
+    "pick_genre": "장르 고르기",
+    "pick_decade": "연대 고르기",
+    "decadeName": "{n}년대"
   },
   "playlists": {
     "addAll": "모두 추가",

@@ -1,6 +1,6 @@
 // The rows of the home screen, in their default order. Each person can hide rows and change the
 // order (Settings → home screen); that is kept on the server, so every device shows the same.
-export const HOME_KEYS = ['banners', 'playlists', 'shared', 'onThisDay', 'mixes', 'quick', 'books', 'newAlbums'] as const
+export const HOME_KEYS = ['banners', 'playlists', 'stations', 'shared', 'onThisDay', 'mixes', 'quick', 'books', 'newAlbums'] as const
 export type HomeKey = (typeof HOME_KEYS)[number]
 export type HomeSection = { key: HomeKey; on: boolean }
 

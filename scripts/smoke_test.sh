@@ -82,6 +82,13 @@ check "favorites list" "$(curl -s -b "$A" "$BASE/favorites" | j '[t["id"] for t 
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/favorites/$tid"
 check "charts list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/charts")" 200
 check "charts & themes page" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/collections/home")" 200
+# stations (home): each gives songs, leaving out those already queued; one needing a seed asks for it
+check "library radio station" "$(curl -s -b "$A" "$BASE/stations/library?limit=5" | j 'len(d["tracks"])')" 5
+first=$(curl -s -b "$A" "$BASE/stations/library?limit=5" | j '",".join(str(t["id"]) for t in d["tracks"])')
+check "station leaves out queued songs" "$(curl -s -b "$A" "$BASE/stations/library?limit=50&exclude=$first" | j "len(set(str(t['id']) for t in d['tracks']) & set('$first'.split(',')))")" 0
+check "random album station plays one album" "$(curl -s -b "$A" "$BASE/stations/randomalbum" | j 'len(set(t["album_id"] for t in d["tracks"])) <= 1')" True
+check "artist mix needs an artist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/stations/artist")" 400
+check "no such station" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/stations/nope")" 404
 check "folder kinds list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/folders")" 200
 # one folder: rescan reads every file again and keeps the songs (ids); reset is announced with what it takes
 top=$(curl -s -b "$A" "$BASE/admin/folders" | j '[f["path"] for f in d["items"] if f["present"] and f["track_count"]][0]')

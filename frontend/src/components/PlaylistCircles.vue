@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ListMusic, Shuffle, Zap } from '@lucide/vue'
+import { ListMusic, Zap } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -11,7 +11,7 @@ import type { Playlist, PlaylistDetail, Track } from '../types'
 import PlayerIcons from './PlayerIcons.vue'
 import RowArrows from './RowArrows.vue'
 
-// Home: round cards that play at a tap — 100 random songs, then this person's playlists.
+// Home: round cards that play at a tap — this person's playlists (random 100 is with the stations).
 // The name under a playlist opens it.
 const { t } = useI18n()
 const library = useLibrary()
@@ -33,19 +33,12 @@ async function play(key: string, load: () => Promise<Track[]>) {
     busy.value = null
   }
 }
-const random = () => play('random', async () => (await api<{ tracks: Track[] }>('/mixes/random')).tracks)
 const playlist = (p: Playlist) => play(`p${p.id}`, async () => (await api<PlaylistDetail>(`/playlists/${p.id}`)).entries.map((e) => e.track))
 </script>
 
 <template>
   <div class="relative">
     <div ref="row" class="-mr-5 flex gap-4 overflow-x-auto pb-1 pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
-      <div class="flex w-[104px] flex-none flex-col items-center gap-2 sm:w-28">
-        <button type="button" class="group relative grid aspect-square w-full place-items-center rounded-full bg-[linear-gradient(135deg,#D93B22,#7A2BB5)] text-white shadow-md" :aria-label="`${t('common.play')}: ${t('home.random100')}`" @click="random">
-          <Shuffle :size="34" :stroke-width="1.4" :class="busy === 'random' ? 'animate-pulse' : ''" />
-        </button>
-        <span class="w-full truncate text-center text-[14px] font-medium">{{ t('home.random100') }}</span>
-      </div>
       <div v-for="p in library.playlists" :key="p.id" class="flex w-[104px] flex-none flex-col items-center gap-2 sm:w-28">
         <button type="button" class="group relative aspect-square w-full overflow-hidden rounded-full bg-surface shadow-md" :aria-label="`${t('common.play')}: ${p.name}`" @click="playlist(p)">
           <img v-if="p.cover" :src="coverUrl(p.cover.id, 'thumb', p.cover.v)" alt="" loading="lazy" class="h-full w-full object-cover" />

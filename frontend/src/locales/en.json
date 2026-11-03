@@ -221,6 +221,7 @@
     "section_newAlbums": "Recently added albums",
     "random100": "Random 100",
     "emptyList": "Nothing to play.",
+    "section_stations": "Stations",
     "section_shared": "Shared playlists",
     "section_playlists": "Playlists (Random 100 · mine)"
   },
@@ -279,6 +280,23 @@
     "make": "Make a shared playlist",
     "open": "Open the shared playlist",
     "made": "Shared playlist made"
+  },
+  "stations": {
+    "title": "Stations",
+    "random": "Random 100",
+    "artist": "Artist mix",
+    "album": "Album mix",
+    "library": "Library radio",
+    "hidden": "Hidden gems",
+    "timetravel": "Time travel",
+    "randomalbum": "Random albums",
+    "genre": "Genre radio",
+    "decade": "Decade radio",
+    "pick_artist": "Start from which artist?",
+    "pick_album": "Start from which album?",
+    "pick_genre": "Pick a genre",
+    "pick_decade": "Pick a decade",
+    "decadeName": "The {n}s"
   },
   "playlists": {
     "addAll": "Add all",

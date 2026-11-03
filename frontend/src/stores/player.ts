@@ -213,6 +213,7 @@ export const usePlayer = defineStore('player', () => {
     if (opts.shuffle !== undefined) shuffle.value = opts.shuffle
     playStarts.value++
     radioOn = false
+    homeStation = null
     if (shuffle.value) {
       originalOrder = playable
       queue.value = [first, ...shuffled(playable.filter((t) => t !== first))]
@@ -310,6 +311,8 @@ export const usePlayer = defineStore('player', () => {
 
   // ---- looking ahead: fetch the next songs, and keep the queue from running out ----
   let radioOn = false // started as a radio: plays on even with autoplay off
+  // started from a station (home): more of the same station follows, not just songs like the last
+  let homeStation: { kind: string; params: Record<string, string | number> } | null = null
   let extending = false
 
   /** After a song starts: fetch the next few (Settings → storage), and with autoplay or a radio,
@@ -350,6 +353,12 @@ export const usePlayer = defineStore('player', () => {
   /** What follows the last song: after a whole album, per Settings (the artist's next album, a
    *  radio, or nothing); otherwise songs like the last one. */
   async function continuation(last: Track): Promise<Track[]> {
+    if (homeStation) {
+      const exclude = queue.value.slice(-500).map((t) => t.id).join(',')
+      const r = await api<{ tracks: Track[] }>(`/stations/${homeStation.kind}${query({ ...homeStation.params, exclude, limit: 25 })}`)
+      const more = r.tracks.filter((t) => !t.missing)
+      if (more.length) return more // (a station with nothing more goes on as a radio from the last song)
+    }
     const albumEnd = useUi().playerPrefs.albumEnd
     const wholeAlbum = !radioOn && last.album_id && last.album_kind !== 'chart' && queue.value.every((t) => t.album_id === last.album_id)
     if (wholeAlbum && albumEnd === 'stop') return []
@@ -373,6 +382,18 @@ export const usePlayer = defineStore('player', () => {
     if (!after) return []
     const detail = await api<{ tracks: Track[] }>(`/albums/${after.id}`)
     return detail.tracks.filter((t) => !t.missing)
+  }
+
+  /** A station (home, backend stations.py): its first songs play now, and more of the same come
+   *  while the last one plays. False when it has no songs. */
+  async function startStation(kind: string, params: Record<string, string | number> = {}) {
+    const r = await api<{ tracks: Track[] }>(`/stations/${kind}${query({ ...params, limit: 25 })}`)
+    const tracks = r.tracks.filter((t) => !t.missing)
+    if (!tracks.length) return false
+    playTracks(tracks, 0, { shuffle: false })
+    radioOn = true
+    homeStation = { kind, params }
+    return true
   }
 
   /** A radio from one song: it plays at once (still inside the tap, for iOS), the rest follows. */
@@ -1042,6 +1063,7 @@ export const usePlayer = defineStore('player', () => {
     musicRate,
     playStarts,
     startRadio,
+    startStation,
     skipBack,
     skipForward,
     sleepUntil,
