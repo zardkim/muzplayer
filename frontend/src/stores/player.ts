@@ -69,6 +69,13 @@ export const usePlayer = defineStore('player', () => {
   function playAudio() {
     if (stale) revive()
     if (session) session.type = 'playback'
+    // with a sound feature on (EQ, levelling, crossfade) everything plays through Web Audio, which
+    // iPhone suspends once nothing plays: wake it here, inside the tap, for radio and books as for
+    // songs (else a book started after the radio "plays" at 0:00 in silence); levelling is for songs
+    if (graphActive()) {
+      resumeGraph()
+      if (mode.value !== 'music') setLevel(0)
+    }
     updateMediaSession()
     return audio.play()
   }
