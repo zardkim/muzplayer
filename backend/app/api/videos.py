@@ -22,8 +22,8 @@ from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
 
-KINDS = ("mv", "concert", "tv", "fan", "other")
-Kind = Literal["mv", "concert", "tv", "fan", "other"]
+KINDS = ("mv", "concert", "tv", "fan", "cover", "other")
+Kind = Literal["mv", "concert", "tv", "fan", "cover", "other"]
 # a name or title: spaces around it dropped, then something must be left
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]

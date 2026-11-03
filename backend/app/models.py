@@ -477,7 +477,7 @@ class Video(Base):
     youtube_id: Mapped[str | None] = mapped_column(String(16))
     file_path: Mapped[str | None] = mapped_column(String(1000))
     duration: Mapped[int | None] = mapped_column(Integer)  # seconds; NAS files (video_thumbs.py)
-    kind: Mapped[str] = mapped_column(String(16))  # mv | concert | tv | fan | other
+    kind: Mapped[str] = mapped_column(String(16))  # mv | concert | tv | fan | cover | other
     title: Mapped[str] = mapped_column(String(500))
     channel: Mapped[str] = mapped_column(String(200), default="")
     position: Mapped[int] = mapped_column(Integer, default=0)

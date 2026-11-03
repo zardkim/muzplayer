@@ -239,8 +239,8 @@ export interface Mix {
   cover_albums: { id: number; v: number }[]
 }
 
-export type VideoKind = 'mv' | 'concert' | 'tv' | 'fan' | 'other'
-export const VIDEO_KINDS: VideoKind[] = ['mv', 'concert', 'tv', 'fan', 'other']
+export type VideoKind = 'mv' | 'concert' | 'tv' | 'fan' | 'cover' | 'other'
+export const VIDEO_KINDS: VideoKind[] = ['mv', 'concert', 'tv', 'fan', 'cover', 'other']
 export interface Video {
   id: number
   source: 'youtube' | 'file' // a file: in library/video on the NAS
