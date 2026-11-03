@@ -10,6 +10,7 @@ import BookCover from './BookCover.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import SeekBar from './SeekBar.vue'
 import SkipIcon from './SkipIcon.vue'
+import Marquee from './Marquee.vue'
 
 // Full-screen player while an audiobook plays (NowPlaying is the music one).
 const { t } = useI18n()
@@ -122,7 +123,7 @@ const flick = useSwipe({
       </div>
 
       <div class="mt-4 flex flex-col items-center gap-1 text-center">
-        <span class="line-clamp-2 text-[22px] font-medium leading-snug">{{ player.chapter?.title || player.book.title }}</span>
+        <Marquee :text="player.chapter?.title || player.book.title" class="text-[22px] font-medium leading-snug" />
         <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="line-clamp-1 text-[15px] font-light text-soft">
           {{ player.chapter ? player.book.title : player.book.authors || t('books.unknownAuthor') }}
         </RouterLink>

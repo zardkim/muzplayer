@@ -10,6 +10,7 @@ import { useSwipe } from '../swipe'
 import PlayerIcons from './PlayerIcons.vue'
 import SeekBar from './SeekBar.vue'
 import StationBadge from './StationBadge.vue'
+import Marquee from './Marquee.vue'
 
 // Full-screen player while a radio station plays (NowPlaying is the music one, BookPlayer the
 // audiobook one): the logo large, play/pause, the previous/next station of the region, stop.
@@ -107,7 +108,7 @@ const flick = useSwipe({
       </div>
 
       <div class="mt-7 flex flex-col items-center gap-1.5 text-center">
-        <span class="line-clamp-2 text-[24px] font-medium leading-snug">{{ player.station.name }}</span>
+        <Marquee :text="player.station.name" class="text-[24px] font-medium leading-snug" />
         <span class="flex items-center gap-2 text-[14px] font-light text-soft">
           <span class="rounded bg-danger px-1.5 text-[11px] font-bold leading-[18px] text-white">LIVE</span>
           {{ player.playing ? t('radio.onAir') : t('radio.paused') }}

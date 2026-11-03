@@ -18,6 +18,7 @@ import PlayerMenu from './PlayerMenu.vue'
 import QueueList from './QueueList.vue'
 import SeekBar from './SeekBar.vue'
 import SpeedButton from './SpeedButton.vue'
+import Marquee from './Marquee.vue'
 
 // The phone's full player, on the cover's own colours (top to bottom, changing smoothly with each
 // song). Three faces: the cover, the lyrics, the queue (the buttons at the bottom switch between
@@ -151,7 +152,7 @@ const repeatLabel = computed(() =>
           <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-lg" class="size-16 shadow-lg" />
         </button>
         <span class="flex min-w-0 flex-1 flex-col">
-          <span class="truncate text-[17px] font-semibold">{{ player.current.title }}</span>
+          <Marquee :text="player.current.title" class="text-[17px] font-semibold" />
           <span class="truncate text-[16px] text-soft">{{ player.current.artist || t('common.unknownArtist') }}</span>
         </span>
         <LikeButton :track="player.current" :size="24" box="size-10" class="hover:bg-white/10" />
@@ -236,7 +237,7 @@ const repeatLabel = computed(() =>
       <!-- the cover: the song under it -->
       <div v-if="face === 'cover'" class="mt-6 flex flex-none items-center gap-2">
         <span class="flex min-w-0 flex-1 flex-col">
-          <span class="truncate text-[22px] font-semibold leading-tight">{{ player.current.title }}</span>
+          <Marquee :text="player.current.title" class="text-[22px] font-semibold leading-tight" />
           <span class="truncate text-[19px] text-soft">{{ player.current.artist || t('common.unknownArtist') }}<template v-if="ui.playerPrefs.showYear && player.current.year"> · {{ player.current.year }}</template></span>
           <!-- the line being sung, when the song has synced lyrics (a tap opens them) -->
           <button v-if="lyrics.lyrics?.synced" type="button" class="h-5 truncate text-left text-[14px] text-white/80" :aria-label="t('player.showLyrics')" @click="show('lyrics')">{{ lyricLine }}</button>

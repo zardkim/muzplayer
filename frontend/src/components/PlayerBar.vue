@@ -17,6 +17,7 @@ import SeekBar from './SeekBar.vue'
 import SkipIcon from './SkipIcon.vue'
 import StationBadge from './StationBadge.vue'
 import VolumeControl from './VolumeControl.vue'
+import Marquee from './Marquee.vue'
 
 // Desktop: floating pill at the bottom of the content column, the line being sung above it;
 // it can be tucked away (App.vue then shows a small button to bring it back).
@@ -75,7 +76,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
         <StationBadge :stn="live.stn" :logo="live.logo" class="size-11 text-[12px]" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-[15px]">{{ live.name }}</span>
+          <Marquee :text="live.name" class="text-[15px]" />
           <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ t('radio.live') }}</span>
         </span>
       </button>
@@ -89,7 +90,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
         <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-[15px]">{{ player.chapter?.title || player.book.title }}</span>
+          <Marquee :text="player.chapter?.title || player.book.title" class="text-[15px]" />
           <span class="truncate text-xs font-light text-muted">{{ player.chapter ? player.book.title : player.book.authors }}</span>
         </span>
       </button>
@@ -115,7 +116,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       >
         <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" class="size-11 flex-none" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-[15px]">{{ player.current.title }}</span>
+          <Marquee :text="player.current.title" class="text-[15px]" />
           <span class="truncate text-xs font-light text-muted">{{ player.current.artist || t('common.unknownArtist') }}</span>
         </span>
       </button>
@@ -144,7 +145,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
     <button type="button" class="flex min-w-0 flex-1 items-center gap-3.5 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
       <StationBadge :stn="live.stn" :logo="live.logo" class="size-[52px] text-[14px]" />
       <span class="flex min-w-0 flex-col">
-        <span class="truncate text-[15px]">{{ live.name }}</span>
+        <Marquee :text="live.name" class="text-[15px]" />
         <span class="flex items-center gap-1.5 text-[13px] font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
       </span>
     </button>
@@ -162,7 +163,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <BookCover :book-id="player.book.id" :has-cover="player.book.has_cover" :version="player.book.cover_v" square rounded="rounded-full" />
     </button>
     <RouterLink :to="{ name: 'book', params: { id: player.book.id } }" class="flex w-52 min-w-0 flex-col">
-      <span class="truncate text-[15px]">{{ player.chapter?.title || player.book.title }}</span>
+      <Marquee :text="player.chapter?.title || player.book.title" class="text-[15px]" />
       <span class="truncate text-[13px] font-light text-muted">{{ player.chapter ? player.book.title : player.book.authors }}</span>
     </RouterLink>
     <div class="flex items-center">
@@ -199,7 +200,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
       <CoverArt :album-id="player.current.album_id" :has-cover="player.current.has_cover" :version="player.current.cover_v" rounded="rounded-full" />
     </button>
     <div class="flex w-28 min-w-0 flex-col xl:w-52">
-      <span class="truncate text-[15px]">{{ player.current.title }}</span>
+      <Marquee :text="player.current.title" class="text-[15px]" />
       <RouterLink
         v-if="player.current.artist_id"
         :to="{ name: 'artist', params: { id: player.current.artist_id } }"

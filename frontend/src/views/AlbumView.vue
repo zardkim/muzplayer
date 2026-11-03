@@ -15,6 +15,7 @@ import PlayActions from '../components/PlayActions.vue'
 import QualityBadge from '../components/QualityBadge.vue'
 import StarRating from '../components/StarRating.vue'
 import TrackList from '../components/TrackList.vue'
+import Marquee from '../components/Marquee.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -81,7 +82,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
       <CoverArt :album-id="album.id" :has-cover="album.has_cover" :version="album.cover_v" size="large" rounded="rounded-xl" class="w-full shadow-[0_16px_40px_rgba(17,17,19,0.18)] sm:w-60" />
       <div class="flex min-w-0 flex-col gap-2.5">
         <span class="flex flex-wrap items-center gap-2"><span class="text-sm font-light text-muted"><template v-if="album.kind === 'unofficial' || album.kind === 'compilation' || album.kind === 'soundtrack'">{{ t(`albums.kind_${album.kind}`) }} · </template><template v-if="album.year">{{ album.year }} · </template>{{ t('common.tracks', album.tracks.length) }} · <span class="font-display">{{ duration(totalTime) }}</span></span><QualityBadge :quality="album.quality" /></span>
-        <h1 class="text-[30px] font-extrabold leading-tight tracking-tight md:text-[40px]">{{ album.title || t('common.unknownAlbum') }}</h1>
+        <Marquee as="h1" :text="album.title || t('common.unknownAlbum')" class="text-[30px] font-extrabold leading-tight tracking-tight md:text-[40px]" />
         <RouterLink v-if="album.artist_id" :to="{ name: 'artist', params: { id: album.artist_id } }" class="flex items-center text-lg font-medium">{{ album.artist }}<ChevronRight :size="18" :stroke-width="1.6" /></RouterLink>
         <span v-else class="text-lg text-muted">{{ t('common.unknownArtist') }}</span>
         <!-- the introduction: three lines under the title, the rest behind "more" -->

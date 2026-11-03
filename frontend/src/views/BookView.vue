@@ -11,6 +11,7 @@ import type { BookDetail } from '../types'
 import BookCover from '../components/BookCover.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 import SectionTitle from '../components/SectionTitle.vue'
+import Marquee from '../components/Marquee.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -87,7 +88,7 @@ async function setFinished(finished: boolean) {
     <div class="flex flex-col gap-6 md:flex-row md:items-end">
       <BookCover :book-id="book.id" :has-cover="book.has_cover" :version="book.cover_v" size="large" rounded="rounded-xl" class="mx-auto w-[min(56%,240px)] flex-none shadow-[0_8px_30px_rgba(17,17,19,0.14)] md:mx-0 md:w-60" />
       <div class="flex min-w-0 flex-col gap-1.5">
-        <h1 class="text-[28px] font-extrabold leading-tight tracking-tight md:text-[34px]">{{ book.title }}</h1>
+        <Marquee as="h1" :text="book.title" class="text-[28px] font-extrabold leading-tight tracking-tight md:text-[34px]" />
         <p v-if="book.subtitle" class="text-[17px] font-light text-muted">{{ book.subtitle }}</p>
         <p class="text-[15px]">
           <RouterLink v-if="book.authors" :to="{ name: 'books', query: { author: book.authors } }" class="hover:underline">{{ book.authors }}</RouterLink>

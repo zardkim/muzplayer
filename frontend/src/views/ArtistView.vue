@@ -12,6 +12,7 @@ import ArtistPhotoSheet from '../components/ArtistPhotoSheet.vue'
 import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
 import SectionTitle from '../components/SectionTitle.vue'
+import Marquee from '../components/Marquee.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -57,7 +58,7 @@ function photoChanged() {
       </div>
       <div class="flex min-w-0 flex-col gap-3 md:pb-2">
         <span class="text-[13px] font-medium uppercase tracking-[0.14em] text-muted">{{ t('artists.label') }}</span>
-        <h1 class="text-[32px] font-bold leading-tight md:text-[44px]">{{ artist.name }}</h1>
+        <Marquee as="h1" :text="artist.name" class="text-[32px] font-bold leading-tight md:text-[44px]" />
         <span class="text-[15px] font-light text-muted">
           <template v-if="artist.albums.length">{{ t('common.albums', artist.albums.length) }} · </template>{{ t('common.tracks', artist.tracks.length) }}
         </span>

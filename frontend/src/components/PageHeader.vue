@@ -7,6 +7,7 @@ import {
   ListMusic, ListVideo, Radio, ScrollText, Search, Settings, Sparkles, Tags, User, Users,
 } from '@lucide/vue'
 import { PAGE_BACK, type PageBack } from '../pageBack'
+import Marquee from './Marquee.vue'
 
 // Large page title (mobile style), with the page's icon in front; on a phone, back (‹) sits on the
 // same line (App.vue then leaves out its own back line). The account menu is in the sidebar (PC)
@@ -43,7 +44,7 @@ onUnmounted(release)
           <ChevronLeft :size="28" :stroke-width="1.5" />
         </button>
         <component :is="icon()" v-if="icon()" :size="28" :stroke-width="2" class="flex-none md:size-9" aria-hidden="true" />
-        <h1 class="min-w-0 text-[34px] font-extrabold leading-tight tracking-tight md:text-[40px]">{{ title }}</h1>
+        <Marquee as="h1" :text="title" class="text-[34px] font-extrabold leading-tight tracking-tight md:text-[40px]" />
       </div>
       <div class="flex items-center gap-1">
         <slot name="actions" />

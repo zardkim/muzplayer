@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader.vue'
 import QueueList from '../components/QueueList.vue'
 import SpeedButton from '../components/SpeedButton.vue'
 import StarRating from '../components/StarRating.vue'
+import Marquee from '../components/Marquee.vue'
 
 // PC player: a page inside the sidebar and bars (the bottom bar keeps the controls). The song up top,
 // below it the lyrics and the queue side by side; narrower windows show one of them, as tabs.
@@ -71,7 +72,7 @@ function videos() {
       <div class="flex min-w-0 flex-1 flex-col gap-4 pb-1">
         <div class="flex min-w-0 flex-col gap-1">
           <span class="text-[12px] font-medium uppercase tracking-[0.18em] text-soft">{{ t('player.nowPlaying') }}</span>
-          <h1 class="line-clamp-2 text-[32px] font-extrabold leading-tight tracking-tight lg:text-[44px]">{{ player.current.title }}</h1>
+          <Marquee as="h1" :text="player.current.title" class="text-[32px] font-extrabold leading-tight tracking-tight lg:text-[44px]" />
           <span class="flex min-w-0 flex-wrap items-center gap-x-2 text-[17px] text-soft">
             <RouterLink v-if="player.current.artist_id" :to="{ name: 'artist', params: { id: player.current.artist_id } }" class="truncate font-medium hover:underline">{{ player.current.artist }}</RouterLink>
             <span v-else class="truncate font-medium">{{ player.current.artist || t('common.unknownArtist') }}</span>
