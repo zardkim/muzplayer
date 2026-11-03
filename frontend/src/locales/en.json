@@ -276,6 +276,8 @@
     "sort_name": "Name"
   },
   "shared": {
+    "openShort": "Open shared",
+    "makeShort": "Make shared",
     "title": "Shared playlists",
     "badge": "Shared",
     "make": "Make a shared playlist",
@@ -715,6 +717,7 @@
     "charts": "Charts & Themes"
   },
   "charts": {
+    "copyShort": "Add to mine",
     "title": "Charts & Themes",
     "count": "{n} charts",
     "all": "All",

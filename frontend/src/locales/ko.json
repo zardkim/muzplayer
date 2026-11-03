@@ -276,6 +276,8 @@
     "sort_name": "이름순"
   },
   "shared": {
+    "openShort": "공용 목록 보기",
+    "makeShort": "공용 목록 만들기",
     "title": "공용 플레이리스트",
     "badge": "공용",
     "make": "공용 플레이리스트로 만들기",
@@ -715,6 +717,7 @@
     "charts": "차트·테마"
   },
   "charts": {
+    "copyShort": "내 목록에 담기",
     "title": "차트·테마",
     "count": "차트 {n}개",
     "all": "전체",

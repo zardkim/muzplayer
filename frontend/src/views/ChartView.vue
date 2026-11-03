@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ListMusic, Sparkles } from '@lucide/vue'
+import { ListMusic, ListPlus, Sparkles } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
@@ -69,13 +69,18 @@ function applied(banner: CollectionBanner | null) {
     <h1 class="sr-only">{{ chart.title }}</h1>
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="chart.tracks" />
-      <button type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px]" @click="ui.playlistPicker = chart.tracks">{{ t('charts.copyToPlaylist') }}</button>
-      <RouterLink v-if="chart.shared_playlist_id" :to="{ name: 'playlist', params: { id: chart.shared_playlist_id } }" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]">
-        <ListMusic :size="16" :stroke-width="1.5" />{{ t('shared.open') }}
-      </RouterLink>
-      <button v-else-if="auth.user?.is_admin" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="making" @click="makeShared">
-        <ListMusic :size="16" :stroke-width="1.5" />{{ t('shared.make') }}
-      </button>
+      <!-- into my playlist · the shared one: side by side on one line, a phone's too -->
+      <div class="flex w-full min-w-0 gap-2 sm:w-auto">
+        <button type="button" class="flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-line-strong px-3 text-[14px] sm:flex-none sm:px-4 sm:text-[15px]" @click="ui.playlistPicker = chart.tracks">
+          <ListPlus :size="16" :stroke-width="1.5" class="flex-none" /><span class="truncate sm:hidden">{{ t('charts.copyShort') }}</span><span class="truncate max-sm:hidden">{{ t('charts.copyToPlaylist') }}</span>
+        </button>
+        <RouterLink v-if="chart.shared_playlist_id" :to="{ name: 'playlist', params: { id: chart.shared_playlist_id } }" class="flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-line-strong px-3 text-[14px] sm:flex-none sm:px-4 sm:text-[15px]">
+          <ListMusic :size="16" :stroke-width="1.5" class="flex-none" /><span class="truncate sm:hidden">{{ t('shared.openShort') }}</span><span class="truncate max-sm:hidden">{{ t('shared.open') }}</span>
+        </RouterLink>
+        <button v-else-if="auth.user?.is_admin" type="button" class="flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-line-strong px-3 text-[14px] disabled:opacity-40 sm:flex-none sm:px-4 sm:text-[15px]" :disabled="making" @click="makeShared">
+          <ListMusic :size="16" :stroke-width="1.5" class="flex-none" /><span class="truncate sm:hidden">{{ t('shared.makeShort') }}</span><span class="truncate max-sm:hidden">{{ t('shared.make') }}</span>
+        </button>
+      </div>
     </div>
     <TrackList :tracks="chart.tracks" :ranked="chart.tracks.some((tr) => tr.chart_position != null)" />
     <BannerSheet v-if="editing" :chart="chart" @close="editing = false" @applied="applied" />
