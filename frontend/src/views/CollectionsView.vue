@@ -9,6 +9,7 @@ import type { CollectionsHome } from '../types'
 import BannerCarousel from '../components/BannerCarousel.vue'
 import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SharedPlaylists from '../components/SharedPlaylists.vue'
 
 // Charts and themes: featured banners, then a row per chart source, today's themes,
 // a row per theme category and what came in lately.
@@ -32,6 +33,9 @@ onMounted(async () => {
     <template v-else-if="home">
       <p v-if="!home.hero.length" class="font-light text-muted">{{ t('charts.empty') }}</p>
       <BannerCarousel v-else :items="home.hero" />
+
+      <!-- the playlists made from charts and themes for everyone -->
+      <SharedPlaylists />
 
       <section v-for="s in home.sources" :key="`s-${s.source}`" class="flex flex-col gap-3.5">
         <RouterLink :to="{ name: 'chart-list', query: { kind: 'chart', source: s.source || undefined } }" class="flex items-center gap-1 text-[22px] font-bold">

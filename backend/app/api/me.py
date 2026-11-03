@@ -25,10 +25,15 @@ HISTORY_KEEP = 1000
 
 
 def own_playlist(db: Session, user: User, playlist_id: int) -> Playlist:
+    """A playlist this person may change: their own, or (an admin) a shared one."""
     playlist = db.get(Playlist, playlist_id)
-    if playlist is None or playlist.user_id != user.id:
+    if playlist is None or not can_edit(user, playlist):
         raise api_error(404, "not_found")
     return playlist
+
+
+def can_edit(user: User, playlist: Playlist) -> bool:
+    return playlist.user_id == user.id or (playlist.is_shared and user.is_admin)
 
 
 DEFAULT_NAMES = {"ko": "기본 플레이리스트", "en": "My playlist"}
@@ -51,6 +56,8 @@ def playlist_out(p: Playlist, track_count: int | None) -> dict:
         "name": p.name,
         "kind": p.kind,
         "is_default": p.is_default,
+        "is_shared": p.is_shared,
+        "chart_id": p.chart_id,
         "rules": p.rules,
         "track_count": track_count,  # None for a smart playlist: known once it is opened
         "created_at": p.created_at,
@@ -86,22 +93,43 @@ def list_playlists(user: User = Depends(current_user), db: Session = Depends(get
     rows = db.execute(
         select(Playlist, func.count(PlaylistTrack.id))
         .outerjoin(PlaylistTrack, PlaylistTrack.playlist_id == Playlist.id)
-        .where(Playlist.user_id == user.id)
+        .where(Playlist.user_id == user.id, Playlist.is_shared.is_(False))  # shared ones: their own row
         .group_by(Playlist.id)
         .order_by(Playlist.is_default.desc(), Playlist.updated_at.desc())
     )
     rows = rows.all()
-    # a cover for each list's card (home screen): its first song's album that has one
+    covers = first_covers(db, [p.id for p, _ in rows])
+    return {"items": [{**playlist_out(p, None if p.kind == "smart" else c), "cover": covers.get(p.id)} for p, c in rows]}
+
+
+def first_covers(db: Session, playlist_ids: list[int]) -> dict[int, dict]:
+    """A cover for each list's card (home screen): its first song's album that has one."""
+    if not playlist_ids:
+        return {}
     first = (
         select(PlaylistTrack.playlist_id, Album.id, Album.cover_version)
         .join(Track, Track.id == PlaylistTrack.track_id)
         .join(Album, Album.id == Track.album_id)
-        .where(PlaylistTrack.playlist_id.in_([p.id for p, _ in rows]), Album.cover_path.is_not(None))
+        .where(PlaylistTrack.playlist_id.in_(playlist_ids), Album.cover_path.is_not(None))
         .order_by(PlaylistTrack.playlist_id, PlaylistTrack.position)
         .distinct(PlaylistTrack.playlist_id)
     )
-    covers = {pid: {"id": aid, "v": v} for pid, aid, v in db.execute(first)} if rows else {}
-    return {"items": [{**playlist_out(p, None if p.kind == "smart" else c), "cover": covers.get(p.id)} for p, c in rows]}
+    return {pid: {"id": aid, "v": v} for pid, aid, v in db.execute(first)}
+
+
+@router.get("/playlists/shared")
+def shared_playlists(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """Everyone's shared playlists (charts & themes page, home), newest first, with who made each."""
+    rows = db.execute(
+        select(Playlist, func.count(PlaylistTrack.id), User.display_name)
+        .outerjoin(PlaylistTrack, PlaylistTrack.playlist_id == Playlist.id)
+        .join(User, User.id == Playlist.user_id)
+        .where(Playlist.is_shared.is_(True))
+        .group_by(Playlist.id, User.display_name)
+        .order_by(Playlist.created_at.desc())
+    ).all()
+    covers = first_covers(db, [p.id for p, _, _ in rows])
+    return {"items": [{**playlist_out(p, c), "cover": covers.get(p.id), "owner": who} for p, c, who in rows]}
 
 
 @router.post("/playlists", status_code=201)
@@ -142,13 +170,16 @@ def smart_rules(playlist: Playlist) -> Rules | None:
 
 @router.get("/playlists/{playlist_id}")
 def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    playlist = own_playlist(db, user, playlist_id)
+    playlist = db.get(Playlist, playlist_id)
+    if playlist is None or not (playlist.is_shared or playlist.user_id == user.id):
+        raise api_error(404, "not_found")
+    editable = {"can_edit": can_edit(user, playlist)}
     if playlist.kind == "smart":
         # worked out now from the rules; entries have no entry_id (nothing to remove or move)
         rules = smart_rules(playlist)
         rows = db.execute(apply_rules(track_query(user.id), rules, user.id)).all() if rules else []
         entries = [{"entry_id": None, "track": track_out(r)} for r in rows]
-        return {**playlist_out(playlist, len(entries)), "entries": entries}
+        return {**playlist_out(playlist, len(entries)), **editable, "entries": entries}
     rows = db.execute(
         track_query(user.id)
         .add_columns(PlaylistTrack.id)
@@ -157,7 +188,7 @@ def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Sessi
         .order_by(PlaylistTrack.position, PlaylistTrack.id)
     ).all()
     entries = [{"entry_id": r[-1], "track": track_out(r[:-1])} for r in rows]
-    return {**playlist_out(playlist, len(entries)), "entries": entries}
+    return {**playlist_out(playlist, len(entries)), **editable, "entries": entries}
 
 
 @router.patch("/playlists/{playlist_id}")

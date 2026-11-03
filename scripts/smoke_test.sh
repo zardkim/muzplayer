@@ -115,6 +115,17 @@ check "signed-in user shows online" "$(curl -s -b "$A" "$BASE/admin/users" | j '
 check "log has the sign-in" "$(curl -s -b "$A" "$BASE/admin/logs?kind=login&q=smokeuser" | j 'd["items"][0]["action"]')" login
 check "log has the admin change" "$(curl -s -b "$A" "$BASE/admin/logs?kind=admin&q=smokeuser" | j '"PATCH /admin/users/{user_id}" in d["items"][0]["detail"]')" True
 check "log is admin-only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/logs")" 403
+# a shared playlist made from a chart: everyone plays it, only its maker (or an admin) changes it
+cid=$(curl -s -b "$A" "$BASE/charts" | j 'd["items"][0]["id"] if d["items"] else ""')
+if [ -n "$cid" ]; then
+  check "only an admin makes a shared playlist" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/charts/$cid/shared-playlist" -H 'content-type: application/json' -d '{}')" 403
+  spid=$(curl -s -b "$A" -X POST "$BASE/charts/$cid/shared-playlist" -H 'content-type: application/json' -d '{}' | j 'd["id"]')
+  check "shared playlist listed for everyone" "$(curl -s -b "$U" "$BASE/playlists/shared" | j "[p['id'] for p in d['items']].count($spid)")" 1
+  check "another user plays it, can't change it" "$(curl -s -b "$U" "$BASE/playlists/$spid" | j 'd["can_edit"]')/$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/playlists/$spid")" "False/404"
+  check "not among the maker's own playlists" "$(curl -s -b "$A" "$BASE/playlists" | j "[p['id'] for p in d['items']].count($spid)")" 0
+  check "the chart knows its shared playlist" "$(curl -s -b "$A" "$BASE/charts/$cid" | j 'd["shared_playlist_id"]')" "$spid"
+  check "shared playlist deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/playlists/$spid")" 204
+fi
 pid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke"}' | j 'd["id"]')
 curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}"
 check "a song already in a playlist isn't added twice" "$(curl -s -b "$A" -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j '[d["added"], d["skipped"]]')" "[0, 1]"

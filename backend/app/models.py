@@ -248,6 +248,9 @@ class Playlist(Base):
     rules: Mapped[dict | None] = mapped_column(JSON)
     # each person's default playlist (made for them, can't be deleted; one per person)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # shared: everyone sees and plays it (charts & themes page, home); its maker or an admin edits it
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
+    chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"))  # made from it
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -14,7 +14,7 @@ from .. import ai_banner
 from ..cache import shared_json
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Banner, Chart, Track, User
+from ..models import Album, Banner, Chart, Playlist, PlaylistTrack, Track, User
 from ..scanner import bump_library, cover_file
 from ..security import admin_user, api_error, current_user
 from .library import present_tracks, track_out, track_query
@@ -199,7 +199,33 @@ def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = D
     if not tracks:
         raise api_error(404, "not_found")
     covers = cover_albums(db, [chart.id])
-    return {**item_out(chart, len(tracks), covers, load_banners(db)), "tracks": tracks}
+    # the shared playlist made from it (the newest), so its page can open that instead of making another
+    shared = db.scalar(
+        select(Playlist.id).where(Playlist.chart_id == chart.id, Playlist.is_shared.is_(True)).order_by(Playlist.id.desc()).limit(1)
+    )
+    return {**item_out(chart, len(tracks), covers, load_banners(db)), "tracks": tracks, "shared_playlist_id": shared}
+
+
+class SharedIn(BaseModel):
+    name: str | None = Field(None, max_length=200)
+
+
+@router.post("/charts/{chart_id}/shared-playlist", status_code=201)
+def make_shared(chart_id: int, body: SharedIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """A shared playlist of the chart's or theme's songs as they are now, in its order: everyone sees it
+    on the charts & themes page and at home. {"id"} of the new list."""
+    chart = get_chart_row(db, chart_id)
+    ids = list(db.scalars(
+        select(Track.id).where(Track.chart_id == chart.id, present_tracks()).order_by(Track.chart_position.nulls_last(), Track.file_path)
+    ))
+    if not ids:
+        raise api_error(404, "not_found")
+    playlist = Playlist(user_id=user.id, name=(body.name or "").strip() or chart.title[:200], is_shared=True, chart_id=chart.id)
+    db.add(playlist)
+    db.flush()
+    db.add_all(PlaylistTrack(playlist_id=playlist.id, track_id=t, position=i) for i, t in enumerate(ids))
+    db.commit()
+    return {"id": playlist.id}
 
 
 @router.get("/charts/{chart_id}/folder-banner")

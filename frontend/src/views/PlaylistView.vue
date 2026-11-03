@@ -95,9 +95,10 @@ async function snapshot() {
 async function destroy() {
   if (!playlist.value || !confirm(t('playlists.deleteConfirm', { name: playlist.value.name }))) return
   try {
+    const shared = playlist.value.is_shared
     await api(`/playlists/${props.id}`, { method: 'DELETE' })
     await library.loadPlaylists()
-    router.replace({ name: 'playlists' })
+    router.replace({ name: shared ? 'charts' : 'playlists' }) // a shared list lives on the charts & themes page
   } catch (e) {
     ui.notify(errorMessage(e), true)
   }
@@ -107,26 +108,28 @@ async function destroy() {
 <template>
   <p v-if="error" class="font-light text-muted">{{ error }}</p>
   <div v-else-if="playlist" class="flex flex-col gap-5">
-    <PageHeader :title="playlist.name" :sub="smart ? `${t('smart.badge')} · ${t('common.tracks', playlist.entries.length)}` : t('common.tracks', playlist.entries.length)" />
+    <PageHeader :title="playlist.name" :sub="[playlist.is_shared ? t('shared.badge') : '', smart ? t('smart.badge') : '', t('common.tracks', playlist.entries.length)].filter(Boolean).join(' · ')" />
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="tracks" :add="false" />
-      <button v-if="!smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="adding = true">
+      <!-- someone else's shared list: listen, or copy it into one's own -->
+      <button v-if="!playlist.can_edit" type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="ui.playlistPicker = tracks">{{ t('charts.copyToPlaylist') }}</button>
+      <button v-if="!smart && playlist.can_edit" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full bg-ink px-4 text-[15px] text-on-ink" @click="adding = true">
         <Plus :size="16" :stroke-width="1.8" />{{ t('playlists.addSongsButton') }}
       </button>
-      <button v-if="smart" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
+      <button v-if="smart && playlist.can_edit" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
       </button>
       <DownloadButton v-if="tracks.length" class="h-[38px]" :list="saveAs" />
       <button v-if="smart" type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="snapshot">{{ t('common.saveAsPlaylist') }}</button>
-      <button v-else type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
+      <button v-else-if="playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
         <Pencil :size="16" :stroke-width="1.4" />
       </button>
-      <button v-if="!playlist.is_default" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
+      <button v-if="!playlist.is_default && playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
         <Trash2 :size="16" :stroke-width="1.4" />
       </button>
     </div>
     <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
-    <TrackList :tracks="tracks" :editable="!smart" @remove="remove" @move="move" />
+    <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" @remove="remove" @move="move" />
     <SearchAddSheet
       v-if="adding"
       kind="tracks"

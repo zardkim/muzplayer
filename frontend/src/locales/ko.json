@@ -221,6 +221,7 @@
     "section_newAlbums": "최근 추가된 앨범",
     "random100": "랜덤 100",
     "emptyList": "재생할 곡이 없습니다.",
+    "section_shared": "공용 플레이리스트",
     "section_playlists": "플레이리스트 (랜덤 100 · 내 플레이리스트)"
   },
   "albums": {
@@ -272,7 +273,17 @@
     "sort_size": "곡 많은 순",
     "sort_name": "이름순"
   },
+  "shared": {
+    "title": "공용 플레이리스트",
+    "badge": "공용",
+    "make": "공용 플레이리스트로 만들기",
+    "open": "공용 플레이리스트 보기",
+    "made": "공용 플레이리스트를 만들었습니다"
+  },
   "playlists": {
+    "addAll": "모두 추가",
+    "addedAll": "{n}곡을 추가했습니다",
+    "seeAll": "{n}개 모두 보기",
     "title": "내 플레이리스트",
     "new": "새 플레이리스트",
     "name": "플레이리스트 이름",

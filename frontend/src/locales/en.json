@@ -221,6 +221,7 @@
     "section_newAlbums": "Recently added albums",
     "random100": "Random 100",
     "emptyList": "Nothing to play.",
+    "section_shared": "Shared playlists",
     "section_playlists": "Playlists (Random 100 · mine)"
   },
   "albums": {
@@ -272,7 +273,17 @@
     "sort_size": "Most songs",
     "sort_name": "Name"
   },
+  "shared": {
+    "title": "Shared playlists",
+    "badge": "Shared",
+    "make": "Make a shared playlist",
+    "open": "Open the shared playlist",
+    "made": "Shared playlist made"
+  },
   "playlists": {
+    "addAll": "Add all",
+    "addedAll": "Added {n} songs",
+    "seeAll": "See all {n}",
     "title": "My playlists",
     "new": "New playlist",
     "name": "Playlist name",
