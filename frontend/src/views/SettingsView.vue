@@ -88,7 +88,7 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
 <template>
   <div class="flex flex-col gap-7">
     <!-- phone: the open part's name (back goes to the menu); wide screens: Settings over both -->
-    <PageHeader v-if="open" :title="t(open.title)" class="md:hidden" />
+    <PageHeader v-if="open" :title="t(open.title)" :icon="open.icon" class="md:hidden" />
     <PageHeader :title="t('settings.title')" :class="open ? 'hidden md:flex' : ''" />
 
     <div class="flex flex-col gap-8 md:flex-row md:items-start md:gap-12">

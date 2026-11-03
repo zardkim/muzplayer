@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Pencil, Plus, SlidersHorizontal, Trash2 } from '@lucide/vue'
+import { ListMusic, Pencil, Plus, SlidersHorizontal, Trash2, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -108,7 +108,7 @@ async function destroy() {
 <template>
   <p v-if="error" class="font-light text-muted">{{ error }}</p>
   <div v-else-if="playlist" class="flex flex-col gap-5">
-    <PageHeader :title="playlist.name" :sub="[playlist.is_shared ? t('shared.badge') : '', smart ? t('smart.badge') : '', t('common.tracks', playlist.entries.length)].filter(Boolean).join(' · ')" />
+    <PageHeader :title="playlist.name" :icon="smart ? Zap : ListMusic" :sub="[playlist.is_shared ? t('shared.badge') : '', smart ? t('smart.badge') : '', t('common.tracks', playlist.entries.length)].filter(Boolean).join(' · ')" />
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="tracks" :add="false" />
       <!-- someone else's shared list: listen, or copy it into one's own -->

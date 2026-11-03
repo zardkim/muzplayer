@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
@@ -9,6 +9,7 @@ import { coverGlow } from './coverColor'
 import { forgetListSearches } from './listSearch'
 import { useOverlayHistory } from './overlayHistory'
 import { openPlayer } from './playerNav'
+import { PAGE_BACK } from './pageBack'
 import { PULL, usePullRefresh } from './pullRefresh'
 import { useSiblingSwipe } from './siblingSwipe'
 import { useWakeLock } from './wakeLock'
@@ -221,6 +222,10 @@ function parentPage(): RouteLocationRaw {
   }
   return parents[String(route.name)] ?? '/'
 }
+// a page with a big title shows back on the title's line (PageHeader); others get App's back line
+const headerBacks = reactive(new Set<number>())
+provide(PAGE_BACK, { show: showBack, go: () => goBack(parentPage()), owners: headerBacks })
+
 // Settings → player: open the player when a list starts playing; keep the screen on while it's open
 // a tucked-away player bar comes back when something starts playing
 watch(() => [player.playStarts, player.playing] as const, ([, playing], [startsBefore]) => {
@@ -371,7 +376,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       <SwipeHint :swipe="swiper" />
       <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
         :class="barHidden ? 'md:pb-24' : 'md:pb-36'">
-        <button v-if="showBack" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
+        <button v-if="showBack && !headerBacks.size" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
           <ChevronLeft :size="28" :stroke-width="1.5" />
         </button>
         <RouterView v-slot="{ Component, route: r }">

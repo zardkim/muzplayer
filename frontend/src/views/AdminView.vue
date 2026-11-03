@@ -346,7 +346,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
 <template>
   <div class="flex flex-col gap-7">
     <!-- phone: the open part's name (back goes to the menu); wide screens: Admin over everything -->
-    <PageHeader v-if="open" :title="t(open.title)" class="md:hidden" />
+    <PageHeader v-if="open" :title="t(open.title)" :icon="open.icon" class="md:hidden" />
     <PageHeader :title="t('admin.title')" :class="open ? 'hidden md:flex' : ''">
       <template #actions>
         <RouterLink to="/admin/logs" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ScrollText :size="16" :stroke-width="1.6" />{{ t('logs.title') }}</RouterLink>

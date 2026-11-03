@@ -107,23 +107,26 @@ const checks = computed(() => {
       </div>
 
       <!-- plays per day -->
-      <section class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
-        <div class="flex items-baseline justify-between gap-3">
-          <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.daily', { n: s.days }) }}</h2>
+      <section class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <h2 class="min-w-0 text-[16px] font-bold md:text-lg">{{ t('stats.daily', { n: s.days }) }}</h2>
           <span class="text-[13px] text-muted">{{ hover !== null ? `${dayLabel(s.plays.days[hover].day)} · ${t('stats.playsN', { n: s.plays.days[hover].plays })}` : t('stats.peak', { n: peak }) }}</span>
         </div>
-        <div class="relative">
+        <div class="relative min-w-0 overflow-hidden">
           <!-- a recessive guide at the peak -->
           <div class="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line" aria-hidden="true" />
+          <!-- plain boxes, not buttons: Safari won't shrink a button below its own minimum, and thirty of
+               them then run past a phone's edge -->
           <div class="flex h-28 items-end gap-[2px] md:h-40" role="list" :aria-label="t('stats.daily', { n: s.days })" @mouseleave="hover = null">
-            <button
+            <div
               v-for="(d, i) in s.plays.days"
               :key="d.day"
-              type="button"
               role="listitem"
-              class="group flex h-full min-w-0 flex-1 items-end"
+              tabindex="0"
+              class="flex h-full w-0 min-w-0 flex-1 items-end outline-none"
               :aria-label="`${dayLabel(d.day)}: ${t('stats.playsN', { n: d.plays })}`"
               @mouseenter="hover = i"
+              @touchstart.passive="hover = i"
               @focus="hover = i"
               @blur="hover = null"
             >
@@ -132,21 +135,22 @@ const checks = computed(() => {
                 :class="hover === null || hover === i ? 'bg-accent' : 'bg-accent opacity-40'"
                 :style="{ height: d.plays ? `${Math.max(3, (d.plays / peak) * 100)}%` : '0' }"
               />
-            </button>
+            </div>
           </div>
-          <div class="mt-1.5 flex justify-between border-t border-line pt-1.5 font-display text-[11px] text-muted">
-            <span v-for="i in [0, 7, 14, 21, s.plays.days.length - 1]" :key="i">{{ dayLabel(s.plays.days[i].day) }}</span>
+          <!-- dates under it: five on a wide screen, three on a phone (they never push past its edge) -->
+          <div class="mt-1.5 flex justify-between gap-2 overflow-hidden whitespace-nowrap border-t border-line pt-1.5 font-display text-[11px] text-muted">
+            <span v-for="(i, k) in [0, 7, 14, 21, s.plays.days.length - 1]" :key="i" :class="k === 1 || k === 3 ? 'max-md:hidden' : ''">{{ dayLabel(s.plays.days[i].day) }}</span>
           </div>
         </div>
       </section>
 
-      <div class="grid gap-5 lg:grid-cols-2">
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[repeat(2,minmax(0,1fr))]">
         <!-- top songs / artists / people -->
         <section v-for="list in [
           { title: t('stats.topTracks', { n: s.days }), rows: s.plays.top_tracks.map((x) => ({ key: x.id, name: x.title, sub: x.artist, n: x.plays, to: undefined as string | undefined })) },
           { title: t('stats.topArtists', { n: s.days }), rows: s.plays.top_artists.map((x) => ({ key: x.id, name: x.name, sub: '', n: x.plays, to: `/artists/${x.id}` })) },
           { title: t('stats.perUser', { n: s.days }), rows: s.plays.per_user.map((x) => ({ key: x.id, name: x.name, sub: t('stats.hours', { n: x.hours }), n: x.plays, to: undefined })) },
-        ]" :key="list.title" class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+        ]" :key="list.title" class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
           <h2 class="text-[16px] font-bold md:text-lg">{{ list.title }}</h2>
           <p v-if="!list.rows.length" class="text-[14px] font-light text-muted">{{ t('stats.none') }}</p>
           <ol class="flex flex-col gap-2 md:gap-2.5">
@@ -174,7 +178,7 @@ const checks = computed(() => {
         </section>
 
         <!-- formats and quality -->
-        <section class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+        <section class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
           <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.formats') }}</h2>
           <ol class="flex flex-col gap-2.5">
             <li v-for="f in s.library.formats" :key="f.format" class="flex flex-col gap-1">
@@ -195,14 +199,14 @@ const checks = computed(() => {
         </section>
       </div>
 
-      <div class="grid gap-5 lg:grid-cols-2">
-        <section class="flex flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
+      <div class="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        <section class="flex min-w-0 flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
           <h2 class="mb-1 text-[16px] font-bold md:text-lg">{{ t('stats.library') }}</h2>
           <div v-for="c in checks" :key="c.label" class="flex items-center justify-between gap-3 text-[14px]">
             <span>{{ c.label }}</span><span class="font-display text-muted">{{ num(c.n) }}</span>
           </div>
         </section>
-        <section class="flex flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
+        <section class="flex min-w-0 flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
           <h2 class="mb-1 text-[16px] font-bold md:text-lg">{{ t('stats.storage') }}</h2>
           <div v-for="k in (['database', 'covers', 'transcode'] as const)" :key="k" class="flex items-center justify-between gap-3 text-[14px]">
             <span>{{ t(`stats.storage_${k}`) }}</span><span class="font-display text-muted">{{ size(s.storage[k]) }}</span>
