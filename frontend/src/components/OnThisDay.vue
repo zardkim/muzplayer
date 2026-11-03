@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { api, query } from '../api'
 import type { Album } from '../types'
 import CoverArt from './CoverArt.vue'
+import SectionTitle from './SectionTitle.vue'
 
 // "On this day": albums released on today's date in earlier years (needs whole release dates in
 // the tags). Shows nothing when there are none.
@@ -20,7 +21,7 @@ const yearsAgo = (a: Album) => now.getFullYear() - Number(a.release_date!.slice(
 
 <template>
   <section v-if="albums.length" class="flex flex-col gap-3">
-    <h2 class="text-[22px] font-bold">{{ t('home.onThisDay') }}</h2>
+    <SectionTitle :title="t('home.onThisDay')" />
     <div class="-mr-5 flex snap-x gap-3 overflow-x-auto pr-5 [scrollbar-width:none]">
       <RouterLink
         v-for="a in albums"

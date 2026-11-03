@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Search } from '@lucide/vue'
 import { api, query } from '../api'
 import { dateTime } from '../format'
 import { errorMessage } from '../i18n'
 import type { ActivityEntry, User } from '../types'
 import PageHeader from '../components/PageHeader.vue'
+import LoadMore from '../components/LoadMore.vue'
+import ChoiceChip from '../components/ChoiceChip.vue'
+import SearchField from '../components/SearchField.vue'
 
 // Admin → log (backend activity.py): sign-ins, failed ones, and every change made on the admin
 // page, newest first; by kind, by person, or searched (name, detail, address).
@@ -95,27 +97,20 @@ const tone = (action: string) =>
 
     <div class="flex flex-wrap items-center gap-2">
       <div class="-mr-5 flex min-w-0 gap-2 overflow-x-auto pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
-        <button
+        <ChoiceChip
           v-for="k in [null, ...KINDS]"
           :key="k ?? 'all'"
-          type="button"
-          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="kind === k ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
-          :aria-pressed="kind === k"
+          :active="kind === k"
           @click="kind = k"
         >
           {{ k ? t(`logs.kind.${k}`) : t('logs.kind.all') }}
-        </button>
+        </ChoiceChip>
       </div>
       <select v-model="userId" class="h-[38px] rounded-full border border-line-strong bg-bg px-3 text-[14px]" :aria-label="t('logs.user')">
         <option :value="null">{{ t('logs.allUsers') }}</option>
         <option v-for="u in users" :key="u.id" :value="u.id">{{ u.display_name }} ({{ u.username }})</option>
       </select>
-      <label class="flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-full bg-surface px-4 sm:max-w-72">
-        <Search :size="16" :stroke-width="1.5" class="flex-none text-muted" aria-hidden="true" />
-        <span class="sr-only">{{ t('logs.search') }}</span>
-        <input v-model="q" type="search" maxlength="100" :placeholder="t('logs.search')" class="min-w-0 flex-1 bg-transparent text-[14px] outline-none" />
-      </label>
+      <SearchField v-model="q" :maxlength="100" :placeholder="t('logs.search')" class="flex-1 sm:max-w-72" />
     </div>
 
     <p v-if="error" class="text-danger" role="alert">{{ error }}</p>
@@ -136,8 +131,6 @@ const tone = (action: string) =>
       </li>
     </ul>
 
-    <button v-if="items.length < total" type="button" class="h-11 self-center rounded-full border border-line-strong px-6 text-[15px] disabled:opacity-40" :disabled="loading" @click="load(true)">
-      {{ t('common.loadMore') }}
-    </button>
+    <LoadMore v-if="items.length < total" :loading="loading" @click="load(true)" />
   </div>
 </template>

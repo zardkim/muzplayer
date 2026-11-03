@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Check, ChevronLeft, ChevronRight, Plus, Search } from '@lucide/vue'
+import { Check, ChevronLeft, ChevronRight, Plus } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -12,6 +12,10 @@ import BaseModal from './BaseModal.vue'
 import CoverArt from './CoverArt.vue'
 import TrackAddRow from './TrackAddRow.vue'
 import VideoThumb from './VideoThumb.vue'
+import LoadMore from './LoadMore.vue'
+import ChoiceChip from './ChoiceChip.vue'
+import SearchField from './SearchField.vue'
+import PickRow from './PickRow.vue'
 
 // Adding to a playlist from a search: songs (a playlist) or music videos (a video playlist). Each
 // result is added with its +; what is in the list already shows a check. The sheet stays open for more.
@@ -167,11 +171,7 @@ function close() {
 <template>
   <BaseModal wide :title="kind === 'tracks' ? t('playlists.addSongs', { name: listName }) : t('videos.addVideos', { name: listName })" @close="close">
     <div class="flex flex-col gap-3">
-      <form class="flex h-11 items-center gap-2 rounded-full bg-surface px-4" role="search" @submit.prevent="search">
-        <Search :size="18" :stroke-width="1.5" class="text-muted" aria-hidden="true" />
-        <label for="add-q" class="sr-only">{{ t('search.label') }}</label>
-        <input id="add-q" v-model="q" type="search" maxlength="200" :placeholder="kind === 'tracks' ? t('search.placeholder') : t('videos.searchVideos')" class="min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
-      </form>
+      <SearchField v-model="q" large input-id="add-q" :placeholder="kind === 'tracks' ? t('search.placeholder') : t('videos.searchVideos')" @submit="search" />
       <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>
 
       <!-- songs -->
@@ -200,18 +200,14 @@ function close() {
           <template v-else>
             <!-- by kind -->
             <div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none]" role="tablist">
-              <button
+              <ChoiceChip
                 v-for="k in (['all', ...KINDS] as const)"
                 :key="k"
-                type="button"
-                role="tab"
-                :aria-selected="tab === k"
-                class="h-9 flex-none rounded-full border px-3.5 text-[14px]"
-                :class="tab === k ? 'border-ink bg-ink text-on-ink' : 'border-line-strong'"
+                :active="tab === k" small tab
                 @click="tab = k"
               >
                 {{ t(`search.tab_${k}`) }}<span v-if="k !== 'all' && found[k].total" class="ml-1 opacity-60">{{ found[k].total }}</span>
-              </button>
+              </ChoiceChip>
             </div>
             <p v-if="!busy && (tab === 'all' ? nothing : !found[tab].total)" class="text-[14px] text-muted">{{ t('search.noResults') }}</p>
 
@@ -234,14 +230,9 @@ function close() {
                 </h3>
                 <ul class="flex flex-col">
                   <li v-for="a in found.albums.items" :key="a.id">
-                    <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface" @click="open({ album: a })">
+                    <PickRow :title="a.title" :sub="[a.artist || t('common.unknownArtist'), a.year, t('common.tracks', a.track_count)].filter(Boolean).join(' · ')" @click="open({ album: a })">
                       <CoverArt :album-id="a.id" :has-cover="a.has_cover" :version="a.cover_v" rounded="rounded-md" class="size-11 flex-none" />
-                      <span class="flex min-w-0 flex-1 flex-col">
-                        <span class="truncate text-[15px]">{{ a.title }}</span>
-                        <span class="truncate text-[13px] text-muted">{{ a.artist || t('common.unknownArtist') }}<template v-if="a.year"> · {{ a.year }}</template> · {{ t('common.tracks', a.track_count) }}</span>
-                      </span>
-                      <ChevronRight :size="18" class="flex-none text-subtle" />
-                    </button>
+                    </PickRow>
                   </li>
                 </ul>
               </section>
@@ -253,27 +244,14 @@ function close() {
                 </h3>
                 <ul class="flex flex-col">
                   <li v-for="a in found.artists.items" :key="a.id">
-                    <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface" @click="open({ artist: a })">
+                    <PickRow :title="a.name" :sub="t('common.tracks', a.track_count)" @click="open({ artist: a })">
                       <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-11 flex-none" />
-                      <span class="flex min-w-0 flex-1 flex-col">
-                        <span class="truncate text-[15px]">{{ a.name }}</span>
-                        <span class="truncate text-[13px] text-muted">{{ t('common.tracks', a.track_count) }}</span>
-                      </span>
-                      <ChevronRight :size="18" class="flex-none text-subtle" />
-                    </button>
+                    </PickRow>
                   </li>
                 </ul>
               </section>
               <!-- one kind: the next page -->
-              <button
-                v-if="tab !== 'all' && found[tab].items.length < found[tab].total"
-                type="button"
-                class="h-10 self-center rounded-full border border-line-strong px-5 text-[14px] disabled:opacity-40"
-                :disabled="busy"
-                @click="more(tab)"
-              >
-                {{ t('common.loadMore') }}
-              </button>
+              <LoadMore v-if="tab !== 'all' && found[tab].items.length < found[tab].total" small :loading="busy" @click="more(tab)" />
             </div>
           </template>
         </template>
@@ -295,7 +273,7 @@ function close() {
             </button>
           </li>
         </ul>
-        <button v-if="videos.items.length < videos.total" type="button" class="h-10 self-center rounded-full border border-line-strong px-5 text-[14px]" @click="moreVideos">{{ t('common.loadMore') }}</button>
+        <LoadMore v-if="videos.items.length < videos.total" small @click="moreVideos" />
       </template>
     </div>
   </BaseModal>

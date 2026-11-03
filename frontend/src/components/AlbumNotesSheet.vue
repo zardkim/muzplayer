@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FileText, Search } from '@lucide/vue'
+import { FileText } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import BaseModal from './BaseModal.vue'
+import SearchField from './SearchField.vue'
 
 // Admin: the album's introduction (backend album_notes.py). The eztag album card in its folder,
 // or an album found on Bugs/Melon (as eztag's tag search does), or written by hand; looked at and
@@ -100,10 +101,7 @@ const provider = (s: string) => t(`notes.from_${s.split(':')[0]}`)
 
       <section class="flex flex-col gap-2.5">
         <h3 class="font-medium">{{ t('notes.search') }}</h3>
-        <form class="flex h-11 items-center gap-2 rounded-full bg-surface px-4" @submit.prevent="search(q)">
-          <Search :size="18" :stroke-width="1.4" class="text-muted" />
-          <input v-model="q" type="search" enterkeyhint="search" :aria-label="t('notes.search')" class="min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
-        </form>
+        <SearchField v-model="q" large :placeholder="t('notes.search')" @submit="search(q)" />
         <p v-if="searching" class="text-[14px] font-light text-muted">{{ t('common.loading') }}</p>
         <p v-else-if="searched && !items.length" class="text-[14px] font-light text-muted">{{ t('notes.noResults') }}</p>
         <button

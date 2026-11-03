@@ -17,6 +17,7 @@ import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -148,7 +149,7 @@ async function create() {
     </section>
 
     <section v-if="mixes.length" class="flex flex-col gap-3">
-      <h2 class="text-[22px] font-bold">{{ t('library.mixes') }}</h2>
+      <SectionTitle :title="t('library.mixes')" />
       <MixCards :mixes="mixes" />
     </section>
 

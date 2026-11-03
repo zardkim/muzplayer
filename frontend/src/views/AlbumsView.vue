@@ -9,6 +9,7 @@ import AlbumGrid from '../components/AlbumGrid.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import SelectPill from '../components/SelectPill.vue'
 import ViewToggle from '../components/ViewToggle.vue'
+import LoadMore from '../components/LoadMore.vue'
 import { useUi } from '../stores/ui'
 import { useListSearch } from '../listSearch'
 import type { ViewMode } from '../types'
@@ -77,8 +78,6 @@ const sorts = [
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ q.trim() ? t('search.noResults') : t('albums.empty') }}</p>
     <AlbumGrid :albums="items" :mode="view" />
-    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
-      {{ loading ? t('common.loading') : t('common.loadMore') }}
-    </button>
+    <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, ListMusic, Zap } from '@lucide/vue'
+import { ListMusic, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { homeSections } from '../homeSections'
@@ -20,6 +20,8 @@ import PlaylistCircles from '../components/PlaylistCircles.vue'
 import SharedPlaylists from '../components/SharedPlaylists.vue'
 import StationGrid from '../components/StationGrid.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import SectionTitle from '../components/SectionTitle.vue'
+import ChoiceChip from '../components/ChoiceChip.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -91,21 +93,19 @@ const tabs = computed(() => [
       <SharedPlaylists v-else-if="key === 'shared'" />
       <OnThisDay v-else-if="key === 'onThisDay'" />
       <section v-else-if="key === 'mixes' && mixes.length" class="flex flex-col gap-3">
-        <h2 class="text-[22px] font-bold">{{ t('home.mixes') }}</h2>
+        <SectionTitle :title="t('home.mixes')" />
         <MixCards :mixes="mixes" />
       </section>
       <template v-else-if="key === 'quick'">
         <div class="-mr-5 flex gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
-          <button
+          <ChoiceChip
             v-for="x in tabs"
             :key="x.key"
-            type="button"
-            class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-            :class="tab === x.key ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
+            :active="tab === x.key"
             @click="tab = x.key"
           >
             {{ x.label }}
-          </button>
+          </ChoiceChip>
         </div>
 
         <!-- quick list -->
@@ -144,11 +144,11 @@ const tabs = computed(() => [
         </section>
       </template>
       <section v-else-if="key === 'books' && listening.length" class="mt-3 flex flex-col gap-4">
-        <RouterLink to="/books" class="flex items-center gap-1 text-[22px] font-bold">{{ t('books.continue') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+        <SectionTitle :title="t('books.continue')" to="/books" />
         <BookGrid :books="listening" row />
       </section>
       <section v-else-if="key === 'newAlbums' && albums.length && (tab !== 'new' || !rows.includes('quick'))" class="mt-3 flex flex-col gap-4">
-        <RouterLink to="/albums" class="flex items-center gap-1 text-[22px] font-bold">{{ t('home.newAlbums') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+        <SectionTitle :title="t('home.newAlbums')" to="/albums" />
         <AlbumGrid :albums="albums" row />
       </section>
     </template>

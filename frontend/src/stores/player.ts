@@ -59,6 +59,14 @@ export const usePlayer = defineStore('player', () => {
   // that also uses Web Audio counts as "ambient" sound, which stops in the background)
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
   if (session) session.type = 'playback'
+  /** Every start goes through here. iPhone lets the session fall back to its default once playback
+   *  has been paused; a song resumed then stops in the background and drops out of the Dynamic Island
+   *  and lock screen. So the session is claimed again, and the song's details shown again, each time. */
+  function playAudio() {
+    if (session) session.type = 'playback'
+    updateMediaSession()
+    return audio.play()
+  }
 
   const queue = ref<Track[]>([])
   const index = ref(-1)
@@ -200,9 +208,8 @@ export const usePlayer = defineStore('player', () => {
       duration.value = track.duration ?? 0
     }
     soundSetup(track)
-    updateMediaSession()
     // autoplay blocked or aborted by a newer src: the UI stays paused
-    await audio.play().catch(() => {})
+    await playAudio().catch(() => {})
   }
 
   /** opts.position: start there (seconds) */
@@ -476,7 +483,7 @@ export const usePlayer = defineStore('player', () => {
       pendingSeek = seconds
       const src = audio.currentSrc
       audio.src = src + (src.includes('whole=1') ? '' : '&whole=1')
-      if (playing.value) void audio.play().catch(() => {})
+      if (playing.value) void playAudio().catch(() => {})
       return
     }
     audio.currentTime = seconds
@@ -602,7 +609,7 @@ export const usePlayer = defineStore('player', () => {
     }
     currentTime.value = local
     bookPos.value = b.files[i].offset + local
-    if (autoplay) audio.play().catch(() => {})
+    if (autoplay) playAudio().catch(() => {})
   }
 
   function seekBook(pos: number, autoplay = playing.value) {
@@ -645,7 +652,7 @@ export const usePlayer = defineStore('player', () => {
     if (!b) return
     if (loadedKey === `b${b.id}:${fileIndex.value}`) {
       if (pausedAt && Date.now() - pausedAt > 5000) audio.currentTime = Math.max(0, audio.currentTime - RESUME_REWIND)
-      audio.play().catch(() => {})
+      playAudio().catch(() => {})
     } else {
       seekBook(bookPos.value - (pausedAt ? RESUME_REWIND : 0), true)
     }
@@ -672,7 +679,7 @@ export const usePlayer = defineStore('player', () => {
     audio.src = `/api/v1/radio/${encodeURIComponent(st.id)}/stream?t=${Date.now()}`
     currentTime.value = 0
     duration.value = 0
-    audio.play().catch(() => {})
+    playAudio().catch(() => {})
   }
 
   /** The next (1) or previous (-1) station of the region the current one is listed under (Radio page). */
@@ -942,7 +949,7 @@ export const usePlayer = defineStore('player', () => {
     if (mayConvert(src) && !src.includes('whole=1')) {
       pendingSeek = audio.currentTime || null
       audio.src = src + '&whole=1'
-      if (playing.value) void audio.play().catch(() => {})
+      if (playing.value) void playAudio().catch(() => {})
       return
     }
     failures++

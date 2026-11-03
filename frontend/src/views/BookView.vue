@@ -10,6 +10,7 @@ import { useUi } from '../stores/ui'
 import type { BookDetail } from '../types'
 import BookCover from '../components/BookCover.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -135,7 +136,7 @@ async function setFinished(finished: boolean) {
     </section>
 
     <section v-if="book.chapters.length" class="flex flex-col gap-2">
-      <h2 class="text-[22px] font-bold">{{ t('books.chapters') }}</h2>
+      <SectionTitle :title="t('books.chapters')" />
       <ol class="flex flex-col">
         <li v-for="(c, i) in book.chapters" :key="i" class="border-b border-surface last:border-0">
           <button

@@ -76,6 +76,23 @@ def lyrics_in_tags(path: Path) -> bool:
         return False
 
 
+def _stamped(line: str, stamps: list[re.Match]) -> list[tuple[list[float], str]]:
+    """A stamped line as (times, words) parts. Stamps next to each other share the words after them
+    (a repeated chorus: [00:10][01:10]words); words between stamps end a part, so a whole LRC that
+    lost its line breaks ([00:01]one[00:05]two..., as eztag saves AlSong lyrics) still comes apart."""
+    parts: list[tuple[list[float], str]] = []
+    times: list[float] = []
+    for k, m in enumerate(stamps):
+        frac = m.group(3) or "0"
+        times.append(int(m.group(1)) * 60 + int(m.group(2)) + int(frac) / (10 ** len(frac)))
+        end = stamps[k + 1].start() if k + 1 < len(stamps) else len(line)
+        words = WORD_STAMP.sub("", line[m.end():end]).strip()
+        if words or k + 1 == len(stamps):
+            parts.append((times, words))
+            times = []
+    return parts
+
+
 def parse(text: str) -> dict:
     """Returns {"synced": [[seconds, line], ...] | None, "plain": str | None}."""
     text = text.translate(INVISIBLE).replace("\r\n", "\n").replace("\r", "\n").strip()
@@ -88,18 +105,17 @@ def parse(text: str) -> dict:
         line = line.strip()
         stamps = list(STAMP.finditer(line))
         if stamps and stamps[0].start() == 0:
-            words = WORD_STAMP.sub("", STAMP.sub("", line)).strip()
-            times = []
-            for m in stamps:
-                frac = m.group(3) or "0"
-                times.append(int(m.group(1)) * 60 + int(m.group(2)) + int(frac) / (10 ** len(frac)))
-            # an empty line stamped earlier than the lines before it is a verse break ([00:00.00]
-            # between verses, as Alsong writes them), not a pause at that time
-            if not words and times[0] < last:
-                continue
-            last = max(last, times[0])  # (a repeated chorus's later times don't count here)
-            synced += [[round(max(0.0, seconds - shift), 2), words] for seconds in times]
-            plain.append(words)
+            for times, words in _stamped(line, stamps):
+                # an empty line stamped earlier than the lines before it is a verse break ([00:00.00]
+                # between verses, as Alsong writes them), not a pause at that time; without line
+                # breaks such a break sticks to the next line's stamp ([00:00.00][00:30.00]words)
+                if len(times) > 1 and any(t >= last for t in times):
+                    times = [t for t in times if t >= last]
+                if not words and times[0] < last:
+                    continue
+                last = max(last, times[0])  # (a repeated chorus's later times don't count here)
+                synced += [[round(max(0.0, seconds - shift), 2), words] for seconds in times]
+                plain.append(words)
         elif not META.match(line):
             plain.append(line.strip())
     if len(synced) >= 2:

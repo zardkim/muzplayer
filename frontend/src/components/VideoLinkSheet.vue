@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Search } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import type { Page, Track } from '../types'
 import BaseModal from './BaseModal.vue'
 import CoverArt from './CoverArt.vue'
+import SearchField from './SearchField.vue'
 
 // Linking a NAS video (ui.videoLink) to its song: a keyword (its title to begin with, without
 // [MV], (Official Video) and the like), the library's songs that match, one picked.
@@ -68,11 +68,7 @@ async function pick(track: Track) {
     <div class="flex flex-col gap-3">
       <p class="truncate text-[14px] text-muted">{{ video.title }}</p>
       <p class="text-[13px] text-muted">{{ t('videos.linkHint') }}</p>
-      <form class="flex h-11 items-center gap-2 rounded-full bg-surface px-4" role="search" @submit.prevent="search">
-        <Search :size="18" :stroke-width="1.5" class="text-muted" aria-hidden="true" />
-        <label for="link-q" class="sr-only">{{ t('videos.linkSearch') }}</label>
-        <input id="link-q" v-model="keyword" type="search" maxlength="200" :placeholder="t('videos.linkSearch')" class="min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
-      </form>
+      <SearchField v-model="keyword" large input-id="link-q" :placeholder="t('videos.linkSearch')" @submit="search" />
       <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>
       <p v-else-if="busy && !results" class="text-[14px] text-muted" role="status">{{ t('common.loading') }}</p>
       <p v-else-if="results && !results.length" class="text-[14px] text-muted">{{ t('videos.linkNone') }}</p>

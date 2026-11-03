@@ -13,6 +13,7 @@ import SelectPill from '../components/SelectPill.vue'
 import { useListSearch } from '../listSearch'
 import VideoFilesSheet from '../components/VideoFilesSheet.vue'
 import VideoCard from '../components/VideoCard.vue'
+import LoadMore from '../components/LoadMore.vue'
 
 // Music videos: the YouTube videos added to songs and albums (album page, a song's menu) and the
 // video files an admin registered from the NAS (library/video), by kind. A video plays large in the video
@@ -139,9 +140,7 @@ function playAll(shuffle: boolean) {
       </ul>
     </section>
 
-    <button v-if="items.length < total" type="button" class="h-11 self-center rounded-full border border-line-strong px-6 text-[15px] disabled:opacity-40" :disabled="loading" @click="load(true)">
-      {{ t('videos.more') }}
-    </button>
+    <LoadMore v-if="items.length < total" :loading="loading" @click="load(true)" />
 
     <VideoFilesSheet v-if="addingFiles" @close="addingFiles = false" />
   </div>

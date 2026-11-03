@@ -10,6 +10,7 @@ import ArtistPhoto from '../components/ArtistPhoto.vue'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
 import ViewToggle from '../components/ViewToggle.vue'
+import LoadMore from '../components/LoadMore.vue'
 import { useUi } from '../stores/ui'
 import { useListSearch } from '../listSearch'
 
@@ -82,8 +83,6 @@ function reload() {
       </li>
     </ul>
     <MergeSheet v-if="merging" kind="artist" @close="merging = false" @changed="reload" />
-    <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
-      {{ loading ? t('common.loading') : t('common.loadMore') }}
-    </button>
+    <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
   </div>
 </template>

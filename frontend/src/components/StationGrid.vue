@@ -8,6 +8,7 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Track } from '../types'
 import StationPicker from './StationPicker.vue'
+import SectionTitle from './SectionTitle.vue'
 
 // Home → stations: a tile for each way of playing on and on (backend stations.py), and random 100.
 // Some ask first what to play from (an artist, an album, a genre, a decade).
@@ -62,7 +63,7 @@ function picked(params: Record<string, number>) {
 
 <template>
   <section class="flex flex-col gap-3">
-    <h2 class="text-[22px] font-bold">{{ t('stations.title') }}</h2>
+    <SectionTitle :title="t('stations.title')" />
     <ul class="grid grid-cols-3 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] sm:gap-3">
       <li v-for="tile in TILES" :key="tile.key">
         <button

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Search } from '@lucide/vue'
 import { api, query } from '../api'
 import type { Album, Artist, Genre, Page } from '../types'
 import ArtistPhoto from './ArtistPhoto.vue'
 import BaseModal from './BaseModal.vue'
 import CoverArt from './CoverArt.vue'
+import SearchField from './SearchField.vue'
+import PickRow from './PickRow.vue'
 
 // What a station plays from (home → stations): an artist or an album (searched), a genre, a decade.
 const props = defineProps<{ kind: 'artist' | 'album' | 'genre' | 'decade' }>()
@@ -52,29 +53,21 @@ const searchable = computed(() => props.kind !== 'decade')
 <template>
   <BaseModal :title="t(`stations.pick_${kind}`)" @close="emit('close')">
     <div class="flex flex-col gap-3">
-      <label v-if="searchable" class="flex h-11 items-center gap-2 rounded-full bg-surface px-4">
-        <Search :size="18" :stroke-width="1.5" class="text-muted" aria-hidden="true" />
-        <span class="sr-only">{{ t('search.label') }}</span>
-        <input v-model="q" type="search" maxlength="200" :placeholder="t('search.label')" class="min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
-      </label>
+      <SearchField v-if="searchable" v-model="q" large :placeholder="t('search.label')" />
       <p v-if="!loading && !(artists.length || albums.length || shownGenres.length || decades.length)" class="text-[14px] text-muted">{{ t('search.noResults') }}</p>
       <ul class="flex flex-col" :class="loading ? 'opacity-60' : ''">
         <template v-if="kind === 'artist'">
           <li v-for="a in artists" :key="a.id">
-            <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface" @click="emit('pick', { artist_id: a.id })">
+            <PickRow :title="a.name" :sub="t('common.tracks', a.track_count)" @click="emit('pick', { artist_id: a.id })">
               <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-11 flex-none" />
-              <span class="flex min-w-0 flex-1 flex-col"><span class="truncate text-[15px]">{{ a.name }}</span><span class="text-[13px] text-muted">{{ t('common.tracks', a.track_count) }}</span></span>
-              <ChevronRight :size="18" class="flex-none text-subtle" />
-            </button>
+            </PickRow>
           </li>
         </template>
         <template v-else-if="kind === 'album'">
           <li v-for="a in albums" :key="a.id">
-            <button type="button" class="flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-surface" @click="emit('pick', { album_id: a.id })">
+            <PickRow :title="a.title" :sub="[a.artist || t('common.unknownArtist'), a.year].filter(Boolean).join(' · ')" @click="emit('pick', { album_id: a.id })">
               <CoverArt :album-id="a.id" :has-cover="a.has_cover" :version="a.cover_v" rounded="rounded-md" class="size-11 flex-none" />
-              <span class="flex min-w-0 flex-1 flex-col"><span class="truncate text-[15px]">{{ a.title }}</span><span class="truncate text-[13px] text-muted">{{ a.artist || t('common.unknownArtist') }}<template v-if="a.year"> · {{ a.year }}</template></span></span>
-              <ChevronRight :size="18" class="flex-none text-subtle" />
-            </button>
+            </PickRow>
           </li>
         </template>
         <template v-else-if="kind === 'genre'">

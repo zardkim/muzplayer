@@ -15,6 +15,9 @@ import ArtistPhoto from '../components/ArtistPhoto.vue'
 import BookGrid from '../components/BookGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import TrackList from '../components/TrackList.vue'
+import LoadMore from '../components/LoadMore.vue'
+import SectionTitle from '../components/SectionTitle.vue'
+import ChoiceChip from '../components/ChoiceChip.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -103,20 +106,17 @@ function submit(q: string = text.value) {
     <SearchBox id="explore-search" v-model="text" large :placeholder="t('search.placeholder')" @submit="submit" />
 
     <template v-if="q">
-      <h2 class="text-[22px] font-bold">{{ t('search.resultsFor', { q }) }}</h2>
+      <SectionTitle :title="t('search.resultsFor', { q })" />
       <p v-if="loaded && !tabs.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
       <nav v-if="tabs.length" :aria-label="t('search.label')" class="-mx-5 -mt-3 flex gap-1.5 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:px-0">
-        <button
+        <ChoiceChip
           v-for="x in [{ key: 'all', label: t('search.tab_all'), n: 0 }, ...tabs]"
           :key="x.key"
-          type="button"
-          class="h-[38px] flex-none rounded-full border px-4 text-[15px]"
-          :class="tab === x.key ? 'border-ink bg-ink text-on-ink' : 'border-line-strong bg-bg'"
-          :aria-pressed="tab === x.key"
+          :active="tab === x.key"
           @click="pick(x.key as Kind | 'all')"
         >
           {{ x.label }}<span v-if="x.n" class="ml-1 font-display text-[13px] opacity-70">{{ x.n > 999 ? '999+' : x.n }}</span>
-        </button>
+        </ChoiceChip>
       </nav>
 
       <!-- all: the first few of each, each with a way into its tab -->
@@ -166,22 +166,14 @@ function submit(q: string = text.value) {
         <li v-for="v in videos" :key="v.id"><VideoCard :video="v" @play="playVideo(v)" /></li>
       </ul>
       <BookGrid v-else-if="tab === 'books'" :books="books" />
-      <button
-        v-if="tab !== 'all' && lists[tab].value.length < total[tab]"
-        type="button"
-        class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]"
-        :disabled="busy"
-        @click="more(tab)"
-      >
-        {{ busy ? t('common.loading') : t('common.loadMore') }}
-      </button>
+      <LoadMore v-if="tab !== 'all' && lists[tab].value.length < total[tab]" :loading="busy" @click="more(tab)" />
     </template>
 
     <template v-else>
       <!-- recent searches (this device) -->
       <section class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-          <h2 class="text-[22px] font-bold">{{ t('search.recent') }}</h2>
+          <SectionTitle :title="t('search.recent')" />
           <button v-if="history.recent.value.length" type="button" class="text-[14px] text-muted hover:text-ink" @click="history.clear()">{{ t('search.clearRecent') }}</button>
         </div>
         <p v-if="!history.recent.value.length" class="font-light text-muted">{{ t('search.noRecent') }}</p>
@@ -193,7 +185,7 @@ function submit(q: string = text.value) {
         </div>
       </section>
       <section v-if="genres.length" class="flex flex-col gap-3.5">
-        <RouterLink to="/genres" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.genres') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+        <SectionTitle :title="t('explore.genres')" to="/genres" />
         <div class="flex flex-wrap gap-2.5">
           <RouterLink
             v-for="g in genres"
@@ -204,7 +196,7 @@ function submit(q: string = text.value) {
         </div>
       </section>
       <section v-if="artists.length" class="flex flex-col gap-3.5">
-        <RouterLink to="/artists" class="flex items-center gap-1 text-[22px] font-bold">{{ t('explore.artists') }} <ChevronRight :size="22" :stroke-width="1.6" /></RouterLink>
+        <SectionTitle :title="t('explore.artists')" to="/artists" />
         <!-- one row of round photos (as on the artists page), scrolled sideways -->
         <ul class="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:px-0">
           <li v-for="a in artists" :key="a.id" class="w-[104px] flex-none md:w-[132px]">

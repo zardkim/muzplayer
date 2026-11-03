@@ -8,6 +8,8 @@ import { useAuth } from '../stores/auth'
 import type { Book, Page } from '../types'
 import BookGrid from '../components/BookGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
+import LoadMore from '../components/LoadMore.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -102,18 +104,18 @@ const chips = computed(() =>
 
     <template v-if="!filtered">
       <section v-if="listening.length" class="flex flex-col gap-3.5">
-        <h2 class="text-[22px] font-bold">{{ t('books.continue') }}</h2>
+        <SectionTitle :title="t('books.continue')" />
         <BookGrid :books="listening" row />
       </section>
       <section v-if="recent.length" class="flex flex-col gap-3.5">
-        <h2 class="text-[22px] font-bold">{{ t('books.recent') }}</h2>
+        <SectionTitle :title="t('books.recent')" />
         <BookGrid :books="recent" row />
       </section>
     </template>
 
     <section v-if="total" class="flex flex-col gap-3.5">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 v-if="!filtered" class="text-[22px] font-bold">{{ t('books.all') }}</h2>
+        <SectionTitle v-if="!filtered" :title="t('books.all')" />
         <div v-if="!series" class="-mr-5 flex gap-1 overflow-x-auto pr-5 text-[14px] [scrollbar-width:none]">
           <button
             v-for="s in sorts"
@@ -128,9 +130,7 @@ const chips = computed(() =>
         </div>
       </div>
       <BookGrid :books="items" />
-      <button v-if="items.length < total" type="button" class="mx-auto h-11 rounded-full border border-line-strong px-6 text-[15px]" :disabled="loading" @click="load">
-        {{ loading ? t('common.loading') : t('common.loadMore') }}
-      </button>
+      <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
     </section>
     <p v-else-if="loaded && filtered" class="font-light text-muted">{{ t('search.noResults') }}</p>
   </div>

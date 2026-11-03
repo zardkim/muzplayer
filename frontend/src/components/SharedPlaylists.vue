@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { ListMusic } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import type { Playlist } from '../types'
+import SectionTitle from './SectionTitle.vue'
 
 // The shared playlists (made from charts and themes, for everyone): a row of cards on the charts &
 // themes page and at home. Nothing is shown while there are none.
@@ -16,7 +17,7 @@ onMounted(async () => {
 
 <template>
   <section v-if="items.length" class="flex flex-col gap-3.5">
-    <h2 class="text-[22px] font-bold">{{ t('shared.title') }}</h2>
+    <SectionTitle :title="t('shared.title')" />
     <ul class="-mr-5 flex gap-3 overflow-x-auto pb-2 pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
       <li v-for="p in items" :key="p.id" class="w-[140px] flex-none sm:w-40">
         <RouterLink :to="{ name: 'playlist', params: { id: p.id } }" class="group flex flex-col gap-2">

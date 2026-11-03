@@ -11,6 +11,7 @@ import ArtistPhoto from '../components/ArtistPhoto.vue'
 import ArtistPhotoSheet from '../components/ArtistPhotoSheet.vue'
 import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
@@ -70,15 +71,15 @@ function photoChanged() {
     </header>
     <ArtistPhotoSheet v-if="photoSheet" :artist="artist" @close="photoSheet = false" @changed="photoChanged" />
     <section v-if="official.length" class="flex flex-col gap-4">
-      <h2 class="text-[22px] font-bold">{{ t('artists.albums') }}</h2>
+      <SectionTitle :title="t('artists.albums')" />
       <AlbumGrid :albums="official" />
     </section>
     <section v-if="unofficial.length" class="flex flex-col gap-4">
-      <h2 class="text-[22px] font-bold">{{ t('artists.unofficial') }}</h2>
+      <SectionTitle :title="t('artists.unofficial')" />
       <AlbumGrid :albums="unofficial" />
     </section>
     <section v-if="artist.tracks.length" class="flex flex-col gap-1">
-      <h2 class="text-[22px] font-bold">{{ t('artists.tracks') }}</h2>
+      <SectionTitle :title="t('artists.tracks')" />
       <TrackList :tracks="artist.tracks" />
     </section>
   </div>

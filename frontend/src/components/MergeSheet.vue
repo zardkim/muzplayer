@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Search, X } from '@lucide/vue'
+import { X } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import BaseModal from './BaseModal.vue'
+import SearchField from './SearchField.vue'
 
 // Admin: tidy up duplicate artists or genres (backend merge.py). Suggested groups of look-alike
 // names, a search to pick any names by hand, and the merges made so far (each can be undone).
@@ -104,11 +105,7 @@ const songs = (n: number) => t('common.tracks', n)
       <!-- by hand -->
       <section class="flex flex-col gap-2.5">
         <h3 class="font-medium">{{ t('merge.byHand') }}</h3>
-        <label class="flex h-11 items-center gap-2 rounded-full bg-surface px-4">
-          <Search :size="18" :stroke-width="1.4" class="text-muted" />
-          <span class="sr-only">{{ t('merge.search') }}</span>
-          <input v-model="text" type="search" :placeholder="t('merge.search')" class="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted" />
-        </label>
+        <SearchField v-model="text" large :placeholder="t('merge.search')" />
         <div v-if="choices.length" class="flex flex-wrap gap-1.5">
           <button v-for="x in choices" :key="x.id" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="pick(x)">
             {{ x.name }} <span class="text-muted">· {{ x.songs }}</span>

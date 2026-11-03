@@ -11,6 +11,7 @@ import { useUi } from '../stores/ui'
 import PageHeader from '../components/PageHeader.vue'
 import AiPlaylistSheet, { type AiDraft } from '../components/AiPlaylistSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
+import SectionTitle from '../components/SectionTitle.vue'
 import type { Playlist, VideoPlaylist } from '../types'
 import { youtubeThumb } from '../youtube'
 
@@ -103,7 +104,7 @@ async function create() {
 
     <!-- video playlists -->
     <section id="video-playlists" class="mt-4 flex scroll-mt-4 flex-col gap-4">
-      <h2 class="text-[22px] font-bold">{{ t('videos.videoPlaylists') }}</h2>
+      <SectionTitle :title="t('videos.videoPlaylists')" />
       <form class="flex max-w-md gap-2" @submit.prevent="createVideoList">
         <label for="vpl-name" class="sr-only">{{ t('videos.newPlaylist') }}</label>
         <input id="vpl-name" v-model="videoName" maxlength="200" :placeholder="t('videos.newPlaylist')" class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink" />
