@@ -704,6 +704,7 @@
     "fileError_other": "Couldn't read this file. Check it plays elsewhere; if not, get it again."
   },
   "library": {
+    "searchAll": "Search everything for ‘{q}’",
     "title": "My music",
     "playFavorites": "Play all liked songs",
     "tracksCount": "{n}",

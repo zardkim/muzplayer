@@ -704,6 +704,7 @@
     "fileError_other": "이 파일을 읽지 못했습니다. 다른 플레이어에서 재생되는지 확인하고, 안 되면 다시 받으세요."
   },
   "library": {
+    "searchAll": "‘{q}’ 곡·앨범·아티스트 통합 검색",
     "title": "내 음악",
     "playFavorites": "좋아요 표시한 곡 전체 재생",
     "tracksCount": "{n}곡",
