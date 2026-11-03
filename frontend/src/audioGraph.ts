@@ -87,6 +87,16 @@ export function ensureGraph(el: HTMLAudioElement): boolean {
   }
 }
 
+/** Drops the graph, context and all: the next ensureGraph builds a new one around a new element
+ *  (an element can be wired into Web Audio only once, so a replaced element needs a new graph). */
+export function resetGraph() {
+  if (!ctx) return
+  tail?.el.pause()
+  void ctx.close().catch(() => {})
+  ctx = main = tail = null
+  filters = []
+}
+
 /** Call from a tap (play, next...): browsers start an AudioContext only after a user gesture. */
 export function resumeGraph() {
   if (ctx && ctx.state !== 'running') void ctx.resume().catch(() => {})

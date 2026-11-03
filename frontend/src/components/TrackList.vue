@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MicVocal, Star } from '@lucide/vue'
+import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MicVocal, Star, TriangleAlert } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { duration } from '../format'
 import { openPlayer } from '../playerNav'
@@ -39,7 +39,7 @@ const isAdmin = computed(() => !!useAuth().user?.is_admin) // only an admin find
 const shown = useProgressive(() => props.tracks)
 // row labels looked up once per list, not several times per row (a long list spent much of its time here)
 const L = computed(() => ({
-  select: t('common.select'), play: t('common.play'), videos: t('videos.play'), findVideos: t('videos.trackVideo'), lyrics: t('lyricsSheet.show'), missing: t('common.missingFile'),
+  select: t('common.select'), scanError: t('common.scanError'), play: t('common.play'), videos: t('videos.play'), findVideos: t('videos.trackVideo'), lyrics: t('lyricsSheet.show'), missing: t('common.missingFile'),
   unknownArtist: t('common.unknownArtist'), unknownAlbum: t('common.unknownAlbum'),
   favAdd: t('common.favoriteAdd'), popular: t('common.popular'), favRemove: t('common.favoriteRemove'), more: t('common.moreActions'),
 }))
@@ -242,6 +242,8 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
             <span class="flex min-w-0 items-center gap-1.5">
               <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
               <span v-if="track.popular && ui.playerPrefs.showPopular" class="flex flex-none items-center gap-0.5 rounded-full bg-accent-soft px-1.5 text-[11px] font-medium leading-[18px] text-accent"><Flame :size="11" :stroke-width="2" />{{ L.popular }}</span>
+              <!-- the last scan could not read the file again (admin → library lists why) -->
+              <span v-if="track.scan_error" class="flex flex-none items-center gap-0.5 rounded-full bg-danger/10 px-1.5 text-[11px] font-medium leading-[18px] text-danger" :title="track.scan_error"><TriangleAlert :size="11" :stroke-width="2.2" />{{ L.scanError }}</span>
             </span>
             <span class="truncate text-[14px] font-light text-muted">
               <template v-if="track.missing">{{ L.missing }}</template>

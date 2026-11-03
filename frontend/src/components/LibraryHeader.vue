@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Disc3, Folder, MicVocal, Music2, Tags } from '@lucide/vue'
 import { LIBRARY_ROUTES, type LibraryRoute } from '../router'
 import PageHeader from './PageHeader.vue'
 import SearchField from './SearchField.vue'
@@ -20,6 +22,7 @@ const LABELS: Record<LibraryRoute, string> = {
   genres: 'nav.genres',
   folders: 'nav.folders',
 }
+const ICONS: Record<LibraryRoute, Component> = { albums: Disc3, artists: MicVocal, tracks: Music2, genres: Tags, folders: Folder }
 </script>
 
 <template>
@@ -30,11 +33,11 @@ const LABELS: Record<LibraryRoute, string> = {
         v-for="name in LIBRARY_ROUTES"
         :key="name"
         :to="{ name }"
-        class="-mb-px flex h-11 flex-none items-center border-b-2 px-3 text-[16px] transition-colors"
+        class="-mb-px flex h-11 flex-none items-center gap-1 border-b-2 px-2 text-[16px] transition-colors md:gap-1.5 md:px-3"
         :class="route.name === name ? 'border-ink font-semibold' : 'border-transparent font-light text-muted hover:text-ink'"
         :aria-current="route.name === name ? 'page' : undefined"
       >
-        {{ t(LABELS[name]) }}
+        <component :is="ICONS[name]" :size="16" :stroke-width="route.name === name ? 2 : 1.6" aria-hidden="true" />{{ t(LABELS[name]) }}
       </RouterLink>
     </nav>
     <SearchField v-if="search !== undefined" v-model="search" :placeholder="searchLabel ?? ''" class="mt-1 w-full sm:max-w-sm" />

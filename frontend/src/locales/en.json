@@ -138,6 +138,7 @@
     "default_playlist": "The default playlist can’t be deleted."
   },
   "common": {
+    "scanError": "Read error",
     "sort": "Sort",
     "kind": "Category",
     "region": "Region",
@@ -492,6 +493,16 @@
     "inWindowsApp": "Running in the muzplayer Windows app {v}."
   },
   "admin": {
+    "issuesTitle": "{n} files the scan could not read",
+    "issuesHelp": "Fix or remove them and scan again to clear them from this list. Songs still in the library are marked “read error”.",
+    "issuesSearch": "Search file names or messages",
+    "issueKind_damaged": "Damaged",
+    "issueKind_cut": "Cut short",
+    "issueKind_format": "Format",
+    "issueKind_permission": "Permission",
+    "issueKind_gone": "Gone",
+    "issueKind_other": "Other",
+    "issueOpenAlbum": "Open album",
     "seenCol": "Seen",
     "online": "Online",
     "offline": "Offline",
@@ -1120,6 +1131,8 @@
     }
   },
   "stats": {
+    "showAll": "Show all {n}",
+    "showFewer": "Show fewer",
     "title": "Statistics",
     "tracks": "Songs",
     "hours": "{n} h",

@@ -65,6 +65,9 @@ const tiles = computed(() => {
 // the daily bars: scaled to the busiest day
 const peak = computed(() => Math.max(1, ...(s.value?.plays.days.map((d) => d.plays) ?? [1])))
 const hover = ref<number | null>(null)
+// phone: each ranking shows its first few until opened (the page is long otherwise)
+const FEW = 5
+const opened = ref(new Set<string>())
 const maxOf = (list: { plays?: number; tracks?: number }[], key: 'plays' | 'tracks') => Math.max(1, ...list.map((x) => x[key] ?? 0))
 const quality = computed(() => {
   const q = s.value?.library.quality
@@ -87,31 +90,32 @@ const checks = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <RouterLink to="/admin" class="-mb-4 flex items-center gap-1 self-start text-[14px] text-muted hover:text-ink"><ChevronLeft :size="16" />{{ t('admin.title') }}</RouterLink>
+  <div class="flex flex-col gap-5 md:gap-8">
+    <!-- (a phone has the back button above already) -->
+    <RouterLink to="/admin" class="-mb-4 flex items-center gap-1 self-start text-[14px] text-muted hover:text-ink max-md:hidden"><ChevronLeft :size="16" />{{ t('admin.title') }}</RouterLink>
     <PageHeader :title="t('stats.title')" />
     <p v-if="error" class="font-light text-muted">{{ error }}</p>
     <p v-else-if="!s" class="font-light text-muted">{{ t('common.loading') }}</p>
     <template v-else>
       <!-- headline numbers -->
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <div v-for="x in tiles" :key="x.label" class="flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3.5">
-          <span class="text-[13px] text-muted">{{ x.label }}</span>
-          <span class="font-display text-[26px] font-bold leading-tight">{{ x.value }}</span>
-          <span class="truncate text-[12px] text-muted">{{ x.sub }}</span>
+      <div class="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
+        <div v-for="x in tiles" :key="x.label" class="flex min-w-0 flex-col gap-0.5 rounded-2xl bg-surface px-3 py-2.5 md:gap-1 md:px-4 md:py-3.5">
+          <span class="truncate text-[12px] text-muted md:text-[13px]">{{ x.label }}</span>
+          <span class="truncate font-display text-[19px] font-bold leading-tight md:text-[26px]">{{ x.value }}</span>
+          <span class="truncate text-[11px] text-muted md:text-[12px]">{{ x.sub }}</span>
         </div>
       </div>
 
       <!-- plays per day -->
-      <section class="flex flex-col gap-3 rounded-2xl border border-line p-5">
+      <section class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
         <div class="flex items-baseline justify-between gap-3">
-          <h2 class="text-lg font-bold">{{ t('stats.daily', { n: s.days }) }}</h2>
+          <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.daily', { n: s.days }) }}</h2>
           <span class="text-[13px] text-muted">{{ hover !== null ? `${dayLabel(s.plays.days[hover].day)} · ${t('stats.playsN', { n: s.plays.days[hover].plays })}` : t('stats.peak', { n: peak }) }}</span>
         </div>
         <div class="relative">
           <!-- a recessive guide at the peak -->
           <div class="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line" aria-hidden="true" />
-          <div class="flex h-40 items-end gap-[2px]" role="list" :aria-label="t('stats.daily', { n: s.days })" @mouseleave="hover = null">
+          <div class="flex h-28 items-end gap-[2px] md:h-40" role="list" :aria-label="t('stats.daily', { n: s.days })" @mouseleave="hover = null">
             <button
               v-for="(d, i) in s.plays.days"
               :key="d.day"
@@ -142,27 +146,36 @@ const checks = computed(() => {
           { title: t('stats.topTracks', { n: s.days }), rows: s.plays.top_tracks.map((x) => ({ key: x.id, name: x.title, sub: x.artist, n: x.plays, to: undefined as string | undefined })) },
           { title: t('stats.topArtists', { n: s.days }), rows: s.plays.top_artists.map((x) => ({ key: x.id, name: x.name, sub: '', n: x.plays, to: `/artists/${x.id}` })) },
           { title: t('stats.perUser', { n: s.days }), rows: s.plays.per_user.map((x) => ({ key: x.id, name: x.name, sub: t('stats.hours', { n: x.hours }), n: x.plays, to: undefined })) },
-        ]" :key="list.title" class="flex flex-col gap-3 rounded-2xl border border-line p-5">
-          <h2 class="text-lg font-bold">{{ list.title }}</h2>
+        ]" :key="list.title" class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+          <h2 class="text-[16px] font-bold md:text-lg">{{ list.title }}</h2>
           <p v-if="!list.rows.length" class="text-[14px] font-light text-muted">{{ t('stats.none') }}</p>
-          <ol class="flex flex-col gap-2.5">
-            <li v-for="(r, i) in list.rows" :key="r.key" class="flex items-center gap-3">
+          <ol class="flex flex-col gap-2 md:gap-2.5">
+            <li v-for="(r, i) in list.rows" :key="r.key" class="flex items-center gap-3" :class="i >= FEW && !opened.has(list.title) ? 'max-md:hidden' : ''">
               <span class="w-5 flex-none text-right font-display text-[13px] text-muted">{{ i + 1 }}</span>
               <span class="flex min-w-0 flex-1 flex-col gap-1">
                 <span class="flex items-baseline justify-between gap-3">
-                  <RouterLink v-if="r.to" :to="r.to" class="truncate text-[15px] hover:underline">{{ r.name }}</RouterLink>
-                  <span v-else class="truncate text-[15px]">{{ r.name }}<span v-if="r.sub" class="text-[13px] font-light text-muted"> · {{ r.sub }}</span></span>
+                  <RouterLink v-if="r.to" :to="r.to" class="truncate text-[14px] hover:underline md:text-[15px]">{{ r.name }}</RouterLink>
+                  <span v-else class="truncate text-[14px] md:text-[15px]">{{ r.name }}<span v-if="r.sub" class="text-[13px] font-light text-muted"> · {{ r.sub }}</span></span>
                   <span class="flex-none font-display text-[13px] text-muted">{{ num(r.n) }}</span>
                 </span>
                 <span class="h-1.5 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent" :style="{ width: `${(r.n / maxOf(list.rows.map((x) => ({ plays: x.n })), 'plays')) * 100}%` }" /></span>
               </span>
             </li>
           </ol>
+          <button
+            v-if="list.rows.length > FEW"
+            type="button"
+            class="self-center text-[13px] text-muted hover:text-ink md:hidden"
+            :aria-expanded="opened.has(list.title)"
+            @click="opened = new Set(opened.has(list.title) ? [...opened].filter((k) => k !== list.title) : [...opened, list.title])"
+          >
+            {{ opened.has(list.title) ? t('stats.showFewer') : t('stats.showAll', { n: list.rows.length }) }}
+          </button>
         </section>
 
         <!-- formats and quality -->
-        <section class="flex flex-col gap-3 rounded-2xl border border-line p-5">
-          <h2 class="text-lg font-bold">{{ t('stats.formats') }}</h2>
+        <section class="flex flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+          <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.formats') }}</h2>
           <ol class="flex flex-col gap-2.5">
             <li v-for="f in s.library.formats" :key="f.format" class="flex flex-col gap-1">
               <span class="flex items-baseline justify-between gap-3 text-[15px]">
@@ -183,14 +196,14 @@ const checks = computed(() => {
       </div>
 
       <div class="grid gap-5 lg:grid-cols-2">
-        <section class="flex flex-col gap-2 rounded-2xl border border-line p-5">
-          <h2 class="mb-1 text-lg font-bold">{{ t('stats.library') }}</h2>
+        <section class="flex flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
+          <h2 class="mb-1 text-[16px] font-bold md:text-lg">{{ t('stats.library') }}</h2>
           <div v-for="c in checks" :key="c.label" class="flex items-center justify-between gap-3 text-[14px]">
             <span>{{ c.label }}</span><span class="font-display text-muted">{{ num(c.n) }}</span>
           </div>
         </section>
-        <section class="flex flex-col gap-2 rounded-2xl border border-line p-5">
-          <h2 class="mb-1 text-lg font-bold">{{ t('stats.storage') }}</h2>
+        <section class="flex flex-col gap-2 rounded-2xl border border-line p-4 md:p-5">
+          <h2 class="mb-1 text-[16px] font-bold md:text-lg">{{ t('stats.storage') }}</h2>
           <div v-for="k in (['database', 'covers', 'transcode'] as const)" :key="k" class="flex items-center justify-between gap-3 text-[14px]">
             <span>{{ t(`stats.storage_${k}`) }}</span><span class="font-display text-muted">{{ size(s.storage[k]) }}</span>
           </div>

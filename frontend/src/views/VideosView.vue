@@ -106,17 +106,22 @@ function playAll(shuffle: boolean) {
     <!-- a search, liked only, the kind and the order -->
     <div class="flex flex-wrap items-center gap-2">
       <SearchField v-model="q" :placeholder="t('videos.searchVideos')" class="w-full sm:w-72" />
-      <button
-        type="button"
-        class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-4 text-[15px]"
-        :class="likedOnly ? 'border-like bg-like text-white' : 'border-line-strong bg-bg'"
-        :aria-pressed="likedOnly"
-        @click="likedOnly = !likedOnly"
-      >
-        <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" />{{ t('videos.liked') }}
-      </button>
-      <SelectPill v-model="kind" :label="t('videos.kind')" :icon="LayoutGrid" :options="[{ value: null, label: t('videos.all') }, ...VIDEO_KINDS.map((k) => ({ value: k, label: t(`videos.kinds.${k}`) }))]" />
-      <SelectPill v-model="sort" :label="t('videos.sort')" :icon="ArrowDownUp" :options="SORTS.map((s) => ({ value: s, label: t(`videos.sorts.${s}`) }))" />
+      <!-- liked, kind, order: one line on a phone too (liked shows just its heart there) -->
+      <div class="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+        <button
+          type="button"
+          class="flex h-[38px] flex-none items-center gap-1.5 rounded-full border px-3 text-[15px] sm:px-4"
+          :class="likedOnly ? 'border-like bg-like text-white' : 'border-line-strong bg-bg'"
+          :aria-pressed="likedOnly"
+          :aria-label="t('videos.liked')"
+          :title="t('videos.liked')"
+          @click="likedOnly = !likedOnly"
+        >
+          <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" /><span class="max-sm:hidden">{{ t('videos.liked') }}</span>
+        </button>
+        <SelectPill v-model="kind" fill :label="t('videos.kind')" :icon="LayoutGrid" :options="[{ value: null, label: t('videos.all') }, ...VIDEO_KINDS.map((k) => ({ value: k, label: t(`videos.kinds.${k}`) }))]" />
+        <SelectPill v-model="sort" fill :label="t('videos.sort')" :icon="ArrowDownUp" :options="SORTS.map((s) => ({ value: s, label: t(`videos.sorts.${s}`) }))" />
+      </div>
     </div>
 
     <div v-if="items.length" class="-mt-2 flex gap-2">

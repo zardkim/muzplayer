@@ -12,6 +12,7 @@ import type { FolderKind, LibraryFolder, ScanJob, User } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import IntegrationsCard from '../components/IntegrationsCard.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ScanIssues from '../components/ScanIssues.vue'
 
 // Phones: a menu of the admin parts, each on its own screen (/admin/<part>); wide screens show them all.
 const props = defineProps<{ section?: string }>()
@@ -184,21 +185,6 @@ onUnmounted(() => {
 
 // the whole library, or one top-level folder: scan (new and changed files), rescan (every
 // file's tags again, songs keep their stars and plays) or reset (songs forgotten and read again)
-// scan errors ("path: message") with a kind that says what happened and what to do
-const fileErrors = computed(() =>
-  (job.value?.error_summary ?? '').split('\n').filter(Boolean).map((line) => {
-    const at = line.lastIndexOf(': ')
-    const file = at > 0 ? line.slice(0, at) : ''
-    const raw = at > 0 ? line.slice(at + 2) : line
-    const kind = /sync to MPEG frame|header not found|unknown duration/i.test(raw) ? 'damaged'
-      : /file said|read 0 bytes|truncated|unexpected end/i.test(raw) ? 'cut'
-      : /unsupported file/i.test(raw) ? 'format'
-      : /permission denied|errno 13/i.test(raw) ? 'permission'
-      : /no such file|broken link/i.test(raw) ? 'gone' : 'other'
-    return { file: file || raw, raw, kind }
-  }),
-)
-
 async function startScan(folder?: string, mode: 'scan' | 'rescan' | 'reset' = 'scan') {
   try {
     job.value = await api<ScanJob>('/admin/scan', { method: 'POST', body: folder ? { folder, mode } : {} })
@@ -430,17 +416,8 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <p v-if="job && appConfig.audiobooks && job.status !== 'running'" class="text-[13px] text-muted">
         {{ t('admin.bookScanResult', { added: job.books_added, updated: job.books_updated, missing: job.books_missing }) }}
       </p>
-      <details v-if="job?.error_summary" class="text-[13px] text-muted">
-        <summary class="cursor-pointer">{{ t('admin.errorDetails') }}</summary>
-        <!-- each problem file with what it means and what to do -->
-        <ul class="mt-2 flex max-h-80 flex-col gap-2 overflow-auto">
-          <li v-for="(e, i) in fileErrors" :key="i" class="rounded-xl bg-surface p-3">
-            <p class="break-all font-medium text-ink">{{ e.file }}</p>
-            <p class="mt-0.5">{{ t(`admin.fileError_${e.kind}`) }}</p>
-            <p class="mt-0.5 text-[12px] text-subtle">{{ e.raw }}</p>
-          </li>
-        </ul>
-      </details>
+      <!-- every file the scans could not read, kept until the next scan of its place (again after each scan) -->
+      <ScanIssues :key="`${job?.id}-${job?.status}`" />
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
           {{ t('admin.rebuildCovers') }}

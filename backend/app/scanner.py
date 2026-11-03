@@ -17,6 +17,7 @@ from mutagen.id3 import ID3
 from mutagen.easymp4 import EasyMP4Tags
 from PIL import Image
 from sqlalchemy import delete, exists, func, insert, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, defer
 
 from . import search_index
@@ -24,8 +25,8 @@ from .lyrics import lyrics_in_tags
 from .config import settings
 from .db import SessionLocal
 from .models import (
-    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanJob, Track,
-    TrackGenre, Video,
+    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanIssue, ScanJob,
+    Track, TrackGenre, Video,
 )
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ AUDIO_EXTS = {".mp3", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".oga", ".opus", 
 FOLDER_COVERS = ("cover", "folder", "front", "album")
 COVER_SIZES = {"thumb": 300, "large": 1000}
 BATCH = 200
+ISSUES_KEPT = 5000  # scan problems kept for the admin's list
 
 FOLDER_KINDS = ("album", "compilation", "chart", "theme", "excluded")
 COLLECTION_KINDS = ("chart", "theme")  # folders of collections: each folder with audio files is one
@@ -849,15 +851,38 @@ def _scan(job_id: int) -> None:
                 bumped = time.monotonic()
             db.commit()
 
+        # this scan's problems replace the earlier ones of what it covers (admin → library), and a song
+        # it can read again is no longer marked
+        db.execute(delete(ScanIssue).where(*([ScanIssue.path.startswith(scope + "/")] if scope is not None else [])))
+        db.execute(update(Track).where(Track.scan_error.is_not(None), *([in_folder(scope)] if scope is not None else []))
+                   .values(scan_error=None))
+        noted = 0
+
+        def note(rel: str, message: str) -> None:
+            """Keeps a problem for the admin's list (the first few thousand), and marks the song when there is one."""
+            nonlocal noted
+            track = existing.get(rel)
+            if track is not None:
+                track.scan_error = message[:500]
+            if noted >= ISSUES_KEPT:
+                return
+            noted += 1
+            db.execute(pg_insert(ScanIssue).values(path=rel, message=message[:1000])
+                       .on_conflict_do_update(index_elements=["path"], set_={"message": message[:1000], "at": func.now()}))
+
         def on_error(path: Path, exc: Exception) -> None:
             # usually PUID/PGID lacking permission, an unmounted share or a broken link
             job.errors += 1
-            unavailable.append(os.path.relpath(path, root))
+            rel = os.path.relpath(path, root)
+            unavailable.append(rel)
+            message = f"cannot read: {getattr(exc, 'strerror', None) or exc}"
+            note(rel, message)
             if len(errors) < 50:
                 errors.append(f"cannot read: {path}: {getattr(exc, 'strerror', None) or exc}")
 
         def file_error(rel: str, exc: Exception) -> None:
             job.errors += 1
+            note(rel, str(exc) or type(exc).__name__)
             if len(errors) < 50:
                 errors.append(f"{rel}: {exc}")
 

@@ -122,6 +122,8 @@ check "signed-in user shows online" "$(curl -s -b "$A" "$BASE/admin/users" | j '
 check "log has the sign-in" "$(curl -s -b "$A" "$BASE/admin/logs?kind=login&q=smokeuser" | j 'd["items"][0]["action"]')" login
 check "log has the admin change" "$(curl -s -b "$A" "$BASE/admin/logs?kind=admin&q=smokeuser" | j '"PATCH /admin/users/{user_id}" in d["items"][0]["detail"]')" True
 check "log is admin-only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/logs")" 403
+check "scan problems list" "$(curl -s -b "$A" "$BASE/admin/scan/issues" | j '"items" in d and "total" in d')" True
+check "scan problems are admin-only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/scan/issues")" 403
 # a shared playlist made from a chart: everyone plays it, only its maker (or an admin) changes it
 cid=$(curl -s -b "$A" "$BASE/charts" | j 'd["items"][0]["id"] if d["items"] else ""')
 if [ -n "$cid" ]; then

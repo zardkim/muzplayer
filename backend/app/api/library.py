@@ -102,6 +102,7 @@ def track_out(row) -> dict:
         "has_video": bool(has_video),
         "has_lyrics": bool(has_lyrics),
         "missing": track.missing_at is not None,
+        "scan_error": track.scan_error,  # the last scan could not read the file again
         # an MP3 only ffmpeg could read (scanner._read_damaged): the player asks for it converted
         "damaged": DAMAGED in (track.tag_json or {}),
     }

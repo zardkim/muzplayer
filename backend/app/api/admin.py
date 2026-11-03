@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from .. import ai_banner, album_notes, appconf, artist_images, merge, search_index, stats, youtube
@@ -12,7 +12,8 @@ from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
 from ..models import (
-    ActivityLog, Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanJob, Track, TrackRating, User,
+    ActivityLog, Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanIssue, ScanJob, Track,
+    TrackRating, User,
 )
 from ..scanner import (
     FOLDER_KINDS, in_folder, bump_library, cancel_scan, nfc, prune_orphans, remove_covers, scan_running,
@@ -110,6 +111,32 @@ def latest_scan(_: User = Depends(admin_user), db: Session = Depends(get_db, sco
         "has_missing": missing is not None,
         "auto_scan_minutes": settings.scan_interval_minutes,
         "search_index_ready": not search_index.outdated(db),
+        "issues": db.scalar(select(func.count()).select_from(ScanIssue)),
+    }
+
+
+@router.get("/scan/issues")
+def scan_issues(
+    q: str = Query("", max_length=200),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    _: User = Depends(admin_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """What the last scans could not read, kept until the next scan of its place: {items, total}.
+    Each with the song it is (track_id, album_id) when the library has one from before."""
+    cond = [or_(ScanIssue.path.ilike(f"%{q.strip()}%"), ScanIssue.message.ilike(f"%{q.strip()}%"))] if q.strip() else []
+    total = db.scalar(select(func.count()).select_from(ScanIssue).where(*cond))
+    rows = db.execute(
+        select(ScanIssue, Track.id, Track.album_id)
+        .outerjoin(Track, Track.file_path == ScanIssue.path)
+        .where(*cond)
+        .order_by(ScanIssue.path)
+        .offset(offset).limit(limit)
+    ).all()
+    return {
+        "items": [{"path": i.path, "message": i.message, "at": i.at, "track_id": tid, "album_id": aid} for i, tid, aid in rows],
+        "total": total,
     }
 
 

@@ -167,6 +167,8 @@ class Track(Base):
         ForeignKey("tracks.id", ondelete="SET NULL"), index=True
     )
     missing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # the last scan could not read the file again (it plays as it was read before): shown in lists
+    scan_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -286,6 +288,18 @@ class PlayHistory(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), index=True)
     played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ScanIssue(Base):
+    """A file or folder the last scan of its place could not read (admin → library). Replaced by the
+    next scan of the whole library or of its top-level folder."""
+
+    __tablename__ = "scan_issues"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column(Text, unique=True)  # relative to MUSIC_DIR
+    message: Mapped[str] = mapped_column(Text, default="", server_default="")
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ScanJob(Base):

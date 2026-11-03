@@ -31,6 +31,7 @@ export interface Track {
   has_video?: boolean
   has_lyrics?: boolean // lyrics (synced or plain): its own (tags, .lrc next to it) or fetched for it
   missing: boolean
+  scan_error?: string | null // the last scan could not read the file again (it plays as read before)
   damaged?: boolean // an MP3 only ffmpeg could read: played converted (server transcode)
   chart_position?: number | null // only in chart lists
 }

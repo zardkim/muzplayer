@@ -138,6 +138,7 @@
     "default_playlist": "기본 플레이리스트는 삭제할 수 없습니다."
   },
   "common": {
+    "scanError": "읽기 오류",
     "sort": "정렬",
     "kind": "분류",
     "region": "지역",
@@ -492,6 +493,16 @@
     "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
   },
   "admin": {
+    "issuesTitle": "스캔 오류 파일 {n}개",
+    "issuesHelp": "스캔이 읽지 못한 파일입니다. 파일을 고치거나 지운 뒤 다시 스캔하면 목록에서 빠집니다. 라이브러리에 남아 있는 곡에는 ‘읽기 오류’ 표시가 붙습니다.",
+    "issuesSearch": "파일 이름·내용 검색",
+    "issueKind_damaged": "손상",
+    "issueKind_cut": "잘림",
+    "issueKind_format": "형식",
+    "issueKind_permission": "권한",
+    "issueKind_gone": "없음",
+    "issueKind_other": "기타",
+    "issueOpenAlbum": "앨범 보기",
     "seenCol": "접속",
     "online": "온라인",
     "offline": "오프라인",
@@ -1120,6 +1131,8 @@
     }
   },
   "stats": {
+    "showAll": "{n}위까지 모두 보기",
+    "showFewer": "접기",
     "title": "통계",
     "tracks": "곡",
     "hours": "{n}시간",

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 import { api, bookCoverUrl, bookStreamUrl, coverUrl, query } from '../api'
 import { cachedSource, prepare } from '../audioCache'
-import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
+import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
 import { loadStations, regionOf } from '../radio'
@@ -52,8 +52,12 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 export const usePlayer = defineStore('player', () => {
-  const audio = new Audio()
-  audio.preload = 'auto'
+  let audio = newAudio()
+  function newAudio() {
+    const el = new Audio()
+    el.preload = 'auto'
+    return el
+  }
   // iPhone: a "playback" audio session plays on with the screen locked or the app in the background,
   // ignores the silent switch and moves to Bluetooth when it connects (Safari 17+; without it, a page
   // that also uses Web Audio counts as "ambient" sound, which stops in the background)
@@ -63,9 +67,60 @@ export const usePlayer = defineStore('player', () => {
    *  has been paused; a song resumed then stops in the background and drops out of the Dynamic Island
    *  and lock screen. So the session is claimed again, and the song's details shown again, each time. */
   function playAudio() {
+    if (stale) revive()
     if (session) session.type = 'playback'
     updateMediaSession()
     return audio.play()
+  }
+
+  // ---- the element's own listeners, kept so a replacement element gets them too ----
+  const listeners: [string, EventListener][] = []
+  function listen(type: string, fn: EventListener) {
+    listeners.push([type, fn])
+    audio.addEventListener(type, fn)
+  }
+  // Paused by the phone rather than by us (a Bluetooth headset gone, a call): iPhone may keep the
+  // element tied to the lost output and play it on in silence until the app restarts. The next start
+  // then uses a fresh element (and sound processing) at the same place.
+  let pausing = false // a pause (or a new source) of our own is under way
+  let stale = false
+  function pauseAudio() {
+    pausing = true
+    audio.pause()
+  }
+  function setSrc(url: string) {
+    pausing = true // (a new source may report a pause of its own)
+    audio.src = url
+  }
+  navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    if (!playing.value) stale = true // the output changed while nothing played
+  })
+  function revive() {
+    stale = false
+    const old = audio
+    const src = old.getAttribute('src')
+    const at = old.currentTime
+    for (const [type, fn] of listeners) old.removeEventListener(type, fn)
+    old.pause()
+    old.removeAttribute('src')
+    old.load() // lets go of the old output
+    resetGraph()
+    audio = newAudio()
+    audio.volume = old.volume
+    audio.defaultPlaybackRate = old.defaultPlaybackRate
+    audio.playbackRate = old.playbackRate
+    for (const [type, fn] of listeners) audio.addEventListener(type, fn)
+    if (src) {
+      if (mode.value !== 'live' && at > 0 && pendingSeek === null) pendingSeek = at
+      setSrc(src)
+    }
+    // the sound processing, built again around the new element
+    if (soundOn()) {
+      if (!ensureGraph(audio)) return soundFailed()
+      applyEq()
+      resumeGraph()
+      if (mode.value === 'music' && current.value) setLevel(levelFor(current.value))
+    }
   }
 
   const queue = ref<Track[]>([])
@@ -174,7 +229,7 @@ export const usePlayer = defineStore('player', () => {
 
   function reset() {
     saveProgress(true) // logout: keep the last seconds
-    audio.pause()
+    pauseAudio()
     audio.removeAttribute('src')
     audio.load()
     loadedKey = null
@@ -200,7 +255,7 @@ export const usePlayer = defineStore('player', () => {
     if (loadedKey !== `t${track.id}`) {
       // fetched ahead: no wait on the network; saved for offline: sw.js answers from the device
       const src = trackSrc(track)
-      audio.src = cachedSource(track.id, src) ?? (isSaved(track.id) ? `${streamBase(track.id)}?saved=1` : src)
+      setSrc(cachedSource(track.id, src) ?? (isSaved(track.id) ? `${streamBase(track.id)}?saved=1` : src))
       loadedKey = `t${track.id}`
       pendingSeek = null
       reported = false
@@ -417,19 +472,19 @@ export const usePlayer = defineStore('player', () => {
 
   function toggle() {
     if (mode.value === 'live') {
-      if (playing.value) audio.pause()
+      if (playing.value) pauseAudio()
       else startLive()
       return
     }
     if (mode.value === 'book') {
-      if (playing.value) audio.pause()
+      if (playing.value) pauseAudio()
       else resumeBook()
       return
     }
     if (!current.value) return
     // go by our own state: after a load error the element is stuck with paused === false
     if (playing.value) {
-      audio.pause()
+      pauseAudio()
       stopTail()
     } else startCurrent()
   }
@@ -482,7 +537,7 @@ export const usePlayer = defineStore('player', () => {
       // for the finished file (it waits for the conversion) and go there once it's in
       pendingSeek = seconds
       const src = audio.currentSrc
-      audio.src = src + (src.includes('whole=1') ? '' : '&whole=1')
+      setSrc(src + (src.includes('whole=1') ? '' : '&whole=1'))
       if (playing.value) void playAudio().catch(() => {})
       return
     }
@@ -597,7 +652,7 @@ export const usePlayer = defineStore('player', () => {
     fileIndex.value = i
     duration.value = b.files[i].duration
     if (loadedKey !== key) {
-      audio.src = bookStreamUrl(b.id, i)
+      setSrc(bookStreamUrl(b.id, i))
       loadedKey = key
       // Safari ignores currentTime before metadata: apply it on loadedmetadata
       pendingSeek = local
@@ -621,7 +676,7 @@ export const usePlayer = defineStore('player', () => {
 
   function openBook(detail: BookDetail, position: number, autoplay: boolean) {
     if (mode.value === 'book' && book.value && book.value.id !== detail.id) saveProgress()
-    if (mode.value !== 'book') audio.pause()
+    if (mode.value !== 'book') pauseAudio()
     station.value = null
     mode.value = 'book'
     book.value = detail
@@ -663,7 +718,7 @@ export const usePlayer = defineStore('player', () => {
   function playStation(st: RadioStation) {
     if (mode.value === 'book') leaveBook()
     stopTail()
-    audio.pause()
+    pauseAudio()
     mode.value = 'live'
     station.value = st
     loadedKey = `r${st.id}`
@@ -676,7 +731,7 @@ export const usePlayer = defineStore('player', () => {
   function startLive() {
     const st = station.value
     if (!st) return
-    audio.src = `/api/v1/radio/${encodeURIComponent(st.id)}/stream?t=${Date.now()}`
+    setSrc(`/api/v1/radio/${encodeURIComponent(st.id)}/stream?t=${Date.now()}`)
     currentTime.value = 0
     duration.value = 0
     playAudio().catch(() => {})
@@ -697,7 +752,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function stopStation() {
-    audio.pause()
+    pauseAudio()
     audio.removeAttribute('src')
     audio.load()
     leaveLive()
@@ -834,7 +889,7 @@ export const usePlayer = defineStore('player', () => {
   }
 
   function sleepNow() {
-    audio.pause()
+    pauseAudio()
     clearSleep()
   }
 
@@ -853,23 +908,26 @@ export const usePlayer = defineStore('player', () => {
     playing.value = value
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = value ? 'playing' : 'paused'
   }
-  audio.addEventListener('play', () => setPlaying(true))
+  listen('play', () => setPlaying(true))
   // songs added while playing (or a longer queue) are fetched ahead too
   watch(() => queue.value.length, () => {
     if (playing.value) lookAhead()
   })
-  audio.addEventListener('playing', () => {
+  listen('playing', () => {
+    pausing = false
     failures = 0
     lookAhead()
   })
-  audio.addEventListener('pause', () => {
+  listen('pause', () => {
+    if (!pausing && !audio.ended && mode.value !== 'live') stale = true
+    pausing = false
     setPlaying(false)
     if (mode.value === 'book' && loadedKey) {
       pausedAt = Date.now()
       saveProgress()
     }
   })
-  audio.addEventListener('ended', () => {
+  listen('ended', () => {
     if (mode.value === 'live') return setPlaying(false) // the station's stream ended
     if (mode.value !== 'book') return next(true)
     const b = book.value
@@ -882,7 +940,7 @@ export const usePlayer = defineStore('player', () => {
     clearSleep()
     setPlaying(false)
   })
-  audio.addEventListener('loadedmetadata', () => {
+  listen('loadedmetadata', () => {
     if (isFinite(audio.duration)) duration.value = audio.duration
     if (pendingSeek !== null) {
       audio.currentTime = pendingSeek
@@ -890,7 +948,7 @@ export const usePlayer = defineStore('player', () => {
     }
     if (mode.value === 'book') applyRate()
   })
-  audio.addEventListener('timeupdate', () => {
+  listen('timeupdate', () => {
     if (mode.value === 'music' && pendingSeek !== null) return // the position of a reload for a seek
     currentTime.value = audio.currentTime
     if (mode.value === 'live') return // listening time only: no history, crossfade or position
@@ -927,11 +985,11 @@ export const usePlayer = defineStore('player', () => {
       }
     }
   }
-  audio.addEventListener('error', () => {
+  listen('error', () => {
     if (!audio.getAttribute('src')) return
     if (mode.value === 'live') {
       useUi().notify(i18n.global.t('radio.failed'), true)
-      audio.pause()
+      pauseAudio()
       return
     }
     if (mode.value === 'book') {
@@ -939,7 +997,7 @@ export const usePlayer = defineStore('player', () => {
       useUi().notify(errorMessage({ code: 'playbackStopped' }), true)
       loadedKey = null
       pendingSeek = null
-      audio.pause()
+      pauseAudio()
       setPlaying(false)
       return
     }
@@ -948,7 +1006,7 @@ export const usePlayer = defineStore('player', () => {
     const src = audio.currentSrc
     if (mayConvert(src) && !src.includes('whole=1')) {
       pendingSeek = audio.currentTime || null
-      audio.src = src + '&whole=1'
+      setSrc(src + '&whole=1')
       if (playing.value) void playAudio().catch(() => {})
       return
     }
@@ -962,7 +1020,7 @@ export const usePlayer = defineStore('player', () => {
     } else {
       useUi().notify(errorMessage({ code: 'playbackStopped' }), true)
       loadedKey = null // retry from the start of this track on the next play
-      audio.pause()
+      pauseAudio()
       setPlaying(false)
     }
   })
@@ -1021,7 +1079,7 @@ export const usePlayer = defineStore('player', () => {
     if (mode.value === 'live') {
       // a live station: play, pause, and the next or previous station
       const live: [MediaSessionAction, MediaSessionActionHandler | null][] = [
-        ['play', () => startLive()], ['pause', () => audio.pause()], ['previoustrack', () => prev()], ['nexttrack', () => next()],
+        ['play', () => startLive()], ['pause', () => pauseAudio()], ['previoustrack', () => prev()], ['nexttrack', () => next()],
         ['seekbackward', null], ['seekforward', null], ['seekto', null],
       ]
       for (const [action, handler] of live) {
@@ -1035,7 +1093,7 @@ export const usePlayer = defineStore('player', () => {
     }
     const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
       ['play', () => (isBook ? resumeBook() : startCurrent())],
-      ['pause', () => audio.pause()],
+      ['pause', () => pauseAudio()],
       ['previoustrack', isBook ? null : () => prev()],
       ['nexttrack', isBook ? null : () => next()],
       ['seekbackward', isBook ? (d) => skip(-(d.seekOffset || skipBack.value)) : null],
