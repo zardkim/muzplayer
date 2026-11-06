@@ -13,6 +13,8 @@
 // iPhone: Safari may silence an AudioContext when the screen locks, so these stay off there unless
 // the person turns them on knowingly (Settings says so).
 
+import { plog } from './playerLog'
+
 export const EQ_BANDS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 export const EQ_PRESETS: Record<string, number[]> = {
   flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -52,6 +54,7 @@ function build(el: HTMLAudioElement) {
   })
   // iPhone suspends ("interrupted") the context for a call or in the background: start it again
   ctx.addEventListener('statechange', () => {
+    plog('sound processing', String(ctx?.state))
     if (ctx && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => {})
   })
   for (let i = 0; i < filters.length - 1; i++) filters[i].connect(filters[i + 1])

@@ -52,6 +52,8 @@ export interface AlbumDetail extends Album {
   video_count: number
   description: string | null // its introduction (eztag album card, Bugs/Melon, or written by an admin)
   description_source: string | null // eztag | bugs:<id> | melon:<id> | manual
+  // how listeners rate it on the sites, looked up after a scan (Bugs has likes, no stars)
+  site_ratings: { melon?: { id: string; score: number; count: number }; bugs?: { id: string; likes: number } } | null
 }
 
 export interface Artist {

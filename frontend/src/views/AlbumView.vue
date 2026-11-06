@@ -102,6 +102,15 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
           <StarRating :value="album.rating" @rate="rate" />
           <span v-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>
         </div>
+        <!-- Melon's stars and Bugs' likes, looked up after a scan -->
+        <span v-if="album.site_ratings" class="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">
+          <a v-if="album.site_ratings.melon" :href="`https://www.melon.com/album/detail.htm?albumId=${album.site_ratings.melon.id}`" target="_blank" rel="noopener" class="hover:text-ink">
+            {{ t('albums.siteMelon', { score: album.site_ratings.melon.score.toFixed(1), count: album.site_ratings.melon.count.toLocaleString() }) }}
+          </a>
+          <a v-if="album.site_ratings.bugs" :href="`https://music.bugs.co.kr/album/${album.site_ratings.bugs.id}`" target="_blank" rel="noopener" class="hover:text-ink">
+            {{ t('albums.siteBugs', { likes: album.site_ratings.bugs.likes.toLocaleString() }) }}
+          </a>
+        </span>
         <div class="mt-2 flex flex-wrap gap-2">
           <PlayActions :tracks="album.tracks" large />
           <button

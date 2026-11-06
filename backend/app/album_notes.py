@@ -9,16 +9,21 @@
 3. After each scan, the albums with neither are looked up on their own (lookup_missing): the site
    the admin put first (Bugs by default), then the other, taking an album only when its title and
    artist are the same. Found nowhere: description_source "notfound", not asked again.
+4. The same run looks up how listeners rate each album (find_ratings): Melon's stars and how many
+   gave them, and Bugs' likes (Bugs has no stars). Looked up again after RATINGS_STALE.
 """
 
 import html
 import logging
 import re
 import threading
+import json
 import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -43,6 +48,7 @@ BUGS_SEARCH = "https://music.bugs.co.kr/search/album?q={q}"
 BUGS_ALBUM = "https://music.bugs.co.kr/album/{id}"
 MELON_SEARCH = "https://www.melon.com/search/album/index.htm?q={q}"
 MELON_ALBUM = "https://www.melon.com/album/detail.htm?albumId={id}"
+MELON_GRADE = "https://www.melon.com/album/albumGradeInfo.json?albumId={id}"
 PROVIDERS = ("bugs", "melon")
 
 
@@ -238,6 +244,19 @@ class Unreachable(Exception):
         self.everywhere = everywhere
 
 
+@lru_cache(maxsize=1024)
+def _match(provider: str, title: str, artist: str) -> str | None:
+    """The site's id for the album with this title and artist (None: not there). Remembered, so the
+    introduction and the ratings share one search."""
+    q = f"{artist} {_core(title)}".strip()
+    items = (_search_bugs if provider == "bugs" else _search_melon)(q, 10)
+    same = [it for it in items if _same(it["title"], title)]
+    # the artist as written here, or (written another way: "블랙핑크" for "BLACKPINK") one of the
+    # site's own first few answers to the artist and title
+    hit = next((it for it in same if _artist_fits(artist, it["artist"])), None) or next((it for it in same if it in items[:3] and artist), None)
+    return hit["id"] if hit else None
+
+
 def find_notes(title: str, artist: str) -> tuple[str, str] | None:
     """(introduction, source) for the album with this title and artist, from the first site that has
     one; None when neither does. Raises Unreachable when a site that might have it didn't answer."""
@@ -247,21 +266,56 @@ def find_notes(title: str, artist: str) -> tuple[str, str] | None:
     failed = 0
     for provider in order:
         try:
-            items = (_search_bugs if provider == "bugs" else _search_melon)(q, 10)
-            same = [it for it in items if _same(it["title"], title)]
-            # the artist as written here, or (written another way: "블랙핑크" for "BLACKPINK") one of the
-            # site's own first few answers to the artist and title
-            hit = next((it for it in same if _artist_fits(artist, it["artist"])), None) or next((it for it in same if it in items[:3] and artist), None)
-            text = fetch(provider, hit["id"]) if hit else None
+            hit = _match(provider, title, artist)
+            text = fetch(provider, hit) if hit else None
         except Exception as exc:  # noqa: BLE001 - a site down or changed: the other may still answer
             log.warning("%s album notes for %r: %s", provider, q, exc)
             failed += 1
             continue
         if text:
-            return text, f"{provider}:{hit['id']}"
+            return text, f"{provider}:{hit}"
     if failed:
         raise Unreachable(failed == len(order))
     return None
+
+
+def _melon_rating(album_id: str) -> dict | None:
+    req = urllib.request.Request(MELON_GRADE.format(id=album_id), headers={"User-Agent": _UA, "Referer": MELON_ALBUM.format(id=album_id)})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        grade = json.loads(resp.read()).get("infoGrade") or {}
+    count = int(grade.get("PTCPNMPRCO") or 0)
+    if not count:
+        return None  # nobody has rated it
+    return {"id": album_id, "score": round(float(grade["TOTAVRGSCORE"]), 2), "count": count}
+
+
+def _bugs_likes(album_id: str) -> dict | None:
+    el = _get(BUGS_ALBUM.format(id=album_id), "https://music.bugs.co.kr/").select_one(".likeAlbum, a.like")
+    digits = re.sub(r"\D", "", el.get_text()) if el else ""
+    return {"id": album_id, "likes": int(digits)} if digits else None
+
+
+def find_ratings(title: str, artist: str) -> dict:
+    """{"melon": {...}, "bugs": {...}} for the album with this title and artist, the sites that have it;
+    {} when neither does. Raises Unreachable when a site didn't answer."""
+    out: dict = {}
+    failed = 0
+    for provider, read in (("melon", _melon_rating), ("bugs", _bugs_likes)):
+        try:
+            hit = _match(provider, title, artist)
+            found = read(hit) if hit else None
+        except Exception as exc:  # noqa: BLE001 - a site down or changed: the other may still answer
+            log.warning("%s album ratings for %r: %s", provider, title, exc)
+            failed += 1
+            continue
+        if found:
+            out[provider] = found
+    if failed:
+        raise Unreachable(failed == 2)
+    return out
+
+
+RATINGS_STALE = timedelta(days=30)  # ratings move: looked up again after this
 
 
 def lookup_missing() -> bool:
@@ -304,7 +358,38 @@ def _lookup() -> None:
                 album.description, album.description_source = found if found else (None, "notfound")
                 db.commit()
                 time.sleep(LOOKUP_PAUSE)
+            _lookup_ratings(db)
     except Exception:  # noqa: BLE001 - a lookup that fails must not touch the scan
         log.exception("album notes lookup failed")
     finally:
         _lookup_lock.release()
+
+
+def _lookup_ratings(db: Session) -> None:
+    """The albums never rated, or rated longer ago than RATINGS_STALE (the oldest first)."""
+    stale = datetime.now(timezone.utc) - RATINGS_STALE
+    ids = list(db.scalars(
+        select(Album.id)
+        .where(Album.kind != "chart", or_(Album.site_ratings_at.is_(None), Album.site_ratings_at < stale))
+        .order_by(Album.site_ratings_at.asc().nulls_first(), Album.created_at.desc(), Album.id.desc())
+        .limit(LOOKUP_PER_RUN)
+    ))
+    for album_id in ids:
+        album = db.get(Album, album_id)
+        if album is None:
+            continue
+        artist = db.get(Artist, album.album_artist_id) if album.album_artist_id else None
+        title = album.title
+        db.commit()
+        try:
+            found = find_ratings(title, artist.name if artist else "")
+        except Unreachable as exc:
+            if exc.everywhere:
+                return
+            continue
+        album = db.get(Album, album_id)
+        if album is None:
+            continue
+        album.site_ratings, album.site_ratings_at = found, datetime.now(timezone.utc)
+        db.commit()
+        time.sleep(LOOKUP_PAUSE)

@@ -360,6 +360,7 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
         "video_count": db.scalar(select(func.count()).where(Video.album_id == album_id)),
         "description": album.description,
         "description_source": album.description_source if album.description else None,
+        "site_ratings": album.site_ratings or None,
         "tracks": tracks,
     }
 

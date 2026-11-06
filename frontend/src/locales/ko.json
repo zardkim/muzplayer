@@ -244,6 +244,8 @@
     "empty": "해당하는 앨범이 없습니다.",
     "sortRating": "내 별점",
     "trackAvg": "곡 평균 ★{n}",
+    "siteMelon": "멜론 ★{score} ({count}명)",
+    "siteBugs": "벅스 좋아 {likes}",
     "kind_soundtrack": "사운드트랙",
     "quality_hires": "Hi-Res",
     "quality_lossless": "Lossless"
@@ -497,14 +499,21 @@
     "installOther": "브라우저 메뉴(⋮ 또는 공유)에서 \"앱 설치\"나 \"홈 화면에 추가\"를 고르세요.",
     "theme_spotify": "모던 다크 (Spotify 스타일)",
     "theme_melon": "멜론 스타일",
-    "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
+    "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다.",
+    "playerLog": "재생 진단 기록",
+    "playerLogHelp": "통화 후 재생, 잠금화면 버튼이 제대로 안 될 때 이 기록을 복사해 보내 주세요. 이 기기에만 저장됩니다.",
+    "playerLogCopy": "복사",
+    "playerLogCopied": "복사됨",
+    "playerLogClear": "지우기",
+    "playerLogEmpty": "기록이 없습니다.",
+    "playerLogCopyFailed": "복사하지 못했습니다. 기록을 길게 눌러 선택해 복사해 주세요."
   },
   "admin": {
-    "notesProvider": "스캔 후 앨범 설명 찾기",
+    "notesProvider": "스캔 후 앨범 설명·별점 찾기",
     "notesProvider_bugs": "벅스 먼저 (다음 멜론)",
     "notesProvider_melon": "멜론 먼저 (다음 벅스)",
     "notesProvider_off": "찾지 않음",
-    "notesProviderSaved": "앨범 설명 찾기 설정을 저장했습니다",
+    "notesProviderSaved": "앨범 설명·별점 찾기 설정을 저장했습니다",
     "issuesTitle": "스캔 오류 파일 {n}개",
     "issuesHelp": "스캔이 읽지 못한 파일입니다. 파일을 고치거나 지운 뒤 다시 스캔하면 목록에서 빠집니다. 라이브러리에 남아 있는 곡에는 ‘읽기 오류’ 표시가 붙습니다.",
     "issuesSearch": "파일 이름·내용 검색",

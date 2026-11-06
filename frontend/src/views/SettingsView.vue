@@ -13,6 +13,7 @@ import { CACHE_SIZES, CROSSFADES, PREFETCH_COUNTS, useUi } from '../stores/ui'
 import { cacheUsage, clearAudioCache } from '../audioCache'
 import { canSave, savedBytes } from '../offline'
 import { QUALITIES } from '../stream'
+import { clearPlayerLog, readPlayerLog } from '../playerLog'
 import EqualizerEditor from '../components/EqualizerEditor.vue'
 import HomeSectionsEditor from '../components/HomeSectionsEditor.vue'
 import LanguageSwitch from '../components/LanguageSwitch.vue'
@@ -59,6 +60,23 @@ async function clearCache() {
   await clearAudioCache()
   used.value = cacheUsage()
   ui.notify(t('settings.cacheCleared'))
+}
+// Player → playback log (playerLog.ts): to send along when a call or the lock screen misbehaves
+const playerLog = ref('')
+const logCopied = ref(false)
+async function copyLog() {
+  const text = `muzplayer ${version} ${navigator.userAgent}\n${readPlayerLog()}`
+  try {
+    await navigator.clipboard.writeText(text)
+    logCopied.value = true
+    window.setTimeout(() => (logCopied.value = false), 2000)
+  } catch {
+    ui.notify(t('settings.playerLogCopyFailed'), true)
+  }
+}
+function clearLog() {
+  clearPlayerLog()
+  playerLog.value = ''
 }
 const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)
 
@@ -143,6 +161,17 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
             <ToggleRow v-model="ui.playerPrefs.musicSpeed" :title="t('settings.musicSpeed')" :hint="t('settings.musicSpeedHelp')" />
             <ToggleRow v-model="recordHistory" :title="t('settings.recordHistory')" :hint="t('settings.recordHistoryHelp')" />
           </div>
+          <details class="mt-3" @toggle="playerLog = readPlayerLog()">
+            <summary class="cursor-pointer py-2 text-[15px]">{{ t('settings.playerLog') }}</summary>
+            <p class="text-[13px] font-light text-muted">{{ t('settings.playerLogHelp') }}</p>
+            <div class="mt-2 flex gap-2">
+              <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="copyLog">
+                {{ logCopied ? t('settings.playerLogCopied') : t('settings.playerLogCopy') }}
+              </button>
+              <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="clearLog">{{ t('settings.playerLogClear') }}</button>
+            </div>
+            <pre class="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-surface p-3 text-[11px] leading-snug">{{ playerLog || t('settings.playerLogEmpty') }}</pre>
+          </details>
         </section>
 
         <section v-if="shown === 'sound'" class="flex flex-col gap-1">

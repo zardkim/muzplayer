@@ -10,7 +10,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- iPhone (180), iPad Pro (167), iPad (152): iOS rounds the corners itself -->
+    <!-- iPhone (180), iPad Pro (167), iPad (152): iOS rounds the corners itself. iOS takes the icon
+         once, on "Add to Home Screen": with the phone in dark mode then, the dark one (below) -->
     <link rel="apple-touch-icon" href="/icon-180.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
     <link rel="apple-touch-icon" sizes="167x167" href="/icon-167.png" />
@@ -29,6 +30,17 @@
           document.querySelector('meta[name="theme-color"]').setAttribute('content', bars[theme])
         }
       } catch (e) {}
+      // the home screen icon follows the phone's light or dark mode at the time it is added
+      var dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)')
+      function touchIcons() {
+        document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(function (l) {
+          l.href = l.getAttribute('href').replace(/icon-(dark-)?/, dark.matches ? 'icon-dark-' : 'icon-')
+        })
+      }
+      if (dark) {
+        touchIcons()
+        dark.addEventListener && dark.addEventListener('change', touchIcons)
+      }
     </script>
   </head>
   <body>

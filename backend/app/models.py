@@ -119,6 +119,10 @@ class Album(Base):
     # (album_notes.py), or written by an admin; description_source says which ("eztag", "bugs:<id>", ...)
     description: Mapped[str | None] = mapped_column(Text)
     description_source: Mapped[str | None] = mapped_column(String(200))
+    # how listeners rate it on the sites (album_notes.find_ratings), looked up after a scan:
+    # {"melon": {"id", "score" (of 5), "count"}, "bugs": {"id", "likes"}} (Bugs has no stars); {} = found on neither
+    site_ratings: Mapped[dict | None] = mapped_column(JSON)
+    site_ratings_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # title and artist (search_index.py)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -5,6 +5,7 @@ import { cachedSource, prepare } from '../audioCache'
 import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
+import { plog } from '../playerLog'
 import { loadStations, regionOf } from '../radio'
 import { mayConvert, onCellular, serverLevels, streamBase, trackSrc } from '../stream'
 import type { Album, BookDetail, Chapter, Page, RadioStation, Track } from '../types'
@@ -43,6 +44,27 @@ function save(key: string, value: unknown) {
   }
 }
 
+/** A tenth of a second of silence (8 kHz WAV), for unlocking an element from a tap. */
+function silence(): string {
+  const n = 800
+  const b = new Uint8Array(44 + n).fill(0x80)
+  const v = new DataView(b.buffer)
+  const text = (at: number, s: string) => [...s].forEach((c, i) => v.setUint8(at + i, c.charCodeAt(0)))
+  text(0, 'RIFF')
+  v.setUint32(4, 36 + n, true)
+  text(8, 'WAVEfmt ')
+  v.setUint32(16, 16, true)
+  v.setUint16(20, 1, true) // PCM
+  v.setUint16(22, 1, true) // mono
+  v.setUint32(24, 8000, true)
+  v.setUint32(28, 8000, true)
+  v.setUint16(32, 1, true)
+  v.setUint16(34, 8, true)
+  text(36, 'data')
+  v.setUint32(40, n, true)
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }))
+}
+
 function shuffled<T>(items: T[]): T[] {
   const a = [...items]
   for (let i = a.length - 1; i > 0; i--) {
@@ -51,6 +73,9 @@ function shuffled<T>(items: T[]): T[] {
   }
   return a
 }
+
+/** Safari 17+: navigator.audioSession (not in TypeScript's DOM types yet). */
+type AudioSessionLike = { type: string; state?: string; addEventListener?: (type: 'statechange', fn: () => void) => void }
 
 export const usePlayer = defineStore('player', () => {
   let audio = newAudio()
@@ -62,12 +87,13 @@ export const usePlayer = defineStore('player', () => {
   // iPhone: a "playback" audio session plays on with the screen locked or the app in the background,
   // ignores the silent switch and moves to Bluetooth when it connects (Safari 17+; without it, a page
   // that also uses Web Audio counts as "ambient" sound, which stops in the background)
-  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
+  const session = (navigator as Navigator & { audioSession?: AudioSessionLike }).audioSession
   if (session) session.type = 'playback'
   /** Every start goes through here. iPhone lets the session fall back to its default once playback
    *  has been paused; a song resumed then stops in the background and drops out of the Dynamic Island
    *  and lock screen. So the session is claimed again, and the song's details shown again, each time. */
   function playAudio() {
+    if (activated() && !spare && audio.paused) unlockSpare()
     if (stale) revive()
     if (session) session.type = 'playback'
     // with a sound feature on (EQ, levelling, crossfade) everything plays through Web Audio, which
@@ -78,8 +104,34 @@ export const usePlayer = defineStore('player', () => {
       if (mode.value !== 'music') setLevel(0)
     }
     updateMediaSession()
-    return audio.play()
+    const how = `${mode.value} active=${activated()} hidden=${document.hidden} graph=${graphActive()} session=${session?.state ?? '-'}`
+    return audio.play().then(
+      () => plog('play ok', how),
+      (e: Error) => {
+        plog('play refused', `${e.name} ${how}`)
+        throw e
+      },
+    )
   }
+  // A second element, played once (silently) from a tap so iPhone lets it start later without one.
+  // After a call the song moves over to it: a fresh element, on whatever output the phone has now
+  // and outside the sound processing (which can't be woken without a tap). The song's own element
+  // came back from a Bluetooth call silent, on the headset and the phone alike.
+  let spare: HTMLAudioElement | null = null
+  let spareSrc = ''
+  function unlockSpare() {
+    const el = newAudio()
+    spareSrc ||= silence()
+    el.src = spareSrc
+    el.play().then(
+      () => {
+        el.pause()
+        spare = el
+      },
+      (e: Error) => plog('spare refused', e.name),
+    )
+  }
+  const activated = () => (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive ?? !document.hidden
 
   // ---- the element's own listeners, kept so a replacement element gets them too ----
   const listeners: [string, EventListener][] = []
@@ -95,6 +147,7 @@ export const usePlayer = defineStore('player', () => {
   function pauseAudio() {
     pausing = true
     cutAt = 0
+    byCall = false
     audio.pause()
   }
   function setSrc(url: string) {
@@ -103,28 +156,64 @@ export const usePlayer = defineStore('player', () => {
   }
   // A call (or Siri, an alarm) cut the song off: it goes on by itself once the phone is back with us,
   // within a while. A headset taken off (the output changed as it stopped) stays stopped.
+  // Safari 17+ says so itself: its audio session is "interrupted" for the call, and the same element
+  // simply plays on after it (iPhone gives it back its Bluetooth output; a reloaded or new element
+  // may stay on the phone's speaker or play in silence). Without that, a pause with no change of
+  // output nearby counts as a call.
   const CUT_RESUME_MS = 15 * 60_000
   let cutAt = 0
+  let byCall = false // the cut is the audio session's interruption, not a guess
+  let outsidePauseAt = 0 // a pause of the phone's while playing
   let outputChangedAt = 0
   navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    plog('devicechange', `playing=${playing.value} cut=${!!cutAt} byCall=${byCall}`)
     outputChangedAt = Date.now()
+    if (byCall) return // a call moves the output to the headset's call profile and back
     if (Math.abs(outputChangedAt - cutAt) < 3000) cutAt = 0
     if (!playing.value) stale = true // the output changed while nothing played
   })
+  const sessionTells = !!session && 'state' in session
+  if (session && sessionTells) {
+    let was = session.state
+    session.addEventListener?.('statechange', () => {
+      plog('session', `${was} -> ${session.state} playing=${playing.value}`)
+      if (session.state === 'interrupted') {
+        if (playing.value || Date.now() - outsidePauseAt < 3000) {
+          cutAt = playing.value ? Date.now() : outsidePauseAt
+          byCall = true
+          stale = false // the pause that came with it: not a lost output
+        }
+      } else if (was === 'interrupted' && cutAt) {
+        // the call is over: a moment for the output to come back to the headset
+        window.setTimeout(resumeAfterCut, 800)
+      }
+      was = session.state
+    })
+  }
   function resumeAfterCut() {
     if (!cutAt || playing.value || Date.now() - cutAt > CUT_RESUME_MS) return
+    plog('resume after cut', `byCall=${byCall} stale=${stale} spare=${!!spare} graph=${graphActive()}`)
     cutAt = 0
+    if (spare) stale = true // (revive: onto the spare)
     if (mode.value === 'book') resumeBook()
     else if (mode.value === 'music') void startCurrent()
   }
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && resumeAfterCut())
-  window.addEventListener('focus', resumeAfterCut)
+  document.addEventListener('visibilitychange', () => {
+    plog('visibility', document.visibilityState)
+    if (document.visibilityState === 'visible') resumeAfterCut()
+  })
+  window.addEventListener('focus', () => {
+    plog('focus')
+    resumeAfterCut()
+  })
   function revive() {
     stale = false
     // Without a tap (a lock screen or headset button, the app coming back after a call), iPhone only
     // lets an element it has already played start again: that one is loaded again in place instead
-    const tapped = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive ?? !document.hidden
-    if (!tapped) {
+    const tapped = activated()
+    const fresh = tapped ? newAudio() : spare
+    plog('revive', tapped ? 'new element' : fresh ? 'spare element' : 'reload in place')
+    if (!fresh) {
       const src = audio.getAttribute('src')
       if (src) {
         if (mode.value !== 'live' && audio.currentTime > 0 && pendingSeek === null) pendingSeek = audio.currentTime
@@ -141,7 +230,12 @@ export const usePlayer = defineStore('player', () => {
     old.removeAttribute('src')
     old.load() // lets go of the old output
     resetGraph()
-    audio = newAudio()
+    if (fresh === spare) {
+      spare = null
+      fresh.pause()
+      fresh.removeAttribute('src')
+    }
+    audio = fresh
     audio.volume = old.volume
     audio.defaultPlaybackRate = old.defaultPlaybackRate
     audio.playbackRate = old.playbackRate
@@ -150,8 +244,9 @@ export const usePlayer = defineStore('player', () => {
       if (mode.value !== 'live' && at > 0 && pendingSeek === null) pendingSeek = at
       setSrc(src)
     }
-    // the sound processing, built again around the new element
-    if (soundOn()) {
+    // the sound processing, built again around the new element (from a tap: the spare plays without it
+    // until the next one)
+    if (tapped && soundOn()) {
       if (!ensureGraph(audio)) return soundFailed()
       applyEq()
       resumeGraph()
@@ -350,6 +445,7 @@ export const usePlayer = defineStore('player', () => {
   function soundSetup(track: Track) {
     if (!soundOn() && !graphActive()) return
     if (!graphActive()) {
+      if (!activated()) return // a graph built without a tap can't start: silence (the next tap builds it)
       if (!ensureGraph(audio)) return soundFailed()
       applyEq()
     }
@@ -955,15 +1051,31 @@ export const usePlayer = defineStore('player', () => {
     if (playing.value) lookAhead()
   })
   listen('playing', () => {
+    plog('playing', mode.value)
     pausing = false
     cutAt = 0
+    byCall = false
     failures = 0
     lookAhead()
+    bindMediaSession() // claimed again with the sound: iPhone may have let go of the buttons
   })
   listen('pause', () => {
-    if (!pausing && !audio.ended && mode.value !== 'live') {
-      stale = true
-      if (playing.value && Date.now() - outputChangedAt > 3000) cutAt = Date.now()
+    const outside = !pausing && !audio.ended && mode.value !== 'live'
+    plog('pause', `outside=${outside} playing=${playing.value} session=${session?.state ?? '-'}`)
+    if (outside) {
+      if (session?.state === 'interrupted') {
+        if (playing.value) {
+          cutAt = Date.now()
+          byCall = true
+        }
+      } else {
+        stale = true
+        if (playing.value) {
+          outsidePauseAt = Date.now()
+          // (a session that tells of calls hasn't, so far: a headset taken off, unless it does next)
+          if (!sessionTells && Date.now() - outputChangedAt > 3000) cutAt = Date.now()
+        }
+      }
     }
     pausing = false
     setPlaying(false)
@@ -973,6 +1085,7 @@ export const usePlayer = defineStore('player', () => {
     }
   })
   listen('ended', () => {
+    plog('ended', mode.value)
     if (mode.value === 'live') return setPlaying(false) // the station's stream ended
     if (mode.value !== 'book') return next(true)
     const b = book.value
@@ -1032,6 +1145,7 @@ export const usePlayer = defineStore('player', () => {
   }
   listen('error', () => {
     if (!audio.getAttribute('src')) return
+    plog('error', `${mode.value} code=${audio.error?.code ?? '-'}`)
     if (mode.value === 'live') {
       useUi().notify(i18n.global.t('radio.failed'), true)
       pauseAudio()
@@ -1116,6 +1230,14 @@ export const usePlayer = defineStore('player', () => {
 
   watch(chapterIndex, () => mode.value === 'book' && updateMediaSession())
 
+  function logged(action: string, handler: MediaSessionActionHandler | null): MediaSessionActionHandler | null {
+    if (!handler) return null
+    return (d) => {
+      plog('button', `${action} playing=${playing.value} active=${activated()} hidden=${document.hidden}`)
+      handler(d)
+    }
+  }
+
   /** Books get ±seconds buttons: iOS shows those only while previous/next track are unset. */
   function bindMediaSession() {
     if (!('mediaSession' in navigator)) return
@@ -1129,7 +1251,7 @@ export const usePlayer = defineStore('player', () => {
       ]
       for (const [action, handler] of live) {
         try {
-          ms.setActionHandler(action, handler)
+          ms.setActionHandler(action, logged(action, handler))
         } catch {
           /* unsupported action */
         }
@@ -1148,7 +1270,7 @@ export const usePlayer = defineStore('player', () => {
     ]
     for (const [action, handler] of handlers) {
       try {
-        ms.setActionHandler(action, handler)
+        ms.setActionHandler(action, logged(action, handler))
       } catch {
         /* unsupported action */
       }
