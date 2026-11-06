@@ -7,10 +7,11 @@ import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
 import CoverArt from './CoverArt.vue'
+import InlineVideo from './InlineVideo.vue'
 import VideoThumb from './VideoThumb.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
-// One music video in a grid: its picture plays it. Under the title: like it, its kind (who added it,
+// One music video in a grid: its picture plays it there (InlineVideo; ⤢ there: the large player). Under the title: like it, its kind (who added it,
 // or an admin, may change it), put it in a video playlist. The ⋮ menu: a NAS file's title,
 // thumbnail (another scene) and song (picked from a search), and removing it.
 const props = defineProps<{ video: VideoListItem }>()
@@ -106,7 +107,8 @@ onUnmounted(() => document.removeEventListener('click', outside))
 
 <template>
   <div class="flex flex-col gap-2.5">
-    <button type="button" class="group relative aspect-video overflow-hidden rounded-xl bg-surface" :aria-label="`${t('videos.play')}: ${video.title}`" @click="emit('play')">
+    <InlineVideo v-if="ui.inlineVideo === video.id" :video="video" @expand="(ui.inlineVideo = null), emit('play')" />
+    <button v-else type="button" class="group relative aspect-video overflow-hidden rounded-xl bg-surface" :aria-label="`${t('videos.play')}: ${video.title}`" @click="ui.inlineVideo = video.id">
       <VideoThumb :video="video" :icon="40" />
       <span v-if="remaking" class="absolute inset-0 grid place-items-center bg-black/50 text-[13px] text-white">{{ t('videos.thumbMaking') }}</span>
       <span class="absolute inset-0 m-auto grid size-12 place-items-center rounded-full bg-black/55 text-white"><Play :size="20" fill="currentColor" /></span>

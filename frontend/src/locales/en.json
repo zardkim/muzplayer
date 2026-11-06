@@ -922,6 +922,8 @@
     "noKey": "In-app search needs a YouTube API key, set by the admin on the admin page. For now, paste the link of a video found on YouTube.",
     "searchOnYoutube": "Find on YouTube",
     "openYoutube": "Watch on YouTube",
+    "openLarge": "Watch large",
+    "stopInline": "Close",
     "notEmbeddable": "This video can only be watched on YouTube.",
     "unavailable": "This video is not available (removed or private).",
     "remove": "Remove",

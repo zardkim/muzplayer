@@ -922,6 +922,8 @@
     "noKey": "앱 안에서 검색하려면 관리자가 관리자 화면에서 YouTube API 키를 넣어야 합니다. 지금은 YouTube에서 찾은 영상의 주소를 붙여 넣어 등록하세요.",
     "searchOnYoutube": "YouTube에서 찾기",
     "openYoutube": "YouTube에서 보기",
+    "openLarge": "크게 보기",
+    "stopInline": "닫기",
     "notEmbeddable": "이 영상은 다른 사이트에서 재생할 수 없게 되어 있습니다.",
     "unavailable": "재생할 수 없는 영상입니다(삭제되었거나 비공개).",
     "remove": "삭제",
