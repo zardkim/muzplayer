@@ -19,8 +19,6 @@ const password2 = ref('')
 const setup = ref(appConfig.needsSetup)
 const error = ref('')
 const busy = ref(false)
-// adding another account on this device: the one signed in now stays (account menu → switch)
-const adding = !!route.query.add && !!auth.user
 // making an account here, when an admin turned sign-up on (open, or approved by an admin)
 const joining = ref(false)
 const displayName = ref('')
@@ -49,11 +47,7 @@ async function submit() {
         password.value = password2.value = ''
         return
       }
-    } else await auth.login(username.value, password.value, adding)
-    if (adding) {
-      window.location.assign('/') // start afresh as the new account
-      return
-    }
+    } else await auth.login(username.value, password.value)
     const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : '/'
     router.replace(next)
   } catch (e) {
@@ -74,10 +68,6 @@ async function submit() {
         <h1 class="font-display text-4xl tracking-tight text-ink"><b>muz</b><span class="text-muted">player</span></h1>
       </div>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
-        <div v-if="adding" class="flex flex-col gap-1 text-center">
-          <h2 class="text-lg font-bold">{{ t('login.addTitle') }}</h2>
-          <p class="text-[14px] font-light leading-relaxed text-muted">{{ t('login.addDesc', { name: auth.user?.display_name }) }}</p>
-        </div>
         <div v-if="joining" class="flex flex-col gap-1 text-center">
           <h2 class="text-lg font-bold">{{ t('login.joinTitle') }}</h2>
           <p class="text-[14px] font-light leading-relaxed text-muted">{{ appConfig.signup === 'approval' ? t('login.joinApproval') : t('login.joinOpen') }}</p>
@@ -131,10 +121,9 @@ async function submit() {
         <button type="submit" :disabled="busy" class="mt-2 h-[52px] rounded-full bg-ink text-base text-on-ink disabled:opacity-60">
           {{ setup ? t('login.setupSubmit') : joining ? t('login.joinSubmit') : t('login.submit') }}
         </button>
-        <button v-if="appConfig.signup !== 'off' && !setup && !adding" type="button" class="h-11 text-[15px] text-muted hover:text-ink" @click="toggleJoin">
+        <button v-if="appConfig.signup !== 'off' && !setup" type="button" class="h-11 text-[15px] text-muted hover:text-ink" @click="toggleJoin">
           {{ joining ? t('login.haveAccount') : t('login.join') }}
         </button>
-        <button v-if="adding" type="button" class="h-11 text-[15px] text-muted" @click="router.back()">{{ t('common.cancel') }}</button>
       </form>
     </div>
     <p v-if="!setup && appConfig.signup === 'off'" class="text-center text-[13px] font-light leading-relaxed text-muted">{{ t('login.help') }}<br />{{ t('login.help2') }}</p>

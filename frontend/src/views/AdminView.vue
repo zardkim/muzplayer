@@ -285,6 +285,19 @@ async function patch(user: User, body: Record<string, unknown>, done?: string) {
   }
 }
 
+// album introductions looked up after a scan: Bugs first, Melon first, or not at all
+type NotesProvider = 'bugs' | 'melon' | 'off'
+const notesProvider = ref<NotesProvider>('bugs')
+api<{ provider: NotesProvider }>('/admin/notes-provider').then((r) => (notesProvider.value = r.provider)).catch(() => {})
+async function setNotesProvider(provider: NotesProvider) {
+  try {
+    notesProvider.value = (await api<{ provider: NotesProvider }>('/admin/notes-provider', { method: 'PUT', body: { provider } })).provider
+    ui.notify(t('admin.notesProviderSaved'))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+}
+
 // sign-up from the login page: off, approved by an admin, or open
 type SignupMode = 'off' | 'approval' | 'open'
 const signupMode = ref<SignupMode>('off')
@@ -418,6 +431,14 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       </p>
       <!-- every file the scans could not read, kept until the next scan of its place (again after each scan) -->
       <ScanIssues :key="`${job?.id}-${job?.status}`" />
+      <label class="flex flex-wrap items-center gap-2.5 text-sm">
+        {{ t('admin.notesProvider') }}
+        <select :value="notesProvider" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setNotesProvider(($event.target as HTMLSelectElement).value as NotesProvider)">
+          <option value="bugs">{{ t('admin.notesProvider_bugs') }}</option>
+          <option value="melon">{{ t('admin.notesProvider_melon') }}</option>
+          <option value="off">{{ t('admin.notesProvider_off') }}</option>
+        </select>
+      </label>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
           {{ t('admin.rebuildCovers') }}

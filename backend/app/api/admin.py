@@ -545,6 +545,22 @@ def unmerge(kind: str, name: str = Query(min_length=1, max_length=500), _: User 
 
 
 # ---- album introductions (album_notes.py) ----
+class NotesProviderIn(BaseModel):
+    provider: str = Field(pattern="^(bugs|melon|off)$")
+
+
+@router.get("/notes-provider")
+def get_notes_provider(_: User = Depends(admin_user)):
+    return {"provider": appconf.get("notes_provider")}
+
+
+@router.put("/notes-provider")
+def set_notes_provider(body: NotesProviderIn, _: User = Depends(admin_user)):
+    """Where the albums without an introduction are looked up after a scan first (then the other), or off."""
+    appconf.update({"notes_provider": body.provider})
+    return {"provider": appconf.get("notes_provider")}
+
+
 class NotesIn(BaseModel):
     text: str = Field(max_length=album_notes.MAX_TEXT)
     source: str = Field("manual", max_length=200)  # manual | eztag | bugs:<id> | melon:<id>

@@ -11,7 +11,9 @@ phone too:
     (TS, AAC or fragmented MP4) and pipes them into ffmpeg, which sends out MP3.
 
 The station list (radio_stations.json) was taken from the site and each stream checked to play;
-the stream addresses themselves are asked for again every time a station starts.
+the stream addresses themselves are asked for again every time a station starts. Anyone may add
+stations of their own by address (models.RadioCustom, "c<id>"): a radio.bsod.kr one, a plain stream,
+HLS, or a .pls/.m3u playlist naming one (checked by probe when added).
 """
 
 import asyncio
@@ -88,7 +90,7 @@ def _open(url: str):
 
 def resolve(station: dict) -> tuple[str, str]:
     """(the stream's address now, its content type), from the station's fixed address."""
-    url = SOURCE + "?" + urllib.parse.urlencode(station["q"])
+    url = station.get("url") or SOURCE + "?" + urllib.parse.urlencode(station["q"])
     try:
         with _open(url) as resp:
             return resp.geturl(), resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
@@ -222,4 +224,45 @@ async def _passthrough(url: str, lease: _Lease) -> AsyncIterator[bytes]:
 
 
 def station_out(s: dict) -> dict:
-    return {"id": s["id"], "name": s["name"], "stn": s["stn"], "regions": s["regions"], "logo": s.get("logo")}
+    out = {"id": s["id"], "name": s["name"], "stn": s["stn"], "regions": s["regions"], "logo": s.get("logo")}
+    if s.get("custom"):
+        out.update(custom=True, url=s["url"])
+    return out
+
+
+def custom_station(row) -> dict:
+    """A station someone added (models.RadioCustom), as the listed ones are."""
+    return {"id": f"c{row.id}", "name": row.name, "stn": "custom", "regions": ["custom"], "logo": None, "url": row.url, "custom": True}
+
+
+class Unsupported(Exception):
+    """The address isn't a stream this server can play."""
+
+
+_AUDIO = ("audio/", "application/ogg", "application/octet-stream", "video/mp2t")
+_PLAYLIST_URL = re.compile(r"^(?:File\d+=)?\s*(https?://\S+)", re.M | re.I)
+
+
+def probe(url: str, depth: int = 0) -> str:
+    """The address to keep for a station added by hand: the stream itself, or the one a .pls/.m3u
+    playlist names. Raises Unsupported (not a stream) or Unavailable (it didn't answer)."""
+    if urllib.parse.urlparse(url).scheme not in ("http", "https"):
+        raise Unsupported
+    try:
+        with _open(url) as resp:
+            final, ctype = resp.geturl(), resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            path = urllib.parse.urlparse(final).path.lower()
+            listed = "scpls" in ctype or "mpegurl" in ctype or path.endswith((".pls", ".m3u", ".m3u8"))
+            head = resp.read(65536).decode("utf-8", "replace") if listed else ""
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise Unavailable(str(exc)) from exc
+    if listed:
+        if "#EXT-X-" in head:
+            return url  # HLS
+        m = _PLAYLIST_URL.search(head)
+        if m and depth < 2:
+            return probe(m.group(1), depth + 1)  # a playlist that names the stream
+        raise Unsupported
+    if ctype.startswith(_AUDIO) or "aac" in ctype or "mpeg" in ctype:
+        return url
+    raise Unsupported

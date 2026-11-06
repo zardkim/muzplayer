@@ -93,7 +93,11 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
             <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.update') }}</button>
           </span>
         </div>
-        <button v-else-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 self-start text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.add') }}</button>
+        <!-- none in its folder, on Bugs or Melon (looked up after a scan) -->
+        <span v-else-if="album.kind !== 'chart'" class="flex items-center gap-3 text-[14px] font-light text-muted">
+          {{ t('notes.noneFound') }}
+          <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.add') }}</button>
+        </span>
         <div class="flex flex-wrap items-center gap-x-2">
           <StarRating :value="album.rating" @rate="rate" />
           <span v-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>

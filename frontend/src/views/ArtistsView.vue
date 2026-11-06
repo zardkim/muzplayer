@@ -83,6 +83,6 @@ function reload() {
       </li>
     </ul>
     <MergeSheet v-if="merging" kind="artist" @close="merging = false" @changed="reload" />
-    <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
+    <LoadMore v-if="items.length < total" auto :loading="loading" @click="load" />
   </div>
 </template>

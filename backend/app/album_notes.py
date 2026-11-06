@@ -6,22 +6,28 @@
 2. Otherwise an admin searches Bugs and Melon from the album page, as eztag's tag search does
    (their search and album pages, parsed the way eztag's metadata/bugs.py and melon.py do), picks
    the right album and saves its introduction; or writes one by hand.
+3. After each scan, the albums with neither are looked up on their own (lookup_missing): the site
+   the admin put first (Bugs by default), then the other, taking an album only when its title and
+   artist are the same. Found nowhere: description_source "notfound", not asked again.
 """
 
 import html
 import logging
 import re
+import threading
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from bs4 import BeautifulSoup
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from . import appconf, search_index
 from .config import settings
-from .models import Album, Track
+from .models import Album, Artist, Track
 from .scanner import DISC_DIR, nfc
 
 log = logging.getLogger(__name__)
@@ -198,3 +204,107 @@ def fetch(provider: str, album_id: str) -> str | None:
         el = soup.find("div", id="d_video_summary") or soup.select_one("div.dtl_albuminfo")
     text = el.get_text("\n", strip=True) if el else ""
     return text[:MAX_TEXT] or None
+
+
+# ---- looked up after a scan ----
+LOOKUP_PER_RUN = 300  # albums a scan looks up (the newest first); the rest on the next scans
+LOOKUP_PAUSE = 1.0  # seconds between albums: the sites aren't hurried
+_lookup_lock = threading.Lock()
+
+
+# "How You Like That - Single", "Dancing Queen (Single)", "봄날 - EP": the sites list the title alone
+_RELEASE = re.compile(r"\s*(?:[-–]\s*(?:single|ep)|[(\[]\s*(?:single|ep|싱글|미니앨범)\s*[)\]])\s*$", re.I)
+
+
+def _core(title: str) -> str:
+    return _RELEASE.sub("", title).strip() or title
+
+
+def _same(a: str, b: str) -> bool:
+    a, b = search_index.norm(_core(a)), search_index.norm(_core(b))
+    return bool(a and b) and (a == b or a.replace(" ", "") == b.replace(" ", ""))
+
+
+def _artist_fits(want: str, found: str) -> bool:
+    w, f = search_index.norm(want).replace(" ", ""), search_index.norm(found).replace(" ", "")
+    return not w or (bool(f) and (w in f or f in w))
+
+
+class Unreachable(Exception):
+    """A site didn't answer: `everywhere` when neither did."""
+
+    def __init__(self, everywhere: bool):
+        super().__init__("notes_unreachable")
+        self.everywhere = everywhere
+
+
+def find_notes(title: str, artist: str) -> tuple[str, str] | None:
+    """(introduction, source) for the album with this title and artist, from the first site that has
+    one; None when neither does. Raises Unreachable when a site that might have it didn't answer."""
+    first = appconf.get("notes_provider")
+    order = ("melon", "bugs") if first == "melon" else ("bugs", "melon")
+    q = f"{artist} {_core(title)}".strip()
+    failed = 0
+    for provider in order:
+        try:
+            items = (_search_bugs if provider == "bugs" else _search_melon)(q, 10)
+            same = [it for it in items if _same(it["title"], title)]
+            # the artist as written here, or (written another way: "블랙핑크" for "BLACKPINK") one of the
+            # site's own first few answers to the artist and title
+            hit = next((it for it in same if _artist_fits(artist, it["artist"])), None) or next((it for it in same if it in items[:3] and artist), None)
+            text = fetch(provider, hit["id"]) if hit else None
+        except Exception as exc:  # noqa: BLE001 - a site down or changed: the other may still answer
+            log.warning("%s album notes for %r: %s", provider, q, exc)
+            failed += 1
+            continue
+        if text:
+            return text, f"{provider}:{hit['id']}"
+    if failed:
+        raise Unreachable(failed == len(order))
+    return None
+
+
+def lookup_missing() -> bool:
+    """Looks up introductions for the albums without one, in the background (after a scan)."""
+    if appconf.get("notes_provider") == "off" or not _lookup_lock.acquire(blocking=False):
+        return False
+    threading.Thread(target=_lookup, daemon=True, name="album-notes").start()
+    return True
+
+
+def _lookup() -> None:
+    from .db import SessionLocal  # (the app's engine, made once the app starts)
+
+    try:
+        with SessionLocal() as db:
+            ids = list(db.scalars(
+                select(Album.id)
+                .where(Album.description.is_(None), or_(Album.description_source.is_(None), Album.description_source == "none"),
+                       Album.kind != "chart")
+                .order_by(Album.created_at.desc(), Album.id.desc())
+                .limit(LOOKUP_PER_RUN)
+            ))
+            for album_id in ids:
+                album = db.get(Album, album_id)
+                if album is None or album.description is not None:
+                    continue
+                if album.description_source is None and check_report(db, album):
+                    continue  # an eztag card in its folder
+                artist = db.get(Artist, album.album_artist_id) if album.album_artist_id else None
+                db.commit()  # don't hold a pool connection while the sites answer
+                try:
+                    found = find_notes(album.title, artist.name if artist else "")
+                except Unreachable as exc:
+                    if exc.everywhere:
+                        return  # neither site answers: the next scan tries again
+                    continue  # one didn't: this album again next time
+                album = db.get(Album, album_id)
+                if album is None or album.description is not None:
+                    continue
+                album.description, album.description_source = found if found else (None, "notfound")
+                db.commit()
+                time.sleep(LOOKUP_PAUSE)
+    except Exception:  # noqa: BLE001 - a lookup that fails must not touch the scan
+        log.exception("album notes lookup failed")
+    finally:
+        _lookup_lock.release()

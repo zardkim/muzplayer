@@ -19,6 +19,8 @@ type Prefs = {
   player: Partial<PlayerPrefs>
   skipBack: number
   skipForward: number
+  shuffle?: boolean
+  repeat?: 'off' | 'all' | 'one'
   radio?: RadioMarks
 }
 
@@ -56,7 +58,9 @@ export function startPrefsSync() {
       player: p,
       skipBack: player.skipBack,
       skipForward: player.skipForward,
-      radio: { recent: [...ui.radio.recent], favorites: [...ui.radio.favorites] },
+      shuffle: player.shuffle,
+      repeat: player.repeat,
+      radio: { recent: [...ui.radio.recent], favorites: [...ui.radio.favorites], hidden: [...(ui.radio.hidden ?? [])] },
     }
   }
 
@@ -73,9 +77,11 @@ export function startPrefsSync() {
       }
       if (typeof s.skipBack === 'number') player.skipBack = s.skipBack
       if (typeof s.skipForward === 'number') player.skipForward = s.skipForward
+      if (typeof s.shuffle === 'boolean') player.shuffle = s.shuffle
+      if (s.repeat === 'off' || s.repeat === 'all' || s.repeat === 'one') player.repeat = s.repeat
       if (s.radio && Array.isArray(s.radio.recent) && Array.isArray(s.radio.favorites)) {
         const ids = (a: unknown[]) => a.filter((x): x is string => typeof x === 'string')
-        ui.radio = { recent: ids(s.radio.recent).slice(0, RADIO_RECENT_KEPT), favorites: ids(s.radio.favorites) }
+        ui.radio = { recent: ids(s.radio.recent).slice(0, RADIO_RECENT_KEPT), favorites: ids(s.radio.favorites), hidden: ids(Array.isArray(s.radio.hidden) ? s.radio.hidden : []) }
       }
     } finally {
       // the watcher below runs after this tick: it must not send back what just arrived

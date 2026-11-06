@@ -78,6 +78,6 @@ const sorts = [
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ q.trim() ? t('search.noResults') : t('albums.empty') }}</p>
     <AlbumGrid :albums="items" :mode="view" />
-    <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
+    <LoadMore v-if="items.length < total" auto :loading="loading" @click="load" />
   </div>
 </template>

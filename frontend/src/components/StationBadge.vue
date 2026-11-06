@@ -11,7 +11,7 @@ const MARKS: Record<string, [string, string]> = {
   wbs: ['원음', '#3d7a3a'], cpbc: ['평화', '#245a8f'], kugak: ['국악', '#8a3b2e'], afn: ['AFN', '#3b4a5a'],
   tbs: ['TBS', '#e2483d'], obs: ['OBS', '#2a5db0'], ifm: ['iFM', '#e07a1f'], ytn: ['YTN', '#174ea6'],
   befm: ['BeFM', '#1d8fbf'], ggn: ['경기', '#2f8f5b'], arirang: ['ARR', '#b3253a'], kookbang: ['국방', '#4b5d2e'],
-  community: ['FM', '#6b6b6b'],
+  community: ['FM', '#6b6b6b'], custom: ['MY', '#6b5fa8'],
 }
 const mark = computed(() => MARKS[props.stn] ?? [props.stn.slice(0, 3).toUpperCase(), '#555'])
 const shape = computed(() => (props.fill ? { width: '100%', height: 'auto', aspectRatio: '3 / 2' } : { width: 'auto', aspectRatio: '3 / 2' }))

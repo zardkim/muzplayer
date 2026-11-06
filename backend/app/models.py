@@ -290,6 +290,19 @@ class PlayHistory(Base):
     played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class RadioCustom(Base):
+    """A station someone added by its address (Radio page): only they see it. radio.py plays it
+    the same way as the listed ones."""
+
+    __tablename__ = "radio_custom"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    url: Mapped[str] = mapped_column(Text)  # a stream (MP3/AAC/OGG, HLS .m3u8) or a playlist's first entry
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ScanIssue(Base):
     """A file or folder the last scan of its place could not read (admin → library). Replaced by the
     next scan of the whole library or of its top-level folder."""

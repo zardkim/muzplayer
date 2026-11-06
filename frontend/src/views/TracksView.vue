@@ -78,6 +78,6 @@ const sorts = [
     <p v-if="!loading && !items.length && q.trim()" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <TrackList v-if="view === 'list'" :tracks="items" />
     <TrackTiles v-else :tracks="items" :dense="view === 'grid'" />
-    <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
+    <LoadMore v-if="items.length < total" auto :loading="loading" @click="load" />
   </div>
 </template>

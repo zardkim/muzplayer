@@ -59,8 +59,6 @@
     "passwordAgain": "비밀번호 확인",
     "setupSubmit": "관리자 계정 만들기",
     "mismatch": "비밀번호가 서로 다릅니다.",
-    "addTitle": "다른 계정 추가",
-    "addDesc": "{name} 계정은 이 기기에 그대로 남아, 계정 메뉴에서 바로 전환할 수 있습니다.",
     "join": "계정 만들기",
     "joinTitle": "계정 만들기",
     "joinOpen": "아이디와 비밀번호를 정하면 바로 쓸 수 있습니다.",
@@ -133,6 +131,9 @@
     "too_many_signups": "가입 신청이 너무 많습니다. 잠시 후 다시 해 주세요.",
     "radio_busy": "지금 라디오를 듣는 사람이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     "radio_unavailable": "이 방송의 주소를 지금 받을 수 없습니다.",
+    "radio_unsupported": "재생할 수 있는 라디오 스트림 주소가 아닙니다. MP3·AAC·OGG 스트림, HLS(.m3u8), .pls/.m3u 주소를 넣어 주세요.",
+    "radio_unreachable": "이 주소가 응답하지 않습니다. 주소를 확인해 주세요.",
+    "radio_too_many": "채널은 50개까지 추가할 수 있습니다.",
     "thumb_failed": "썸네일을 만들 수 없습니다. 이 영상 형식은 지원하지 않습니다.",
     "video_no_song": "파일 이름과 맞는 곡을 찾지 못했습니다. ‘가수 - 제목’ 형식으로 제목을 바꾼 뒤 다시 해 보세요.",
     "default_playlist": "기본 플레이리스트는 삭제할 수 없습니다."
@@ -219,6 +220,8 @@
     "section_mixes": "믹스",
     "section_quick": "최근 재생 · 새 앨범 · 플레이리스트",
     "section_books": "이어 듣는 오디오북",
+    "section_recentVideos": "최근 등록한 영상",
+    "section_likedVideos": "좋아요 영상",
     "section_newAlbums": "최근 추가된 앨범",
     "random100": "랜덤 100",
     "emptyList": "재생할 곡이 없습니다.",
@@ -424,6 +427,8 @@
     "showVolumeHelp": "PC 하단 플레이어에 음량 막대를 보여 줍니다.",
     "openOnPlay": "재생하면 재생 화면 열기",
     "openOnPlayHelp": "목록에서 곡을 재생하면 재생 화면으로 바로 이동합니다.",
+    "startMinimized": "미니 플레이어 최소화로 시작",
+    "startMinimizedHelp": "앱을 열 때 하단 미니 플레이어를 접어 둔 채로 시작합니다. 곡을 재생하면 다시 펼쳐집니다.",
     "keepAwake": "화면이 켜진 채로 유지",
     "keepAwakeHelp": "재생 화면을 보고 있는 동안 화면이 꺼지지 않습니다.",
     "musicSpeed": "음악 재생 속도",
@@ -495,6 +500,11 @@
     "inWindowsApp": "muzplayer Windows 앱 {v}에서 쓰는 중입니다."
   },
   "admin": {
+    "notesProvider": "스캔 후 앨범 설명 찾기",
+    "notesProvider_bugs": "벅스 먼저 (다음 멜론)",
+    "notesProvider_melon": "멜론 먼저 (다음 벅스)",
+    "notesProvider_off": "찾지 않음",
+    "notesProviderSaved": "앨범 설명 찾기 설정을 저장했습니다",
     "issuesTitle": "스캔 오류 파일 {n}개",
     "issuesHelp": "스캔이 읽지 못한 파일입니다. 파일을 고치거나 지운 뒤 다시 스캔하면 목록에서 빠집니다. 라이브러리에 남아 있는 곡에는 ‘읽기 오류’ 표시가 붙습니다.",
     "issuesSearch": "파일 이름·내용 검색",
@@ -704,7 +714,6 @@
     "fileError_other": "이 파일을 읽지 못했습니다. 다른 플레이어에서 재생되는지 확인하고, 안 되면 다시 받으세요."
   },
   "library": {
-    "searchAll": "‘{q}’ 곡·앨범·아티스트 통합 검색",
     "title": "내 음악",
     "playFavorites": "좋아요 표시한 곡 전체 재생",
     "tracksCount": "{n}곡",
@@ -1000,11 +1009,6 @@
     "showTracks": "곡 보기",
     "listCount": "{n}개"
   },
-  "account": {
-    "switchTo": "이 계정으로 전환",
-    "adminPassword": "관리자 계정 비밀번호",
-    "add": "다른 계정 추가"
-  },
   "ai": {
     "title": "AI로 만들기",
     "intro": "듣고 싶은 분위기나 상황을 적으면, 내 라이브러리의 장르·가수·연도로 스마트 재생목록 조건을 만들어 줍니다. 저장하기 전에 확인하고 고칠 수 있습니다.",
@@ -1040,6 +1044,7 @@
     "heading": "앨범 소개",
     "update": "설명 업데이트",
     "add": "설명 추가",
+    "noneFound": "앨범 설명이 없습니다.",
     "more": "더 보기",
     "less": "접기",
     "none": "아직 소개가 없습니다. 벅스·멜론에서 찾거나 직접 쓸 수 있습니다.",
@@ -1058,6 +1063,21 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "custom": "내가 추가한 채널",
+    "add": "채널 추가",
+    "addTitle": "라디오 채널 추가",
+    "addName": "채널 이름",
+    "addUrl": "스트림 주소",
+    "addHelp": "MP3·AAC·OGG 스트림(Icecast/Shoutcast), HLS(.m3u8), .pls/.m3u 재생목록, radio.bsod.kr 주소를 넣을 수 있습니다. 추가할 때 서버가 재생되는지 확인합니다.",
+    "addSave": "추가",
+    "added": "채널을 추가했습니다",
+    "remove": "채널 삭제",
+    "removed": "채널을 삭제했습니다",
+    "edit": "채널 편집",
+    "editDone": "완료",
+    "hide": "숨기기",
+    "unhide": "다시 보이기",
+    "hiddenCount": "숨긴 채널 {n}개",
     "unfavorite": "즐겨찾기에서 빼기",
     "favorite": "즐겨찾기에 추가",
     "recent": "최근 들은 채널",

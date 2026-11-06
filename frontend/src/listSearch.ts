@@ -1,21 +1,29 @@
-import { ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 // What was typed in a list page's search box, by page: a new sort or kind remounts the page (its
-// address changes), and the search stays. Cleared when someone else signs in.
-const typed = new Map<string, string>()
+// address changes), and the search stays. Cleared when someone else signs in. The library's tabs
+// are searched from the top bar on a PC (App.vue binds it with listSearchFor).
+const typed = reactive(new Map<string, string>())
 
 export function forgetListSearches() {
   typed.clear()
 }
 
+/** The search text kept for the page named `page`. */
+export function listSearchFor(page: () => string) {
+  return computed({
+    get: () => typed.get(page()) ?? '',
+    set: (v: string) => void typed.set(page(), v),
+  })
+}
+
 /** The page's search text; `changed` runs a moment after typing stops (for a search on the server). */
 export function useListSearch(changed?: () => void) {
   const page = String(useRoute().name)
-  const q = ref(typed.get(page) ?? '')
+  const q = listSearchFor(() => page)
   let timer: number | undefined
-  watch(q, (v) => {
-    typed.set(page, v)
+  watch(q, () => {
     if (!changed) return
     clearTimeout(timer)
     timer = window.setTimeout(changed, 300)

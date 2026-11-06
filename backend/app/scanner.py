@@ -1047,6 +1047,7 @@ def _scan(job_id: int) -> None:
             job = db.get(ScanJob, job_id)
             job.errors += 1
             errors.append(f"audiobooks: {exc}")
+    finished = job.status
     try:
         job.finished_at = datetime.now(UTC)
         job.error_summary = "\n".join(errors) or None
@@ -1054,6 +1055,10 @@ def _scan(job_id: int) -> None:
     finally:
         db.close()
     remove_covers(pruned_albums + reset_albums)
+    if finished == "done":
+        from . import album_notes  # (it imports this module)
+
+        album_notes.lookup_missing()  # introductions for the albums without one
 
 
 def _link_chart_duplicates(db: Session) -> None:

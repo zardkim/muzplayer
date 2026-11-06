@@ -10,8 +10,8 @@ import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Mix, Track, VideoListItem, VideoPlaylist } from '../types'
-import VideoThumb from '../components/VideoThumb.vue'
+import type { Mix, Track, VideoPlaylist } from '../types'
+import VideoRow from '../components/VideoRow.vue'
 import { youtubeThumb } from '../youtube'
 import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
@@ -29,16 +29,10 @@ const router = useRouter()
 const favorites = ref<Track[]>([])
 const mixes = ref<Mix[]>([])
 const historyCount = ref(0)
-const likedVideos = ref<VideoListItem[]>([])
-const likedVideoCount = ref(0)
 
 onMounted(async () => {
   library.loadPlaylists().catch(() => {})
   library.loadVideoPlaylists().catch(() => {})
-  api<{ items: VideoListItem[]; total: number }>('/videos?liked=true&limit=10').then((r) => {
-    likedVideos.value = r.items
-    likedVideoCount.value = r.total
-  }, () => {})
   api<{ items: Mix[] }>('/mixes').then((r) => (mixes.value = r.items), () => {})
   const [f, h] = await Promise.all([
     api<{ items: Track[] }>('/favorites').catch(() => ({ items: [] })),
@@ -134,19 +128,7 @@ async function create() {
 
 
     <!-- liked music videos: a row; the favorites page has them all -->
-    <section v-if="likedVideos.length" class="flex flex-col gap-3">
-      <RouterLink :to="{ name: 'favorites', query: { tab: 'videos' } }" class="flex items-center gap-1 self-start text-[22px] font-bold">
-        {{ t('favorites.likedVideos') }} <span class="text-[15px] font-normal text-muted">{{ likedVideoCount }}</span><ChevronRight :size="20" :stroke-width="1.6" />
-      </RouterLink>
-      <ul class="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:px-0">
-        <li v-for="(v, i) in likedVideos" :key="v.id" class="w-[200px] flex-none md:w-[240px]">
-          <button type="button" class="group flex w-full flex-col gap-1.5 text-left" :aria-label="`${t('videos.play')}: ${v.title}`" @click="ui.videoQueue = { items: likedVideos, start: i, title: t('favorites.likedVideos') }">
-            <span class="relative block aspect-video w-full overflow-hidden rounded-xl bg-surface"><VideoThumb :video="v" /></span>
-            <span class="line-clamp-2 text-[14px] leading-snug">{{ v.title }}</span>
-          </button>
-        </li>
-      </ul>
-    </section>
+    <VideoRow liked :title="t('favorites.likedVideos')" :to="{ name: 'favorites', query: { tab: 'videos' } }" />
 
     <section v-if="mixes.length" class="flex flex-col gap-3">
       <SectionTitle :title="t('library.mixes')" />

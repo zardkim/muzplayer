@@ -13,7 +13,8 @@ import { RADIO_RECENT_KEPT, useUi } from './ui'
 type Repeat = 'off' | 'all' | 'one'
 type Mode = 'music' | 'book' | 'live' // live: a radio station (radio.py relays it)
 
-const SETTINGS_KEY = 'muz.player'
+const SETTINGS_KEY = 'muz.player' // before they were kept per user: the first one in brings them along
+const settingsKey = (userId: number) => `muz.player.${userId}`
 const queueKey = (userId: number) => `muz.queue.${userId}`
 const bookKey = (userId: number) => `muz.book.${userId}` // open book and mode
 const pendingKey = (userId: number) => `muz.bookPending.${userId}` // position not yet saved (offline)
@@ -93,17 +94,45 @@ export const usePlayer = defineStore('player', () => {
   let stale = false
   function pauseAudio() {
     pausing = true
+    cutAt = 0
     audio.pause()
   }
   function setSrc(url: string) {
     pausing = true // (a new source may report a pause of its own)
     audio.src = url
   }
+  // A call (or Siri, an alarm) cut the song off: it goes on by itself once the phone is back with us,
+  // within a while. A headset taken off (the output changed as it stopped) stays stopped.
+  const CUT_RESUME_MS = 15 * 60_000
+  let cutAt = 0
+  let outputChangedAt = 0
   navigator.mediaDevices?.addEventListener?.('devicechange', () => {
+    outputChangedAt = Date.now()
+    if (Math.abs(outputChangedAt - cutAt) < 3000) cutAt = 0
     if (!playing.value) stale = true // the output changed while nothing played
   })
+  function resumeAfterCut() {
+    if (!cutAt || playing.value || Date.now() - cutAt > CUT_RESUME_MS) return
+    cutAt = 0
+    if (mode.value === 'book') resumeBook()
+    else if (mode.value === 'music') void startCurrent()
+  }
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && resumeAfterCut())
+  window.addEventListener('focus', resumeAfterCut)
   function revive() {
     stale = false
+    // Without a tap (a lock screen or headset button, the app coming back after a call), iPhone only
+    // lets an element it has already played start again: that one is loaded again in place instead
+    const tapped = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive ?? !document.hidden
+    if (!tapped) {
+      const src = audio.getAttribute('src')
+      if (src) {
+        if (mode.value !== 'live' && audio.currentTime > 0 && pendingSeek === null) pendingSeek = audio.currentTime
+        setSrc(src)
+        audio.load()
+      }
+      return
+    }
     const old = audio
     const src = old.getAttribute('src')
     const at = old.currentTime
@@ -185,11 +214,12 @@ export const usePlayer = defineStore('player', () => {
   // ---- persistence (per browser, per user) ----
   function restore(forUserId: number) {
     userId = forUserId
-    const settings = load<{ volume: number; shuffle: boolean; repeat: Repeat; rate: number; musicRate: number; skipBack: number; skipForward: number }>(SETTINGS_KEY)
+    const settings = load<{ volume: number; shuffle: boolean; repeat: Repeat; rate: number; musicRate: number; skipBack: number; skipForward: number }>(settingsKey(forUserId)) ??
+      load<{ volume: number; shuffle: boolean; repeat: Repeat; rate: number; musicRate: number; skipBack: number; skipForward: number }>(SETTINGS_KEY)
     if (settings) {
       volume.value = settings.volume ?? 1
       shuffle.value = !!settings.shuffle
-      repeat.value = settings.repeat ?? 'off'
+      repeat.value = (['off', 'all', 'one'] as Repeat[]).includes(settings.repeat) ? settings.repeat : 'off'
       rate.value = SPEEDS.includes(settings.rate) ? settings.rate : 1
       musicRate.value = MUSIC_SPEEDS.includes(settings.musicRate) ? settings.musicRate : 1
       skipBack.value = SKIPS.includes(settings.skipBack) ? settings.skipBack : 15
@@ -218,7 +248,7 @@ export const usePlayer = defineStore('player', () => {
   }
   watch([queue, index], persistQueue, { deep: true })
   watch([volume, shuffle, repeat, rate, musicRate, skipBack, skipForward], () =>
-    save(SETTINGS_KEY, {
+    userId !== null && save(settingsKey(userId), {
       volume: volume.value,
       shuffle: shuffle.value,
       repeat: repeat.value,
@@ -753,7 +783,8 @@ export const usePlayer = defineStore('player', () => {
     if (!st) return
     try {
       const region = regionOf(st, useUi().views.radio)
-      const list = (await loadStations()).stations.filter((s) => s.regions.includes(region))
+      const hidden = new Set(useUi().radio.hidden ?? [])
+      const list = (await loadStations()).stations.filter((s) => s.regions.includes(region) && (!hidden.has(s.id) || s.id === st.id))
       const i = list.findIndex((s) => s.id === st.id)
       if (list.length > 1 && station.value?.id === st.id) playStation(list[(i + dir + list.length) % list.length])
     } catch {
@@ -925,11 +956,15 @@ export const usePlayer = defineStore('player', () => {
   })
   listen('playing', () => {
     pausing = false
+    cutAt = 0
     failures = 0
     lookAhead()
   })
   listen('pause', () => {
-    if (!pausing && !audio.ended && mode.value !== 'live') stale = true
+    if (!pausing && !audio.ended && mode.value !== 'live') {
+      stale = true
+      if (playing.value && Date.now() - outputChangedAt > 3000) cutAt = Date.now()
+    }
     pausing = false
     setPlaying(false)
     if (mode.value === 'book' && loadedKey) {

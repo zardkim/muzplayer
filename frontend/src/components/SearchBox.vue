@@ -7,8 +7,9 @@ import { useSearchHistory } from '../searchHistory'
 
 // The music search box (top bar on a PC, the search page on a phone). Empty and focused: the recent
 // searches; while typing: recent ones that fit, then words from the library (artists, albums, songs;
-// Korean initials too). Arrows move, Enter searches the one picked (or what was typed).
-const props = withDefaults(defineProps<{ id: string; placeholder: string; suggest?: boolean; large?: boolean }>(), { suggest: true })
+// Korean initials too). Arrows move, Enter searches the one picked (or what was typed). `only`: a
+// library tab's box (albums, artists, songs) suggests that kind alone.
+const props = withDefaults(defineProps<{ id: string; placeholder: string; suggest?: boolean; large?: boolean; only?: 'artist' | 'album' | 'track' }>(), { suggest: true })
 const text = defineModel<string>({ required: true })
 const emit = defineEmits<{ submit: [q: string] }>()
 const { t } = useI18n()
@@ -43,7 +44,7 @@ watch(text, (q) => {
     const mine = ++asked
     try {
       const r = await api<{ items: Item[] }>(`/search/suggest${query({ q: q.trim(), limit: 8 })}`)
-      if (mine === asked) library.value = r.items
+      if (mine === asked) library.value = props.only ? r.items.filter((x) => x.kind === props.only) : r.items
     } catch {
       /* no suggestions: the search still works */
     }

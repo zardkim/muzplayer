@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard,
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
-import { forgetListSearches } from './listSearch'
+import { forgetListSearches, listSearchFor } from './listSearch'
 import { useOverlayHistory } from './overlayHistory'
 import { openPlayer } from './playerNav'
 import { PAGE_BACK } from './pageBack'
@@ -45,7 +45,6 @@ const library = useLibrary()
 const player = usePlayer()
 const ui = useUi()
 connectNative() // inside the Windows app: its tray and shortcuts (native.ts)
-startPrefsSync() // the settings page's choices, the same on every device (kept with the account)
 const route = useRoute()
 const router = useRouter()
 
@@ -85,6 +84,10 @@ watch(
   },
   { immediate: true },
 )
+// the settings page's choices, the same on every device (kept with the account); after the player's
+// own were read back above, so the account's newer ones win
+startPrefsSync()
+if (ui.playerPrefs.startMinimized) ui.barHidden = true // Settings → player: start with the mini player tucked away
 
 watch(
   () => route.query.q,
@@ -147,17 +150,25 @@ router.afterEach(async (to, from, failure) => {
   libVersion = version
 })
 
-// on the audiobook list the top bar searches the audiobooks (that page has no search box of its own
-// on wide screens); everywhere else, music
+// the library menu (albums, artists, songs, genres, folders) opens on the tab used last
+const inLibrary = computed(() => LIBRARY_ROUTES.includes(route.name as (typeof LIBRARY_ROUTES)[number]))
+
+// on the audiobook list the top bar searches the audiobooks, on a library tab that tab alone, as it
+// is typed (those pages have no search box of their own on wide screens); everywhere else, music
 const searchBooks = computed(() => route.name === 'books')
+const searchTab = computed(() => inLibrary.value && !(route.name === 'tracks' && route.query.genre))
+const tabSearch = listSearchFor(() => String(route.name))
+const topSearch = computed({
+  get: () => (searchTab.value ? tabSearch.value : searchText.value),
+  set: (v: string) => (searchTab.value ? (tabSearch.value = v) : (searchText.value = v)),
+})
+const TAB_ONLY: Record<string, 'album' | 'artist' | 'track'> = { albums: 'album', artists: 'artist', tracks: 'track' }
 function search() {
   const q = searchText.value.trim()
+  if (searchTab.value) return
   if (searchBooks.value) router.replace({ query: { ...route.query, q: q || undefined } })
   else if (q) router.push({ name: 'search', query: { q } })
 }
-
-// the library menu (albums, artists, songs, genres, folders) opens on the tab used last
-const inLibrary = computed(() => LIBRARY_ROUTES.includes(route.name as (typeof LIBRARY_ROUTES)[number]))
 const libraryItem = computed(() => ({ key: 'library', to: ui.views.library || '/albums', label: 'nav.libraryMenu', icon: LibraryBig }))
 const books = { key: 'books', to: '/books', label: 'nav.audiobooks', icon: BookHeadphones }
 const sideNav = computed(() => [
@@ -172,14 +183,15 @@ const sideNav = computed(() => [
   { key: 'history', to: '/history', label: 'nav.history', icon: History },
   { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
 ])
+// (phone) my music before the library
 const tabs = computed(() => [
   { key: 'home', to: '/', label: 'nav.home', icon: House },
+  { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
   libraryItem.value,
   { key: 'charts', to: '/charts', label: 'nav.charts', icon: ChartNoAxesColumn },
   { key: 'radio', to: '/radio', label: 'nav.radio', icon: Radio },
   { key: 'videos', to: '/videos', label: 'nav.videos', icon: Clapperboard },
   ...(appConfig.audiobooks ? [books] : []),
-  { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
   { key: 'explore', to: '/search', label: 'nav.explore', icon: Search },
 ])
 const myMusicPaths = ['/library', '/favorites', '/history', '/playlists', '/video-playlists', '/settings', '/admin']
@@ -354,10 +366,11 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         </div>
         <SearchBox
           id="top-search"
-          v-model="searchText"
+          v-model="topSearch"
           class="max-w-[420px] flex-1"
-          :placeholder="t(searchBooks ? 'books.searchPlaceholder' : 'search.placeholder')"
-          :suggest="!searchBooks"
+          :placeholder="t(searchTab ? `${String(route.name)}.search` : searchBooks ? 'books.searchPlaceholder' : 'search.placeholder')"
+          :suggest="searchTab ? !!TAB_ONLY[String(route.name)] : !searchBooks"
+          :only="searchTab ? TAB_ONLY[String(route.name)] : undefined"
           @submit="search"
         />
         <span class="w-[86px] flex-none" aria-hidden="true" /><!-- balances the arrows: the search box stays in the middle -->

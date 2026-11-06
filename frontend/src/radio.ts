@@ -16,6 +16,11 @@ export function loadStations(): Promise<StationList> {
   return list
 }
 
+/** After a station was added or deleted: the list is asked for again next time. */
+export function forgetStations() {
+  list = null
+}
+
 /** The stations of the region a station is listed under: the one picked on the Radio page if it is there. */
 export function regionOf(st: RadioStation, picked: string | undefined): string {
   return picked && st.regions.includes(picked) ? picked : st.regions[0]

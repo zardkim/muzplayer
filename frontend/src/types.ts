@@ -1,11 +1,3 @@
-/** Another account signed in on this device (user switching). */
-export interface Account {
-  id: number
-  username: string
-  display_name: string
-  is_admin: boolean
-}
-
 export interface Track {
   id: number
   title: string
@@ -344,4 +336,6 @@ export interface RadioStation {
   stn: string // broadcaster: kbs, mbc, sbs, cbs, ...
   regions: string[] // seoul, busan, ...
   logo: string | null // /radio-logos/<logo>.png (from Wikipedia/Commons); none: the badge
+  custom?: boolean // added by this person by its address (region "custom")
+  url?: string
 }

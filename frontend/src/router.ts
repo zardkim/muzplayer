@@ -49,7 +49,7 @@ router.beforeEach(async (to) => {
   const auth = useAuth()
   if (!auth.checked) await auth.fetchMe()
   // signed in, the login page is only for adding another account (user switching)
-  if (to.meta.public) return auth.user && !(to.name === 'login' && to.query.add) ? { name: 'home' } : true
+  if (to.meta.public) return auth.user ? { name: 'home' } : true
   if (!auth.user) return { name: 'login', query: to.fullPath !== '/' ? { next: to.fullPath } : {} }
   if (to.meta.admin && !auth.user.is_admin) return { name: 'home' }
   if (to.meta.books && !appConfig.audiobooks) return { name: 'home' }

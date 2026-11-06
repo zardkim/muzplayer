@@ -4,6 +4,7 @@ video playlists."""
 
 import os
 import re
+import unicodedata
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session, aliased
 from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, Track, TrackGenre, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
+from ..models import Album, Artist, LibraryFolder, Track, TrackGenre, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
 from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
@@ -388,7 +389,7 @@ def guess_track(db: Session, rel: str, title: str | None = None) -> int | None:
         words = min(wants, key=len).split()
         pattern = "%" + "%".join(w.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") for w in words) + "%"
         rows = db.execute(
-            select(Track.id, Track.title, Track.artist_text, Album.kind)
+            select(Track.id, Track.title, Track.artist_text, Track.file_path, Album.kind)
             .outerjoin(Album, Album.id == Track.album_id)
             .where(Track.missing_at.is_(None), Track.canonical_track_id.is_(None), Track.title.ilike(pattern))
             .limit(200)
@@ -401,8 +402,15 @@ def guess_track(db: Session, rel: str, title: str | None = None) -> int | None:
             continue
         if len({search_index.norm(r.artist_text) for r in hits}) > 1:
             return None  # the same title by different artists: don't guess
-        # one song (perhaps on several albums): its album copy before a chart's
-        hits.sort(key=lambda r: (r.kind == "chart", r.id))
+        # one song (perhaps in several places): the copy in an album folder first, then one
+        # elsewhere (compilations, charts), an album's before a chart's
+        kinds = dict(db.execute(select(LibraryFolder.path, LibraryFolder.kind)).all())
+
+        def place(r) -> tuple:
+            top = unicodedata.normalize("NFC", Path(r.file_path).parts[0]) if len(Path(r.file_path).parts) > 1 else ""
+            return (kinds.get(top, "album") != "album", r.kind == "chart", r.id)
+
+        hits.sort(key=place)
         return hits[0].id
     return None
 

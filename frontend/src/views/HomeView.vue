@@ -19,6 +19,7 @@ import PageHeader from '../components/PageHeader.vue'
 import PlaylistCircles from '../components/PlaylistCircles.vue'
 import SharedPlaylists from '../components/SharedPlaylists.vue'
 import StationGrid from '../components/StationGrid.vue'
+import VideoRow from '../components/VideoRow.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
 import SectionTitle from '../components/SectionTitle.vue'
 import ChoiceChip from '../components/ChoiceChip.vue'
@@ -151,6 +152,8 @@ const tabs = computed(() => [
         <SectionTitle :title="t('home.newAlbums')" to="/albums" />
         <AlbumGrid :albums="albums" row />
       </section>
+      <VideoRow v-else-if="key === 'recentVideos'" :title="t('home.section_recentVideos')" to="/videos" />
+      <VideoRow v-else-if="key === 'likedVideos'" liked :title="t('home.section_likedVideos')" :to="{ name: 'favorites', query: { tab: 'videos' } }" />
     </template>
   </div>
 </template>

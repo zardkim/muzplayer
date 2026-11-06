@@ -14,6 +14,7 @@ const THEME_BARS: Record<Theme, string> = { default: '#FFFFFF', plexamp: '#CBC5B
 // display and player options from Settings, kept per browser
 export interface PlayerPrefs {
   openOnPlay: boolean // starting a list opens the player
+  startMinimized: boolean // the app starts with the mini player tucked away (it comes back on play)
   keepAwake: boolean // the screen stays on while the player is open
   musicSpeed: boolean // a speed control for music too (audiobooks always have one)
   showYear: boolean // album year on the player and in album lists
@@ -42,7 +43,7 @@ export const PLAYER_PREFS_DEVICE: (keyof PlayerPrefs)[] = ['prefetchWifi', 'pref
 export const PREFETCH_COUNTS = [0, 1, 2, 3, 5]
 export const CACHE_SIZES = [256, 512, 1024, 2048]
 const PLAYER_PREFS: PlayerPrefs = {
-  openOnPlay: false, keepAwake: false, musicSpeed: false, showYear: true, showVolume: true,
+  openOnPlay: false, startMinimized: false, keepAwake: false, musicSpeed: false, showYear: true, showVolume: true,
   prefetchWifi: 3, prefetchCellular: 1, cacheMB: 512, autoplay: false, albumEnd: 'radio',
   showCodec: true, showQuality: true, showPopular: true,
   leveling: 'off', crossfade: 0, eq: false, eqPreset: 'flat', eqGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -59,7 +60,7 @@ function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?:
 
 // radio stations (ids): the ones listened to lately (newest first) and the starred ones; kept with the
 // account, so every device shows the same (prefsSync.ts)
-export interface RadioMarks { recent: string[]; favorites: string[] }
+export interface RadioMarks { recent: string[]; favorites: string[]; hidden?: string[] } // hidden: left out of the Radio page's lists
 export const RADIO_RECENT_KEPT = 12
 
 export const useUi = defineStore('ui', () => {
@@ -98,12 +99,12 @@ export const useUi = defineStore('ui', () => {
   // PC: the bottom player bar can be tucked away, the sidebar folded to icons, and each list page
   // shown as a list, covers or a grid
   const prefs = loadPrefs()
-  const barHidden = ref(!!prefs.barHidden)
+  const barHidden = ref(!!prefs.barHidden || !!prefs.player?.startMinimized) // Settings → start minimized
   const sidebarCollapsed = ref(!!prefs.sidebarCollapsed)
   const views = ref<Record<string, string>>(prefs.views ?? {})
   // colour theme; index.html applies the stored one before the first paint, this keeps it in step
   const playerPrefs = ref<PlayerPrefs>({ ...PLAYER_PREFS, ...prefs.player })
-  const radio = ref<RadioMarks>({ recent: prefs.radio?.recent ?? [], favorites: prefs.radio?.favorites ?? [] })
+  const radio = ref<RadioMarks>({ recent: prefs.radio?.recent ?? [], favorites: prefs.radio?.favorites ?? [], hidden: prefs.radio?.hidden ?? [] })
   const theme = ref<Theme>((THEMES as readonly string[]).includes(prefs.theme ?? '') ? (prefs.theme as Theme) : 'default')
   watch(
     theme,

@@ -138,6 +138,7 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
           <h2 class="hidden text-[22px] font-bold md:block">{{ t('settings.player') }}</h2>
           <div class="flex flex-col divide-y divide-line">
             <ToggleRow v-model="ui.playerPrefs.openOnPlay" :title="t('settings.openOnPlay')" :hint="t('settings.openOnPlayHelp')" />
+            <ToggleRow v-model="ui.playerPrefs.startMinimized" :title="t('settings.startMinimized')" :hint="t('settings.startMinimizedHelp')" />
             <ToggleRow v-model="ui.playerPrefs.keepAwake" :title="t('settings.keepAwake')" :hint="t('settings.keepAwakeHelp')" />
             <ToggleRow v-model="ui.playerPrefs.musicSpeed" :title="t('settings.musicSpeed')" :hint="t('settings.musicSpeedHelp')" />
             <ToggleRow v-model="recordHistory" :title="t('settings.recordHistory')" :hint="t('settings.recordHistoryHelp')" />

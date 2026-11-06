@@ -59,8 +59,6 @@
     "passwordAgain": "Password again",
     "setupSubmit": "Create admin account",
     "mismatch": "The passwords don't match.",
-    "addTitle": "Add another account",
-    "addDesc": "{name} stays signed in on this device; switch back from the account menu.",
     "join": "Create an account",
     "joinTitle": "Create an account",
     "joinOpen": "Pick a username and password and start listening.",
@@ -133,6 +131,9 @@
     "too_many_signups": "Too many sign-ups. Try again later.",
     "radio_busy": "Too many people are listening to the radio now. Try again shortly.",
     "radio_unavailable": "Couldn't get this station's stream now.",
+    "radio_unsupported": "That isn't a radio stream this app can play. Use an MP3/AAC/OGG stream, HLS (.m3u8) or a .pls/.m3u address.",
+    "radio_unreachable": "That address didn't answer. Check it and try again.",
+    "radio_too_many": "You can add up to 50 stations.",
     "thumb_failed": "Couldn’t make a thumbnail: this video format isn’t supported.",
     "video_no_song": "No song matches its name. Rename it ‘Artist - Title’ and try again.",
     "default_playlist": "The default playlist can’t be deleted."
@@ -219,6 +220,8 @@
     "section_mixes": "Mixes",
     "section_quick": "Recent · New albums · Playlists",
     "section_books": "Audiobooks in progress",
+    "section_recentVideos": "New music videos",
+    "section_likedVideos": "Liked music videos",
     "section_newAlbums": "Recently added albums",
     "random100": "Random 100",
     "emptyList": "Nothing to play.",
@@ -424,6 +427,8 @@
     "showVolumeHelp": "Volume slider on the PC player bar.",
     "openOnPlay": "Open the player on play",
     "openOnPlayHelp": "Playing a song from a list goes straight to the player.",
+    "startMinimized": "Start with the mini player minimized",
+    "startMinimizedHelp": "The app opens with the mini player tucked away. It comes back when something plays.",
     "keepAwake": "Keep the screen on",
     "keepAwakeHelp": "The screen stays on while you look at the player.",
     "musicSpeed": "Music speed",
@@ -495,6 +500,11 @@
     "inWindowsApp": "Running in the muzplayer Windows app {v}."
   },
   "admin": {
+    "notesProvider": "Album descriptions after a scan",
+    "notesProvider_bugs": "Bugs first (then Melon)",
+    "notesProvider_melon": "Melon first (then Bugs)",
+    "notesProvider_off": "Don't look up",
+    "notesProviderSaved": "Album description lookup saved",
     "issuesTitle": "{n} files the scan could not read",
     "issuesHelp": "Fix or remove them and scan again to clear them from this list. Songs still in the library are marked “read error”.",
     "issuesSearch": "Search file names or messages",
@@ -704,7 +714,6 @@
     "fileError_other": "Couldn't read this file. Check it plays elsewhere; if not, get it again."
   },
   "library": {
-    "searchAll": "Search everything for ‘{q}’",
     "title": "My music",
     "playFavorites": "Play all liked songs",
     "tracksCount": "{n}",
@@ -1000,11 +1009,6 @@
     "showTracks": "Show songs",
     "listCount": "{n}"
   },
-  "account": {
-    "switchTo": "Switch to this account",
-    "adminPassword": "Admin account password",
-    "add": "Add another account"
-  },
   "ai": {
     "title": "Make with AI",
     "intro": "Describe a mood or moment, and AI turns it into smart playlist rules over your library's genres, artists and years. Check and adjust them before saving.",
@@ -1040,6 +1044,7 @@
     "heading": "About this album",
     "update": "Update",
     "add": "Add description",
+    "noneFound": "No description for this album.",
     "more": "More",
     "less": "Less",
     "none": "No description yet. Find one on Bugs/Melon or write one.",
@@ -1058,6 +1063,21 @@
     "from_manual": "Written here"
   },
   "radio": {
+    "custom": "Your stations",
+    "add": "Add station",
+    "addTitle": "Add a radio station",
+    "addName": "Station name",
+    "addUrl": "Stream address",
+    "addHelp": "An MP3/AAC/OGG stream (Icecast/Shoutcast), HLS (.m3u8), a .pls/.m3u playlist or a radio.bsod.kr address. The server checks that it plays when you add it.",
+    "addSave": "Add",
+    "added": "Station added",
+    "remove": "Delete station",
+    "removed": "Station deleted",
+    "edit": "Edit stations",
+    "editDone": "Done",
+    "hide": "Hide",
+    "unhide": "Show again",
+    "hiddenCount": "{n} hidden",
     "unfavorite": "Remove from favorites",
     "favorite": "Add to favorites",
     "recent": "Recently played",
