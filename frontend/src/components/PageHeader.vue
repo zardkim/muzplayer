@@ -3,7 +3,7 @@ import { getCurrentInstance, inject, onActivated, onDeactivated, onMounted, onUn
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  BookHeadphones, ChartColumn, ChartNoAxesColumn, ChevronLeft, Clapperboard, Disc3, Download, Heart, History, House, LibraryBig,
+  Bell, BookHeadphones, ChartColumn, ChartNoAxesColumn, ChevronLeft, Clapperboard, Disc3, Download, Heart, History, House, LibraryBig,
   ListMusic, ListVideo, Radio, ScrollText, Search, Settings, Sparkles, Tags, User, Users,
 } from '@lucide/vue'
 import { PAGE_BACK, type PageBack } from '../pageBack'
@@ -21,7 +21,7 @@ const ICONS: Record<string, Component> = {
   home: House, search: Search, albums: LibraryBig, artists: LibraryBig, tracks: LibraryBig, genres: LibraryBig, folders: LibraryBig,
   charts: ChartNoAxesColumn, 'chart-list': ChartNoAxesColumn, radio: Radio, videos: Clapperboard, 'video-playlist': ListVideo,
   books: BookHeadphones, library: User, playlists: ListMusic, playlist: ListMusic, mix: Sparkles, favorites: Heart, history: History,
-  downloads: Download, playing: Disc3, settings: Settings, admin: Users, logs: ScrollText, stats: ChartColumn,
+  news: Bell, downloads: Download, playing: Disc3, settings: Settings, admin: Users, logs: ScrollText, stats: ChartColumn,
 }
 const icon = () => props.icon ?? (route.name === 'tracks' && route.query.genre ? Tags : ICONS[String(route.name)])
 

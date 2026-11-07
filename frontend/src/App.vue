@@ -19,6 +19,8 @@ import { useLibrary } from './stores/library'
 import { usePlayer } from './stores/player'
 import { connectNative } from './native'
 import { startPrefsSync } from './prefsSync'
+import { startNews } from './news'
+import NewsBell from './components/NewsBell.vue'
 import { useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
@@ -87,6 +89,7 @@ watch(
 // the settings page's choices, the same on every device (kept with the account); after the player's
 // own were read back above, so the account's newer ones win
 startPrefsSync()
+startNews() // the bell: what was added since this person last looked (news.ts)
 if (ui.playerPrefs.startMinimized) ui.barHidden = true // Settings → player: start with the mini player tucked away
 
 watch(
@@ -373,7 +376,8 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
           :only="searchTab ? TAB_ONLY[String(route.name)] : undefined"
           @submit="search"
         />
-        <span class="w-[86px] flex-none" aria-hidden="true" /><!-- balances the arrows: the search box stays in the middle -->
+        <!-- as wide as the arrows: the search box stays in the middle -->
+        <div class="flex w-[86px] flex-none justify-end"><NewsBell /></div>
       </header>
 
       <div

@@ -43,6 +43,8 @@ class User(Base):
     # the app's settings (theme, language, player, sound...), so every device and address has the same;
     # the app keeps what it shows, the server just stores it (NULL: never sent yet)
     prefs: Mapped[dict | None] = mapped_column(JSON)
+    # up to when they have seen what was added (api/news.py); NULL: not yet, the first look starts from then
+    news_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

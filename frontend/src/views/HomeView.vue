@@ -15,6 +15,7 @@ import BookGrid from '../components/BookGrid.vue'
 import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
 import OnThisDay from '../components/OnThisDay.vue'
+import NewsBell from '../components/NewsBell.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlaylistCircles from '../components/PlaylistCircles.vue'
 import SharedPlaylists from '../components/SharedPlaylists.vue'
@@ -77,7 +78,10 @@ const tabs = computed(() => [
 
 <template>
   <div class="flex flex-col gap-7">
-    <PageHeader :title="t('nav.home')" />
+    <PageHeader :title="t('nav.home')">
+      <!-- phone: the bell (PC: in the top bar) -->
+      <template #actions><NewsBell class="md:hidden" /></template>
+    </PageHeader>
 
     <div v-if="loaded && !albums.length" class="rounded-2xl bg-surface p-8 text-center">
       <p class="font-medium">{{ t('home.emptyLibrary') }}</p>

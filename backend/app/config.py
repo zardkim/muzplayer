@@ -39,6 +39,10 @@ class Settings:
     ffmpeg_path: str = os.getenv("FFMPEG_PATH", "").strip() or "ffmpeg"
     transcode_cache_mb: int = int(os.getenv("TRANSCODE_CACHE_MB", "2048"))
     version: str = os.getenv("APP_VERSION", "dev")
+    # the Windows app's releases (a public Gitea repository): Settings → add to home screen offers its installer
+    windows_app_releases: str = os.getenv(
+        "WINDOWS_APP_RELEASES", "https://gitea.nurilab.pe.kr/nuricom/muzplayer-windows/releases"
+    ).rstrip("/")
 
     @property
     def cover_dir(self) -> Path:

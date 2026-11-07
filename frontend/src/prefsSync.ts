@@ -2,7 +2,7 @@ import { watch } from 'vue'
 import { i18n, LOCALES, setLocale, type Locale } from './i18n'
 import { useAuth } from './stores/auth'
 import { usePlayer } from './stores/player'
-import { PLAYER_PREFS_DEVICE, RADIO_RECENT_KEPT, THEMES, useUi, type PlayerPrefs, type RadioMarks, type Theme } from './stores/ui'
+import { APP_ICONS, PLAYER_PREFS_DEVICE, RADIO_RECENT_KEPT, THEMES, useUi, type AppIcon, type PlayerPrefs, type RadioMarks, type Theme } from './stores/ui'
 
 // The settings page's choices, kept with the account on the server, so every device, app and address
 // (the NAS's own address at home, the domain outside, the Windows app) has the same ones. Each
@@ -15,6 +15,7 @@ type Prefs = {
   v: 1
   t: number // when changed (ms)
   theme: Theme
+  appIcon?: AppIcon // also so that Safari, where an iPhone adds it to the home screen, has the one picked in the app
   locale: Locale
   player: Partial<PlayerPrefs>
   skipBack: number
@@ -54,6 +55,7 @@ export function startPrefsSync() {
     return {
       v: 1,
       theme: ui.theme,
+      appIcon: ui.appIcon,
       locale: i18n.global.locale.value as Locale,
       player: p,
       skipBack: player.skipBack,
@@ -68,6 +70,7 @@ export function startPrefsSync() {
     applying = true
     try {
       if (s.theme && (THEMES as readonly string[]).includes(s.theme)) ui.theme = s.theme
+      if (s.appIcon && (APP_ICONS as readonly string[]).includes(s.appIcon)) ui.appIcon = s.appIcon
       if (s.locale && LOCALES.some((l) => l.code === s.locale)) setLocale(s.locale)
       if (s.player) {
         const known = Object.fromEntries(

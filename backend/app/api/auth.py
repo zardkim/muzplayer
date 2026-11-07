@@ -8,6 +8,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from .. import activity, ai_banner, ai_playlist, appconf, transcode, youtube
+from .. import windows_app as windows_app_mod
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
 from ..models import User
@@ -67,6 +68,12 @@ def get_config(db: Session = Depends(get_db, scope="function")):
         "ai_playlists": ai_playlist.configured(),  # the AI key an admin set for banners
         "signup": appconf.signup_mode(),  # off | approval | open (admin page)
     }
+
+
+@router.get("/apps/windows")
+def windows_app(_: User = Depends(current_user)):
+    """The Windows app's latest installer, for the settings page on a PC."""
+    return windows_app_mod.latest()
 
 
 class LoginIn(BaseModel):

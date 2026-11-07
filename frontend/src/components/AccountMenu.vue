@@ -2,7 +2,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { EllipsisVertical, LogOut, Settings, Users } from '@lucide/vue'
+import { Bell, EllipsisVertical, LogOut, Settings, Users } from '@lucide/vue'
+import { news } from '../news'
 import { useAuth } from '../stores/auth'
 import { usePlayer } from '../stores/player'
 import LanguageSwitch from './LanguageSwitch.vue'
@@ -72,7 +73,7 @@ onUnmounted(() => document.removeEventListener('click', close))
       :aria-expanded="open"
       @click="toggle"
     >
-      <span class="grid size-6 place-items-center rounded-full bg-ink text-[12px] font-medium text-on-ink">{{ initial }}</span>{{ t('nav.account') }}
+      <span class="relative grid size-6 place-items-center rounded-full bg-ink text-[12px] font-medium text-on-ink">{{ initial }}<span v-if="news?.total" class="absolute -right-1 -top-0.5 size-2.5 rounded-full border-2 border-bg bg-accent" aria-hidden="true" /></span>{{ t('nav.account') }}
     </button>
     <Teleport to="body">
     <div v-if="open" data-account-menu class="fixed z-[80] flex max-h-[80vh] w-64 flex-col overflow-y-auto rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl" :style="{ left: `${spot.left}px`, bottom: `${spot.bottom}px` }">
@@ -81,6 +82,10 @@ onUnmounted(() => document.removeEventListener('click', close))
         <div class="text-[13px] text-muted">{{ auth.user?.username }}</div>
         <LanguageSwitch compact class="mt-3" />
       </div>
+      <RouterLink to="/news" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false">
+        <Bell :size="18" :stroke-width="1.4" /><span class="flex-1">{{ t('news.title') }}</span>
+        <span v-if="news?.total" class="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[12px] text-white">{{ news.total > 99 ? '99+' : news.total }}</span>
+      </RouterLink>
       <RouterLink to="/settings" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false"><Settings :size="18" :stroke-width="1.4" />{{ t('nav.settings') }}</RouterLink>
       <RouterLink v-if="auth.user?.is_admin" to="/admin" class="flex items-center gap-3 px-4 py-3 hover:bg-surface" @click="open = false"><Users :size="18" :stroke-width="1.4" />{{ t('nav.admin') }}</RouterLink>
       <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="logout"><LogOut :size="18" :stroke-width="1.4" />{{ t('nav.logout') }}</button>

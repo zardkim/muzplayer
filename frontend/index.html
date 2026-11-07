@@ -30,17 +30,25 @@
           document.querySelector('meta[name="theme-color"]').setAttribute('content', bars[theme])
         }
       } catch (e) {}
-      // the home screen icon follows the phone's light or dark mode at the time it is added
+      // the home screen icon picked in Settings (stores/ui.ts appIcon), taken when the app is added
+      // to the home screen. auto: the phone's light or dark mode at that time (iPhone; Android's own
+      // themed icons use the monochrome one).
       var dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)')
-      function touchIcons() {
+      var iconChoice = 'auto'
+      window.muzAppIcon = function (choice) {
+        iconChoice = choice || 'auto'
+        var v = iconChoice === 'auto' ? (dark && dark.matches ? 'dark' : 'light') : iconChoice
         document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(function (l) {
-          l.href = l.getAttribute('href').replace(/icon-(dark-)?/, dark.matches ? 'icon-dark-' : 'icon-')
+          l.href = l.getAttribute('href').replace(/icon-((dark|pink|navy)-)?/, v === 'light' ? 'icon-' : 'icon-' + v + '-')
         })
+        document.querySelector('link[rel="manifest"]').href = iconChoice === 'auto' || v === 'light' ? '/manifest.webmanifest' : '/manifest-' + v + '.webmanifest'
       }
-      if (dark) {
-        touchIcons()
-        dark.addEventListener && dark.addEventListener('change', touchIcons)
+      try {
+        window.muzAppIcon(JSON.parse(localStorage.getItem('muz.ui') || '{}').appIcon)
+      } catch (e) {
+        window.muzAppIcon('auto')
       }
+      if (dark && dark.addEventListener) dark.addEventListener('change', function () { window.muzAppIcon(iconChoice) })
     </script>
   </head>
   <body>

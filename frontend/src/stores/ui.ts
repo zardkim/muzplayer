@@ -10,6 +10,9 @@ export const THEMES = ['default', 'plexamp', 'spotify', 'melon'] as const
 export type Theme = (typeof THEMES)[number]
 // the browser's bar colour per theme (meta theme-color)
 const THEME_BARS: Record<Theme, string> = { default: '#FFFFFF', plexamp: '#CBC5BF', spotify: '#121212', melon: '#FFFFFF' }
+// the home screen icon (index.html muzAppIcon; public/icon-<name>-*.png, manifest-<name>.webmanifest)
+export const APP_ICONS = ['auto', 'light', 'dark', 'pink', 'navy'] as const
+export type AppIcon = (typeof APP_ICONS)[number]
 
 // display and player options from Settings, kept per browser
 export interface PlayerPrefs {
@@ -50,7 +53,7 @@ const PLAYER_PREFS: PlayerPrefs = {
   quality: 'orig', qualityCellular: 'orig', lyricsSize: 2,
 }
 
-function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; player?: Partial<PlayerPrefs>; radio?: RadioMarks } {
+function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; appIcon?: string; player?: Partial<PlayerPrefs>; radio?: RadioMarks } {
   try {
     return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
   } catch {
@@ -117,11 +120,14 @@ export const useUi = defineStore('ui', () => {
     },
     { immediate: true },
   )
+  // the home screen icon; index.html set the stored one up before this ran
+  const appIcon = ref<AppIcon>((APP_ICONS as readonly string[]).includes(prefs.appIcon ?? '') ? (prefs.appIcon as AppIcon) : 'auto')
+  watch(appIcon, (v) => (window as unknown as { muzAppIcon?: (v: string) => void }).muzAppIcon?.(v))
   watch(
-    [barHidden, sidebarCollapsed, views, theme, playerPrefs, radio],
+    [barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, radio],
     () => {
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, player: playerPrefs.value, radio: radio.value }))
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, appIcon: appIcon.value, player: playerPrefs.value, radio: radio.value }))
       } catch {
         /* not kept */
       }
@@ -141,6 +147,6 @@ export const useUi = defineStore('ui', () => {
 
   return {
     radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinked,
-    barHidden, sidebarCollapsed, views, theme, playerPrefs, wide, playerTab,
+    barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, wide, playerTab,
   }
 })

@@ -9,6 +9,8 @@ interface InstallPromptEvent extends Event {
 export const installPrompt = ref<InstallPromptEvent | null>(null)
 export const isStandalone =
   window.matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
+export const isAndroid = /Android/.test(navigator.userAgent)
+export const isWindows = /Windows NT/.test(navigator.userAgent)
 export const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 window.addEventListener('beforeinstallprompt', (e) => {

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AudioLines, BookHeadphones, ChevronRight, HardDrive, House, MonitorSmartphone, Play, Radio, Smartphone, User } from '@lucide/vue'
+import { AudioLines, BookHeadphones, Check, ChevronRight, Download, HardDrive, House, MonitorSmartphone, Play, Radio, Smartphone, User } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
-import { install, installPrompt, isIos, isStandalone } from '../pwa'
+import { install, installPrompt, isAndroid, isIos, isStandalone, isWindows } from '../pwa'
 import { native } from '../native'
 import { useAuth } from '../stores/auth'
 import { SKIPS, usePlayer } from '../stores/player'
-import { CACHE_SIZES, CROSSFADES, PREFETCH_COUNTS, useUi } from '../stores/ui'
+import { APP_ICONS, CACHE_SIZES, CROSSFADES, PREFETCH_COUNTS, useUi } from '../stores/ui'
 import { cacheUsage, clearAudioCache } from '../audioCache'
 import { canSave, savedBytes } from '../offline'
 import { QUALITIES } from '../stream'
@@ -100,6 +100,21 @@ const sections = computed(() => [
   { key: 'account', title: 'settings.account', hint: 'settings.menu_account', icon: User },
 ])
 const open = computed(() => sections.value.find((x) => x.key === props.section) ?? null)
+
+// add to home screen, on a PC: the Windows app's installer (its latest release); in the app, a newer one
+const winApp = ref<{ page: string; version: string | null; url: string | null; size: number | null } | null>(null)
+onMounted(() => {
+  if (isWindows) api<NonNullable<typeof winApp.value>>('/apps/windows').then((r) => (winApp.value = r)).catch(() => {})
+})
+const newer = (a: string, b: string) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0)
+  return false
+}
+const winUpdate = computed(() => !!(native && winApp.value?.version && newer(winApp.value.version, native.version)))
+// on a phone: the home screen icon (index.html takes it when the app is added)
+const phone = isIos || isAndroid
+const iconFile = (v: string) => (v === 'auto' || v === 'light' ? '/icon-180.png' : `/icon-${v}-180.png`)
 const shown = computed(() => open.value?.key ?? 'display') // the part a wide screen shows
 </script>
 
@@ -243,6 +258,53 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
           <button v-else-if="installPrompt" type="button" class="h-11 self-start rounded-full bg-ink px-5 text-[15px] text-on-ink" @click="install">{{ t('settings.installApp') }}</button>
           <p v-else-if="isIos" class="font-light text-muted">{{ t('settings.installIos') }}</p>
           <p v-else class="font-light text-muted">{{ t('settings.installOther') }}</p>
+
+          <!-- a PC: the Windows app (tray, global shortcuts, keeps playing with the window closed) -->
+          <div v-if="isWindows && !native" class="mt-4 flex flex-col gap-2.5 rounded-2xl bg-surface p-4">
+            <h3 class="font-medium">{{ t('settings.windowsApp') }}</h3>
+            <p class="text-[14px] font-light text-muted">{{ t('settings.windowsAppHelp') }}</p>
+            <a
+              :href="winApp?.url || winApp?.page || '#'"
+              class="flex h-11 items-center gap-2 self-start rounded-full bg-ink px-5 text-[15px] text-on-ink"
+              :class="winApp ? '' : 'pointer-events-none opacity-50'"
+              :download="winApp?.url ? '' : undefined"
+              rel="noopener"
+            >
+              <Download :size="18" />{{ winApp?.version ? t('settings.windowsDownloadV', { v: winApp.version }) : t('settings.windowsDownload') }}
+            </a>
+            <p v-if="winApp?.size" class="text-[13px] font-light text-muted">{{ mb(winApp.size) }} MB · {{ t('settings.windowsUnsigned') }}</p>
+            <a v-if="winApp && winApp.url" :href="winApp.page" target="_blank" rel="noopener" class="self-start text-[13px] text-muted underline">{{ t('settings.windowsReleases') }}</a>
+          </div>
+          <p v-if="winUpdate" class="mt-2 text-[14px]">
+            {{ t('settings.windowsNewer', { v: winApp!.version }) }}
+            <a :href="winApp!.url || winApp!.page" class="text-accent underline">{{ t('settings.windowsDownload') }}</a>
+          </p>
+
+          <!-- a phone: which icon the home screen gets -->
+          <div v-if="phone && !native" class="mt-4 flex flex-col gap-2.5">
+            <h3 class="font-medium">{{ t('settings.appIcon') }}</h3>
+            <div class="flex flex-wrap gap-2.5" role="radiogroup" :aria-label="t('settings.appIcon')">
+              <button
+                v-for="v in APP_ICONS"
+                :key="v"
+                type="button"
+                role="radio"
+                :aria-checked="ui.appIcon === v"
+                class="flex w-[56px] flex-col items-center gap-1.5 text-[12px]"
+                :class="ui.appIcon === v ? 'font-medium' : 'text-muted'"
+                @click="ui.appIcon = v"
+              >
+                <span class="relative block size-[52px] overflow-hidden rounded-[13px] ring-offset-2 ring-offset-bg" :class="ui.appIcon === v ? 'ring-2 ring-ink' : 'ring-1 ring-line'">
+                  <!-- auto: half light, half dark -->
+                  <img :src="iconFile(v)" alt="" class="size-full" />
+                  <img v-if="v === 'auto'" src="/icon-dark-180.png" alt="" class="absolute inset-0 size-full [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
+                  <span v-if="ui.appIcon === v" class="absolute bottom-1 right-1 grid size-4 place-items-center rounded-full bg-ink text-on-ink"><Check :size="11" :stroke-width="3" /></span>
+                </span>
+                {{ t(`settings.appIcon_${v}`) }}
+              </button>
+            </div>
+            <p class="text-[13px] font-light leading-relaxed text-muted">{{ isIos ? t('settings.appIconIos') : t('settings.appIconAndroid') }}</p>
+          </div>
         </section>
 
         <section v-if="shown === 'account'" class="flex flex-col gap-3">
