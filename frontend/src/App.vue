@@ -154,12 +154,12 @@ router.afterEach(async (to, from, failure) => {
 })
 
 // the library menu (albums, artists, songs, genres, folders) opens on the tab used last
-const inLibrary = computed(() => LIBRARY_ROUTES.includes(route.name as (typeof LIBRARY_ROUTES)[number]))
+const inLibrary = computed(() => LIBRARY_ROUTES.includes(route.name as (typeof LIBRARY_ROUTES)[number]) || route.name === 'library-search')
 
 // on the audiobook list the top bar searches the audiobooks, on a library tab that tab alone, as it
 // is typed (those pages have no search box of their own on wide screens); everywhere else, music
 const searchBooks = computed(() => route.name === 'books')
-const searchTab = computed(() => inLibrary.value && !(route.name === 'tracks' && route.query.genre))
+const searchTab = computed(() => inLibrary.value && route.name !== 'library-search' && !(route.name === 'tracks' && route.query.genre))
 const tabSearch = listSearchFor(() => String(route.name))
 const topSearch = computed({
   get: () => (searchTab.value ? tabSearch.value : searchText.value),

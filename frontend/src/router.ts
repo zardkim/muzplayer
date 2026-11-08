@@ -33,6 +33,7 @@ export const router = createRouter({
     { path: '/playlists/:id', name: 'playlist', component: () => import('./views/PlaylistView.vue'), props: true },
     { path: '/mixes/:mixKey', name: 'mix', component: () => import('./views/MixView.vue'), props: true },
     { path: '/news', name: 'news', component: () => import('./views/NewsView.vue') },
+    { path: '/library/search', name: 'library-search', component: () => import('./views/LibrarySearchView.vue') },
     { path: '/favorites', name: 'favorites', component: () => import('./views/FavoritesView.vue') },
     { path: '/history', name: 'history', component: () => import('./views/HistoryView.vue') },
     { path: '/downloads', name: 'downloads', component: () => import('./views/DownloadsView.vue') },

@@ -337,6 +337,13 @@
     "themes": "New themes",
     "showing": "(latest {n} shown)"
   },
+  "libSearch": {
+    "title": "Search library",
+    "placeholder": "Albums, artists, songs, genres, folders, charts",
+    "hint": "Type to see what matches in albums, artists, songs, genres, folders, charts and themes.",
+    "matching": "{n} songs",
+    "clear": "Clear search"
+  },
   "favorites": {
     "title": "Liked",
     "empty": "Tap the heart to collect songs you like.",

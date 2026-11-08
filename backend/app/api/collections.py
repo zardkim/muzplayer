@@ -7,17 +7,17 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import case, func, literal_column, or_, select, text
 from sqlalchemy.orm import Session
 
-from .. import ai_banner
+from .. import ai_banner, search_index
 from ..cache import shared_json
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Banner, Chart, Playlist, PlaylistTrack, Track, User
+from ..models import Album, Banner, Chart, Genre, Playlist, PlaylistTrack, Track, TrackGenre, User
 from ..scanner import bump_library, cover_file
 from ..security import admin_user, api_error, current_user
-from .library import present_tracks, track_out, track_query
+from .library import like, listed_tracks, present_tracks, track_out, track_query
 
 router = APIRouter()
 
@@ -404,3 +404,74 @@ def delete_banner(banner_id: int, chart_id: int, _: User = Depends(admin_user), 
         ai_banner.banner_file(banner_id).unlink(missing_ok=True)
     chart = get_chart_row(db, chart_id)
     return {"banner": banner_out(chart, load_banners(db))}
+
+
+LIBRARY_FOUND = 24  # of each kind
+
+
+@router.get("/library/search")
+def library_search(
+    q: str = Query(min_length=1, max_length=100),
+    _: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """The library search (a phone's library page), for the kinds the album, artist and song lists
+    can't answer: genres, folders, charts and themes whose name has it, or that hold songs matching
+    it (by title or artist, as the songs list searches), with how many such songs each holds."""
+    songs = search_index.matches(Track.search_text, q)
+    named = like(q.strip())
+
+    genre_rows = db.execute(
+        select(Genre.id, Genre.name, func.count(Track.id).filter(*songs).label("n"), func.count(Track.id))
+        .join(TrackGenre, TrackGenre.genre_id == Genre.id)
+        .join(Track, (Track.id == TrackGenre.track_id) & listed_tracks())
+        .group_by(Genre.id)
+        .having(or_(func.count(Track.id).filter(*songs) > 0, Genre.name.ilike(named)))
+        .order_by(literal_column("n").desc(), func.lower(Genre.name))
+        .limit(LIBRARY_FOUND)
+    ).all()
+    genres = [{"id": i, "name": n, "match_count": m, "track_count": c} for i, n, m, c in genre_rows]
+
+    # a folder: where songs are (their file's folder, as on the folders page: NFC)
+    is_nfc = Track.file_path.op("IS", is_comparison=True)(literal_column("NFC NORMALIZED"))
+    path = case((is_nfc, Track.file_path), else_=func.normalize(Track.file_path, text("NFC")))
+    folder = func.regexp_replace(path, "/[^/]*$", "")
+    folder_rows = db.execute(
+        select(folder.label("f"), func.count().filter(*songs).label("n"), func.count(), func.min(Track.album_id).filter(Album.cover_path.is_not(None)))
+        .outerjoin(Album, Album.id == Track.album_id)
+        .where(present_tracks(), func.strpos(path, "/") > 0)
+        .group_by(folder)
+        .having(or_(func.count().filter(*songs) > 0, func.regexp_replace(folder, "^.*/", "").ilike(named)))
+        .order_by(literal_column("n").desc(), literal_column("f"))
+        .limit(LIBRARY_FOUND)
+    ).all()
+    versions = dict(db.execute(select(Album.id, Album.cover_version).where(Album.id.in_([r[3] for r in folder_rows if r[3]]))).all())
+    folders = [
+        {"path": f, "name": f.rsplit("/", 1)[-1], "match_count": m, "track_count": c, "cover": {"id": a, "v": versions.get(a, 0)} if a else None}
+        for f, m, c, a in folder_rows
+    ]
+    # the folders above them named so too ("album/아이유" over its albums' folders): first, with their sums
+    want = search_index.norm(q)
+    above: dict[str, dict] = {}
+    for f in folders:
+        parts = f["path"].split("/")[:-1]
+        for i in range(len(parts), 0, -1):
+            if want in search_index.norm(parts[i - 1]):
+                p = "/".join(parts[:i])
+                up = above.setdefault(p, {"path": p, "name": parts[i - 1], "match_count": 0, "track_count": 0, "cover": f["cover"]})
+                up["match_count"] += f["match_count"]
+                up["track_count"] += f["track_count"]
+    folders = (list(above.values()) + folders)[:LIBRARY_FOUND]
+
+    matched = select(Track.chart_id, func.count().label("n")).where(present_tracks(), Track.chart_id.is_not(None), *songs).group_by(Track.chart_id).subquery()
+    chart_rows = db.execute(
+        select(Chart, chart_count().label("total"), func.coalesce(matched.c.n, 0))
+        .outerjoin(matched, matched.c.chart_id == Chart.id)
+        .where(chart_count() > 0, or_(matched.c.n > 0, Chart.title.ilike(named)))
+        .order_by(Chart.kind, func.coalesce(matched.c.n, 0).desc(), Chart.title.desc())
+        .limit(LIBRARY_FOUND * 2)
+    ).all()
+    covers = cover_albums(db, [c.id for c, _, _ in chart_rows])
+    banners = load_banners(db)
+    charts = [{**item_out(c, n, covers, banners), "match_count": m} for c, n, m in chart_rows]
+    return {"genres": genres, "folders": folders, "charts": charts}
