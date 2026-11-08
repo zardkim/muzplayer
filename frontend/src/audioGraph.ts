@@ -45,6 +45,16 @@ export function onSoundState(fn: (state: string) => void) {
   stateListener = fn
 }
 
+/** The sound processing's clock (seconds) and state, to tell whether sound really goes through it. */
+export const graphClock = () => (ctx ? { time: ctx.currentTime, state: String(ctx.state) } : null)
+
+/** iPhone: a context stuck after an interruption, woken the way that sometimes works (suspend, then resume). */
+export function kickGraph() {
+  const c = ctx
+  if (!c) return
+  void c.suspend().catch(() => {}).then(() => c.resume()).catch(() => {})
+}
+
 /** True once the main element plays through Web Audio. */
 export const graphActive = () => ctx !== null
 

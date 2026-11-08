@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 import { api, bookCoverUrl, bookStreamUrl, coverUrl, query } from '../api'
 import { cachedSource, prepare } from '../audioCache'
-import { crossfade, EQ_PRESETS, ensureGraph, graphActive, onSoundState, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
+import { crossfade, EQ_PRESETS, ensureGraph, graphActive, graphClock, kickGraph, onSoundState, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
 import { plog } from '../playerLog'
@@ -78,10 +78,13 @@ function shuffled<T>(items: T[]): T[] {
 type AudioSessionLike = { type: string; state?: string; addEventListener?: (type: 'statechange', fn: () => void) => void }
 
 export const usePlayer = defineStore('player', () => {
+  let elements = 0
+  const elName = new WeakMap<HTMLAudioElement, string>() // which element plays, in the playback log
   let audio = newAudio()
   function newAudio() {
     const el = new Audio()
     el.preload = 'auto'
+    elName.set(el, `#${++elements}`)
     return el
   }
   // iPhone: a "playback" audio session plays on with the screen locked or the app in the background,
@@ -209,6 +212,35 @@ export const usePlayer = defineStore('player', () => {
     }
     graphWas = state
   })
+  // The song plays (its time moves on, the car or lock screen shows it) but the sound processing it goes
+  // through doesn't (iPhone leaves it "interrupted" after a call, waking it may not take): nothing is
+  // heard anywhere. Woken once more; still stuck, the song moves to the spare element, which plays
+  // without the processing (it comes back with the next tap).
+  let checking = 0
+  let rescuedAt = 0 // once a minute at most: a new processing stuck again isn't remade over and over
+  function checkSound(again = false) {
+    const el = audio
+    const c0 = graphClock()
+    const t0 = el.currentTime
+    window.clearTimeout(checking)
+    checking = window.setTimeout(() => {
+      const c1 = graphClock()
+      if (audio !== el || el.paused || !c0 || !c1) return
+      const song = el.currentTime - t0
+      const sound = c1.time - c0.time
+      if (song < 0.5 || sound > 0.5) return // all well (or the song hasn't really started)
+      plog('sound processing stuck', `song+${song.toFixed(1)} processing+${sound.toFixed(1)} ${c1.state} again=${again} spare=${!!spare}`)
+      if (!again) {
+        kickGraph()
+        return checkSound(true)
+      }
+      if ((activated() || spare) && Date.now() - rescuedAt > 60_000) {
+        rescuedAt = Date.now()
+        stale = true // revive: a new element from a tap, else the spare; either without the stuck processing
+        void playAudio().catch(() => {})
+      }
+    }, 1500)
+  }
   function resumeAfterCut() {
     if (!cutAt || playing.value || Date.now() - cutAt > CUT_RESUME_MS) return
     plog('resume after cut', `byCall=${byCall} stale=${stale} spare=${!!spare} graph=${graphActive()}`)
@@ -1070,7 +1102,11 @@ export const usePlayer = defineStore('player', () => {
     if (playing.value) lookAhead()
   })
   listen('playing', () => {
-    plog('playing', mode.value)
+    plog('playing', `${mode.value} el=${elName.get(audio) ?? '?'}`)
+    if (graphActive()) {
+      resumeGraph() // iPhone may have played the song on by itself after a call, the processing still stopped
+      checkSound()
+    }
     pausing = false
     cutAt = 0
     byCall = false
