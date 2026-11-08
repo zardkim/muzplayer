@@ -39,6 +39,12 @@ let levelDb = 0 // the main song's levelling gain
 
 const dbToGain = (db: number) => Math.pow(10, db / 20)
 
+let stateListener: ((state: string) => void) | null = null
+/** The sound processing's state changes (iPhone: "interrupted" for a call). */
+export function onSoundState(fn: (state: string) => void) {
+  stateListener = fn
+}
+
 /** True once the main element plays through Web Audio. */
 export const graphActive = () => ctx !== null
 
@@ -52,10 +58,17 @@ function build(el: HTMLAudioElement) {
     node.gain.value = 0
     return node
   })
-  // iPhone suspends ("interrupted") the context for a call or in the background: start it again
-  ctx.addEventListener('statechange', () => {
-    plog('sound processing', String(ctx?.state))
-    if (ctx && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => {})
+  // iPhone suspends ("interrupted") the context for a call or in the background. In the background
+  // with the song still playing it is started again; for a call (the song paused with it) it is left
+  // alone: iPhone ends the interruption itself when the call is over and may then play on by itself,
+  // which starting it during the call got in the way of. The player hears of both (onSoundState).
+  const mine = ctx
+  mine.addEventListener('statechange', () => {
+    if (ctx !== mine) return // dropped (resetGraph): closing it is no news
+    const state = String(ctx.state)
+    plog('sound processing', `${state} song=${main?.el.paused ? 'paused' : 'playing'}`)
+    if (state === 'interrupted' && main && !main.el.paused) void ctx.resume().catch(() => {})
+    stateListener?.(state)
   })
   for (let i = 0; i < filters.length - 1; i++) filters[i].connect(filters[i + 1])
   filters[filters.length - 1].connect(ctx.destination)

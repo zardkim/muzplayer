@@ -3,8 +3,8 @@ import mimetypes
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import activity, search_index
@@ -53,10 +53,23 @@ index_file = settings.static_dir / "index.html"
 if index_file.exists():
     app.mount("/assets", StaticFiles(directory=settings.static_dir / "assets"), name="assets")
 
+    # The home screen icon picked in Settings (cookie muz_icon, set by the app): written into the page
+    # itself. iPhone takes the icon when the page is added to the home screen, from the links the page
+    # came with (one changed by a script afterwards may be missed).
+    APP_ICONS = ("light", "dark", "pink", "navy")
+
+    def index_html(icon: str | None) -> Response:
+        html = index_file.read_text(encoding="utf-8")
+        if icon in APP_ICONS and icon != "light":
+            html = html.replace('href="/icon-1', f'href="/icon-{icon}-1').replace(
+                'href="/manifest.webmanifest"', f'href="/manifest-{icon}.webmanifest"'
+            )
+        return Response(html, media_type="text/html", headers={"Cache-Control": "no-cache", "Vary": "Cookie"})
+
     @app.get("/{path:path}", include_in_schema=False)
-    def spa(path: str):
+    def spa(path: str, request: Request):
         candidate = (settings.static_dir / path).resolve()
-        if path and candidate.is_file() and candidate.is_relative_to(settings.static_dir.resolve()):
-            no_cache = path in ("sw.js", "manifest.webmanifest")
+        if path and path != "index.html" and candidate.is_file() and candidate.is_relative_to(settings.static_dir.resolve()):
+            no_cache = path in ("sw.js",) or path.endswith(".webmanifest")
             return FileResponse(candidate, headers={"Cache-Control": "no-cache"} if no_cache else None)
-        return FileResponse(index_file, headers={"Cache-Control": "no-cache"})
+        return index_html(request.cookies.get("muz_icon"))

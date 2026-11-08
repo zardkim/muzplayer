@@ -256,11 +256,11 @@ class VideoIn(BaseModel):
     video: str = Field(min_length=11, max_length=500)  # the id from search, or a pasted link
     kind: Kind
     album_id: int | None = None
-    track_id: int | None = None
+    track_id: int | None = None  # neither: on its own (the Music videos page, by its link)
 
     @model_validator(mode="after")
     def one_target(self):
-        if (self.album_id is None) == (self.track_id is None):
+        if self.album_id is not None and self.track_id is not None:
             raise ValueError("album_id or track_id")
         return self
 
@@ -278,8 +278,11 @@ def add_video(body: VideoIn, user: User = Depends(admin_user), db: Session = Dep
         info = youtube.check(youtube_id)  # exists, may be embedded; its title and channel
     except youtube.YoutubeError as exc:
         raise api_error(503 if exc.code == "youtube_unreachable" else 400, exc.code) from None
-    target = Video.album_id == body.album_id if body.album_id else Video.track_id == body.track_id
-    position = db.scalar(select(func.coalesce(func.max(Video.position), -1)).where(target)) + 1
+    if body.album_id is None and body.track_id is None:
+        position = 0
+    else:
+        target = Video.album_id == body.album_id if body.album_id else Video.track_id == body.track_id
+        position = db.scalar(select(func.coalesce(func.max(Video.position), -1)).where(target)) + 1
     video = Video(
         album_id=body.album_id, track_id=body.track_id, youtube_id=youtube_id, kind=body.kind,
         title=info["title"] or youtube_id, channel=info["channel"], position=position, added_by=user.id,
@@ -486,21 +489,25 @@ class LinkIn(BaseModel):
 
 @router.post("/videos/{video_id}/link")
 def link_video(video_id: int, body: LinkIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """A NAS file's song: the one picked, found again from its name (404 video_no_song when none
-    fits), or none."""
+    """A NAS file's (or a YouTube video's of the Music videos page) song: the one picked, found again
+    from its name (404 video_no_song when none fits), or none."""
     video = _editable(db, user, video_id)
-    if not video.file_path:
-        raise api_error(400, "not_a_file")
+    if not video.file_path and video.album_id is not None:
+        raise api_error(400, "not_a_file")  # a YouTube video of an album stays with it
     if body.track_id is not None:
         if db.get(Track, body.track_id) is None:
             raise api_error(404, "not_found")
         track_id = body.track_id
     else:
-        track_id = guess_track(db, video.file_path, video.title) if body.auto else None
+        track_id = guess_track(db, video.file_path or video.title, video.title) if body.auto else None
         if body.auto and track_id is None:
             raise api_error(404, "video_no_song")
     video.track_id, video.album_id = track_id, None
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # the song (or nothing) has this YouTube video already
+        db.rollback()
+        raise api_error(409, "video_exists") from None
     return list_item(db.execute(_listing(user.id).where(Video.id == video.id)).one(), user)
 
 

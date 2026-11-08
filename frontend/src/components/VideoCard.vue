@@ -127,6 +127,9 @@ onUnmounted(() => document.removeEventListener('click', outside))
           <template v-if="video.file_path">
             <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
             <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
+          </template>
+          <!-- its song: NAS files, and YouTube videos added by their link (an album's stay with it) -->
+          <template v-if="video.file_path || !video.album_id">
             <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickSong">{{ t('videos.linkSong') }}</button>
             <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
             <div class="my-1 border-t border-line" />

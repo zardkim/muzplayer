@@ -122,7 +122,16 @@ export const useUi = defineStore('ui', () => {
   )
   // the home screen icon; index.html set the stored one up before this ran
   const appIcon = ref<AppIcon>((APP_ICONS as readonly string[]).includes(prefs.appIcon ?? '') ? (prefs.appIcon as AppIcon) : 'auto')
-  watch(appIcon, (v) => (window as unknown as { muzAppIcon?: (v: string) => void }).muzAppIcon?.(v))
+  // and a cookie, so the server writes it into the page (backend main.py index_html): iPhone takes the
+  // icon from the links the page came with
+  watch(
+    appIcon,
+    (v) => {
+      ;(window as unknown as { muzAppIcon?: (v: string) => void }).muzAppIcon?.(v)
+      document.cookie = v === 'auto' ? 'muz_icon=; path=/; max-age=0' : `muz_icon=${v}; path=/; max-age=31536000; SameSite=Lax`
+    },
+    { immediate: true },
+  )
   watch(
     [barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, radio],
     () => {

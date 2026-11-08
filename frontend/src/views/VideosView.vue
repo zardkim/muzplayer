@@ -12,6 +12,8 @@ import SearchField from '../components/SearchField.vue'
 import SelectPill from '../components/SelectPill.vue'
 import { useListSearch } from '../listSearch'
 import VideoFilesSheet from '../components/VideoFilesSheet.vue'
+import YoutubeAddSheet from '../components/YoutubeAddSheet.vue'
+import YoutubeIcon from '../components/YoutubeIcon.vue'
 import VideoCard from '../components/VideoCard.vue'
 import LoadMore from '../components/LoadMore.vue'
 
@@ -28,6 +30,7 @@ const total = ref(0)
 const loading = ref(false)
 const error = ref('')
 const addingFiles = ref(false)
+const addingYoutube = ref(false)
 const kind = computed({
   get: () => (ui.views.videoKind as VideoKind | undefined) || null,
   set: (v: VideoKind | null) => (ui.views = { ...ui.views, videoKind: v ?? '' }),
@@ -97,6 +100,9 @@ function playAll(shuffle: boolean) {
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('videos.pageTitle')" :sub="total ? t('videos.pageSub', { n: total }) : ''">
       <template #actions>
+        <button v-if="auth.user?.is_admin" type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-surface px-3 text-[14px] hover:bg-surface-2 sm:px-4" :aria-label="t('videos.addYoutube')" :title="t('videos.addYoutube')" @click="addingYoutube = true">
+          <YoutubeIcon :size="18" /><span class="max-sm:hidden">{{ t('videos.addYoutube') }}</span>
+        </button>
         <button v-if="auth.user?.is_admin" type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-ink px-3 text-[14px] text-on-ink sm:px-4" :aria-label="t('videos.addFile')" :title="t('videos.addFile')" @click="addingFiles = true">
           <FolderPlus :size="17" :stroke-width="1.6" /><span class="max-sm:hidden">{{ t('videos.addFile') }}</span>
         </button>
@@ -148,5 +154,6 @@ function playAll(shuffle: boolean) {
     <LoadMore v-if="items.length < total" :loading="loading" @click="load(true)" />
 
     <VideoFilesSheet v-if="addingFiles" @close="addingFiles = false" />
+    <YoutubeAddSheet v-if="addingYoutube" @close="addingYoutube = false" @added="load()" />
   </div>
 </template>

@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     literal_column,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -481,13 +482,14 @@ class Video(Base):
     __tablename__ = "videos"
     __table_args__ = (
         CheckConstraint(
-            "(youtube_id IS NOT NULL AND file_path IS NULL AND num_nonnulls(album_id, track_id) = 1)"
-            " OR (file_path IS NOT NULL AND youtube_id IS NULL AND num_nonnulls(album_id, track_id) <= 1)",
+            "num_nonnulls(youtube_id, file_path) = 1 AND num_nonnulls(album_id, track_id) <= 1",
             name="ck_videos_source",
         ),
         UniqueConstraint("album_id", "youtube_id"),
         UniqueConstraint("track_id", "youtube_id"),
         UniqueConstraint("file_path"),
+        Index("ux_videos_youtube_alone", "youtube_id", unique=True,
+              postgresql_where=text("youtube_id IS NOT NULL AND album_id IS NULL AND track_id IS NULL")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

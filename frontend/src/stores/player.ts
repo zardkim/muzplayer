@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 import { api, bookCoverUrl, bookStreamUrl, coverUrl, query } from '../api'
 import { cachedSource, prepare } from '../audioCache'
-import { crossfade, EQ_PRESETS, ensureGraph, graphActive, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
+import { crossfade, EQ_PRESETS, ensureGraph, graphActive, onSoundState, primeTail, resetGraph, resumeGraph, setEq, setLevel, stopTail } from '../audioGraph'
 import { errorMessage, i18n } from '../i18n'
 import { isSaved } from '../offline'
 import { plog } from '../playerLog'
@@ -190,6 +190,25 @@ export const usePlayer = defineStore('player', () => {
       was = session.state
     })
   }
+  // iPhones whose audio session doesn't say (no navigator.audioSession.state): the sound processing,
+  // when the song plays through it, is "interrupted" by a call all the same, next to the pause (either
+  // first). That makes it a call even when a Bluetooth headset's output changed with it; the end of
+  // the interruption is the call's end (when the page is awake to hear it: else coming back to the app).
+  let graphCutAt = 0
+  let graphWas = ''
+  function graphCut() {
+    cutAt = cutAt || Date.now()
+    byCall = true
+  }
+  onSoundState((state) => {
+    if (state === 'interrupted') {
+      graphCutAt = Date.now()
+      if (!sessionTells && !playing.value && Date.now() - outsidePauseAt < 3000) graphCut()
+    } else if (graphWas === 'interrupted' && byCall && cutAt && !playing.value) {
+      window.setTimeout(resumeAfterCut, 800)
+    }
+    graphWas = state
+  })
   function resumeAfterCut() {
     if (!cutAt || playing.value || Date.now() - cutAt > CUT_RESUME_MS) return
     plog('resume after cut', `byCall=${byCall} stale=${stale} spare=${!!spare} graph=${graphActive()}`)
@@ -1074,6 +1093,7 @@ export const usePlayer = defineStore('player', () => {
           outsidePauseAt = Date.now()
           // (a session that tells of calls hasn't, so far: a headset taken off, unless it does next)
           if (!sessionTells && Date.now() - outputChangedAt > 3000) cutAt = Date.now()
+          if (!sessionTells && Date.now() - graphCutAt < 3000) graphCut()
         }
       }
     }

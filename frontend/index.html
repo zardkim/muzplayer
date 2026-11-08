@@ -43,10 +43,12 @@
         })
         document.querySelector('link[rel="manifest"]').href = iconChoice === 'auto' || v === 'light' ? '/manifest.webmanifest' : '/manifest-' + v + '.webmanifest'
       }
+      // (the server has written the one picked into the links already: cookie muz_icon, backend main.py)
+      var iconCookie = (document.cookie.match(/(?:^|; )muz_icon=(\w+)/) || [])[1]
       try {
-        window.muzAppIcon(JSON.parse(localStorage.getItem('muz.ui') || '{}').appIcon)
+        window.muzAppIcon(JSON.parse(localStorage.getItem('muz.ui') || '{}').appIcon || iconCookie)
       } catch (e) {
-        window.muzAppIcon('auto')
+        window.muzAppIcon(iconCookie)
       }
       if (dark && dark.addEventListener) dark.addEventListener('change', function () { window.muzAppIcon(iconChoice) })
     </script>
