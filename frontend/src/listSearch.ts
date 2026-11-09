@@ -35,3 +35,13 @@ export function useListSearch(changed?: () => void) {
 export function matches(text: string, q: string) {
   return !q.trim() || text.toLowerCase().includes(q.trim().toLowerCase())
 }
+
+const squash = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[\s\p{P}]+/gu, '')
+
+/** The other name an artist was found by, when its own name doesn't have what was typed
+ *  ("머라이어" finds Mariah Carey by 머라이어 캐리): shown with it, so the result makes sense. */
+export function aliasHit(artist: { name: string; aliases?: string[] }, q: string): string | null {
+  const want = squash(q)
+  if (!want || squash(artist.name).includes(want)) return null
+  return artist.aliases?.find((a) => squash(a).includes(want)) ?? null
+}

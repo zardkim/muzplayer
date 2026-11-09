@@ -2,24 +2,26 @@ import mimetypes
 import os
 import unicodedata
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, select, text
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session, aliased
 
-from .. import album_notes, artist_images, lyrics_fetch, search_index, transcode
+from .. import album_notes, artist_aliases, artist_images, artist_links, lyrics_fetch, search_index, transcode
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
 from ..lyrics import read_lyrics
 from ..models import (
-    Album, AlbumFavorite, AlbumRating, Artist, Favorite, FetchedLyrics, Genre, PlayCount, Track, TrackGenre, TrackRating,
-    User, Video,
+    Album, AlbumFavorite, AlbumRating, Artist, Favorite, FetchedLyrics, Genre, PlayCount, Track, TrackArtist, TrackGenre,
+    TrackRating, User, Video,
 )
-from ..scanner import COVER_SIZES, DAMAGED, cover_file
-from ..security import api_error, current_user
+from ..scanner import COVER_SIZES, DAMAGED, bump_library, cover_file
+from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
 
@@ -64,22 +66,33 @@ def track_query(user_id: int) -> Select:
     # lyrics: its own (tags, .lrc next to it; scanner) or fetched for it (lyrics_fetch), synced or plain
     fetched = exists().where(FetchedLyrics.track_id == Track.id, FetchedLyrics.lrc.is_not(None)).correlate(Track)
     lrc = or_(Track.lrc_tag.is_(True), Track.lrc_file, fetched)
+    # every artist of the song (artist_links), each its own link: [{"id", "name", "role"}]
+    artists = (
+        select(func.json_agg(aggregate_order_by(
+            func.json_build_object("id", Artist.id, "name", Artist.name, "role", TrackArtist.role), TrackArtist.position,
+        )))
+        .select_from(TrackArtist).join(Artist, Artist.id == TrackArtist.artist_id)
+        .where(TrackArtist.track_id == Track.id)
+        .correlate(Track)
+        .scalar_subquery()
+    )
     return (
         select(
             Track, Album.title, Album.cover_path, Album.kind, fav.label("is_favorite"), Album.cover_version,
-            rating.label("rating"), video.label("has_video"), Album.year, lrc.label("has_lyrics"),
+            rating.label("rating"), video.label("has_video"), Album.year, lrc.label("has_lyrics"), artists.label("artists"),
         )
         .outerjoin(Album, Album.id == Track.album_id)
     )
 
 
 def track_out(row) -> dict:
-    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year, has_lyrics = row
+    track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year, has_lyrics, artists = row
     return {
         "id": track.id,
         "title": track.title,
         "artist": track.artist_text,
         "artist_id": track.artist_id,
+        "artists": artists or [],
         "album": album_title or "",
         "album_id": track.album_id,
         "album_kind": album_kind or "album",
@@ -153,7 +166,7 @@ def list_tracks(
     conds = [listed_tracks()]
     if q.strip():
         # every word of it in the song's search index (search_index.py: one trigram-indexed column)
-        conds.extend(search_index.matches(Track.search_text, q))
+        conds.extend(search_index.matches(Track.search_text, q, Track.artist_id, db))
     if genre_id:
         conds.append(exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id == genre_id))
     if album_id:
@@ -269,7 +282,7 @@ def list_albums(
     if kind:
         conds.append(Album.kind == kind)
     if q.strip():
-        conds.extend(search_index.matches(Album.search_text, q))  # its title and artist
+        conds.extend(search_index.matches(Album.search_text, q, Album.album_artist_id, db))  # its title and artist (and its artist's other names)
     if artist_id:
         conds.append(Album.album_artist_id == artist_id)
     order = {
@@ -384,11 +397,15 @@ def get_cover(
 def list_artists(
     request: Request,
     q: str = "",
+    sort: str = Query("ko", pattern="^(ko|own)$"),  # by the Korean name when there is one, or by its own
+    initial: str = Query("", max_length=3),  # ㄱ..ㅎ, A..Z, etc, # (artist_links.initial_range)
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     _: User = Depends(current_user),
     db: Session = Depends(get_db, scope="function"),
 ):
+    key = (Artist.sort_name if sort == "ko" else Artist.sort_own).collate("C")  # code point order: 가나다, a-z
+
     def build():
         # counted once for all artists (grouped), not once per artist
         albums = (
@@ -398,15 +415,21 @@ def list_artists(
             .group_by(Album.album_artist_id)
             .subquery()
         )
+        # songs it sings in, featured ones too (artist_links)
         tracks = (
-            select(Track.artist_id.label("artist_id"), func.count().label("n"))
-            .where(present_tracks(), Track.chart_id.is_(None), Track.artist_id.is_not(None))
-            .group_by(Track.artist_id)
+            select(TrackArtist.artist_id.label("artist_id"), func.count().label("n"))
+            .join(Track, Track.id == TrackArtist.track_id)
+            .where(present_tracks(), Track.chart_id.is_(None))
+            .group_by(TrackArtist.artist_id)
             .subquery()
         )
         album_count = func.coalesce(albums.c.n, 0)
         track_count = func.coalesce(tracks.c.n, 0)
         conds = [or_(album_count > 0, track_count > 0)]
+        listed = list(conds)
+        span = artist_links.initial_range(initial) if initial else None
+        if span:
+            conds += [key >= span[0], key < span[1]]
         if q.strip():
             conds.extend(search_index.matches(Artist.search_text, q))
         base = (
@@ -416,16 +439,24 @@ def list_artists(
             .where(*conds)
         )
         total = db.scalar(select(func.count()).select_from(base.subquery()))
-        rows = db.execute(base.order_by(Artist.sort_name, Artist.id).limit(limit).offset(offset))
+        rows = db.execute(base.order_by(key, Artist.id).limit(limit).offset(offset))
+        # the index letters that have artists (for the letter bar)
+        keys = db.scalars(
+            select(Artist.sort_name if sort == "ko" else Artist.sort_own)
+            .outerjoin(albums, albums.c.artist_id == Artist.id).outerjoin(tracks, tracks.c.artist_id == Artist.id)
+            .where(*listed)
+        )
+        initials = sorted({artist_links.initial_of(k) for k in keys}, key=artist_links.INITIALS.index)
         return {
             "items": [
-                {"id": a.id, "name": a.name, "album_count": n_albums, "track_count": n_tracks, "image_v": image_v(a)}
+                {"id": a.id, "name": a.name, "album_count": n_albums, "track_count": n_tracks, "image_v": image_v(a), "aliases": artist_aliases.visible(a)}
                 for a, n_albums, n_tracks in rows
             ],
             "total": total,
+            "initials": initials,
         }
 
-    return shared_json(request, db, f"artists:{q.strip()}:{limit}:{offset}", build)
+    return shared_json(request, db, f"artists:{q.strip()}:{sort}:{initial}:{limit}:{offset}", build)
 
 
 def image_v(artist: Artist) -> int:
@@ -470,15 +501,57 @@ def get_artist(artist_id: int, user: User = Depends(current_user), db: Session =
         .order_by(func.lower(Track.title))
         .limit(500)
     )
+    # songs it is in without being their main artist (feat., the second of a duet: artist_links)
+    featured = db.execute(
+        track_query(user.id)
+        .where(
+            Track.id.in_(select(TrackArtist.track_id).where(TrackArtist.artist_id == artist_id)),
+            or_(Track.artist_id.is_(None), Track.artist_id != artist_id), present_tracks(), Track.chart_id.is_(None),
+        )
+        .order_by(func.lower(Track.title))
+        .limit(300)
+    )
     return {
         "id": artist.id,
         "name": artist.name,
         "image_v": image_v(artist),
         "image_credit": image_credit(artist),
         "image_removed": artist.image_path == "none",
+        "aliases": artist_aliases.visible(artist),
+        "alias_entries": artist.aliases or [],  # with where each came from and the hidden ones (the admin's editor)
         "albums": [album_out(a) for a in albums],
         "tracks": [track_out(t) for t in tracks],
+        "featured": [track_out(t) for t in featured],
     }
+
+
+class AliasesIn(BaseModel):
+    names: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]] = Field(max_length=20)
+
+
+@router.put("/artists/{artist_id}/aliases")
+def set_aliases(artist_id: int, body: AliasesIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """An admin's list of the artist's other names: the ones looked up and left out are hidden
+    (not brought back by a later lookup), new ones are kept as added by hand."""
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    key = lambda n: search_index.norm(n).replace(" ", "")  # noqa: E731
+    wanted = {key(n): n for n in body.names if key(n) and key(n) != key(artist.name)}
+    out = []
+    for a in artist.aliases or []:
+        k = key(a["name"])
+        if a.get("source") == "manual" and k not in wanted:
+            continue  # added by hand, now taken out: gone
+        out.append({**a, "hidden": k not in wanted})
+        wanted.pop(k, None)
+    out += [{"name": n, "source": "manual", "hidden": False} for n in wanted.values()]
+    artist.aliases = out
+    db.commit()
+    search_index.index_albums_artists(db)
+    bump_library(db)
+    db.commit()
+    return {"aliases": artist_aliases.visible(artist), "alias_entries": out}
 
 
 @router.get("/genres")

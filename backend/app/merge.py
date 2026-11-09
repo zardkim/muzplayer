@@ -10,12 +10,12 @@ import json
 import re
 import unicodedata
 
-from sqlalchemy import Text, cast, delete, func, literal, or_, select, update
+from sqlalchemy import Text, cast, delete, exists, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from . import search_index
-from .models import Album, Artist, Genre, NameAlias, Playlist, Track, TrackGenre
+from .models import Album, Artist, Genre, NameAlias, Playlist, Track, TrackArtist, TrackGenre
 from .scanner import (
     bump_library, carry_album_marks, prune_orphans, remove_covers, scan_lock, update_album_quality,
 )
@@ -168,6 +168,15 @@ def _merge_artists(db: Session, keep: Artist, others: list[Artist]) -> None:
             track.artist_text = text
             track.search_text = search_index.index_text(track.title, text, album_title)
     db.execute(update(Track).where(Track.artist_id.in_(ids)).values(artist_id=keep.id))
+    # every song's artists (artist_links): theirs become the kept one, once per song
+    has_keep = select(TrackArtist.track_id).where(TrackArtist.artist_id == keep.id)
+    db.execute(delete(TrackArtist).where(TrackArtist.artist_id.in_(ids), TrackArtist.track_id.in_(has_keep)))
+    first = aliased(TrackArtist)  # a song with two of them: the first stays
+    db.execute(delete(TrackArtist).where(
+        TrackArtist.artist_id.in_(ids),
+        exists().where(first.track_id == TrackArtist.track_id, first.artist_id.in_(ids), first.position < TrackArtist.position),
+    ))
+    db.execute(update(TrackArtist).where(TrackArtist.artist_id.in_(ids)).values(artist_id=keep.id))
     # their albums: under the kept artist; one it already has with the same title takes the songs
     taken = {(a.kind, a.title): a.id for a in db.scalars(select(Album).where(Album.album_artist_id == keep.id))}
     moves: dict[int, int] = {}

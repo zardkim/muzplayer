@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import activity, search_index
+from . import activity, artist_links, search_index
 from .api import admin, auth, books, collections, library, marks, me, mixes, news, radio, stations, videos
 from .config import settings
 from .db import SessionLocal
@@ -25,6 +25,7 @@ async def lifespan(_: FastAPI):
     stop = threading.Event()
     start_auto_scan(stop)
     search_index.rebuild_in_background()  # only when an update changed how the index is built
+    artist_links.relink_in_background()  # likewise for songs' artists
     yield
     stop.set()
 

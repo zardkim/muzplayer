@@ -418,7 +418,7 @@ def library_search(
     """The library search (a phone's library page), for the kinds the album, artist and song lists
     can't answer: genres, folders, charts and themes whose name has it, or that hold songs matching
     it (by title or artist, as the songs list searches), with how many such songs each holds."""
-    songs = search_index.matches(Track.search_text, q)
+    songs = search_index.matches(Track.search_text, q, Track.artist_id, db)
     named = like(q.strip())
 
     genre_rows = db.execute(

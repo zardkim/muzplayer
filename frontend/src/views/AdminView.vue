@@ -289,6 +289,17 @@ async function patch(user: User, body: Record<string, unknown>, done?: string) {
 type NotesProvider = 'bugs' | 'melon' | 'off'
 const notesProvider = ref<NotesProvider>('bugs')
 api<{ provider: NotesProvider }>('/admin/notes-provider').then((r) => (notesProvider.value = r.provider)).catch(() => {})
+// artists' other names (머라이어 캐리 for Mariah Carey), looked up after a scan or now
+type AliasStatus = { enabled: boolean; running: boolean; artists: number; checked: number; named: number }
+const aliasStatus = ref<AliasStatus | null>(null)
+api<AliasStatus>('/admin/artist-aliases').then((r) => (aliasStatus.value = r)).catch(() => {})
+async function setAliases(enabled: boolean) {
+  aliasStatus.value = await api<AliasStatus>('/admin/artist-aliases', { method: 'PUT', body: { enabled } })
+}
+async function runAliases() {
+  aliasStatus.value = await api<AliasStatus>('/admin/artist-aliases/run', { method: 'POST' })
+  ui.notify(t('admin.aliasesStarted'))
+}
 async function setNotesProvider(provider: NotesProvider) {
   try {
     notesProvider.value = (await api<{ provider: NotesProvider }>('/admin/notes-provider', { method: 'PUT', body: { provider } })).provider
@@ -439,6 +450,16 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           <option value="off">{{ t('admin.notesProvider_off') }}</option>
         </select>
       </label>
+      <div v-if="aliasStatus" class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" :checked="aliasStatus.enabled" class="size-4 accent-ink" @change="setAliases(($event.target as HTMLInputElement).checked)" />
+          {{ t('admin.aliases') }}
+        </label>
+        <span class="text-[13px] text-muted">{{ t('admin.aliasesStatus', { checked: aliasStatus.checked, artists: aliasStatus.artists, named: aliasStatus.named }) }}</span>
+        <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="aliasStatus.running || !aliasStatus.enabled" @click="runAliases">
+          {{ aliasStatus.running ? t('admin.aliasesRunning') : t('admin.aliasesRun') }}
+        </button>
+      </div>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
           {{ t('admin.rebuildCovers') }}

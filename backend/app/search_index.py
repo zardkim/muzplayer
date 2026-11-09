@@ -9,6 +9,10 @@ form that forgives how people type:
 
 A query matches when every word of it is found (in any order, in any field: "아이유 밤편지").
 
+An artist's also holds its other names (artist_aliases.py: 머라이어 캐리 for Mariah Carey) and the
+names merged into it (merge.py). Songs and albums are found through their artist too: a word missing
+from their own text may be in their artist's ("머라이어 hero"), so those names need no copy in them.
+
 Songs get theirs when a scan files them (scanner._classify), albums and artists after each scan.
 When the way the index is built changes (SEARCH_VERSION), the next start or scan builds it again
 for everything (rebuild); an admin can ask for that too.
@@ -19,10 +23,11 @@ import re
 import threading
 import unicodedata
 
-from sqlalchemy import ColumnElement, false, select, update
+from sqlalchemy import ColumnElement, false, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from .models import Album, Artist, LibraryState, Track
+from . import artist_links
+from .models import Album, Artist, LibraryState, NameAlias, Track
 
 log = logging.getLogger(__name__)
 
@@ -70,12 +75,25 @@ def _escape(word: str) -> str:
     return word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def matches(column, q: str) -> list[ColumnElement[bool]]:
-    """Conditions for a query: each of its words somewhere in the column's search_text."""
+def matches(column, q: str, artist=None, db: Session | None = None) -> list[ColumnElement[bool]]:
+    """Conditions for a query: each of its words somewhere in the column's search_text, or (with
+    `artist`, a song's or album's artist id column, and `db`) among the other names of its artist.
+    Only artists with other names (looked up, or merged into them) are asked for: the others' name
+    is in the song's or album's own text already. Their ids go in as a list, so the indexes still serve."""
     words = list(dict.fromkeys(norm(q).split()))[:MAX_WORDS]
     if not words:  # only punctuation ("!!!"): nothing matches, rather than everything
         return [false()]
-    return [column.like(f"%{_escape(w)}%") for w in words]
+    out = []
+    for w in words:
+        pattern = f"%{_escape(w)}%"
+        ids = list(db.scalars(select(Artist.id).where(Artist.search_text.like(pattern), _has_other_names()))) if artist is not None and db is not None else []
+        out.append(or_(column.like(pattern), artist.in_(ids)) if ids else column.like(pattern))
+    return out
+
+
+def _has_other_names():
+    merged = select(NameAlias.target).where(NameAlias.kind == "artist")
+    return or_(func.coalesce(func.json_array_length(Artist.aliases), 0) > 0, Artist.name.in_(merged))
 
 
 # ---- building it ----
@@ -84,16 +102,32 @@ _rebuild_lock = threading.Lock()
 
 def index_albums_artists(db: Session) -> None:
     """Albums and artists (a few thousand rows: done whole after each scan or merge)."""
-    names = dict(db.execute(select(Artist.id, Artist.name)).all())
+    names = {}
+    others: dict[int, list[str]] = {}
+    for artist_id, name, aliases in db.execute(select(Artist.id, Artist.name, Artist.aliases)):
+        names[artist_id] = name
+        others[artist_id] = [a["name"] for a in aliases or [] if not a.get("hidden")]
+    merged: dict[str, list[str]] = {}
+    for old, target in db.execute(select(NameAlias.name, NameAlias.target).where(NameAlias.kind == "artist")):
+        merged.setdefault(target, []).append(old)
     rows = []
     for artist_id, name in names.items():
-        rows.append({"id": artist_id, "search_text": index_text(name)})
-    _write(db, Artist, rows)
+        sort_name, sort_own = artist_links.sort_keys(name, others[artist_id])
+        rows.append({"id": artist_id, "search_text": index_text(name, *others[artist_id], *merged.get(name, [])), "sort_name": sort_name, "sort_own": sort_own})
+    _write_artists(db, rows)
     rows = [
         {"id": album_id, "search_text": index_text(title, names.get(artist_id))}
         for album_id, title, artist_id in db.execute(select(Album.id, Album.title, Album.album_artist_id))
     ]
     _write(db, Album, rows)
+
+
+def _write_artists(db: Session, rows: list[dict]) -> None:
+    """Artists whose text or sort keys changed."""
+    current = {r[0]: r[1:] for r in db.execute(select(Artist.id, Artist.search_text, Artist.sort_name, Artist.sort_own))}
+    changed = [r for r in rows if current.get(r["id"]) != (r["search_text"], r["sort_name"], r["sort_own"])]
+    for i in range(0, len(changed), BATCH):
+        db.execute(update(Artist), changed[i : i + BATCH])
 
 
 def _write(db: Session, model, rows: list[dict]) -> None:

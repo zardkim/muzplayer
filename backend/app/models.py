@@ -84,13 +84,20 @@ class Artist(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
+    # how lists sort it (artist_links.sort_keys): by its Korean name when it has one (머라이어 캐리 under
+    # ㅁ), and by its own name; each starts with its script's place (한글, Latin, other, digits)
     sort_name: Mapped[str] = mapped_column(String(500), default="")
+    sort_own: Mapped[str] = mapped_column(String(500), default="", server_default="")
     bio: Mapped[str | None] = mapped_column(Text)
     # where the photo came from: folder:<rel> (artist.jpg in the artist folder) | deezer:<id> | none
     # (an admin removed it: not looked up again); NULL = no photo yet
     image_path: Mapped[str | None] = mapped_column(String(500))
     image_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # in the URL: new photo, new URL
     image_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last Deezer lookup
+    # its other names, so a search in either finds it (머라이어 캐리 / Mariah Carey; artist_aliases.py):
+    # [{"name", "source": musicbrainz | wikidata | bugs | manual, "hidden": bool}]; NULL = not looked up
+    aliases: Mapped[list | None] = mapped_column(JSON)
+    aliases_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # search_index.py
 
 
@@ -177,6 +184,18 @@ class Track(Base):
     # the last scan could not read the file again (it plays as it was read before): shown in lists
     scan_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class TrackArtist(Base):
+    """Every artist of a song, in order: the main ones, then the featured (artist_links.py: "윤슬 feat.
+    Marlow" is 윤슬 and Marlow). Track.artist_id stays the first main one, for the lists."""
+
+    __tablename__ = "track_artists"
+
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True)
+    artist_id: Mapped[int] = mapped_column(ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True, index=True)
+    position: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    role: Mapped[str] = mapped_column(String(8), default="main", server_default="main")  # main | feat
 
 
 class LibraryFolder(Base):
@@ -417,6 +436,8 @@ class LibraryState(Base):
     version: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     # how the search index was built (search_index.SEARCH_VERSION); a different one is rebuilt
     search_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # how songs were linked to their artists (artist_links.LINKS_VERSION); a different one is redone
+    links_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

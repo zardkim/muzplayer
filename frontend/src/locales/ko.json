@@ -154,6 +154,7 @@
     "playNext": "다음에 재생",
     "addToPlaylist": "플레이리스트에 추가",
     "goToAlbum": "앨범으로 이동",
+    "goToArtistNamed": "아티스트로 이동: {name}",
     "goToArtist": "아티스트로 이동",
     "remove": "제거",
     "moveUp": "위로",
@@ -258,6 +259,11 @@
     "sortRecent": "최근 추가"
   },
   "artists": {
+    "featured": "참여한 곡",
+    "sortKo": "가나다 (한글 이름 우선)",
+    "sortOwn": "표시 이름순",
+    "index": "첫 글자",
+    "indexEtc": "기타",
     "search": "아티스트 검색",
     "title": "아티스트",
     "albums": "앨범",
@@ -343,6 +349,20 @@
     "hint": "검색어를 입력하면 앨범·아티스트·곡·장르·폴더·차트·테마별로 결과를 보여 줍니다.",
     "matching": "{n}곡",
     "clear": "검색 지우기"
+  },
+  "aliases": {
+    "title": "다른 이름",
+    "shown": "다른 이름: {names}",
+    "help": "‘{name}’을(를) 이 이름들로도 검색할 수 있습니다. 자동으로 찾은 이름을 빼면 다음 조회에서도 다시 붙지 않습니다.",
+    "none": "아직 다른 이름이 없습니다.",
+    "add": "추가",
+    "addPlaceholder": "다른 이름 (예: 머라이어 캐리)",
+    "remove": "빼기",
+    "restore": "되살리기",
+    "source_musicbrainz": "MusicBrainz",
+    "source_wikidata": "Wikidata",
+    "source_bugs": "벅스",
+    "source_manual": "직접"
   },
   "favorites": {
     "title": "좋아요",
@@ -543,6 +563,11 @@
     "playerLogCopyFailed": "복사하지 못했습니다. 기록을 길게 눌러 선택해 복사해 주세요."
   },
   "admin": {
+    "aliases": "스캔 후 아티스트 다른 이름 찾기 (MusicBrainz·Wikidata·벅스: 머라이어 캐리 ↔ Mariah Carey)",
+    "aliasesStatus": "{artists}명 중 {checked}명 확인, {named}명에 다른 이름",
+    "aliasesRun": "지금 찾기",
+    "aliasesRunning": "찾는 중…",
+    "aliasesStarted": "아티스트 다른 이름을 찾기 시작했습니다",
     "notesProvider": "스캔 후 앨범 설명·별점 찾기",
     "notesProvider_bugs": "벅스 먼저 (다음 멜론)",
     "notesProvider_melon": "멜론 먼저 (다음 벅스)",

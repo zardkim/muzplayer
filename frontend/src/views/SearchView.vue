@@ -7,6 +7,7 @@ import { api, query } from '../api'
 import { appConfig } from '../config'
 import type { Album, Artist, Book, Genre, Page, Track, VideoListItem } from '../types'
 import { useSearchHistory } from '../searchHistory'
+import { aliasHit } from '../listSearch'
 import SearchBox from '../components/SearchBox.vue'
 import { useUi } from '../stores/ui'
 import VideoCard from '../components/VideoCard.vue'
@@ -125,7 +126,7 @@ function submit(q: string = text.value) {
           <button type="button" class="flex items-center gap-1 self-start text-lg font-bold" @click="pick('artists')">{{ t('search.tab_artists') }} <ChevronRight :size="18" :stroke-width="1.6" /></button>
           <div class="flex flex-wrap gap-2.5">
             <RouterLink v-for="a in artists.slice(0, 8)" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex h-11 items-center gap-2.5 rounded-full border border-line-strong pl-1.5 pr-[18px] font-light">
-              <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-8 flex-none" />{{ a.name }}
+              <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-8 flex-none" />{{ a.name }}<span v-if="aliasHit(a, q)" class="text-[13px] text-muted">{{ aliasHit(a, q) }}</span>
             </RouterLink>
           </div>
         </section>
@@ -157,7 +158,7 @@ function submit(q: string = text.value) {
             <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" size="thumb" class="w-full" />
             <span class="flex w-full min-w-0 flex-col">
               <span class="truncate text-[15px]">{{ a.name }}</span>
-              <span class="truncate text-[13px] font-light text-muted">{{ t('common.tracks', a.track_count) }}</span>
+              <span class="truncate text-[13px] font-light text-muted">{{ aliasHit(a, q) ?? t('common.tracks', a.track_count) }}</span>
             </span>
           </RouterLink>
         </li>

@@ -3,6 +3,7 @@ export interface Track {
   title: string
   artist: string
   artist_id: number | null
+  artists?: { id: number; name: string; role: 'main' | 'feat' }[] // every artist of it (feat. too), each its own page
   album: string
   album_id: number | null
   album_kind?: AlbumKind
@@ -62,6 +63,13 @@ export interface Artist {
   album_count: number
   track_count: number
   image_v: number // 0 = no photo
+  aliases?: string[] // its other names: a search may have found it by one
+}
+
+export interface AliasEntry {
+  name: string
+  source: 'musicbrainz' | 'wikidata' | 'bugs' | 'manual'
+  hidden: boolean
 }
 
 export interface ArtistDetail {
@@ -70,8 +78,11 @@ export interface ArtistDetail {
   image_v: number
   image_credit: { wiki: string; title: string; url: string } | null // a Wikipedia photo's article
   image_removed: boolean // an admin removed the photo: lookups leave it alone
+  aliases?: string[] // its other names (머라이어 캐리 for Mariah Carey)
+  alias_entries?: AliasEntry[] // with where each came from, and the hidden ones (admin)
   albums: Album[]
   tracks: Track[]
+  featured?: Track[] // songs it is in without being their main artist (feat., duets)
 }
 
 export interface ArtistImageCandidate {

@@ -310,7 +310,11 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                 <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
               </template>
               <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
-              <RouterLink v-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
+              <!-- each of its artists (feat. too); one: just "go to artist" -->
+              <template v-if="(track.artists?.length ?? 0) > 1">
+                <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="truncate px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtistNamed', { name: a.name }) }}</RouterLink>
+              </template>
+              <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
               <template v-if="editable">
                 <div class="my-1 border-t border-line" />
                 <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="16" />{{ t('common.moveUp') }}</button>

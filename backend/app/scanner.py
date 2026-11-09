@@ -20,13 +20,13 @@ from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, defer
 
-from . import search_index
+from . import artist_links, search_index
 from .lyrics import lyrics_in_tags
 from .config import settings
 from .db import SessionLocal
 from .models import (
     Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanIssue, ScanJob,
-    Track, TrackGenre, Video,
+    Track, TrackArtist, TrackGenre, Video,
 )
 
 log = logging.getLogger(__name__)
@@ -1001,8 +1001,10 @@ def _scan(job_id: int) -> None:
             .order_by(ScanJob.id.desc())
             .limit(1)
         )
-        if changed or last != "done" or scope is not None:
+        relinks = artist_links.outdated(db)  # an update changed how songs are linked to their artists
+        if changed or last != "done" or scope is not None or relinks:
             _link_chart_duplicates(db)
+            artist_links.relink(db)  # every song's artists (feat., collaborations), before pruning the unused
             pruned_albums = prune_orphans(db, cache.moves)
             update_album_quality(db)
         covers = _refresh_covers(db, root, reachable, cover_tries)
@@ -1010,6 +1012,8 @@ def _scan(job_id: int) -> None:
         from .artist_images import folder_images  # imports scanner helpers
 
         artists = folder_images(db, root)
+        if relinks:
+            artist_links.mark_done(db)
         if search_index.outdated(db):
             db.commit()
             search_index.rebuild(db)  # everything, once after an update that changed how it's built
@@ -1059,6 +1063,9 @@ def _scan(job_id: int) -> None:
         from . import album_notes  # (it imports this module)
 
         album_notes.lookup_missing()  # introductions for the albums without one
+        from . import artist_aliases
+
+        artist_aliases.lookup_missing()  # other names of the artists not looked up yet
 
 
 def _link_chart_duplicates(db: Session) -> None:
@@ -1142,7 +1149,10 @@ def prune_orphans(db: Session, moves: dict[int, int] | None = None) -> list[int]
     db.execute(delete(Chart).where(~exists().where(Track.chart_id == Chart.id)))
     gone_artists = db.scalars(
         delete(Artist)
-        .where(~exists().where(Track.artist_id == Artist.id), ~exists().where(Album.album_artist_id == Artist.id))
+        .where(
+            ~exists().where(Track.artist_id == Artist.id), ~exists().where(Album.album_artist_id == Artist.id),
+            ~exists().where(TrackArtist.artist_id == Artist.id),  # a featured artist (artist_links)
+        )
         .returning(Artist.id)
     ).all()
     for artist_id in gone_artists:  # their photos (artist_images.SIZES)

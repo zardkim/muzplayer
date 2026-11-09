@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Folder, Search } from '@lucide/vue'
 import { api, query } from '../api'
-import { listSearchFor } from '../listSearch'
+import { aliasHit, listSearchFor } from '../listSearch'
 import type { Album, Artist, Chart, Page, Track } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
@@ -96,7 +96,7 @@ const heading = 'flex items-center gap-1 self-start text-lg font-bold'
         <button type="button" :class="heading" @click="openTab('artists')">{{ t('nav.artists') }} <span class="text-[14px] font-normal text-muted">{{ artists.total }}</span><ChevronRight :size="18" :stroke-width="1.6" /></button>
         <div class="flex flex-wrap gap-2.5">
           <RouterLink v-for="a in artists.items" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex h-11 items-center gap-2.5 rounded-full border border-line-strong pl-1.5 pr-[18px] font-light">
-            <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-8 flex-none" />{{ a.name }}
+            <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-8 flex-none" />{{ a.name }}<span v-if="aliasHit(a, q)" class="text-[13px] text-muted">{{ aliasHit(a, q) }}</span>
           </RouterLink>
         </div>
       </section>

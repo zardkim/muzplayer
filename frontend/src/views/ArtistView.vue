@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Camera } from '@lucide/vue'
+import { Camera, PencilLine } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import type { ArtistDetail } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
+import AliasesSheet from '../components/AliasesSheet.vue'
 import ArtistPhotoSheet from '../components/ArtistPhotoSheet.vue'
 import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
@@ -18,6 +19,7 @@ const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const auth = useAuth()
 const photoSheet = ref(false)
+const aliasSheet = ref(false)
 const artist = ref<ArtistDetail | null>(null)
 const error = ref('')
 
@@ -59,6 +61,13 @@ function photoChanged() {
       <div class="flex min-w-0 flex-col gap-3 md:pb-2">
         <span class="text-[13px] font-medium uppercase tracking-[0.14em] text-muted">{{ t('artists.label') }}</span>
         <Marquee as="h1" :text="artist.name" class="text-[32px] font-bold leading-tight md:text-[44px]" />
+        <!-- its other names (a search in any of them finds it); an admin edits them -->
+        <span v-if="artist.aliases?.length || auth.user?.is_admin" class="-mt-1.5 flex items-center justify-center gap-1 text-[14px] font-light text-muted md:justify-start">
+          <span v-if="artist.aliases?.length" class="line-clamp-2">{{ t('aliases.shown', { names: artist.aliases.join(' · ') }) }}</span>
+          <button v-if="auth.user?.is_admin" type="button" class="flex h-8 flex-none items-center gap-1 rounded-full px-2 hover:bg-surface hover:text-ink" :aria-label="t('aliases.title')" :title="t('aliases.title')" @click="aliasSheet = true">
+            <PencilLine :size="14" :stroke-width="1.6" /><span v-if="!artist.aliases?.length">{{ t('aliases.title') }}</span>
+          </button>
+        </span>
         <span class="text-[15px] font-light text-muted">
           <template v-if="artist.albums.length">{{ t('common.albums', artist.albums.length) }} · </template>{{ t('common.tracks', artist.tracks.length) }}
         </span>
@@ -70,6 +79,7 @@ function photoChanged() {
         </a>
       </div>
     </header>
+    <AliasesSheet v-if="aliasSheet" :artist="artist" @close="aliasSheet = false" @changed="(names, entries) => artist && ((artist.aliases = names), (artist.alias_entries = entries))" />
     <ArtistPhotoSheet v-if="photoSheet" :artist="artist" @close="photoSheet = false" @changed="photoChanged" />
     <section v-if="official.length" class="flex flex-col gap-4">
       <SectionTitle :title="t('artists.albums')" />
@@ -82,6 +92,10 @@ function photoChanged() {
     <section v-if="artist.tracks.length" class="flex flex-col gap-1">
       <SectionTitle :title="t('artists.tracks')" />
       <TrackList :tracks="artist.tracks" />
+    </section>
+    <section v-if="artist.featured?.length" class="flex flex-col gap-4">
+      <SectionTitle :title="t('artists.featured')" />
+      <TrackList :tracks="artist.featured" show-album />
     </section>
   </div>
 </template>

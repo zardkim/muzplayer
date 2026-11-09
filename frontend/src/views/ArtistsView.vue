@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight } from '@lucide/vue'
+import { ArrowDownUp, ChevronRight } from '@lucide/vue'
 import { api, query } from '../api'
 import { useProgressive } from '../progressive'
 import type { Artist, Page, ViewMode } from '../types'
@@ -11,8 +11,9 @@ import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
 import ViewToggle from '../components/ViewToggle.vue'
 import LoadMore from '../components/LoadMore.vue'
+import SelectPill from '../components/SelectPill.vue'
 import { useUi } from '../stores/ui'
-import { useListSearch } from '../listSearch'
+import { aliasHit, useListSearch } from '../listSearch'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -26,15 +27,33 @@ const shown = useProgressive(() => items.value)
 
 const q = useListSearch(() => reload())
 let asked = 0
+// 가나다 by the Korean name when there is one (머라이어 캐리 under ㅁ), or by the name shown; and an index letter
+const sort = computed({
+  get: () => (ui.views.artistSort === 'own' ? 'own' : 'ko'),
+  set: (v: 'ko' | 'own') => {
+    ui.views = { ...ui.views, artistSort: v }
+    initial.value = ''
+    reload()
+  },
+})
+const initial = ref('')
+const initials = ref<string[]>([])
+function pickInitial(letter: string) {
+  initial.value = initial.value === letter ? '' : letter
+  reload()
+}
 
 async function load() {
   const mine = ++asked
   loading.value = true
   try {
-    const page = await api<Page<Artist>>(`/artists${query({ q: q.value.trim() || undefined, limit: 200, offset: items.value.length })}`)
+    const page = await api<Page<Artist> & { initials: string[] }>(
+      `/artists${query({ q: q.value.trim() || undefined, sort: sort.value, initial: initial.value || undefined, limit: 200, offset: items.value.length })}`,
+    )
     if (mine !== asked) return
     items.value.push(...page.items)
     total.value = page.total
+    initials.value = page.initials
   } finally {
     if (mine === asked) loading.value = false
   }
@@ -54,6 +73,21 @@ function reload() {
         <ViewToggle page="artists" fallback="grid" />
       </div>
     </LibraryHeader>
+    <div class="-mt-2 flex flex-col gap-3">
+      <SelectPill v-model="sort" class="self-start" :label="t('common.sort')" :icon="ArrowDownUp" :options="[{ value: 'ko', label: t('artists.sortKo') }, { value: 'own', label: t('artists.sortOwn') }]" />
+      <!-- index letters that have artists: one picked shows those alone -->
+      <nav v-if="initials.length > 1" :aria-label="t('artists.index')" class="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
+        <button
+          v-for="l in initials"
+          :key="l"
+          type="button"
+          class="h-8 min-w-8 flex-none rounded-full px-2 text-[14px]"
+          :class="initial === l ? 'bg-ink text-on-ink' : 'bg-surface hover:bg-surface-2'"
+          :aria-pressed="initial === l"
+          @click="pickInitial(l)"
+        >{{ l === 'etc' ? t('artists.indexEtc') : l }}</button>
+      </nav>
+    </div>
     <p v-if="!loading && !items.length && q.trim()" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <ul
       v-if="view !== 'list'"
@@ -65,7 +99,7 @@ function reload() {
           <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" :size="view === 'cover' ? 'large' : 'thumb'" class="w-full transition-transform duration-200 group-hover:scale-[1.03]" />
           <span class="flex w-full min-w-0 flex-col">
             <span class="truncate" :class="view === 'cover' ? 'text-[17px] font-medium' : 'text-[15px]'">{{ a.name }}</span>
-            <span class="truncate text-[13px] font-light text-muted">{{ t('common.tracks', a.track_count) }}</span>
+            <span class="truncate text-[13px] font-light text-muted">{{ aliasHit(a, q) ?? t('common.tracks', a.track_count) }}</span>
           </span>
         </RouterLink>
       </li>
@@ -76,7 +110,7 @@ function reload() {
           <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" class="size-11 flex-none" />
           <span class="flex min-w-0 flex-1 flex-col">
             <span class="truncate text-[17px]">{{ a.name }}</span>
-            <span class="text-sm font-light text-muted"><template v-if="a.album_count">{{ t('common.albums', a.album_count) }} · </template>{{ t('common.tracks', a.track_count) }}</span>
+            <span class="text-sm font-light text-muted"><template v-if="aliasHit(a, q)">{{ aliasHit(a, q) }} · </template><template v-if="a.album_count">{{ t('common.albums', a.album_count) }} · </template>{{ t('common.tracks', a.track_count) }}</span>
           </span>
           <ChevronRight :size="18" class="text-subtle" />
         </RouterLink>

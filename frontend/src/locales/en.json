@@ -154,6 +154,7 @@
     "playNext": "Play next",
     "addToPlaylist": "Add to playlist",
     "goToAlbum": "Go to album",
+    "goToArtistNamed": "Go to artist: {name}",
     "goToArtist": "Go to artist",
     "remove": "Remove",
     "moveUp": "Move up",
@@ -258,6 +259,11 @@
     "sortRecent": "Recently added"
   },
   "artists": {
+    "featured": "Appears on",
+    "sortKo": "A–Z (Korean name first)",
+    "sortOwn": "By name shown",
+    "index": "First letter",
+    "indexEtc": "Other",
     "search": "Search artists",
     "title": "Artists",
     "albums": "Albums",
@@ -343,6 +349,20 @@
     "hint": "Type to see what matches in albums, artists, songs, genres, folders, charts and themes.",
     "matching": "{n} songs",
     "clear": "Clear search"
+  },
+  "aliases": {
+    "title": "Other names",
+    "shown": "Also: {names}",
+    "help": "‘{name}’ is found by these names too. A name looked up and taken out isn't added back by later lookups.",
+    "none": "No other names yet.",
+    "add": "Add",
+    "addPlaceholder": "Another name (e.g. 머라이어 캐리)",
+    "remove": "Take out",
+    "restore": "Bring back",
+    "source_musicbrainz": "MusicBrainz",
+    "source_wikidata": "Wikidata",
+    "source_bugs": "Bugs",
+    "source_manual": "added"
   },
   "favorites": {
     "title": "Liked",
@@ -543,6 +563,11 @@
     "playerLogCopyFailed": "Couldn't copy. Press and hold the log to select and copy it."
   },
   "admin": {
+    "aliases": "Look up artists' other names after a scan (MusicBrainz, Wikidata, Bugs: 머라이어 캐리 ↔ Mariah Carey)",
+    "aliasesStatus": "{checked} of {artists} artists checked, {named} with other names",
+    "aliasesRun": "Look up now",
+    "aliasesRunning": "Looking up…",
+    "aliasesStarted": "Started looking up artists' other names",
     "notesProvider": "Album descriptions and ratings after a scan",
     "notesProvider_bugs": "Bugs first (then Melon)",
     "notesProvider_melon": "Melon first (then Bugs)",

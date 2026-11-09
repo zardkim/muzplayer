@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, album_notes, appconf, artist_images, merge, search_index, stats, youtube
+from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, merge, search_index, stats, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -559,6 +559,39 @@ def set_notes_provider(body: NotesProviderIn, _: User = Depends(admin_user)):
     """Where the albums without an introduction are looked up after a scan first (then the other), or off."""
     appconf.update({"notes_provider": body.provider})
     return {"provider": appconf.get("notes_provider")}
+
+
+# ---- artists' other names (artist_aliases.py) ----
+class AliasesSettingIn(BaseModel):
+    enabled: bool
+
+
+def aliases_status(db: Session) -> dict:
+    with_songs = select(Track.id).where(Track.artist_id == Artist.id, Track.missing_at.is_(None)).exists()
+    total, checked, named = db.execute(
+        select(func.count(), func.count(Artist.aliases_checked_at), func.count(Artist.id).filter(func.json_array_length(Artist.aliases) > 0))
+        .where(with_songs)
+    ).one()
+    return {"enabled": appconf.get("artist_aliases") != "off", "running": artist_aliases.running(), "artists": total, "checked": checked, "named": named}
+
+
+@router.get("/artist-aliases")
+def get_aliases_setting(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    return aliases_status(db)
+
+
+@router.put("/artist-aliases")
+def set_aliases_setting(body: AliasesSettingIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Whether artists' other names are looked up after a scan."""
+    appconf.update({"artist_aliases": "on" if body.enabled else "off"})
+    return aliases_status(db)
+
+
+@router.post("/artist-aliases/run")
+def run_aliases(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Looks up the artists not looked up yet now, without waiting for a scan."""
+    artist_aliases.lookup_missing()
+    return aliases_status(db)
 
 
 class NotesIn(BaseModel):
