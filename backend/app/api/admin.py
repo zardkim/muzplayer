@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, merge, search_index, stats, youtube
+from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, bugs_artists, merge, search_index, stats, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -517,7 +517,27 @@ def _kind(kind: str) -> str:
 def duplicates(kind: str, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Names that look like the same artist or genre (suggestions), and the merges made so far."""
     kind = _kind(kind)
-    return {"groups": merge.duplicates(db, kind), "merged": merge.aliases(db, kind)}
+    if kind == "artist":  # with why each group was suggested (merge.artist_duplicates)
+        groups = merge.artist_duplicates(db)
+    else:
+        groups = [{"items": g, "reasons": ["spelling"]} for g in merge.duplicates(db, kind)]
+    return {"groups": groups, "merged": merge.aliases(db, kind), "not_same": merge.not_same_list(db, kind)}
+
+
+class NotSameIn(BaseModel):
+    names: list[str] = Field(min_length=2, max_length=50)
+
+
+@router.post("/merge/{kind}/not-same", status_code=204)
+def not_same(kind: str, body: NotSameIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """These are different ones: not suggested together again."""
+    merge.mark_not_same(db, _kind(kind), body.names)
+
+
+@router.delete("/merge/{kind}/not-same", status_code=204)
+def forget_not_same(kind: str, a: str = Query(min_length=1, max_length=500), b: str = Query(min_length=1, max_length=500),
+                    _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    merge.forget_not_same(db, _kind(kind), a, b)
 
 
 @router.post("/merge/{kind}")
@@ -563,7 +583,9 @@ def set_notes_provider(body: NotesProviderIn, _: User = Depends(admin_user)):
 
 # ---- artists' other names (artist_aliases.py) ----
 class AliasesSettingIn(BaseModel):
-    enabled: bool
+    enabled: bool | None = None
+    names: str | None = Field(None, pattern="^(bugs|tag)$")  # artists shown by their Bugs name, or as tagged
+    auto_merge: bool | None = None  # artists linked to the same Bugs artist merged by themselves
 
 
 def aliases_status(db: Session) -> dict:
@@ -572,7 +594,10 @@ def aliases_status(db: Session) -> dict:
         select(func.count(), func.count(Artist.aliases_checked_at), func.count(Artist.id).filter(func.json_array_length(Artist.aliases) > 0))
         .where(with_songs)
     ).one()
-    return {"enabled": appconf.get("artist_aliases") != "off", "running": artist_aliases.running(), "artists": total, "checked": checked, "named": named}
+    return {
+        "enabled": appconf.get("artist_aliases") != "off", "running": artist_aliases.running(), "artists": total, "checked": checked, "named": named,
+        "names": appconf.get("artist_names"), "bugs": bugs_artists.stats(db), "auto_merge": appconf.get("artist_auto_merge") != "off",
+    }
 
 
 @router.get("/artist-aliases")
@@ -582,9 +607,24 @@ def get_aliases_setting(_: User = Depends(admin_user), db: Session = Depends(get
 
 @router.put("/artist-aliases")
 def set_aliases_setting(body: AliasesSettingIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
-    """Whether artists' other names are looked up after a scan."""
-    appconf.update({"artist_aliases": "on" if body.enabled else "off"})
+    """Whether artists' other names and Bugs links are looked up after a scan; which name is shown."""
+    if body.enabled is not None:
+        appconf.update({"artist_aliases": "on" if body.enabled else "off"})
+    if body.auto_merge is not None:
+        appconf.update({"artist_auto_merge": "on" if body.auto_merge else "off"})
+    if body.names is not None and body.names != appconf.get("artist_names"):
+        appconf.update({"artist_names": body.names})
+        search_index.index_albums_artists(db)  # sorted by the name shown
+        bump_library(db)  # cached lists carry the names
+        db.commit()
     return aliases_status(db)
+
+
+@router.get("/artist-bugs/unsure")
+def bugs_unsure(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Artists Bugs has several of under their name, none confirmed: for the admin to pick."""
+    rows = db.execute(select(Artist.id, Artist.name).where(Artist.bugs_source == "unsure").order_by(Artist.sort_name).limit(500)).all()
+    return {"items": [{"id": i, "name": n} for i, n in rows]}
 
 
 @router.post("/artist-aliases/run")

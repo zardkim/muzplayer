@@ -68,13 +68,42 @@ export interface Artist {
 
 export interface AliasEntry {
   name: string
-  source: 'musicbrainz' | 'wikidata' | 'bugs' | 'manual'
+  source: 'musicbrainz' | 'wikidata' | 'bugs' | 'manual' | 'merged'
   hidden: boolean
+}
+
+export interface BugsRef {
+  bugs_id: number
+  name: string
+  id?: number | null // ours, when the library has it
+}
+
+export interface BugsCandidate {
+  bugs_id: number
+  name: string
+  type: string // 솔로 (여성), 그룹 (남성)...
+}
+
+/** The artist on Bugs (bugs_artists.py) and what its page says. */
+export interface BugsInfo {
+  id?: number | null
+  source?: 'album' | 'search' | 'manual' | 'none' | 'unsure' | null
+  url?: string | null
+  type?: string
+  kind?: 'solo' | 'group'
+  country?: string
+  debut?: string
+  genre?: string
+  members?: BugsRef[]
+  groups?: BugsRef[]
+  candidates?: BugsCandidate[]
 }
 
 export interface ArtistDetail {
   id: number
   name: string
+  tag_name?: string // as its songs are tagged (name: Bugs' when linked and shown)
+  bugs?: BugsInfo | null
   image_v: number
   image_credit: { wiki: string; title: string; url: string } | null // a Wikipedia photo's article
   image_removed: boolean // an admin removed the photo: lookups leave it alone

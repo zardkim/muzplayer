@@ -9,26 +9,55 @@ import BaseModal from './BaseModal.vue'
 import SearchField from './SearchField.vue'
 
 // Admin: tidy up duplicate artists or genres (backend merge.py). Suggested groups of look-alike
-// names, a search to pick any names by hand, and the merges made so far (each can be undone).
+// names, each with why (artists: the same Bugs artist, another name of it, spelling, brackets) and
+// "different ones" to stop suggesting it; a search to pick any names by hand; the merges made so
+// far (each can be undone). Artists: whether the same Bugs artist is merged by itself.
 const props = defineProps<{ kind: 'artist' | 'genre' }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 const { t } = useI18n()
 const ui = useUi()
 
-interface Name { id: number; name: string; songs: number }
-interface Group { items: Name[]; keep: number; picked: Set<number> }
+interface Name { id: number; name: string; songs: number; shown?: string | null; bugs_id?: number | null; type?: string | null }
+type Reason = 'bugs' | 'alias' | 'spelling' | 'paren'
+interface Group { items: Name[]; reasons: Reason[]; keep: number; picked: Set<number> }
 const groups = ref<Group[]>([])
 const merged = ref<{ name: string; target: string }[]>([])
+const notSame = ref<{ a: string; b: string }[]>([])
+const autoMerge = ref<boolean | null>(null)
 const loaded = ref(false)
 const busy = ref(false)
 
 async function load() {
-  const r = await api<{ groups: Name[][]; merged: { name: string; target: string }[] }>(`/admin/duplicates/${props.kind}`)
-  groups.value = r.groups.map((items) => reactive({ items, keep: items[0].id, picked: new Set(items.map((x) => x.id)) }))
+  const r = await api<{ groups: { items: Name[]; reasons: Reason[] }[]; merged: { name: string; target: string }[]; not_same: { a: string; b: string }[] }>(
+    `/admin/duplicates/${props.kind}`,
+  )
+  groups.value = r.groups.map((g) => reactive({ ...g, keep: g.items[0].id, picked: new Set(g.items.map((x) => x.id)) }))
   merged.value = r.merged
+  notSame.value = r.not_same
   loaded.value = true
 }
-onMounted(() => load().catch((e) => ui.notify(errorMessage(e), true)))
+onMounted(() => {
+  load().catch((e) => ui.notify(errorMessage(e), true))
+  if (props.kind === 'artist') api<{ auto_merge: boolean }>('/admin/artist-aliases').then((r) => (autoMerge.value = r.auto_merge)).catch(() => {})
+})
+async function setAutoMerge(on: boolean) {
+  autoMerge.value = (await api<{ auto_merge: boolean }>('/admin/artist-aliases', { method: 'PUT', body: { auto_merge: on } })).auto_merge
+}
+async function different(g: Group) {
+  busy.value = true
+  try {
+    await api(`/admin/merge/${props.kind}/not-same`, { method: 'POST', body: { names: g.items.filter((x) => g.picked.has(x.id)).map((x) => x.name) } })
+    await load()
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  } finally {
+    busy.value = false
+  }
+}
+async function forget(p: { a: string; b: string }) {
+  await api(`/admin/merge/${props.kind}/not-same${query(p)}`, { method: 'DELETE' }).catch((e) => ui.notify(errorMessage(e), true))
+  await load()
+}
 
 async function run(keep: number, ids: number[]) {
   busy.value = true
@@ -101,6 +130,10 @@ const songs = (n: number) => t('common.tracks', n)
   <BaseModal :title="title" @close="emit('close')">
     <div class="flex flex-col gap-6">
       <p class="text-[13px] font-light leading-relaxed text-muted">{{ t('merge.intro') }}</p>
+      <label v-if="autoMerge !== null" class="flex items-start gap-2.5 text-[14px]">
+        <input type="checkbox" :checked="autoMerge" class="mt-0.5 size-4 flex-none accent-accent" @change="setAutoMerge(($event.target as HTMLInputElement).checked)" />
+        <span>{{ t('merge.autoMerge') }}<span class="block text-[12px] font-light text-muted">{{ t('merge.autoMergeHelp') }}</span></span>
+      </label>
 
       <!-- by hand -->
       <section class="flex flex-col gap-2.5">
@@ -129,15 +162,27 @@ const songs = (n: number) => t('common.tracks', n)
         <h3 class="font-medium">{{ t('merge.suggested') }}<span v-if="groups.length" class="text-muted"> {{ groups.length }}</span></h3>
         <p v-if="loaded && !groups.length" class="text-[14px] font-light text-muted">{{ t('merge.none') }}</p>
         <div v-for="(g, gi) in groups" :key="g.items[0].id" class="flex flex-col gap-1 rounded-2xl border border-line p-3">
+          <!-- why these were put together -->
+          <div class="mb-1 flex flex-wrap gap-1">
+            <span v-for="r in g.reasons" :key="r" class="rounded-full px-2 py-0.5 text-[11px]" :class="r === 'bugs' ? 'bg-accent-soft text-accent' : 'bg-surface text-muted'">{{ t(`merge.reason_${r}`) }}</span>
+          </div>
           <div v-for="x in g.items" :key="x.id" class="flex items-center gap-3 py-1">
             <input v-model="g.keep" type="radio" :value="x.id" :name="`merge-keep-${gi}`" class="size-4 flex-none accent-accent" :aria-label="t('merge.keepThis', { name: x.name })" @change="g.picked.add(x.id)" />
-            <span class="min-w-0 flex-1 truncate text-[15px]" :class="g.picked.has(x.id) ? '' : 'text-muted line-through'">{{ x.name }} <span class="text-[13px] text-muted no-underline">· {{ songs(x.songs) }}</span></span>
+            <span class="min-w-0 flex-1 truncate text-[15px]" :class="g.picked.has(x.id) ? '' : 'text-muted line-through'">
+              {{ x.name }}<span v-if="x.shown && x.shown !== x.name" class="text-[13px] text-muted"> ({{ t('merge.bugsName', { name: x.shown }) }})</span>
+              <span class="text-[13px] text-muted no-underline"> · {{ songs(x.songs) }}<template v-if="x.type"> · {{ x.type }}</template></span>
+            </span>
             <input v-if="x.id !== g.keep" type="checkbox" :checked="g.picked.has(x.id)" class="size-4 flex-none accent-accent" :aria-label="t('merge.include', { name: x.name })" @change="toggle(g, x.id)" />
             <span v-else class="flex-none text-[12px] text-accent">{{ t('merge.kept') }}</span>
           </div>
-          <button type="button" class="mt-1 h-9 self-start rounded-full border border-ink px-4 text-[14px] disabled:opacity-50" :disabled="busy || g.picked.size < 2" @click="run(g.keep, [...g.picked])">
-            {{ t('merge.mergeInto', { name: g.items.find((x) => x.id === g.keep)?.name }) }}
-          </button>
+          <div class="mt-1 flex flex-wrap gap-2">
+            <button type="button" class="h-9 rounded-full border border-ink px-4 text-[14px] disabled:opacity-50" :disabled="busy || g.picked.size < 2" @click="run(g.keep, [...g.picked])">
+              {{ t('merge.mergeInto', { name: g.items.find((x) => x.id === g.keep)?.name }) }}
+            </button>
+            <button type="button" class="h-9 rounded-full border border-line-strong px-4 text-[14px] text-muted hover:text-ink disabled:opacity-50" :disabled="busy || g.picked.size < 2" @click="different(g)">
+              {{ t('merge.different') }}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -149,6 +194,15 @@ const songs = (n: number) => t('common.tracks', n)
           <button type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] disabled:opacity-50" :disabled="busy" @click="undo(m.name)">{{ t('merge.undo') }}</button>
         </div>
         <p class="text-[12px] font-light text-muted">{{ t('merge.undoHelp') }}</p>
+      </section>
+
+      <!-- said to be different: not suggested together -->
+      <section v-if="notSame.length" class="flex flex-col gap-1.5">
+        <h3 class="font-medium">{{ t('merge.notSame') }}</h3>
+        <div v-for="p in notSame" :key="`${p.a}|${p.b}`" class="flex items-center gap-3 py-1 text-[14px]">
+          <span class="min-w-0 flex-1 truncate">{{ p.a }} <span class="text-muted">≠ {{ p.b }}</span></span>
+          <button type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px]" @click="forget(p)">{{ t('merge.undo') }}</button>
+        </div>
       </section>
     </div>
   </BaseModal>

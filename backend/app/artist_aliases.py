@@ -224,11 +224,21 @@ def _lookup() -> None:
                     artist.aliases_checked_at = datetime.now(UTC)
                 db.commit()
                 time.sleep(MB_PAUSE)
-            if changed:
+            # then their Bugs names, solo or group, members (bugs_artists.py)
+            from . import bugs_artists
+
+            linked = bugs_artists.run(db)
+            # those now linked to the same Bugs artist: one (merge.auto_merge, unless the admin turned it off)
+            from . import merge
+
+            merged = merge.auto_merge(db)
+            if merged:
+                log.info("artist aliases: %d artists merged into the same Bugs artist", merged)
+            if changed or linked:
                 search_index.index_albums_artists(db)
                 bump_library(db)
                 db.commit()
-                log.info("artist aliases: %d artists got other names", changed)
+                log.info("artist aliases: %d artists got other names, %d linked to Bugs", changed, linked)
     except Exception:  # noqa: BLE001 - a lookup that fails must not touch anything else
         log.exception("artist aliases lookup failed")
     finally:

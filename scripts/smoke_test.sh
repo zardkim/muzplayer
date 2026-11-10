@@ -236,7 +236,7 @@ check "statistics admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' 
 
 # duplicate artists/genres and album descriptions: admin only
 check "duplicate names admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/duplicates/artist")" 403
-check "duplicate name suggestions" "$(curl -s -b "$A" "$BASE/admin/duplicates/genre" | j 'sorted(d)')" "['groups', 'merged']"
+check "duplicate name suggestions" "$(curl -s -b "$A" "$BASE/admin/duplicates/genre" | j 'sorted(d)')" "['groups', 'merged', 'not_same']"
 check "merge with unknown id refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/merge/artist" -H 'content-type: application/json' -d '{"keep":2147483000,"ids":[2147483001]}')" 404
 check "album description admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X PUT "$BASE/admin/albums/$aid/notes" -H 'content-type: application/json' -d '{"text":"x"}')" 403
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/albums/$aid/notes" -H 'content-type: application/json' -d '{"text":"smoke 소개\n둘째 줄"}'

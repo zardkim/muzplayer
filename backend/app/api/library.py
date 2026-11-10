@@ -1,6 +1,7 @@
 import mimetypes
 import os
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -11,7 +12,7 @@ from sqlalchemy import Select, and_, case, exists, func, literal_column, or_, se
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session, aliased
 
-from .. import album_notes, artist_aliases, artist_images, artist_links, lyrics_fetch, search_index, transcode
+from .. import album_notes, appconf, artist_aliases, artist_images, artist_links, bugs_artists, lyrics_fetch, search_index, transcode
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
@@ -69,7 +70,7 @@ def track_query(user_id: int) -> Select:
     # every artist of the song (artist_links), each its own link: [{"id", "name", "role"}]
     artists = (
         select(func.json_agg(aggregate_order_by(
-            func.json_build_object("id", Artist.id, "name", Artist.name, "role", TrackArtist.role), TrackArtist.position,
+            func.json_build_object("id", Artist.id, "name", shown_name(), "role", TrackArtist.role), TrackArtist.position,
         )))
         .select_from(TrackArtist).join(Artist, Artist.id == TrackArtist.artist_id)
         .where(TrackArtist.track_id == Track.id)
@@ -85,12 +86,20 @@ def track_query(user_id: int) -> Select:
     )
 
 
+def artists_text(artists: list[dict]) -> str:
+    main = [a["name"] for a in artists if a.get("role") != "feat"]
+    feat = [a["name"] for a in artists if a.get("role") == "feat"]
+    return ", ".join(main) + (f" (feat. {', '.join(feat)})" if feat else "")
+
+
 def track_out(row) -> dict:
     track, album_title, cover_path, album_kind, is_favorite, cover_version, rating, has_video, album_year, has_lyrics, artists = row
     return {
         "id": track.id,
         "title": track.title,
-        "artist": track.artist_text,
+        # with Bugs names on, the song's linked artists in them ("A, B (feat. C)"); else as tagged
+        "artist": artists_text(artists) if artists and bugs_names() else track.artist_text,
+        "tag_artist": track.artist_text,
         "artist_id": track.artist_id,
         "artists": artists or [],
         "album": album_title or "",
@@ -238,14 +247,25 @@ def list_folder(
     return {"path": path, "folders": listing["folders"], "tracks": [rows[i] for i in ids if i in rows]}
 
 
+def bugs_names() -> bool:
+    """Artists shown by their Bugs name (bugs_artists.py) rather than the tag's (admin setting)."""
+    return appconf.get("artist_names") != "tag"
+
+
+def shown_name(model=Artist):
+    """The artist's name as the app shows it."""
+    return func.coalesce(model.display_name, model.name) if bugs_names() else model.name
+
+
 def album_list_query(conds) -> Select:
     count = func.count(Track.id)
+    artist = shown_name(AlbumArtist)
     return (
-        select(Album, AlbumArtist.name, count.label("track_count"))
+        select(Album, artist, count.label("track_count"))
         .join(Track, and_(Track.album_id == Album.id, present_tracks()))
         .outerjoin(AlbumArtist, AlbumArtist.id == Album.album_artist_id)
         .where(*conds)
-        .group_by(Album.id, AlbumArtist.name)
+        .group_by(Album.id, artist)
     )
 
 
@@ -288,7 +308,7 @@ def list_albums(
     order = {
         "recent": [Album.created_at.desc()],
         "title": [func.lower(Album.title)],
-        "artist": [func.lower(AlbumArtist.name), Album.year],
+        "artist": [func.lower(shown_name(AlbumArtist)), Album.year],
         "year": [Album.year.desc().nulls_last()],
         "rating": [AlbumRating.rating.desc()],
     }[sort]
@@ -449,7 +469,8 @@ def list_artists(
         initials = sorted({artist_links.initial_of(k) for k in keys}, key=artist_links.INITIALS.index)
         return {
             "items": [
-                {"id": a.id, "name": a.name, "album_count": n_albums, "track_count": n_tracks, "image_v": image_v(a), "aliases": artist_aliases.visible(a)}
+                {"id": a.id, "name": (a.display_name or a.name) if bugs_names() else a.name, "album_count": n_albums, "track_count": n_tracks,
+                 "image_v": image_v(a), "aliases": others_than_shown(a)}
                 for a, n_albums, n_tracks in rows
             ],
             "total": total,
@@ -513,11 +534,13 @@ def get_artist(artist_id: int, user: User = Depends(current_user), db: Session =
     )
     return {
         "id": artist.id,
-        "name": artist.name,
+        "name": (artist.display_name or artist.name) if bugs_names() else artist.name,
+        "tag_name": artist.name,  # as its songs are tagged
+        "bugs": bugs_out(db, artist),
         "image_v": image_v(artist),
         "image_credit": image_credit(artist),
         "image_removed": artist.image_path == "none",
-        "aliases": artist_aliases.visible(artist),
+        "aliases": others_than_shown(artist),
         "alias_entries": artist.aliases or [],  # with where each came from and the hidden ones (the admin's editor)
         "albums": [album_out(a) for a in albums],
         "tracks": [track_out(t) for t in tracks],
@@ -552,6 +575,66 @@ def set_aliases(artist_id: int, body: AliasesIn, _: User = Depends(admin_user), 
     bump_library(db)
     db.commit()
     return {"aliases": artist_aliases.visible(artist), "alias_entries": out}
+
+
+def others_than_shown(artist: Artist) -> list[str]:
+    """Its other names, less the one shown (its Bugs name may be one of them)."""
+    shown = search_index.norm((artist.display_name or artist.name) if bugs_names() else artist.name)
+    return [a for a in artist_aliases.visible(artist) if search_index.norm(a) != shown]
+
+
+def bugs_out(db: Session, artist: Artist) -> dict | None:
+    """Its Bugs link and what its page says, members and groups pointing at ours when we have them."""
+    info = dict(artist.info or {})
+    if artist.bugs_id is None and not info.get("candidates"):
+        return {"source": artist.bugs_source} if artist.bugs_source else None
+    wanted = {m["bugs_id"] for k in ("members", "groups") for m in info.get(k, [])}
+    ours = dict(db.execute(select(Artist.bugs_id, Artist.id).where(Artist.bugs_id.in_(wanted))).all()) if wanted else {}
+    for k in ("members", "groups"):
+        info[k] = [{**m, "id": ours.get(m["bugs_id"])} for m in info.get(k, [])]
+    return {"id": artist.bugs_id, "source": artist.bugs_source, "url": f"https://music.bugs.co.kr/artist/{artist.bugs_id}" if artist.bugs_id else None, **info}
+
+
+class BugsLinkIn(BaseModel):
+    bugs_id: int | None = None  # the Bugs artist; None with none=False: unlinked (looked up again)
+    none: bool = False  # not on Bugs: not looked up again
+
+
+@router.get("/artists/{artist_id}/bugs")
+def bugs_candidates(artist_id: int, q: str = Query("", max_length=200), _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Bugs' artists for a name (the artist's own to begin with), to link one by hand."""
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    try:
+        return {"items": bugs_artists.candidates(q.strip() or artist.name)}
+    except bugs_artists.Unreachable:
+        raise api_error(503, "bugs_unreachable") from None
+
+
+@router.put("/artists/{artist_id}/bugs")
+def set_bugs(artist_id: int, body: BugsLinkIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """An admin's link: this Bugs artist (its page read now), none (not on Bugs), or unlinked."""
+    artist = db.get(Artist, artist_id)
+    if artist is None:
+        raise api_error(404, "not_found")
+    if body.bugs_id is not None:
+        try:
+            page = bugs_artists.read_page(body.bugs_id)
+        except bugs_artists.Unreachable:
+            raise api_error(503, "bugs_unreachable") from None
+        artist.bugs_id, artist.bugs_source = body.bugs_id, "manual"
+        bugs_artists.apply_page(artist, page)
+    else:
+        artist.bugs_id, artist.display_name = None, None
+        artist.bugs_source = "none" if body.none else None
+        artist.bugs_checked_at = datetime.now(UTC) if body.none else None
+        artist.info = None
+    db.commit()
+    search_index.index_albums_artists(db)
+    bump_library(db)
+    db.commit()
+    return get_artist(artist_id, user, db)
 
 
 @router.get("/genres")
@@ -676,7 +759,7 @@ def search_suggest(
     conds_t = search_index.matches(Track.search_text, q)
     has_songs = exists().where(Track.artist_id == Artist.id, present_tracks(), Track.chart_id.is_(None)).correlate(Artist)
     found: list[tuple[str, str, str]] = []  # (text, kind, under it)
-    found += [(n, "artist", "") for (n,) in db.execute(select(Artist.name).where(has_songs, *conds_a).limit(limit * 3))]
+    found += [(n, "artist", "") for (n,) in db.execute(select(shown_name()).where(has_songs, *conds_a).limit(limit * 3))]
     found += [
         (title, "album", artist or "")
         for title, artist in db.execute(

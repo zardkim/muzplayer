@@ -102,21 +102,26 @@ _rebuild_lock = threading.Lock()
 
 def index_albums_artists(db: Session) -> None:
     """Albums and artists (a few thousand rows: done whole after each scan or merge)."""
+    from . import appconf  # (appconf reads files only; imported here to keep this module's imports light)
+
+    bugs_names = appconf.get("artist_names") != "tag"
     names = {}
+    shown: dict[int, str] = {}  # the name the app shows: Bugs' (bugs_artists) or the tag's
     others: dict[int, list[str]] = {}
-    for artist_id, name, aliases in db.execute(select(Artist.id, Artist.name, Artist.aliases)):
+    for artist_id, name, aliases, display in db.execute(select(Artist.id, Artist.name, Artist.aliases, Artist.display_name)):
         names[artist_id] = name
-        others[artist_id] = [a["name"] for a in aliases or [] if not a.get("hidden")]
+        shown[artist_id] = (display if bugs_names and display else name)
+        others[artist_id] = [a["name"] for a in aliases or [] if not a.get("hidden")] + ([display] if display and display != name else [])
     merged: dict[str, list[str]] = {}
     for old, target in db.execute(select(NameAlias.name, NameAlias.target).where(NameAlias.kind == "artist")):
         merged.setdefault(target, []).append(old)
     rows = []
     for artist_id, name in names.items():
-        sort_name, sort_own = artist_links.sort_keys(name, others[artist_id])
+        sort_name, sort_own = artist_links.sort_keys(shown[artist_id], others[artist_id] + [name])
         rows.append({"id": artist_id, "search_text": index_text(name, *others[artist_id], *merged.get(name, [])), "sort_name": sort_name, "sort_own": sort_own})
     _write_artists(db, rows)
     rows = [
-        {"id": album_id, "search_text": index_text(title, names.get(artist_id))}
+        {"id": album_id, "search_text": index_text(title, names.get(artist_id), shown.get(artist_id) if shown.get(artist_id) != names.get(artist_id) else None)}
         for album_id, title, artist_id in db.execute(select(Album.id, Album.title, Album.album_artist_id))
     ]
     _write(db, Album, rows)

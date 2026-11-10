@@ -24,7 +24,9 @@ DEFAULTS = {
     "youtube_api_key": "",
     "signup": "off",  # off | approval (an admin approves each new account) | open
     "notes_provider": "bugs",  # album introductions looked up after a scan: bugs | melon (first) | off
-    "artist_aliases": "on",  # artists' other names looked up after a scan (artist_aliases.py): on | off
+    "artist_aliases": "on",
+    "artist_names": "bugs",
+    "artist_auto_merge": "on",  # artists linked to the same Bugs artist merged by themselves (merge.auto_merge)  # artists shown by their Bugs name when linked (bugs_artists.py) | tag: as tagged  # artists' other names looked up after a scan (artist_aliases.py): on | off
 }
 SECRETS = ("gemini_api_key", "openai_api_key", "youtube_api_key")
 DEFAULT_MODELS = {"gemini": "gemini-nano-banana-2.1", "openai": "gpt-image-2.5-flare"}

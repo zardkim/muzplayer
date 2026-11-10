@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Camera, PencilLine } from '@lucide/vue'
+import { Camera, Link2, PencilLine } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
@@ -9,6 +9,7 @@ import type { ArtistDetail } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
 import ArtistPhoto from '../components/ArtistPhoto.vue'
 import AliasesSheet from '../components/AliasesSheet.vue'
+import BugsLinkSheet from '../components/BugsLinkSheet.vue'
 import ArtistPhotoSheet from '../components/ArtistPhotoSheet.vue'
 import PlayActions from '../components/PlayActions.vue'
 import TrackList from '../components/TrackList.vue'
@@ -20,6 +21,12 @@ const { t } = useI18n()
 const auth = useAuth()
 const photoSheet = ref(false)
 const aliasSheet = ref(false)
+const bugsSheet = ref(false)
+// what Bugs says of it: 그룹 (여성) · 대한민국 · 2015 · 댄스/팝
+const bugsLine = computed(() => {
+  const b = artist.value?.bugs
+  return b?.id ? [b.type, b.country, b.debut && t('bugs.debut', { year: b.debut }), b.genre].filter(Boolean).join(' · ') : ''
+})
 const artist = ref<ArtistDetail | null>(null)
 const error = ref('')
 
@@ -68,6 +75,14 @@ function photoChanged() {
             <PencilLine :size="14" :stroke-width="1.6" /><span v-if="!artist.aliases?.length">{{ t('aliases.title') }}</span>
           </button>
         </span>
+        <!-- Bugs: solo or group, country, debut; an admin links it -->
+        <span v-if="bugsLine || auth.user?.is_admin" class="-mt-1.5 flex items-center justify-center gap-1 text-[14px] font-light text-muted md:justify-start">
+          <a v-if="bugsLine" :href="artist.bugs!.url!" target="_blank" rel="noopener" class="hover:text-ink hover:underline">{{ bugsLine }}</a>
+          <button v-if="auth.user?.is_admin" type="button" class="flex h-8 flex-none items-center gap-1 rounded-full px-2 hover:bg-surface hover:text-ink" :aria-label="t('bugs.linkTitle')" :title="t('bugs.linkTitle')" @click="bugsSheet = true">
+            <Link2 :size="14" :stroke-width="1.6" /><span v-if="!bugsLine">{{ artist.bugs?.source === 'unsure' ? t('bugs.unsure') : artist.bugs?.source === 'none' ? t('bugs.none') : t('bugs.linkTitle') }}</span>
+          </button>
+        </span>
+        <span v-if="artist.tag_name && artist.tag_name !== artist.name" class="-mt-1.5 text-[13px] font-light text-subtle">{{ t('bugs.tagged', { name: artist.tag_name }) }}</span>
         <span class="text-[15px] font-light text-muted">
           <template v-if="artist.albums.length">{{ t('common.albums', artist.albums.length) }} · </template>{{ t('common.tracks', artist.tracks.length) }}
         </span>
@@ -79,6 +94,17 @@ function photoChanged() {
         </a>
       </div>
     </header>
+    <!-- a group's members, a singer's groups (Bugs): ours are links -->
+    <section v-for="part in (['members', 'groups'] as const)" v-show="artist.bugs?.[part]?.length" :key="part" class="flex flex-col gap-3">
+      <SectionTitle :title="t(`bugs.${part}`)" />
+      <div class="flex flex-wrap gap-2">
+        <template v-for="m in artist.bugs?.[part] ?? []" :key="m.bugs_id">
+          <RouterLink v-if="m.id" :to="{ name: 'artist', params: { id: m.id } }" class="flex h-10 items-center rounded-full border border-line-strong px-4 text-[15px] hover:border-ink">{{ m.name }}</RouterLink>
+          <span v-else class="flex h-10 items-center rounded-full bg-surface px-4 text-[15px] font-light text-muted">{{ m.name }}</span>
+        </template>
+      </div>
+    </section>
+    <BugsLinkSheet v-if="bugsSheet" :artist="artist" @close="bugsSheet = false" @changed="(a) => (artist = a)" />
     <AliasesSheet v-if="aliasSheet" :artist="artist" @close="aliasSheet = false" @changed="(names, entries) => artist && ((artist.aliases = names), (artist.alias_entries = entries))" />
     <ArtistPhotoSheet v-if="photoSheet" :artist="artist" @close="photoSheet = false" @changed="photoChanged" />
     <section v-if="official.length" class="flex flex-col gap-4">

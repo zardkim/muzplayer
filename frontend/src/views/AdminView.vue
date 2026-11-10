@@ -290,12 +290,21 @@ type NotesProvider = 'bugs' | 'melon' | 'off'
 const notesProvider = ref<NotesProvider>('bugs')
 api<{ provider: NotesProvider }>('/admin/notes-provider').then((r) => (notesProvider.value = r.provider)).catch(() => {})
 // artists' other names (머라이어 캐리 for Mariah Carey), looked up after a scan or now
-type AliasStatus = { enabled: boolean; running: boolean; artists: number; checked: number; named: number }
+type AliasStatus = {
+  enabled: boolean; running: boolean; artists: number; checked: number; named: number
+  names: 'bugs' | 'tag'; bugs: { linked: number; unsure: number; none: number; pending: number }
+}
 const aliasStatus = ref<AliasStatus | null>(null)
 api<AliasStatus>('/admin/artist-aliases').then((r) => (aliasStatus.value = r)).catch(() => {})
 async function setAliases(enabled: boolean) {
   aliasStatus.value = await api<AliasStatus>('/admin/artist-aliases', { method: 'PUT', body: { enabled } })
 }
+async function setNames(names: 'bugs' | 'tag') {
+  aliasStatus.value = await api<AliasStatus>('/admin/artist-aliases', { method: 'PUT', body: { names } })
+}
+// artists Bugs has several of under their name (bugs_artists.py): the admin picks on their page
+const unsure = ref<{ id: number; name: string }[]>([])
+api<{ items: { id: number; name: string }[] }>('/admin/artist-bugs/unsure').then((r) => (unsure.value = r.items)).catch(() => {})
 async function runAliases() {
   aliasStatus.value = await api<AliasStatus>('/admin/artist-aliases/run', { method: 'POST' })
   ui.notify(t('admin.aliasesStarted'))
@@ -460,6 +469,22 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           {{ aliasStatus.running ? t('admin.aliasesRunning') : t('admin.aliasesRun') }}
         </button>
       </div>
+      <div v-if="aliasStatus" class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <label class="flex flex-wrap items-center gap-2.5">
+          {{ t('admin.artistNames') }}
+          <select :value="aliasStatus.names" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setNames(($event.target as HTMLSelectElement).value as 'bugs' | 'tag')">
+            <option value="bugs">{{ t('admin.artistNames_bugs') }}</option>
+            <option value="tag">{{ t('admin.artistNames_tag') }}</option>
+          </select>
+        </label>
+        <span class="text-[13px] text-muted">{{ t('admin.bugsStatus', aliasStatus.bugs) }}</span>
+      </div>
+      <details v-if="unsure.length" class="text-sm">
+        <summary class="cursor-pointer text-[13px] text-muted">{{ t('admin.bugsUnsure') }} ({{ unsure.length }})</summary>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <RouterLink v-for="a in unsure" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex h-8 items-center rounded-full border border-line-strong px-3 text-[13px] hover:border-ink">{{ a.name }}</RouterLink>
+        </div>
+      </details>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <button type="button" class="text-[13px] text-muted underline disabled:opacity-50" :disabled="job?.status === 'running'" @click="rebuildCovers">
           {{ t('admin.rebuildCovers') }}

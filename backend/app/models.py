@@ -98,6 +98,14 @@ class Artist(Base):
     # [{"name", "source": musicbrainz | wikidata | bugs | manual, "hidden": bool}]; NULL = not looked up
     aliases: Mapped[list | None] = mapped_column(JSON)
     aliases_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # the same artist on Bugs (bugs_artists.py): its name there, shown instead of the tag's when the
+    # admin says so (appconf artist_names), and what its page says: {"type", "kind" (solo | group),
+    # "country", "debut", "genre", "members"/"groups": [{"bugs_id", "name"}]} (+ "candidates" while unsure)
+    bugs_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    display_name: Mapped[str | None] = mapped_column(String(500))
+    bugs_source: Mapped[str | None] = mapped_column(String(16))  # album | search | manual | none (not on Bugs) | unsure
+    bugs_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    info: Mapped[dict | None] = mapped_column(JSON)
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # search_index.py
 
 
@@ -133,6 +141,7 @@ class Album(Base):
     # {"melon": {"id", "score" (of 5), "count"}, "bugs": {"id", "likes"}} (Bugs has no stars); {} = found on neither
     site_ratings: Mapped[dict | None] = mapped_column(JSON)
     site_ratings_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bugs_artists_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # its songs' artists read off its Bugs page
     search_text: Mapped[str] = mapped_column(Text, default="", server_default="")  # title and artist (search_index.py)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -246,6 +255,18 @@ class NameAlias(Base):
     kind: Mapped[str] = mapped_column(String(16), primary_key=True)  # artist | genre
     name: Mapped[str] = mapped_column(String(500), primary_key=True)
     target: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MergeNotSame(Base):
+    """Two names an admin said are different artists (or genres): never suggested as duplicates
+    (merge.py). By name, which outlives the ids a rescan may change; a < b."""
+
+    __tablename__ = "merge_not_same"
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    a: Mapped[str] = mapped_column(String(500), primary_key=True)
+    b: Mapped[str] = mapped_column(String(500), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
