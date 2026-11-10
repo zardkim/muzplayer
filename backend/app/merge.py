@@ -3,7 +3,8 @@
 Artists are suggested by what says they are one (artist_duplicates), each group with its reasons:
 the same Bugs artist (bugs_artists.py; merged by themselves when appconf artist_auto_merge is on),
 a name the other is also known by (artist_aliases), the same name spelled apart, or the name in the
-other's brackets ("아이유 (IU)"). Never suggested together: a group and one of its members ("소녀시대"
+other's brackets ("아이유 (IU)"; only when the brackets hold another script: "태연 (소녀시대)" is
+태연's, not 소녀시대's). Never suggested together: a group and one of its members ("소녀시대"
 and "써니 (소녀시대)"), a solo singer and a group, two different Bugs artists, and names an admin
 said are not the same (MergeNotSame).
 
@@ -40,6 +41,13 @@ def _key(name: str) -> str:
     """What two spellings of the same name share: width, case, spaces and punctuation ignored."""
     text = unicodedata.normalize("NFKC", name).casefold().replace("&", "and")
     return "".join(c for c in text if c.isalnum())
+
+
+def _script(name: str) -> str:
+    """Hangul, Latin or other: "태연 (TAEYEON)" is one name twice, "태연 (소녀시대)" a singer and her group."""
+    if re.search(r"[가-힣]", name):
+        return "hangul"
+    return "latin" if re.search(r"[A-Za-z]", name) else "other"
 
 
 def _keys(name: str) -> set[str]:
@@ -153,7 +161,9 @@ def artist_duplicates(db: Session) -> list[dict]:
             own.add((_key(other), "alias"))
         m = _PAREN.match(a.name)
         if m:
-            own |= {(_key(m[1]), "paren"), (_key(m[2]), "paren")}
+            own.add((_key(m[1]), "paren"))
+            if _script(m[1]) != _script(m[2]):  # "태연 (TAEYEON)": its name in another script
+                own.add((_key(m[2]), "paren"))  # (not "태연 (소녀시대)", "Zia (Planetkpop.site)": its group, a site)
         for k, why in own:
             if len(k) >= 2:
                 by_key.setdefault(k, []).append((i, why))
@@ -190,7 +200,7 @@ def artist_duplicates(db: Session) -> list[dict]:
             "reasons": [r for r in ("bugs", "alias", "spelling", "paren") if r in why],
             "items": [
                 {"id": items[i].id, "name": items[i].name, "songs": count[items[i].id], "shown": items[i].display_name,
-                 "bugs_id": items[i].bugs_id, "type": info[items[i].id].get("type")}
+                 "bugs_id": items[i].bugs_id, "bugs": items[i].bugs_source or "pending", "type": info[items[i].id].get("type")}
                 for i in rows
             ],
         })

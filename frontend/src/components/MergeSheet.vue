@@ -17,7 +17,7 @@ const emit = defineEmits<{ close: []; changed: [] }>()
 const { t } = useI18n()
 const ui = useUi()
 
-interface Name { id: number; name: string; songs: number; shown?: string | null; bugs_id?: number | null; type?: string | null }
+interface Name { id: number; name: string; songs: number; shown?: string | null; bugs_id?: number | null; bugs?: string; type?: string | null }
 type Reason = 'bugs' | 'alias' | 'spelling' | 'paren'
 interface Group { items: Name[]; reasons: Reason[]; keep: number; picked: Set<number> }
 const groups = ref<Group[]>([])
@@ -168,9 +168,15 @@ const songs = (n: number) => t('common.tracks', n)
           </div>
           <div v-for="x in g.items" :key="x.id" class="flex items-center gap-3 py-1">
             <input v-model="g.keep" type="radio" :value="x.id" :name="`merge-keep-${gi}`" class="size-4 flex-none accent-accent" :aria-label="t('merge.keepThis', { name: x.name })" @change="g.picked.add(x.id)" />
-            <span class="min-w-0 flex-1 truncate text-[15px]" :class="g.picked.has(x.id) ? '' : 'text-muted line-through'">
-              {{ x.name }}<span v-if="x.shown && x.shown !== x.name" class="text-[13px] text-muted"> ({{ t('merge.bugsName', { name: x.shown }) }})</span>
-              <span class="text-[13px] text-muted no-underline"> · {{ songs(x.songs) }}<template v-if="x.type"> · {{ x.type }}</template></span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate text-[15px]" :class="g.picked.has(x.id) ? '' : 'text-muted line-through'">
+                {{ x.name }}<span class="text-[13px] text-muted"> · {{ songs(x.songs) }}</span>
+              </span>
+              <!-- its Bugs name (or why there is none yet) -->
+              <span v-if="x.bugs" class="truncate text-[12px]" :class="x.bugs_id ? 'text-accent' : 'text-muted'">
+                <template v-if="x.bugs_id">{{ t('merge.bugsName', { name: x.shown || t('merge.bugsNoName') }) }}<template v-if="x.type"> · {{ x.type }}</template></template>
+                <template v-else>{{ t(`merge.bugs_${x.bugs}`) }}</template>
+              </span>
             </span>
             <input v-if="x.id !== g.keep" type="checkbox" :checked="g.picked.has(x.id)" class="size-4 flex-none accent-accent" :aria-label="t('merge.include', { name: x.name })" @change="toggle(g, x.id)" />
             <span v-else class="flex-none text-[12px] text-accent">{{ t('merge.kept') }}</span>
