@@ -151,6 +151,7 @@ export const usePlayer = defineStore('player', () => {
     pausing = true
     cutAt = 0
     byCall = false
+    window.clearInterval(watching)
     audio.pause()
   }
   function setSrc(url: string) {
@@ -248,6 +249,42 @@ export const usePlayer = defineStore('player', () => {
     if (spare) stale = true // (revive: onto the spare)
     if (mode.value === 'book') resumeBook()
     else if (mode.value === 'music') void startCurrent()
+  }
+  // After a pause of the phone's, in the background (the screen locked): whether the page is still awake
+  // at all to hear the call end (a line in the log every 30 s), and if it is, the song tried again
+  // every 9 s in place (every 30 s after two minutes) (no new element: the spare is kept for coming back to the app). iPhone refuses
+  // it during the call; once the call is over it may let it play.
+  const WATCH_MS = 3000
+  let watching = 0
+  function watchCut() {
+    window.clearInterval(watching)
+    const since = Date.now()
+    let beats = 0
+    watching = window.setInterval(() => {
+      const gone = Date.now() - since
+      if (playing.value || gone > CUT_RESUME_MS || (!cutAt && !stale)) {
+        window.clearInterval(watching)
+        return
+      }
+      beats++
+      if (beats % 10 === 0) plog('waiting after cut', `${Math.round(gone / 1000)}s cut=${!!cutAt} byCall=${byCall} hidden=${document.hidden} session=${session?.state ?? '-'}`)
+      if (cutAt && document.hidden && gone >= 6000 && beats % (gone < 120_000 ? 3 : 10) === 0) retryAfterCut()
+    }, WATCH_MS)
+  }
+  function retryAfterCut() {
+    if (mode.value === 'live' || !audio.getAttribute('src')) return
+    const was = stale
+    stale = false // in place (playAudio would otherwise move the song to another element)
+    const how = `byCall=${byCall} graph=${graphActive()}`
+    playAudio().then(
+      () => {
+        plog('retry after cut ok', how)
+        stale = false
+      },
+      () => {
+        stale = was
+      },
+    )
   }
   document.addEventListener('visibilitychange', () => {
     plog('visibility', document.visibilityState)
@@ -1132,6 +1169,7 @@ export const usePlayer = defineStore('player', () => {
           if (!sessionTells && Date.now() - graphCutAt < 3000) graphCut()
         }
       }
+      if (playing.value) watchCut()
     }
     pausing = false
     setPlaying(false)
