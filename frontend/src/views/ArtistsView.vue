@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowDownUp, Check, ChevronRight } from '@lucide/vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, query } from '../api'
 import { useProgressive } from '../progressive'
 import type { Artist, Page, ViewMode } from '../types'
@@ -52,15 +52,18 @@ const sort = computed({
   get: () => (ui.views.artistSort === 'own' ? 'own' : 'ko'),
   set: (v: 'ko' | 'own') => {
     ui.views = { ...ui.views, artistSort: v }
-    initial.value = ''
-    reload()
+    if (initial) pickInitial(initial)
+    else reload()
   },
 })
-const initial = ref('')
+// the index letter picked is in the address (?initial=ㄷ): back from an artist comes to the same
+// letter, even when the list was made again meanwhile; another letter is another page (kept apart)
+const route = useRoute()
+const router = useRouter()
+const initial = typeof route.query.initial === 'string' ? route.query.initial : ''
 const initials = ref<string[]>([])
 function pickInitial(letter: string) {
-  initial.value = initial.value === letter ? '' : letter
-  reload()
+  void router.replace({ query: { ...route.query, initial: initial === letter ? undefined : letter } })
 }
 
 async function load() {
@@ -68,7 +71,7 @@ async function load() {
   loading.value = true
   try {
     const page = await api<Page<Artist> & { initials: string[] }>(
-      `/artists${query({ q: q.value.trim() || undefined, sort: sort.value, initial: initial.value || undefined, limit: 200, offset: items.value.length })}`,
+      `/artists${query({ q: q.value.trim() || undefined, sort: sort.value, initial: initial || undefined, limit: 200, offset: items.value.length })}`,
     )
     if (mine !== asked) return
     items.value.push(...page.items)

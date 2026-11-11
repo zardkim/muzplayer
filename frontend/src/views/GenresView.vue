@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowDownUp, Check } from '@lucide/vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
 import { useAuth } from '../stores/auth'
@@ -37,7 +37,14 @@ function afterMerge() {
 }
 const items = ref<Genre[]>([])
 const loaded = ref(false)
-const sort = ref<'size' | 'name'>('size')
+// the order picked is in the address (?sort=name): back from a genre's songs comes to it again
+const route = useRoute()
+const router = useRouter()
+const shownSort: 'size' | 'name' = route.query.sort === 'name' ? 'name' : 'size' // (another order is another page)
+const sort = computed({
+  get: () => shownSort,
+  set: (v: 'size' | 'name') => void router.replace({ query: { ...route.query, sort: v === 'name' ? 'name' : undefined } }),
+})
 async function load() {
   items.value = (await api<{ items: Genre[] }>('/genres')).items
   loaded.value = true
