@@ -1002,6 +1002,10 @@ def _scan(job_id: int) -> None:
             .limit(1)
         )
         relinks = artist_links.outdated(db)  # an update changed how songs are linked to their artists
+        if relinks:
+            from . import bugs_artists
+
+            bugs_artists.drop_group_names(db)  # (LINKS_VERSION 2)
         if changed or last != "done" or scope is not None or relinks:
             _link_chart_duplicates(db)
             artist_links.relink(db)  # every song's artists (feat., collaborations), before pruning the unused

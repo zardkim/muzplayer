@@ -32,7 +32,7 @@ from .models import Album, Artist, LibraryState, NameAlias, Track, TrackArtist
 
 log = logging.getLogger(__name__)
 
-LINKS_VERSION = 1
+LINKS_VERSION = 2  # 2: bugs_artists.drop_group_names
 SEP = " / "  # between a song's tag values in Track.artist_text (scanner._apply_tags)
 NOT_SPLIT = {"various artists", "여러 아티스트", "va", "v.a.", "v.a"}
 _FEAT = re.compile(r"\s*[(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s+([^)\]]+)[)\]]\s*$|\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$", re.I)
@@ -215,12 +215,15 @@ def relink_in_background() -> None:
             with SessionLocal() as db:
                 if not outdated(db):
                     return  # that scan linked them
+                from . import bugs_artists
+
+                dropped = bugs_artists.drop_group_names(db)
                 n = relink(db)
                 prune_orphans(db)  # artists left with nothing
                 search_index.index_albums_artists(db)  # sort keys of the artists made
                 mark_done(db)
                 db.commit()
-                log.info("song artists linked (%d songs changed)", n)
+                log.info("song artists linked (%d songs changed, %d artists' group names dropped)", n, dropped)
         except Exception:
             log.exception("linking song artists failed")
         finally:

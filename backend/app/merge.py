@@ -6,7 +6,7 @@ a name the other is also known by (artist_aliases), the same name spelled apart,
 other's brackets ("아이유 (IU)"; only when the brackets hold another script: "태연 (소녀시대)" is
 태연's, not 소녀시대's). Never suggested together: a group and one of its members ("소녀시대"
 and "써니 (소녀시대)"), a solo singer and a group, two different Bugs artists, and names an admin
-said are not the same (MergeNotSame).
+said are not the same (MergeNotSame), nor a name of several and one of them ("서인국, 지아" and "지아").
 
 A merge moves everything of the duplicates onto the name kept, and remembers each duplicate's name
 in name_aliases: the library is mounted read-only, so the tags keep the old spelling, and the
@@ -30,6 +30,8 @@ from .scanner import (
 
 KINDS = ("artist", "genre")
 SEP = " / "  # between the artists in Track.artist_text (scanner._apply_tags)
+_RANK = {"bugs": 0, "alias": 1, "spelling": 2, "paren": 3}
+_SEVERAL = re.compile(r"\s*(?:,|&|;|×|\s[xX]\s|/)\s*")  # "A, B", "A & B", "A x B"
 _PAREN = re.compile(r"^(.*?)\s*[(\[]([^)\]]+)[)\]]\s*$")  # "아이유 (IU)" -> "아이유", "IU"
 
 
@@ -43,11 +45,10 @@ def _key(name: str) -> str:
     return "".join(c for c in text if c.isalnum())
 
 
-def _script(name: str) -> str:
-    """Hangul, Latin or other: "태연 (TAEYEON)" is one name twice, "태연 (소녀시대)" a singer and her group."""
-    if re.search(r"[가-힣]", name):
-        return "hangul"
-    return "latin" if re.search(r"[A-Za-z]", name) else "other"
+def _one_of(several: str, name: str) -> bool:
+    """name is one of the artists in several ("지아" in "서인국, 지아")."""
+    keys = {_key(p) for p in _SEVERAL.split(several) if p.strip()}
+    return len(keys) > 1 and _key(name) in keys
 
 
 def _keys(name: str) -> set[str]:
@@ -143,6 +144,8 @@ def artist_duplicates(db: Session) -> list[dict]:
     def blocked(x: Artist, y: Artist) -> bool:
         if tuple(sorted((x.name, y.name))) in refused:
             return True
+        if _one_of(x.name, y.name) or _one_of(y.name, x.name):  # one of the artists in the other's name
+            return True
         if x.bugs_id and y.bugs_id:
             return x.bugs_id != y.bugs_id  # two different Bugs artists (the same: never blocked)
         kx, ky = info[x.id].get("kind"), info[y.id].get("kind")
@@ -162,19 +165,12 @@ def artist_duplicates(db: Session) -> list[dict]:
         m = _PAREN.match(a.name)
         if m:
             own.add((_key(m[1]), "paren"))
-            if _script(m[1]) != _script(m[2]):  # "태연 (TAEYEON)": its name in another script
+            if search_index.script(m[1]) != search_index.script(m[2]):  # "태연 (TAEYEON)": its name in another script
                 own.add((_key(m[2]), "paren"))  # (not "태연 (소녀시대)", "Zia (Planetkpop.site)": its group, a site)
         for k, why in own:
             if len(k) >= 2:
                 by_key.setdefault(k, []).append((i, why))
-    parent = list(range(len(items)))
-
-    def find(i: int) -> int:
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
+    pairs: list[tuple[int, int, int, str]] = []
     for members in by_key.values():
         for x in range(len(members)):
             for y in range(x + 1, len(members)):
@@ -182,17 +178,29 @@ def artist_duplicates(db: Session) -> list[dict]:
                 if i == j or blocked(items[i], items[j]):
                     continue
                 why = "bugs" if "bugs" in (wi, wj) else "alias" if "alias" in (wi, wj) else "paren" if "paren" in (wi, wj) else "spelling"
-                reasons_of.setdefault((min(i, j), max(i, j)), set()).add(why)
-                parent[find(i)] = find(j)
-    groups: dict[int, list[int]] = {}
-    for i in range(len(items)):
-        groups.setdefault(find(i), []).append(i)
+                pairs.append((_RANK[why], min(i, j), max(i, j), why))
+    # joined strongest reason first; never two groups with a pair that must stay apart between them
+    # (A~B and B~C don't bring A and C together when A and C are a group and its member)
+    parent = list(range(len(items)))
+    members_of = {i: [i] for i in range(len(items))}
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for _, i, j, why in sorted(pairs):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            if any(blocked(items[a], items[b]) for a in members_of[ri] for b in members_of[rj]):
+                continue
+            parent[ri] = rj
+            members_of[rj] += members_of.pop(ri)
+        reasons_of.setdefault((i, j), set()).add(why)
     out = []
-    for members in groups.values():
+    for members in members_of.values():
         if len(members) < 2:
-            continue
-        # a group's members must all get along (A~B and B~C made it, A and C may be a group and its member)
-        if any(blocked(items[i], items[j]) for x, i in enumerate(members) for j in members[x + 1:]):
             continue
         why = set().union(*(r for (i, j), r in reasons_of.items() if i in members and j in members))
         rows = sorted(members, key=lambda i: (items[i].bugs_id is None, -count[items[i].id], items[i].name))
@@ -220,7 +228,7 @@ def auto_merge(db: Session) -> int:
     rows = db.execute(select(Artist.bugs_id).where(Artist.bugs_id.is_not(None)).group_by(Artist.bugs_id).having(func.count() > 1)).all()
     for (bugs_id,) in rows:
         same = list(db.scalars(select(Artist).where(Artist.bugs_id == bugs_id)))
-        if any(tuple(sorted((x.name, y.name))) in refused for x in same for y in same if x.id < y.id):
+        if any(tuple(sorted((x.name, y.name))) in refused or _one_of(x.name, y.name) or _one_of(y.name, x.name) for x in same for y in same if x.id < y.id):
             continue
         songs = dict(db.execute(
             select(TrackArtist.artist_id, func.count()).where(TrackArtist.artist_id.in_([a.id for a in same])).group_by(TrackArtist.artist_id)

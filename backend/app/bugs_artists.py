@@ -59,12 +59,14 @@ def _page(url: str):
 
 
 def names_of(bugs_name: str) -> list[str]:
-    """"Kenshi Yonezu(켄시 요네즈/米津 玄師)" -> ["Kenshi Yonezu", "켄시 요네즈", "米津 玄師"]."""
+    """"Kenshi Yonezu(켄시 요네즈/米津 玄師)" -> ["Kenshi Yonezu", "켄시 요네즈", "米津 玄師"]. Only names in
+    another script: Bugs writes a member as "이수 (엠씨더맥스)", the group in the brackets."""
     name = " ".join(bugs_name.split())
     m = _PAIR.match(name)
     if not m:
         return [name]
-    return [m.group(1).strip()] + [p.strip() for p in m.group(2).split("/") if p.strip()]
+    main = m.group(1).strip()
+    return [main] + [p.strip() for p in m.group(2).split("/") if p.strip() and search_index.script(p) != search_index.script(main)]
 
 
 def _bugs_id(href: str | None) -> int | None:
@@ -298,6 +300,35 @@ def apply_page(artist: Artist, page: dict) -> None:
     if others:  # added to what it has (merge keeps only the hand-made and hidden ones of the old list)
         kept = [(a["name"], a["source"]) for a in artist.aliases or [] if a.get("source") != "manual" and not a.get("hidden")]
         artist.aliases = artist_aliases.merge(artist.aliases, kept + others, artist.name)
+
+
+def drop_group_names(db: Session) -> int:
+    """Once (artist_links.LINKS_VERSION 2): what Bugs' "이수 (엠씨더맥스)" left before names_of knew the
+    brackets may hold the group. Other names that are its group, or a Bugs name in the same script as
+    its own, are dropped; an artist linked to a Bugs artist only by such a name (our "엠씨더맥스" to Bugs'
+    이수) is looked up again."""
+    from .artist_links import key
+    from .merge import _PAREN
+
+    changed = 0
+    for artist in db.scalars(select(Artist).where(or_(Artist.aliases.is_not(None), Artist.bugs_id.is_not(None)))):
+        own = artist.display_name or artist.name
+        groups = {key(g.get("name") or "") for g in (artist.info or {}).get("groups", [])} - {""}
+        aliases = [
+            a for a in artist.aliases or []
+            if key(a["name"]) not in groups
+            and not (a.get("source") == "bugs" and search_index.script(a["name"]) == search_index.script(own) and key(a["name"]) not in (key(own), key(artist.name)))
+        ]
+        if aliases != (artist.aliases or []):
+            artist.aliases = aliases or None
+            changed += 1
+        if artist.bugs_id and artist.display_name and artist.bugs_source in ("album", "search"):
+            m = _PAREN.match(artist.name)
+            mine = {key(artist.name), key(m[1]) if m else ""} | {key(a["name"]) for a in aliases if a.get("source") != "bugs"}
+            if key(artist.display_name) not in mine and search_index.script(artist.name) == search_index.script(artist.display_name):
+                artist.bugs_id = artist.display_name = artist.bugs_source = artist.bugs_checked_at = artist.info = None
+                changed += 1
+    return changed
 
 
 def run(db: Session) -> int:

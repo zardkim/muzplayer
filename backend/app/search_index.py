@@ -46,6 +46,14 @@ def norm(text: str | None) -> str:
     return " ".join(_NOT_WORD.sub(" ", text).split())
 
 
+def script(name: str) -> str:
+    """Hangul, Latin or other. A name in brackets in the other script is the same one written again
+    ("태연 (TAEYEON)"); in the same script it is another one: the group, the site ("태연 (소녀시대)")."""
+    if re.search(r"[가-힣]", name):
+        return "hangul"
+    return "latin" if re.search(r"[A-Za-z]", name) else "other"
+
+
 def initials(text: str | None) -> str:
     """The initial consonants of the Korean syllables in text ("밤편지 (Live)" -> "ㅂㅍㅈ")."""
     out = []

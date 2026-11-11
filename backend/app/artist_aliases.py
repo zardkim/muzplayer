@@ -122,7 +122,8 @@ def from_bugs(name: str) -> list[str]:
     for el in page.select("figure.artistInfo figcaption a.artistTitle, .artistInfo .artistTitle")[:10]:
         text = " ".join(el.get_text(" ", strip=True).split())
         m = _PAIR.match(text)
-        both = [m.group(1), m.group(2)] if m else [text]
+        # (in the same script the brackets hold the group: "이수(엠씨더맥스)")
+        both = [m.group(1), m.group(2)] if m and search_index.script(m.group(1)) != search_index.script(m.group(2)) else [m.group(1) if m else text]
         if any(_same(n, name) for n in both):
             fits.append(both)
     return fits[0] if len(fits) == 1 else []
