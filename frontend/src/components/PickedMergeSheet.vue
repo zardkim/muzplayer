@@ -7,11 +7,12 @@ import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import type { ArtistDetail } from '../types'
 import BaseModal from './BaseModal.vue'
+import ArtistPhoto from './ArtistPhoto.vue'
 import BugsLinkSheet from './BugsLinkSheet.vue'
 
 // Admin: the artists or genres picked on their list page, made one (backend merge.py). The name to
 // keep is chosen here; artists show their Bugs artist, which can be checked or set before merging
-// (the kept one's link carries on). Suggested first: the one linked to Bugs, then the most songs.
+// (the kept one's link carries on). Its photo: the kept one's, else one of the others', else its Bugs artist's. Suggested first: the one linked to Bugs, then the most songs.
 const props = defineProps<{ kind: 'artist' | 'genre'; picked: { id: number; name: string; songs: number }[] }>()
 const emit = defineEmits<{ close: []; merged: [] }>()
 const { t } = useI18n()
@@ -66,6 +67,7 @@ const keptName = computed(() => props.picked.find((p) => p.id === keep.value)?.n
       <div class="flex flex-col">
         <label v-for="p in rows" :key="p.id" class="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
           <input v-model="keep" type="radio" :value="p.id" name="merge-keep" class="size-4 flex-none accent-accent" />
+          <ArtistPhoto v-if="kind === 'artist'" :artist-id="p.id" :name="p.name" :version="details[p.id]?.image_v ?? 0" class="size-10 flex-none" />
           <span class="flex min-w-0 flex-1 flex-col">
             <span class="truncate text-[15px]">{{ p.name }}<span class="text-[13px] text-muted"> · {{ t('common.tracks', p.songs) }}</span></span>
             <span v-if="kind === 'artist'" class="truncate text-[12px]" :class="details[p.id]?.bugs?.id ? 'text-accent' : 'text-muted'">{{ bugsText(p.id) || '…' }}</span>

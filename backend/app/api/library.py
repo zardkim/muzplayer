@@ -625,6 +625,7 @@ def set_bugs(artist_id: int, body: BugsLinkIn, user: User = Depends(admin_user),
             raise api_error(503, "bugs_unreachable") from None
         artist.bugs_id, artist.bugs_source = body.bugs_id, "manual"
         bugs_artists.apply_page(artist, page)
+        artist_images.from_bugs(artist, replace=True)  # its photo, unless it has one of its own
     else:
         artist.bugs_id, artist.display_name = None, None
         artist.bugs_source = "none" if body.none else None

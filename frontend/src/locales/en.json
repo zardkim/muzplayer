@@ -1151,7 +1151,7 @@
     "pickedCount": "{n} picked",
     "pickedMerge": "Merge",
     "pickedTitle": "Make {n} into one",
-    "pickedHelpArtist": "Choose the name to keep. Use 🔗 to check or change each artist's Bugs link. Songs of the other names all move to the one kept.",
+    "pickedHelpArtist": "Choose the name to keep. Use 🔗 to check or change each artist's Bugs link. Songs of the other names all move to the one kept. Without a photo of its own, the one kept takes another's, else its Bugs photo.",
     "pickedHelp": "Choose the name to keep. Songs of the other names all move to the one kept.",
     "undoHelpPicked": "Each can be undone later under Tidy up duplicates → Merged names."
   },

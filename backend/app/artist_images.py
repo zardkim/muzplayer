@@ -368,6 +368,36 @@ def use_page(db: Session, artist: Artist, page: dict) -> None:
     artist.image_checked_at = datetime.now(UTC)
 
 
+# ---- the photo of the Bugs artist it is linked to (bugs_artists) ----
+
+BUGS_PHOTO = re.compile(r"^https://image\.bugsm\.co\.kr/artist/images/\d+/\d+/\d+\.jpg$")
+
+
+def from_bugs(artist: Artist, replace: bool = False) -> bool:
+    """Its Bugs artist's photo (the artist page's og:image, bugs_artists.read_page), when it has no
+    photo; replace: also one taken from Bugs before (another Bugs artist was linked). Never over a
+    photo of its folder, picked by hand, or removed by an admin. A Bugs artist without a photo is
+    remembered (info.photo_missing) until its page is read again."""
+    if not artist.bugs_id or artist.image_path == "none":
+        return False
+    if has_image(artist) and not (replace and (artist.image_path or "").startswith("bugs:")):
+        return False
+    info = artist.info or {}
+    url = info.get("image") or f"https://image.bugsm.co.kr/artist/images/1200/{artist.bugs_id // 100}/{artist.bugs_id}.jpg"
+    if not BUGS_PHOTO.match(url) or info.get("photo_missing"):
+        return False
+    try:
+        _save(artist, _get(url, {"User-Agent": BROWSER_UA, "Referer": "https://music.bugs.co.kr/"}), f"bugs:{artist.display_name or artist.name}")
+    except urllib.error.HTTPError:
+        artist.info = {**info, "photo_missing": True}
+        return False
+    except (urllib.error.URLError, TimeoutError, OSError, Image.UnidentifiedImageError) as exc:
+        log.info("bugs photo %s: %s", artist.name, exc)
+        return False
+    artist.image_checked_at = datetime.now(UTC)
+    return True
+
+
 # ---- the admin's "find artist photos" run ----
 
 _lock = threading.Lock()

@@ -11,6 +11,8 @@ members and the groups a singer is in. An artist gets linked, most sure first:
   3. Its Bugs page then gives its name (og:title: "소녀시대" of "소녀시대 (GIRLS' GENERATION)"), the
      other names in brackets (artist_aliases), solo or group, country, debut, members and groups.
 
+Then an artist without a photo gets its Bugs artist's (artist_images.from_bugs).
+
 An admin links one by hand or unlinks it (api/library.py), which later runs leave alone. Run after
 the other names (artist_aliases._lookup), a few dozen a run, pausing between requests.
 """
@@ -39,6 +41,7 @@ ALBUM_SEARCH = BUGS + "search/album?q={q}"
 ALBUMS_PER_RUN = 40
 SEARCHES_PER_RUN = 60
 PAGES_PER_RUN = 80
+PHOTOS_PER_RUN = 80
 PAUSE = 0.6
 INFO_STALE = timedelta(days=90)
 _ID = re.compile(r"/artist/(\d+)")
@@ -243,6 +246,9 @@ def read_page(bugs_id: int) -> dict:
     title = page.select_one("title")  # "소녀시대 (GIRLS' GENERATION) - 벅스" (the heading may carry badges: "CONNECT …")
     full = re.sub(r"\s*-\s*벅스\s*$", "", " ".join(title.get_text(" ", strip=True).split())) if title else ""
     out: dict = {"name": (og.get("content") or "").strip() if og else "", "full": full}
+    image = page.select_one("meta[property='og:image']")
+    if image and "/artist/images/" in (image.get("content") or ""):
+        out["image"] = image["content"].strip()  # its photo (artist_images.from_bugs)
     for tr in page.select("table.info tr"):
         th, td = tr.select_one("th"), tr.select_one("td")
         if not th or not td:
@@ -331,12 +337,34 @@ def drop_group_names(db: Session) -> int:
     return changed
 
 
+# ---- 4. photos ----
+def photos(db: Session) -> int:
+    """The Bugs artist's photo for the linked artists without one (artist_images.from_bugs)."""
+    from . import artist_images
+
+    done = 0
+    ids = db.scalars(
+        select(Artist.id).where(Artist.bugs_id.is_not(None), Artist.image_path.is_(None), Artist.info.is_not(None)).order_by(Artist.id)
+    ).all()
+    for artist_id in ids:
+        artist = db.get(Artist, artist_id)
+        if artist is None or (artist.info or {}).get("photo_missing"):
+            continue
+        if artist_images.from_bugs(artist):
+            done += 1
+        db.commit()
+        if done >= PHOTOS_PER_RUN:
+            break
+        time.sleep(PAUSE)
+    return done
+
+
 def run(db: Session) -> int:
-    """All three steps, as much as a run does; how many artists got linked or read."""
+    """All four steps, as much as a run does; how many artists got linked, read or a photo."""
     if appconf.get("artist_aliases") == "off":
         return 0
     n = 0
-    for step in (link_albums, link_by_search, read_pages):
+    for step in (link_albums, link_by_search, read_pages, photos):
         try:
             n += step(db)
         except Unreachable as exc:

@@ -16,6 +16,7 @@ Undoing one forgets the alias and has its songs read again by the next scan.
 
 import json
 import re
+import shutil
 import unicodedata
 
 from sqlalchemy import Text, cast, delete, exists, func, literal, or_, select, update
@@ -352,8 +353,20 @@ def _merge_artists(db: Session, keep: Artist, others: list[Artist]) -> None:
         else:
             moves[album.id] = same
             db.execute(update(Track).where(Track.album_id == album.id).values(album_id=same))
-    if not keep.image_path:  # the kept one has no photo yet: look again (artist_images)
-        keep.image_checked_at = None
+    # a photo: the kept one's own; else one of theirs (the first with one); else its Bugs artist's
+    from . import artist_images
+
+    if not artist_images.has_image(keep) and keep.image_path != "none":
+        donor = next((o for o in others if artist_images.has_image(o)), None)
+        if donor is not None:
+            for size in artist_images.SIZES:
+                src = artist_images.image_file(donor.id, size)
+                if src.exists():
+                    shutil.copyfile(src, artist_images.image_file(keep.id, size))
+            keep.image_path = donor.image_path
+            keep.image_version = (keep.image_version or 0) + 1
+        elif not artist_images.from_bugs(keep):
+            keep.image_checked_at = None  # none yet: looked up again (artist_images)
     db.flush()
     carry_album_marks(db, moves)
     remove_covers(prune_orphans(db, moves))
