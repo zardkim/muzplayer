@@ -13,7 +13,7 @@ import PickedMergeSheet from '../components/PickedMergeSheet.vue'
 import { matches, useListSearch } from '../listSearch'
 import SelectPill from '../components/SelectPill.vue'
 
-// Genres as colour tiles: each genre keeps its own colour (from its name), with the covers of
+// Genres as pastel tiles: each genre keeps its own colour (from its name), washed see-through, with the covers of
 // its biggest albums fanned out in the corner. The largest genres get wide tiles up top.
 const { t } = useI18n()
 const auth = useAuth()
@@ -49,10 +49,28 @@ const PALETTE = [
   '#AF2896', '#509BF5', '#27856A', '#D84000', '#0D73EC', '#8C1932', '#777777', '#E91429',
   '#B49BC8', '#7358FF', '#F59B23', '#283EA8',
 ]
-function colour(name: string) {
+function hash(name: string) {
   let h = 0
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return PALETTE[h % PALETTE.length]
+  return h
+}
+function colour(name: string) {
+  return PALETTE[hash(name) % PALETTE.length]
+}
+// a see-through pastel of the genre's colour flowing into a second one (picked by the name too),
+// with a soft glow in the top corner; dark text on it (light and dark themes alike)
+function tint(name: string) {
+  const c = colour(name)
+  const vivid = PALETTE.filter((x) => x !== '#777777' && x !== c) // (grey would dull it)
+  const c2 = vivid[(hash(name) >>> 3) % vivid.length]
+  const mix = (col: string, n: number) => `color-mix(in oklab, ${col} ${n}%, transparent)`
+  return {
+    background: [
+      `radial-gradient(110% 85% at 0% 0%, ${mix(c, 50)} 0%, transparent 65%)`,
+      `linear-gradient(in oklch 135deg, ${mix(c, 32)} 0%, ${mix(c2, 30)} 100%)`,
+    ].join(', '),
+    borderColor: mix(c, 35),
+  }
 }
 
 const q = useListSearch()
@@ -108,14 +126,14 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
         <component
           :is="picking ? 'button' : RouterLink"
           v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(g) } : { to: { name: 'tracks', query: { genre: g.id } } }"
-          class="group relative block w-full overflow-hidden rounded-2xl text-left text-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+          class="group relative block w-full overflow-hidden rounded-2xl border text-left text-ink shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
           :class="[i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]', picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : '']"
           @click="picking && pickOne(g)"
-          :style="{ background: `linear-gradient(135deg, ${colour(g.name)} 0%, color-mix(in srgb, ${colour(g.name)} 72%, black) 100%)` }"
+          :style="tint(g.name)"
         >
           <span class="relative z-10 flex flex-col p-4" :class="i < wide ? 'md:p-5' : ''">
             <span class="font-bold leading-tight [text-wrap:balance]" :class="i < wide ? 'text-[26px] md:text-[30px]' : 'text-[20px]'">{{ g.name }}</span>
-            <span class="mt-1 text-[13px] font-medium text-white/80">{{ t('common.tracks', g.track_count) }}</span>
+            <span class="mt-1 text-[13px] font-medium text-muted">{{ t('common.tracks', g.track_count) }}</span>
           </span>
           <!-- the genre's biggest albums, fanned out in the corner -->
           <span v-if="g.covers?.length" class="absolute bottom-[-12%] right-[-6%] h-[62%] w-[42%]" aria-hidden="true">
@@ -130,7 +148,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
               :class="[FAN[k + 3 - Math.min(3, g.covers.length)], FAN_HOVER[k + 3 - Math.min(3, g.covers.length)]]"
             />
           </span>
-          <span v-else class="absolute bottom-3 right-4 text-[64px] font-black leading-none text-white/15" aria-hidden="true">#</span>
+          <span v-else class="absolute bottom-3 right-4 text-[64px] font-black leading-none text-ink/10" aria-hidden="true">#</span>
           <span v-if="picking" class="absolute right-2.5 top-2.5 z-20 grid size-7 place-items-center rounded-full border-2" :class="isPicked(g) ? 'border-white bg-accent text-white' : 'border-white bg-black/25'"><Check v-if="isPicked(g)" :size="16" :stroke-width="2.5" /></span>
         </component>
       </li>
