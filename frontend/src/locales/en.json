@@ -1145,7 +1145,15 @@
     "undo": "Undo",
     "undoHelp": "Undoing reads those songs again and files them under their own name (one scan).",
     "done": "Merged {n}.",
-    "undone": "Undone. It shows once the scan finishes."
+    "undone": "Undone. It shows once the scan finishes.",
+    "pick": "Pick",
+    "pickHint": "Pick two or more names to make one.",
+    "pickedCount": "{n} picked",
+    "pickedMerge": "Merge",
+    "pickedTitle": "Make {n} into one",
+    "pickedHelpArtist": "Choose the name to keep. Use 🔗 to check or change each artist's Bugs link. Songs of the other names all move to the one kept.",
+    "pickedHelp": "Choose the name to keep. Songs of the other names all move to the one kept.",
+    "undoHelpPicked": "Each can be undone later under Tidy up duplicates → Merged names."
   },
   "notes": {
     "heading": "About this album",

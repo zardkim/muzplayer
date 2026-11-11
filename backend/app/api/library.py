@@ -592,7 +592,7 @@ def bugs_out(db: Session, artist: Artist) -> dict | None:
     ours = dict(db.execute(select(Artist.bugs_id, Artist.id).where(Artist.bugs_id.in_(wanted))).all()) if wanted else {}
     for k in ("members", "groups"):
         info[k] = [{**m, "id": ours.get(m["bugs_id"])} for m in info.get(k, [])]
-    return {"id": artist.bugs_id, "source": artist.bugs_source, "url": f"https://music.bugs.co.kr/artist/{artist.bugs_id}" if artist.bugs_id else None, **info}
+    return {"id": artist.bugs_id, "name": artist.display_name, "source": artist.bugs_source, "url": f"https://music.bugs.co.kr/artist/{artist.bugs_id}" if artist.bugs_id else None, **info}
 
 
 class BugsLinkIn(BaseModel):

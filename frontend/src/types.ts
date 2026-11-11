@@ -87,6 +87,7 @@ export interface BugsCandidate {
 /** The artist on Bugs (bugs_artists.py) and what its page says. */
 export interface BugsInfo {
   id?: number | null
+  name?: string | null // its name on Bugs (once its page was read)
   source?: 'album' | 'search' | 'manual' | 'none' | 'unsure' | null
   url?: string | null
   type?: string

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownUp } from '@lucide/vue'
+import { ArrowDownUp, Check } from '@lucide/vue'
+import { RouterLink } from 'vue-router'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
 import { useAuth } from '../stores/auth'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
+import PickBar from '../components/PickBar.vue'
+import PickedMergeSheet from '../components/PickedMergeSheet.vue'
 import { matches, useListSearch } from '../listSearch'
 import SelectPill from '../components/SelectPill.vue'
 
@@ -15,6 +18,23 @@ import SelectPill from '../components/SelectPill.vue'
 const { t } = useI18n()
 const auth = useAuth()
 const merging = ref(false) // admin: the duplicates sheet
+// admin: genres picked by hand to make one (tapping a tile picks it rather than opening it)
+const picking = ref(false)
+const picked = ref<Genre[]>([])
+const choosing = ref(false) // the sheet choosing the name to keep
+function pickOne(g: Genre) {
+  picked.value = picked.value.some((p) => p.id === g.id) ? picked.value.filter((p) => p.id !== g.id) : [...picked.value, g]
+}
+const isPicked = (g: Genre) => picked.value.some((p) => p.id === g.id)
+function stopPicking() {
+  picking.value = false
+  picked.value = []
+}
+function afterMerge() {
+  choosing.value = false
+  stopPicking()
+  void load()
+}
 const items = ref<Genre[]>([])
 const loaded = ref(false)
 const sort = ref<'size' | 'name'>('size')
@@ -71,6 +91,7 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
   <div class="flex flex-col gap-6">
     <LibraryHeader v-model:search="q" :search-label="t('genres.search')" :sub="loaded && items.length ? t('genres.count', found.length) : undefined">
       <div class="flex items-center gap-1 text-[14px]">
+        <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" :aria-pressed="picking" :class="picking ? 'border-ink bg-ink text-on-ink' : ''" @click="picking ? stopPicking() : (picking = true)">{{ t('merge.pick') }}</button>
         <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
         <SelectPill v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="(['size', 'name'] as const).map((s) => ({ value: s, label: t(`genres.sort_${s}`) }))" />
       </div>
@@ -78,14 +99,18 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
     <p v-if="loaded && !items.length" class="font-light text-muted">{{ t('genres.empty') }}</p>
     <p v-else-if="loaded && !found.length" class="font-light text-muted">{{ t('search.noResults') }}</p>
     <MergeSheet v-if="merging" kind="genre" @close="merging = false" @changed="load" />
+    <PickBar v-if="picking" :count="picked.length" @cancel="stopPicking" @merge="choosing = true" />
+    <PickedMergeSheet v-if="choosing" kind="genre" :picked="picked.map((g) => ({ id: g.id, name: g.name, songs: g.track_count }))" @close="choosing = false" @merged="afterMerge" />
 
     <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
       <!-- off-screen tiles are neither drawn nor painted (content-visibility): smooth scrolling on phones -->
       <li v-for="(g, i) in shown" :key="g.id" class="[contain-intrinsic-size:auto_150px] [content-visibility:auto]" :class="i < wide ? 'col-span-2' : ''">
-        <RouterLink
-          :to="{ name: 'tracks', query: { genre: g.id } }"
-          class="group relative block overflow-hidden rounded-2xl text-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
-          :class="i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]'"
+        <component
+          :is="picking ? 'button' : RouterLink"
+          v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(g) } : { to: { name: 'tracks', query: { genre: g.id } } }"
+          class="group relative block w-full overflow-hidden rounded-2xl text-left text-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+          :class="[i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]', picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : '']"
+          @click="picking && pickOne(g)"
           :style="{ background: `linear-gradient(135deg, ${colour(g.name)} 0%, color-mix(in srgb, ${colour(g.name)} 72%, black) 100%)` }"
         >
           <span class="relative z-10 flex flex-col p-4" :class="i < wide ? 'md:p-5' : ''">
@@ -106,7 +131,8 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
             />
           </span>
           <span v-else class="absolute bottom-3 right-4 text-[64px] font-black leading-none text-white/15" aria-hidden="true">#</span>
-        </RouterLink>
+          <span v-if="picking" class="absolute right-2.5 top-2.5 z-20 grid size-7 place-items-center rounded-full border-2" :class="isPicked(g) ? 'border-white bg-accent text-white' : 'border-white bg-black/25'"><Check v-if="isPicked(g)" :size="16" :stroke-width="2.5" /></span>
+        </component>
       </li>
     </ul>
     <!-- once this comes within 1200px, the next tiles are added (a new one after each batch) -->
