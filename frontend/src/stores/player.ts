@@ -594,6 +594,7 @@ export const usePlayer = defineStore('player', () => {
 
   // ---- looking ahead: fetch the next songs, and keep the queue from running out ----
   let radioOn = false // started as a radio: plays on even with autoplay off
+  let chainedAlbum: number | null = null // the album "after a whole album: the artist's next" added last
   // started from a station (home): more of the same station follows, not just songs like the last
   let homeStation: { kind: string; params: Record<string, string | number> } | null = null
   let extending = false
@@ -643,11 +644,16 @@ export const usePlayer = defineStore('player', () => {
       if (more.length) return more // (a station with nothing more goes on as a radio from the last song)
     }
     const albumEnd = useUi().playerPrefs.albumEnd
-    const wholeAlbum = !radioOn && last.album_id && last.album_kind !== 'chart' && queue.value.every((t) => t.album_id === last.album_id)
+    // the queue is one album, or ends with the whole of the album added after one (the next of the artist's)
+    const from = last.album_id === chainedAlbum ? queue.value.findIndex((t) => t.album_id === chainedAlbum) : 0
+    const wholeAlbum = !radioOn && last.album_id && last.album_kind !== 'chart' && queue.value.slice(from).every((t) => t.album_id === last.album_id)
     if (wholeAlbum && albumEnd === 'stop') return []
     if (wholeAlbum && albumEnd === 'artist') {
       const next = await nextAlbum(last.album_id!)
-      if (next.length) return next
+      if (next.length) {
+        chainedAlbum = next[0].album_id
+        return next
+      }
     }
     const exclude = queue.value.slice(-300).map((t) => t.id).join(',')
     const r = await api<{ tracks: Track[] }>(`/radio${query({ track_id: last.id, exclude, limit: 20 })}`)
@@ -659,8 +665,10 @@ export const usePlayer = defineStore('player', () => {
     const album = await api<{ artist_id: number | null }>(`/albums/${albumId}`)
     if (!album.artist_id) return []
     const list = await api<Page<Album>>(`/albums${query({ artist_id: album.artist_id, sort: 'year', limit: 500 })}`)
-    // oldest first; undated albums last, ties by title
-    const oldestFirst = [...list.items].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || a.title.localeCompare(b.title))
+    // oldest first (by release date within a year); undated albums last, ties by title
+    const oldestFirst = [...list.items].sort(
+      (a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.release_date ?? '').localeCompare(b.release_date ?? '') || a.title.localeCompare(b.title),
+    )
     const after = oldestFirst[oldestFirst.findIndex((a) => a.id === albumId) + 1]
     if (!after) return []
     const detail = await api<{ tracks: Track[] }>(`/albums/${after.id}`)

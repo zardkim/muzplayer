@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SourceLogo from './SourceLogo.vue'
+import { sourceLogo } from '../format'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api, coverUrl } from '../api'
@@ -74,7 +76,7 @@ async function play() {
     <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/15 to-transparent" />
     <div class="absolute inset-x-0 bottom-0 flex items-end gap-3 p-4 md:p-6" :class="size === 'small' ? 'p-3' : ''">
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span class="w-fit rounded-full bg-white/20 px-2 py-0.5 text-[12px] font-medium backdrop-blur-sm">{{ label }}</span>
+        <span class="flex w-fit items-center gap-1 rounded-full bg-white/20 py-0.5 pr-2 text-[12px] font-medium backdrop-blur-sm" :class="sourceLogo(chart.source) ? 'pl-0.5' : 'pl-2'"><SourceLogo :source="chart.source" :size="18" class="rounded-full" />{{ label }}</span>
         <span
           class="line-clamp-2 font-bold leading-tight [text-shadow:0_1px_12px_rgba(0,0,0,0.35)]"
           :class="size === 'small' ? 'text-[17px]' : size === 'compact' ? 'text-[20px] md:text-[24px]' : 'text-[22px] md:text-[30px]'"

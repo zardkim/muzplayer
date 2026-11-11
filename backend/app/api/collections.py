@@ -1,6 +1,7 @@
 """Charts and themes: lists, the collections page and banners (folder banner.jpg or AI-made)."""
 
 import random
+import re
 import shutil
 from datetime import date
 
@@ -20,6 +21,14 @@ from ..security import admin_user, api_error, current_user
 from .library import like, listed_tracks, present_tracks, track_out, track_query
 
 router = APIRouter()
+
+# category (or chart source) folders shown as one: Hillsong is worship music, filed with CCM
+SOURCE_GROUPS = [("CCM", re.compile(r"ccm|hillsong|힐송", re.I))]
+
+
+def source_group(source: str) -> str:
+    return next((name for name, rx in SOURCE_GROUPS if rx.search(source)), source)
+
 
 COVERS_PER_ITEM = 5  # the auto banner is drawn from these
 
@@ -114,19 +123,17 @@ def list_charts(
     def build():
         count = chart_count()
         conds = [count > 0, Chart.kind == kind]
-        if source:
-            conds.append(Chart.source == source)
+        all_sources = db.scalars(
+            select(Chart.source).where(chart_count() > 0, Chart.kind == kind, Chart.source != "").distinct()
+        ).all()
+        if source:  # a group: every folder in it
+            conds.append(Chart.source.in_([s for s in all_sources if source_group(s) == source] or [source]))
         base = select(Chart, count.label("track_count")).where(*conds)
         total = db.scalar(select(func.count()).select_from(base.subquery()))
         rows = db.execute(base.order_by(*ordering(kind)).limit(limit).offset(offset)).all()
         covers = cover_albums(db, [c.id for c, _ in rows])
         banners = load_banners(db)
-        sources = db.scalars(
-            select(Chart.source)
-            .where(chart_count() > 0, Chart.kind == kind, Chart.source != "")
-            .distinct()
-            .order_by(Chart.source)
-        ).all()
+        sources = sorted({source_group(s) for s in all_sources})
         return {"items": [item_out(c, n, covers, banners) for c, n in rows], "total": total, "sources": sources}
 
     return shared_json(request, db, f"charts:{kind}:{source}:{limit}:{offset}", build)
@@ -146,10 +153,10 @@ def _collections_home(db: Session) -> dict:
 
     by_source: dict[str, list] = {}
     for row in charts:
-        by_source.setdefault(row[0].source, []).append(row)
+        by_source.setdefault(source_group(row[0].source), []).append(row)
     by_category: dict[str, list] = {}
     for row in themes:
-        by_category.setdefault(row[0].source, []).append(row)
+        by_category.setdefault(source_group(row[0].source), []).append(row)
     # the same order all day for everyone, a new one tomorrow
     picks = list(themes)
     random.Random(date.today().isoformat()).shuffle(picks)

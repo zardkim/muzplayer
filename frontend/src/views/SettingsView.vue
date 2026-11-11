@@ -208,7 +208,7 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
           <h2 class="hidden text-[22px] font-bold md:block">{{ t('settings.autoplay') }}</h2>
           <div class="flex flex-col divide-y divide-line">
             <ToggleRow v-model="ui.playerPrefs.autoplay" :title="t('settings.autoplayOn')" :hint="t('settings.autoplayHelp')" />
-            <SelectRow v-model="ui.playerPrefs.albumEnd" :title="t('settings.albumEnd')" :hint="t('settings.albumEndHelp')" :options="albumEnds" />
+            <SelectRow v-model="ui.playerPrefs.albumEnd" :title="t('settings.albumEnd')" :hint="t(ui.playerPrefs.autoplay ? 'settings.albumEndHelp' : 'settings.albumEndOff')" :options="albumEnds" :disabled="!ui.playerPrefs.autoplay" />
           </div>
         </section>
 

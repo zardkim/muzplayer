@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { api } from '../api'
 import { usePlayer } from '../stores/player'
 import type { Chart, ChartDetail } from '../types'
+import { sourceLogo } from '../format'
 import CoverArt from './CoverArt.vue'
+import SourceLogo from './SourceLogo.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import RowArrows from './RowArrows.vue'
 
@@ -32,7 +34,7 @@ async function play(id: number) {
       <div v-for="c in charts" :key="c.id" class="group relative flex min-w-0 flex-col gap-2" :class="row ? 'w-[140px] flex-none sm:w-40' : ''">
         <RouterLink :to="{ name: 'chart', params: { id: c.id } }" class="flex flex-col gap-2">
           <CoverArt :album-id="c.cover_albums[0]?.id ?? null" :has-cover="c.cover_albums.length > 0" :version="c.cover_albums[0]?.v">
-            <span v-if="c.source" class="absolute left-2 top-2 rounded-full bg-ink/80 px-2 py-0.5 text-[12px] font-medium text-on-ink">{{ c.source }}</span>
+            <span v-if="c.source" class="absolute left-2 top-2 flex max-w-[calc(100%-3.5rem)] items-center gap-1 rounded-full bg-ink/80 py-0.5 pr-2 text-[12px] font-medium text-on-ink" :class="sourceLogo(c.source) ? 'pl-0.5' : 'pl-2'"><SourceLogo :source="c.source" :size="18" class="rounded-full" /><span class="truncate">{{ c.source }}</span></span>
           </CoverArt>
           <span class="flex min-w-0 flex-col">
             <span class="truncate text-base">{{ c.title }}</span>

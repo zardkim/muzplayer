@@ -8,6 +8,7 @@ import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import LoadMore from '../components/LoadMore.vue'
 import ChoiceChip from '../components/ChoiceChip.vue'
+import SourceLogo from '../components/SourceLogo.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -45,7 +46,7 @@ onMounted(load)
         :active="source === s"
         @click="router.replace({ query: { kind: kind === 'theme' ? 'theme' : undefined, source: s || undefined } })"
       >
-        {{ s || t('charts.all') }}
+        <span class="flex items-center gap-1.5"><SourceLogo v-if="s" :source="s" :size="20" />{{ s || t('charts.all') }}</span>
       </ChoiceChip>
     </div>
     <p v-if="!loading && !items.length" class="font-light text-muted">{{ t('charts.empty') }}</p>

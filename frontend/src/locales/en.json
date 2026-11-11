@@ -496,6 +496,7 @@
     "autoplayHelp": "Plays songs like the last one: same artist, genre and era, and your likes and stars.",
     "albumEnd": "After a whole album",
     "albumEndHelp": "With autoplay on, what plays once an album has been heard from start to end.",
+    "albumEndOff": "Applies with autoplay on. With it off, playback stops when the album ends.",
     "albumEnd_radio": "Similar songs",
     "albumEnd_artist": "The artist's next album",
     "albumEnd_stop": "Stop",

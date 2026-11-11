@@ -496,6 +496,7 @@
     "autoplayHelp": "마지막 곡과 비슷한 곡(같은 가수·장르·연대, 내 좋아요·별점)을 이어서 재생합니다.",
     "albumEnd": "앨범을 다 들으면",
     "albumEndHelp": "자동재생이 켜져 있을 때, 앨범 하나를 처음부터 끝까지 들은 뒤 무엇을 재생할지 정합니다.",
+    "albumEndOff": "자동재생을 켜야 적용됩니다. 꺼져 있으면 앨범이 끝날 때 멈춥니다.",
     "albumEnd_radio": "비슷한 곡",
     "albumEnd_artist": "같은 가수의 다음 앨범",
     "albumEnd_stop": "멈춤",

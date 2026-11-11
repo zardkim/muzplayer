@@ -40,6 +40,7 @@ onMounted(async () => {
       <section v-for="s in home.sources" :key="`s-${s.source}`" class="flex flex-col gap-3.5">
         <SectionTitle
           :title="s.source && chartSource(s.source) ? t('charts.sourceRow', { source: chartSource(s.source) }) : t('charts.charts')"
+          :source="s.source"
           :to="{ name: 'chart-list', query: { kind: 'chart', source: s.source || undefined } }"
         />
         <ChartGrid :charts="s.items" row />

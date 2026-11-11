@@ -50,6 +50,19 @@ export function codec(track: { format: string; sample_rate?: number; bit_depth?:
 
 /** A chart source's name to put before "차트"/"chart" in a label: "멜론 차트" -> "멜론", so "{source} 차트"
  * doesn't say it twice ('' for a source named just "차트"). */
+/** The chart site's logo (public/logos), for a source folder named after it. */
+const SOURCE_LOGOS: [RegExp, string][] = [
+  [/멜론|melon/i, 'melon.png'],
+  [/벅스|bugs/i, 'bugs.png'],
+  [/지니|genie/i, 'genie.png'],
+  [/올레|olleh/i, 'olleh.svg'],
+  [/빌보드|billboard/i, 'billboard.png'],
+]
+export function sourceLogo(source: string): string | null {
+  const hit = SOURCE_LOGOS.find(([rx]) => rx.test(source))
+  return hit ? `/logos/${hit[1]}` : null
+}
+
 export function chartSource(source: string): string {
   return source.replace(/\s*(?:차트|charts?)\s*$/i, '').trim()
 }
