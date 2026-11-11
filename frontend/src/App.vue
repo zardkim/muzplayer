@@ -2,7 +2,7 @@
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -66,6 +66,15 @@ setUnauthorizedHandler(() => {
 const KEPT = ['SearchView', 'AlbumsView', 'ArtistsView', 'TracksView', 'GenresView', 'FoldersView', 'CollectionsView', 'ChartsView', 'BooksView', 'MixView']
 const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'genres', 'folders', 'charts', 'chart-list', 'books', 'mix']
 const mainEl = ref<HTMLElement | null>(null)
+// a long page scrolled well down (one and a half screens): a button back to the top
+const farDown = ref(false)
+function onMainScroll() {
+  const el = mainEl.value
+  farDown.value = !!el && el.scrollTop > el.clientHeight * 1.5
+}
+function toTop() {
+  mainEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
 const keepKey = ref(0)
 const scrolls = new Map<string, number>()
 let libVersion: number | null = null
@@ -391,7 +400,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         </span>
       </div>
       <SwipeHint :swipe="swiper" />
-      <main ref="mainEl" class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
+      <main ref="mainEl" @scroll.passive="onMainScroll" class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(env(safe-area-inset-bottom)+190px)] pt-[calc(env(safe-area-inset-top)+16px)] md:px-12 md:pt-5"
         :class="barHidden ? 'md:pb-24' : 'md:pb-36'">
         <button v-if="showBack && !headerBacks.size" type="button" class="-ml-2.5 -mt-1 mb-1 grid size-11 place-items-center rounded-full md:hidden" :aria-label="t('nav.back')" @click="goBack(parentPage())">
           <ChevronLeft :size="28" :stroke-width="1.5" />
@@ -402,6 +411,21 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
           </KeepAlive>
         </RouterView>
       </main>
+
+      <!-- back to the top of a long page: phones above the mini player (and a picking bar), wider screens above the player bar -->
+      <Transition enter-from-class="opacity-0 translate-y-2" leave-to-class="opacity-0 translate-y-2" enter-active-class="transition duration-200" leave-active-class="transition duration-200">
+        <button
+          v-if="farDown && !ui.playerOpen && route.name !== 'playing'"
+          type="button"
+          class="glass fixed right-4 z-30 grid size-12 place-items-center rounded-full shadow-lg md:absolute md:right-8"
+          :class="barHidden ? 'bottom-[calc(env(safe-area-inset-bottom)+240px)] md:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+240px)] md:bottom-32'"
+          :aria-label="t('nav.toTop')"
+          :title="t('nav.toTop')"
+          @click="toTop"
+        >
+          <ArrowUp :size="20" :stroke-width="1.8" />
+        </button>
+      </Transition>
 
       <!-- desktop floating player; tucked away, a small button brings it back -->
       <div v-if="!barHidden" class="pointer-events-none absolute inset-x-0 bottom-5 hidden justify-center px-8 md:flex">
