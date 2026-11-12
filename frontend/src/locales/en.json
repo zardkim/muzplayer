@@ -1179,6 +1179,7 @@
     "from_manual": "Written here"
   },
   "radio": {
+    "sameAs": "Same as the listed {name}",
     "presets": "Memory",
     "preset": "Memory {n}",
     "presetEmpty": "Memory {n} (empty)",

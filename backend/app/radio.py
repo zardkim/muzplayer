@@ -170,9 +170,22 @@ def _direct(station: dict) -> str | None:
     return url if url.startswith("https://") else None
 
 
+def builtin_for(url: str | None) -> dict | None:
+    """The listed station a radio.bsod.kr address names ("https://radio.bsod.kr/stream?stn=kbs&ch=2fm"):
+    stations added by hand with such an address play the listed one's way (that site refuses this
+    server since November 2026)."""
+    parts = urllib.parse.urlparse(url or "")
+    if (parts.hostname or "").removeprefix("www.") != "radio.bsod.kr":
+        return None
+    q = {k: v[0] for k, v in urllib.parse.parse_qs(parts.query).items() if k in ("stn", "ch", "city") and v}
+    return next((s for s in STATIONS if s.get("q") == q), None) if q.get("stn") else None
+
+
 def resolve(station: dict) -> tuple[str, str]:
     """(the stream's address now, its content type): asked of the broadcaster (DIRECT), its fixed
     address ("stream"; one's own station's "url"), else radio.bsod.kr's address for it."""
+    if station.get("custom") and (listed := builtin_for(station.get("url"))):
+        return resolve(listed)
     if direct := _direct(station):
         return direct, HLS if ".m3u8" in direct else "audio/aac"
     url = station.get("stream") or station.get("url") or SOURCE + "?" + urllib.parse.urlencode(station["q"])
@@ -316,12 +329,17 @@ def station_out(s: dict) -> dict:
         out["freq"] = s["freq"]  # by region: "FM 89.1" | "AM 972" (the Radio page's tuner)
     if s.get("custom"):
         out.update(custom=True, url=s["url"])
+        if s.get("same_as"):
+            out["same_as"] = s["same_as"]
     return out
 
 
 def custom_station(row) -> dict:
     """A station someone added (models.RadioCustom), as the listed ones are."""
-    return {"id": f"c{row.id}", "name": row.name, "stn": "custom", "regions": ["custom"], "logo": None, "url": row.url, "custom": True}
+    out = {"id": f"c{row.id}", "name": row.name, "stn": "custom", "regions": ["custom"], "logo": None, "url": row.url, "custom": True}
+    if listed := builtin_for(row.url):
+        out["same_as"] = listed["id"]  # a listed station, again (shown as such: one may delete it)
+    return out
 
 
 class Unsupported(Exception):
@@ -337,6 +355,8 @@ def probe(url: str, depth: int = 0) -> str:
     playlist names. Raises Unsupported (not a stream) or Unavailable (it didn't answer)."""
     if urllib.parse.urlparse(url).scheme not in ("http", "https"):
         raise Unsupported
+    if builtin_for(url):
+        return url  # a listed station's radio.bsod.kr address: played the listed one's way
     try:
         with _open(url) as resp:
             final, ctype = resp.geturl(), resp.headers.get("Content-Type", "").split(";")[0].strip().lower()

@@ -1179,6 +1179,7 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "sameAs": "기본 채널 {name}과 같은 방송",
     "presets": "메모리",
     "preset": "메모리 {n}",
     "presetEmpty": "메모리 {n} (비어 있음)",

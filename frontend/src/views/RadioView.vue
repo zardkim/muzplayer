@@ -43,6 +43,10 @@ const isHidden = (s: RadioStation) => hidden.value.has(s.id)
 const visible = (s: RadioStation) => editing.value || !isHidden(s)
 const shown = computed(() => stations.value.filter((s) => s.regions.includes(region.value) && visible(s)))
 const custom = computed(() => stations.value.filter((s) => s.custom && visible(s)))
+// one's own station that is a listed one again (by its address, or by its name): said so, it can go
+function listedTwin(s: RadioStation): RadioStation | null {
+  return stations.value.find((x) => !x.custom && (x.id === s.same_as || x.name.replace(/\s/g, '') === s.name.replace(/\s/g, ''))) ?? null
+}
 const hiddenCount = computed(() => stations.value.filter(isHidden).length)
 function toggleHidden(s: RadioStation) {
   const h = ui.radio.hidden ?? []
@@ -224,7 +228,8 @@ function tune(s: RadioStation) {
             <StationBadge :stn="s.stn" :logo="s.logo" class="size-11 text-[13px]" />
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-[16px]" :class="live?.id === s.id ? 'font-medium text-accent' : ''">{{ s.name }}</span>
-              <span class="truncate text-[12px] font-light text-muted">{{ s.url }}</span>
+              <span v-if="listedTwin(s)" class="truncate text-[12px] text-accent">{{ t('radio.sameAs', { name: listedTwin(s)!.name }) }}</span>
+              <span v-else class="truncate text-[12px] font-light text-muted">{{ s.url }}</span>
             </span>
             <PlayerIcons v-if="live?.id === s.id" :name="player.playing ? 'pause' : 'play'" :size="18" :stroke="1.8" class="mr-1.5 flex-none text-accent" />
           </button>
