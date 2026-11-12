@@ -17,6 +17,7 @@ import LoadMore from '../components/LoadMore.vue'
 import SelectPill from '../components/SelectPill.vue'
 import { useUi } from '../stores/ui'
 import { aliasHit, useListSearch } from '../listSearch'
+import { vLongPress } from '../longPress'
 
 const { t } = useI18n()
 const auth = useAuth()
@@ -25,10 +26,21 @@ const merging = ref(false) // admin: the duplicates sheet
 const picking = ref(false)
 const picked = ref<Artist[]>([])
 const choosing = ref(false) // the sheet choosing the name to keep
+let pressedAt = 0
 function pickOne(a: Artist) {
+  if (Date.now() - pressedAt < 700) return // the tap that ended a long press
   picked.value = picked.value.some((p) => p.id === a.id) ? picked.value.filter((p) => p.id !== a.id) : [...picked.value, a]
 }
 const isPicked = (a: Artist) => picked.value.some((p) => p.id === a.id)
+// an artist held down: picking starts (as the "pick" button), with it picked
+function pressPick(a: Artist) {
+  if (picking.value) pickOne(a)
+  else {
+    picking.value = true
+    picked.value = [a]
+  }
+  pressedAt = Date.now()
+}
 function stopPicking() {
   picking.value = false
   picked.value = []
@@ -123,7 +135,8 @@ function reload() {
         <component
           :is="picking ? 'button' : RouterLink"
           v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(a) } : { to: { name: 'artist', params: { id: a.id } } }"
-          class="group relative flex w-full flex-col items-center gap-2.5 text-center"
+          class="group relative flex w-full select-none flex-col items-center gap-2.5 text-center [-webkit-touch-callout:none]"
+          v-long-press="auth.user?.is_admin ? () => pressPick(a) : null"
           @click="picking && pickOne(a)"
         >
           <ArtistPhoto :artist-id="a.id" :name="a.name" :version="a.image_v" :size="view === 'cover' ? 'large' : 'thumb'" class="w-full transition-transform duration-200 group-hover:scale-[1.03]" :class="picking && isPicked(a) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : ''" />
@@ -140,7 +153,8 @@ function reload() {
         <component
           :is="picking ? 'button' : RouterLink"
           v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(a) } : { to: { name: 'artist', params: { id: a.id } } }"
-          class="flex min-h-[64px] w-full items-center gap-3.5 border-b border-surface text-left"
+          class="flex min-h-[64px] w-full select-none items-center gap-3.5 border-b border-surface text-left [-webkit-touch-callout:none]"
+          v-long-press="auth.user?.is_admin ? () => pressPick(a) : null"
           @click="picking && pickOne(a)"
         >
           <span v-if="picking" class="grid size-6 flex-none place-items-center rounded-full border-2" :class="isPicked(a) ? 'border-accent bg-accent text-white' : 'border-line-strong'"><Check v-if="isPicked(a)" :size="14" :stroke-width="2.5" /></span>

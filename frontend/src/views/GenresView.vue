@@ -11,6 +11,7 @@ import MergeSheet from '../components/MergeSheet.vue'
 import PickBar from '../components/PickBar.vue'
 import PickedMergeSheet from '../components/PickedMergeSheet.vue'
 import { matches, useListSearch } from '../listSearch'
+import { vLongPress } from '../longPress'
 import SelectPill from '../components/SelectPill.vue'
 
 // Genres as pastel tiles: each genre keeps its own colour (from its name), washed see-through, with the covers of
@@ -22,10 +23,21 @@ const merging = ref(false) // admin: the duplicates sheet
 const picking = ref(false)
 const picked = ref<Genre[]>([])
 const choosing = ref(false) // the sheet choosing the name to keep
+let pressedAt = 0
 function pickOne(g: Genre) {
+  if (Date.now() - pressedAt < 700) return // the tap that ended a long press
   picked.value = picked.value.some((p) => p.id === g.id) ? picked.value.filter((p) => p.id !== g.id) : [...picked.value, g]
 }
 const isPicked = (g: Genre) => picked.value.some((p) => p.id === g.id)
+// a genre held down: picking starts (as the "pick" button), with it picked
+function pressPick(g: Genre) {
+  if (picking.value) pickOne(g)
+  else {
+    picking.value = true
+    picked.value = [g]
+  }
+  pressedAt = Date.now()
+}
 function stopPicking() {
   picking.value = false
   picked.value = []
@@ -133,8 +145,9 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
         <component
           :is="picking ? 'button' : RouterLink"
           v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(g) } : { to: { name: 'tracks', query: { genre: g.id } } }"
-          class="group relative block w-full overflow-hidden rounded-2xl border text-left text-ink shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+          class="group relative block w-full select-none overflow-hidden rounded-2xl border [-webkit-touch-callout:none] text-left text-ink shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
           :class="[i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]', picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : '']"
+          v-long-press="auth.user?.is_admin ? () => pressPick(g) : null"
           @click="picking && pickOne(g)"
           :style="tint(g.name)"
         >
