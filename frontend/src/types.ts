@@ -380,5 +380,6 @@ export interface RadioStation {
   regions: string[] // seoul, busan, ...
   logo: string | null // /radio-logos/<logo>.png (from Wikipedia/Commons); none: the badge
   custom?: boolean // added by this person by its address (region "custom")
+  freq?: Record<string, string> // on air, by region: "FM 89.1", "AM 972" (none: internet only, the tuner's NET band)
   url?: string
 }

@@ -1179,6 +1179,17 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "mode": "보기 방식",
+    "mode_list": "목록",
+    "mode_tuner": "튜너",
+    "moreStations": "방송국 더 보기",
+    "noStation": "방송국이 없는 주파수",
+    "otherHere": "같은 주파수: {name}",
+    "band": "밴드",
+    "dial": "주파수 다이얼",
+    "seekPrev": "이전 방송국 찾기",
+    "seekNext": "다음 방송국 찾기",
+    "volume": "음량",
     "custom": "내가 추가한 채널",
     "add": "채널 추가",
     "addTitle": "라디오 채널 추가",

@@ -11,6 +11,7 @@ import type { RadioStation, ViewMode } from '../types'
 import BaseModal from '../components/BaseModal.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
+import RadioTuner from '../components/RadioTuner.vue'
 import SectionTitle from '../components/SectionTitle.vue'
 import SelectPill from '../components/SelectPill.vue'
 import StationBadge from '../components/StationBadge.vue'
@@ -31,6 +32,11 @@ const region = computed({
   set: (v: string) => (ui.views = { ...ui.views, radio: v }),
 })
 const view = computed(() => ((ui.views.radioView as ViewMode) === 'cover' ? 'cover' : 'list'))
+// the stations as a list, or on a tuner's dial by frequency (RadioTuner); the one picked is remembered
+const mode = computed({
+  get: () => (ui.views.radioMode === 'tuner' ? 'tuner' : 'list'),
+  set: (v: 'list' | 'tuner') => (ui.views = { ...ui.views, radioMode: v }),
+})
 const editing = ref(false)
 const hidden = computed(() => new Set(ui.radio.hidden ?? []))
 const isHidden = (s: RadioStation) => hidden.value.has(s.id)
@@ -121,6 +127,7 @@ function tune(s: RadioStation) {
           <Plus :size="22" :stroke-width="1.7" />
         </button>
         <button
+          v-if="mode === 'list'"
           type="button"
           class="flex h-10 items-center gap-1.5 rounded-full px-3 text-[15px]"
           :class="editing ? 'bg-ink font-medium text-on-ink' : 'hover:bg-surface'"
@@ -134,6 +141,20 @@ function tune(s: RadioStation) {
         </button>
       </template>
     </PageHeader>
+    <div class="-mt-2 flex self-start rounded-full bg-surface p-1" role="tablist" :aria-label="t('radio.mode')">
+      <button
+        v-for="m in (['list', 'tuner'] as const)"
+        :key="m"
+        type="button"
+        role="tab"
+        :aria-selected="mode === m"
+        class="h-8 rounded-full px-4 text-[14px] font-medium"
+        :class="mode === m ? 'bg-bg text-ink shadow-sm' : 'text-muted'"
+        @click="mode = m"
+      >{{ t(`radio.mode_${m}`) }}</button>
+    </div>
+    <RadioTuner v-if="mode === 'tuner' && stations.length" v-model:region="region" :stations="stations.filter((s) => !isHidden(s))" :regions="regions" @list="mode = 'list'" />
+    <template v-if="mode === 'list'">
     <p v-if="editing && hiddenCount" class="-mt-3 text-[14px] text-muted">{{ t('radio.hiddenCount', { n: hiddenCount }) }}</p>
 
     <!-- what is on now -->
@@ -262,6 +283,7 @@ function tune(s: RadioStation) {
         </button>
       </li>
     </ul>
+    </template>
     <p class="text-[12px] font-light text-subtle">{{ t('radio.source') }}</p>
     <BaseModal v-if="adding" :title="t('radio.addTitle')" @close="adding = false">
       <form class="flex flex-col gap-3.5" @submit.prevent="addStation">

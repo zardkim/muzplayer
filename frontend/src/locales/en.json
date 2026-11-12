@@ -1179,6 +1179,17 @@
     "from_manual": "Written here"
   },
   "radio": {
+    "mode": "View",
+    "mode_list": "List",
+    "mode_tuner": "Tuner",
+    "moreStations": "More stations",
+    "noStation": "No station here",
+    "otherHere": "Also here: {name}",
+    "band": "Band",
+    "dial": "Frequency dial",
+    "seekPrev": "Seek previous station",
+    "seekNext": "Seek next station",
+    "volume": "Volume",
     "custom": "Your stations",
     "add": "Add station",
     "addTitle": "Add a radio station",

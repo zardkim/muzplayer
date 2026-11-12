@@ -225,6 +225,8 @@ async def _passthrough(url: str, lease: _Lease) -> AsyncIterator[bytes]:
 
 def station_out(s: dict) -> dict:
     out = {"id": s["id"], "name": s["name"], "stn": s["stn"], "regions": s["regions"], "logo": s.get("logo")}
+    if s.get("freq"):
+        out["freq"] = s["freq"]  # by region: "FM 89.1" | "AM 972" (the Radio page's tuner)
     if s.get("custom"):
         out.update(custom=True, url=s["url"])
     return out
