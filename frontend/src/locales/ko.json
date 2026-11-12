@@ -1179,6 +1179,11 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "noise": "튜닝 잡음",
+    "share": "공유",
+    "copied": "복사했습니다",
+    "seekPrevHelp": "이전 방송국 찾기 (길게 누르면 SCAN)",
+    "seekNextHelp": "다음 방송국 찾기 (길게 누르면 SCAN)",
     "mode": "보기 방식",
     "mode_list": "목록",
     "mode_tuner": "튜너",

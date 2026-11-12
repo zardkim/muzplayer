@@ -63,7 +63,7 @@ function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?:
 
 // radio stations (ids): the ones listened to lately (newest first) and the starred ones; kept with the
 // account, so every device shows the same (prefsSync.ts)
-export interface RadioMarks { recent: string[]; favorites: string[]; hidden?: string[] } // hidden: left out of the Radio page's lists
+export interface RadioMarks { recent: string[]; favorites: string[]; hidden?: string[]; tunerNoise?: boolean } // hidden: left out of the Radio page's lists; tunerNoise: the tuner's hiss between stations
 export const RADIO_RECENT_KEPT = 12
 
 export const useUi = defineStore('ui', () => {

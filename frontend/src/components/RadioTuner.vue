@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, ChevronRight, Star, Volume1, Volume2 } from '@lucide/vue'
+import { AudioWaveform, ChevronDown, ChevronRight, Share2, Star, Volume1, Volume2 } from '@lucide/vue'
+import { vLongPress } from '../longPress'
+import { onAirText, useOnAir } from '../radio'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import { BANDS, bandOf, dialFor, nextStop, stepOf, tickLabel, type Band } from '../tuner'
+import { setNoise, stopNoise, wakeNoise } from '../tunerNoise'
 import type { RadioStation } from '../types'
 import PlayerIcons from './PlayerIcons.vue'
 import StationBadge from './StationBadge.vue'
@@ -12,7 +15,8 @@ import StationBadge from './StationBadge.vue'
 // The Radio page's tuner (docs/radio_tuner_plan.md): the region's stations on a dial by frequency, like
 // a phone's FM radio. The dial slides under a fixed needle (dragged, flung, tapped, the wheel, the
 // arrow keys); where it stops on a station, that station plays a moment later; between stations, the
-// radio stops. ◀◀ ▶▶ seek the next station. The station playing moves the dial to it.
+// radio stops. ◀◀ ▶▶ seek the next station (held: SCAN, seven seconds each until a tap). The station
+// playing moves the dial to it. Shown with it: what it has on air (radio_now.py), when known.
 const props = defineProps<{ stations: RadioStation[]; regions: string[] }>()
 const region = defineModel<string>('region', { required: true })
 const emit = defineEmits<{ list: [] }>()
@@ -137,6 +141,7 @@ function rest() {
 let drag: { x: number; pos: number; moved: boolean; lastX: number; lastT: number; v: number } | null = null
 function down(e: PointerEvent) {
   if (e.button !== 0) return
+  touched()
   stopMotion()
   window.clearTimeout(tuneTimer)
   ruler.value?.setPointerCapture(e.pointerId)
@@ -179,6 +184,7 @@ function up(e: PointerEvent) {
 let wheelSum = 0
 function wheel(e: WheelEvent) {
   e.preventDefault()
+  stopScan()
   wheelSum += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
   if (Math.abs(wheelSum) < 30) return
   const dir = wheelSum > 0 ? 1 : -1
@@ -197,6 +203,8 @@ function key(e: KeyboardEvent) {
   else if (e.key === 'End') target = dial.value.steps - 1
   if (target === null) return
   e.preventDefault()
+  touched()
+  stopScan()
   stopMotion()
   pickedAlt.value = 0
   pos.value = target
@@ -234,12 +242,70 @@ const fixedVolume = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 const unit = computed(() => (band.value === 'FM' ? 'FM' : band.value === 'AM' ? 'AM' : 'CH'))
 const shownFreq = computed(() => dial.value.label(step.value))
 const playingHere = computed(() => !!station.value && live.value?.id === station.value.id && player.playing)
+const onAir = useOnAir(computed(() => station.value?.id))
+
+async function share() {
+  const st = station.value
+  if (!st) return
+  const text = [st.name, band.value === 'NET' ? '' : `${unit.value} ${shownFreq.value}`, onAir.value?.title ?? ''].filter(Boolean).join(' · ')
+  try {
+    if (navigator.share) await navigator.share({ title: st.name, text })
+    else {
+      await navigator.clipboard.writeText(text)
+      ui.notify(t('radio.copied'))
+    }
+  } catch {
+    /* closed */
+  }
+}
+
+// ---- SCAN: the next station every seven seconds, until a tap ----
+const SCAN_MS = 7000
+const scanning = ref<0 | 1 | -1>(0)
+let scanTimer = 0
+function startScan(dir: 1 | -1) {
+  scanning.value = dir
+  const next = () => {
+    seek(dir)
+    scanTimer = window.setTimeout(next, SCAN_MS)
+  }
+  next()
+}
+function stopScan() {
+  if (!scanning.value) return
+  scanning.value = 0
+  window.clearTimeout(scanTimer)
+}
+// ---- the hiss between stations (off unless turned on) ----
+const noiseOn = computed(() => !!ui.radio.tunerNoise)
+function toggleNoise() {
+  ui.radio = { ...ui.radio, tunerNoise: !noiseOn.value }
+  if (noiseOn.value) wakeNoise()
+  else stopNoise()
+}
+function touched() {
+  if (noiseOn.value) wakeNoise()
+}
+watch([pos, noiseOn, band], () => {
+  if (!noiseOn.value || band.value === 'NET') return setNoise(0)
+  const near = Math.min(...dial.value.stops.map((s) => Math.abs(s.step - pos.value)), 99)
+  setNoise(near < 0.35 ? 0 : Math.min(1, (near - 0.35) / 1.2))
+})
+function hidden() {
+  if (document.hidden) stopNoise()
+}
+onMounted(() => document.addEventListener('visibilitychange', hidden))
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', hidden)
+  stopNoise()
+  window.clearTimeout(scanTimer)
+})
 </script>
 
 <template>
-  <div class="mx-auto flex w-full max-w-[720px] flex-col items-center gap-4 md:gap-5">
+  <div class="mx-auto flex w-full max-w-[720px] flex-col items-center gap-4 md:gap-5" @pointerdown.capture="stopScan">
     <!-- region, bands and the station's star -->
-    <div class="grid w-full grid-cols-[1fr_auto_1fr] items-center">
+    <div class="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1">
       <label class="relative inline-flex items-center justify-self-start text-[15px] text-muted">
         <select v-model="region" :aria-label="t('common.region')" class="max-w-[9rem] appearance-none truncate bg-transparent pr-5 outline-none [field-sizing:content]">
           <option v-for="r in regions" :key="r" :value="r">{{ t(`radio.region_${r}`) }}</option>
@@ -259,16 +325,24 @@ const playingHere = computed(() => !!station.value && live.value?.id === station
         >{{ b }}</button>
       </div>
       <span v-else />
-      <button
-        type="button"
-        class="grid size-10 place-items-center justify-self-end rounded-full text-accent disabled:opacity-30"
-        :disabled="!station"
-        :aria-label="isFavorite ? t('radio.unfavorite') : t('radio.favorite')"
-        :aria-pressed="isFavorite"
-        @click="toggleFavorite"
-      >
-        <Star :size="26" :stroke-width="1.6" :fill="isFavorite ? 'currentColor' : 'none'" />
-      </button>
+      <div class="flex items-center justify-self-end">
+        <button type="button" class="grid size-10 place-items-center rounded-full" :class="noiseOn ? 'text-accent' : 'text-muted'" :aria-pressed="noiseOn" :aria-label="t('radio.noise')" :title="t('radio.noise')" @click="toggleNoise">
+          <AudioWaveform :size="21" :stroke-width="1.7" />
+        </button>
+        <button type="button" class="grid size-10 place-items-center rounded-full text-accent disabled:opacity-30" :disabled="!station" :aria-label="t('radio.share')" :title="t('radio.share')" @click="share">
+          <Share2 :size="21" :stroke-width="1.7" />
+        </button>
+        <button
+          type="button"
+          class="grid size-10 place-items-center rounded-full text-accent disabled:opacity-30"
+          :disabled="!station"
+          :aria-label="isFavorite ? t('radio.unfavorite') : t('radio.favorite')"
+          :aria-pressed="isFavorite"
+          @click="toggleFavorite"
+        >
+          <Star :size="25" :stroke-width="1.6" :fill="isFavorite ? 'currentColor' : 'none'" />
+        </button>
+      </div>
     </div>
 
     <!-- the station: its image, the frequency, its name -->
@@ -279,10 +353,15 @@ const playingHere = computed(() => !!station.value && live.value?.id === station
       </div>
       <p class="flex items-baseline gap-2 text-ink">
         <span class="text-[76px] font-extralight tabular-nums leading-none tracking-tight md:text-[112px]">{{ shownFreq }}</span>
-        <span class="text-[24px] font-light md:text-[30px]">{{ unit }}</span>
+        <span class="flex flex-col items-start">
+          <span v-if="scanning" class="animate-pulse rounded bg-accent px-1.5 text-[11px] font-bold leading-[18px] text-white">SCAN</span>
+          <span class="text-[24px] font-light md:text-[30px]">{{ unit }}</span>
+        </span>
       </p>
       <p class="mt-1 min-h-[28px] max-w-full truncate text-[21px] font-medium md:text-[24px]">{{ station?.name ?? '—' }}</p>
-      <p class="min-h-[22px] truncate text-[15px] text-muted">
+      <!-- what it has on air now (the "radio title"), when its broadcaster says -->
+      <p v-if="station && onAir" class="max-w-full truncate text-[16px] text-ink/80 md:text-[17px]">{{ onAirText(onAir) }}</p>
+      <p class="min-h-[20px] truncate text-[14px] text-muted">
         <template v-if="station">CH {{ channel }} · {{ t(`radio.region_${region}`) }}</template>
         <template v-else>{{ t('radio.noStation') }}</template>
       </p>
@@ -326,13 +405,13 @@ const playingHere = computed(() => !!station.value && live.value?.id === station
 
     <!-- seek, play -->
     <div class="flex w-full max-w-[360px] items-center justify-between px-4">
-      <button type="button" class="grid size-14 place-items-center rounded-full hover:bg-surface" :aria-label="t('radio.seekPrev')" :title="t('radio.seekPrev')" @click="seek(-1)">
+      <button v-long-press="() => startScan(-1)" type="button" class="grid size-14 select-none place-items-center rounded-full hover:bg-surface [-webkit-touch-callout:none]" :aria-label="t('radio.seekPrev')" :title="t('radio.seekPrevHelp')" @click="touched(); seek(-1)">
         <PlayerIcons name="rewind" :size="32" :stroke="1.5" />
       </button>
       <button type="button" class="grid size-16 place-items-center rounded-full hover:bg-surface disabled:opacity-30" :disabled="!station" :aria-label="playingHere ? t('player.pause') : t('player.play')" @click="toggle">
         <PlayerIcons :name="playingHere ? 'pause' : 'play'" :size="34" :stroke="1.6" />
       </button>
-      <button type="button" class="grid size-14 place-items-center rounded-full hover:bg-surface" :aria-label="t('radio.seekNext')" :title="t('radio.seekNext')" @click="seek(1)">
+      <button v-long-press="() => startScan(1)" type="button" class="grid size-14 select-none place-items-center rounded-full hover:bg-surface [-webkit-touch-callout:none]" :aria-label="t('radio.seekNext')" :title="t('radio.seekNextHelp')" @click="touched(); seek(1)">
         <PlayerIcons name="forward" :size="32" :stroke="1.5" />
       </button>
     </div>

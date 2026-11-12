@@ -1179,6 +1179,11 @@
     "from_manual": "Written here"
   },
   "radio": {
+    "noise": "Tuning noise",
+    "share": "Share",
+    "copied": "Copied",
+    "seekPrevHelp": "Seek previous (hold: scan)",
+    "seekNextHelp": "Seek next (hold: scan)",
     "mode": "View",
     "mode_list": "List",
     "mode_tuner": "Tuner",

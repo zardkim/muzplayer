@@ -7,7 +7,7 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import radio
+from .. import radio, radio_now
 from ..db import get_db
 from ..models import RadioCustom, User
 from ..security import api_error, current_user
@@ -25,6 +25,13 @@ def stations(user: User = Depends(current_user), db: Session = Depends(get_db, s
         "regions": list(radio.REGIONS),
         "stations": [radio.station_out(s) for s in radio.STATIONS] + [radio.station_out(radio.custom_station(c)) for c in mine],
     }
+
+
+@router.get("/radio/stations/{station_id}/now")
+def on_air_now(station_id: str, _: User = Depends(current_user)):
+    """The programme the station has on air now (radio_now.py): {"title", "start", "end"}, all null
+    when the broadcaster doesn't say (or isn't asked)."""
+    return radio_now.now(station_id) or {"title": None, "start": None, "end": None}
 
 
 class CustomIn(BaseModel):

@@ -5,6 +5,7 @@ import { ChevronDown, MicVocal, Square } from '@lucide/vue'
 import { duration } from '../format'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
+import { useOnAir } from '../radio'
 import { openPlayer, togglePlayer } from '../playerNav'
 import { useUi } from '../stores/ui'
 import { useSwipe } from '../swipe'
@@ -32,6 +33,7 @@ const preview = ref<number | null>(null)
 
 const isBook = computed(() => player.mode === 'book' && !!player.book)
 const live = computed(() => (player.mode === 'live' ? player.station : null))
+const onAir = useOnAir(computed(() => live.value?.id)) // the programme on air, when its broadcaster says
 
 // phone mini player: swipe sideways for the next / previous song, up to open the player, down (or
 // the ∨ at its end) to tuck it away (App.vue then shows a small button; it comes back by itself
@@ -77,7 +79,7 @@ const segPos = computed(() => Math.min(segLength.value, Math.max(0, player.bookP
         <StationBadge :stn="live.stn" :logo="live.logo" class="size-11 text-[12px]" />
         <span class="flex min-w-0 flex-col">
           <Marquee :text="live.name" class="text-[15px]" />
-          <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span>{{ t('radio.live') }}</span>
+          <span class="flex items-center gap-1.5 text-xs font-light text-muted"><span class="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">LIVE</span><span class="truncate">{{ onAir?.title || t('radio.live') }}</span></span>
         </span>
       </button>
       <button type="button" class="grid size-11 place-items-center" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
