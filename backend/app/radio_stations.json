@@ -215,7 +215,8 @@
    "chungbuk": "FM 105.1",
    "gangwon": "FM 106.5",
    "jeju": "FM 107.3"
-  }
+  },
+  "stream": "https://ebsonair.ebs.co.kr/fmradiofamilypc/familypc1m/playlist.m3u8"
  },
  {
   "id": "ebs-bandi",
@@ -236,7 +237,8 @@
    "gangwon",
    "jeju"
   ],
-  "logo": "ebs"
+  "logo": "ebs",
+  "stream": "https://ebsonair.ebs.co.kr/cloud1/iradio/playlist.m3u8"
  },
  {
   "id": "obs",
@@ -251,7 +253,8 @@
   "logo": "obs",
   "freq": {
    "seoul": "FM 99.9"
-  }
+  },
+  "stream": "https://vod3.obs.co.kr:444/live/obsstream1/radio.stream/playlist.m3u8"
  },
  {
   "id": "ifm",
@@ -266,7 +269,8 @@
   "logo": "ifm",
   "freq": {
    "seoul": "FM 90.7"
-  }
+  },
+  "stream": "https://stream.ifm.kr/live/aod1/playlist.m3u8"
  },
  {
   "id": "ytn",
@@ -281,7 +285,8 @@
   "logo": "ytn",
   "freq": {
    "seoul": "FM 94.5"
-  }
+  },
+  "stream": "https://radiolive.ytn.co.kr/radio/_definst_/20211118_fmlive/playlist.m3u8"
  },
  {
   "id": "tbs-fm",
@@ -297,7 +302,8 @@
   "logo": "tbs",
   "freq": {
    "seoul": "FM 95.1"
-  }
+  },
+  "stream": "https://cdnfm.tbs.seoul.kr/tbs/_definst_/tbs_fm_web_360.smil/playlist.m3u8"
  },
  {
   "id": "tbs-efm",
@@ -313,7 +319,8 @@
   "logo": "tbs",
   "freq": {
    "seoul": "FM 101.3"
-  }
+  },
+  "stream": "https://cdnefm.tbs.seoul.kr/tbs/_definst_/tbs_efm_web_360.smil/playlist.m3u8"
  },
  {
   "id": "tbn",
@@ -327,7 +334,8 @@
   ],
   "freq": {
    "seoul": "FM 100.5"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/gyeongin/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm",
@@ -343,7 +351,8 @@
   "logo": "cbs",
   "freq": {
    "seoul": "FM 98.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/mweb_cbs981/_definst_/cbs981.stream/playlist.m3u8"
  },
  {
   "id": "cbs-mfm",
@@ -359,7 +368,8 @@
   "logo": "cbs",
   "freq": {
    "seoul": "FM 93.9"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/mweb_cbs939/_definst_/cbs939.stream/playlist.m3u8"
  },
  {
   "id": "cbs-joy4u",
@@ -380,7 +390,8 @@
    "gangwon",
    "jeju"
   ],
-  "logo": "cbs"
+  "logo": "cbs",
+  "stream": "https://m-aac.cbs.co.kr/mweb_cbscmc/_definst_/cbscmc.stream/playlist.m3u8"
  },
  {
   "id": "febc",
@@ -395,7 +406,8 @@
   "logo": "febc",
   "freq": {
    "seoul": "FM 106.9"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/seoulfm/playlist.m3u8"
  },
  {
   "id": "bbs",
@@ -410,7 +422,8 @@
   "logo": "bbs",
   "freq": {
    "seoul": "FM 101.9"
-  }
+  },
+  "stream": "https://bbslive.clouducs.com/bbsradio-mlive/radio.stream/playlist.m3u8"
  },
  {
   "id": "cpbc",
@@ -425,7 +438,8 @@
   "logo": "cpbc",
   "freq": {
    "seoul": "FM 105.3"
-  }
+  },
+  "stream": "http://onair1.cpbc.co.kr:1935/live/_definst_/Instreamer.stream_aac/playlist.m3u8"
  },
  {
   "id": "wbs",
@@ -439,7 +453,8 @@
   ],
   "freq": {
    "seoul": "FM 89.7"
-  }
+  },
+  "stream": "https://wbsradio.kr/wbs-seoul"
  },
  {
   "id": "kookbang",
@@ -467,7 +482,8 @@
    "chungbuk": "FM 100.1",
    "gangwon": "FM 96.7",
    "jeju": "FM 94.1"
-  }
+  },
+  "stream": "https://mediaworks.dema.mil.kr/live_edge/audio.sdp/playlist.m3u8"
  },
  {
   "id": "kugak",
@@ -481,7 +497,8 @@
   ],
   "freq": {
    "seoul": "FM 99.1"
-  }
+  },
+  "stream": "https://mgugaklive.nowcdn.co.kr/gugakradio/gugakradio.stream/playlist.m3u8"
  },
  {
   "id": "afn-humphreys",
@@ -512,7 +529,8 @@
   ],
   "freq": {
    "seoul": "FM 100.3"
-  }
+  },
+  "stream": "http://icecast.radios.kr:8000/gwanakfm"
  },
  {
   "id": "community-mapofm",
@@ -527,7 +545,8 @@
   ],
   "freq": {
    "seoul": "FM 100.7"
-  }
+  },
+  "stream": "http://onair.mapofm.net/mapofm"
  },
  {
   "id": "community-seongnamfm",
@@ -542,7 +561,8 @@
   ],
   "freq": {
    "seoul": "FM 90.7"
-  }
+  },
+  "stream": "http://onair.mapofm.net/seongnamfm"
  },
  {
   "id": "community-sdmfm",
@@ -554,7 +574,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/sdmfm"
  },
  {
   "id": "community-sonefm",
@@ -566,7 +587,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "stream": "http://onair.mapofm.net/sonefm"
  },
  {
   "id": "community-gurifm",
@@ -578,7 +600,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/gurifm"
  },
  {
   "id": "community-dwfm",
@@ -590,7 +613,8 @@
   },
   "regions": [
    "seoul"
-  ]
+  ],
+  "stream": "http://radiostream.communityradio.kr/dwfm1"
  },
  {
   "id": "kbs-1radio-busan",
@@ -777,7 +801,8 @@
   "logo": "mbc",
   "freq": {
    "busan": "FM 97.5"
-  }
+  },
+  "stream": "https://5ddfd163bd00d.streamlock.net/STDFM/STDFM/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-ulsan",
@@ -794,7 +819,8 @@
   "logo": "mbc",
   "freq": {
    "busan": "FM 98.7"
-  }
+  },
+  "stream": "https://5ddfd163bd00d.streamlock.net/FM4U/FM4U/playlist.m3u8"
  },
  {
   "id": "mbc-sfm-changwon",
@@ -811,7 +837,8 @@
   "logo": "mbc",
   "freq": {
    "busan": "FM 98.9"
-  }
+  },
+  "stream": "https://wowza.mbcgn.kr/MBCFM/TV2.stream/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-changwon",
@@ -828,7 +855,8 @@
   "logo": "mbc",
   "freq": {
    "busan": "FM 100.5"
-  }
+  },
+  "stream": "https://wowza.mbcgn.kr/MBCFM4U/TV3.stream/playlist.m3u8"
  },
  {
   "id": "sbs-lovefm-busan",
@@ -845,7 +873,8 @@
   "logo": "knn",
   "freq": {
    "busan": "FM 105.7"
-  }
+  },
+  "stream": "https://stream1.knn.co.kr/hls/b3y26uu6471k8tes9w7h_lfm/index.m3u8"
  },
  {
   "id": "sbs-powerfm-busan",
@@ -862,7 +891,8 @@
   "logo": "knn",
   "freq": {
    "busan": "FM 99.9"
-  }
+  },
+  "stream": "https://stream1.knn.co.kr/hls/lb9ezl87d37uu0vy65bb_pfm/index.m3u8"
  },
  {
   "id": "sbs-powerfm-ulsan",
@@ -879,7 +909,8 @@
   "logo": "ubc",
   "freq": {
    "busan": "FM 92.3"
-  }
+  },
+  "stream": "https://stream.ubc.co.kr/hls/ubcfmstream/index.m3u8"
  },
  {
   "id": "tbn-busan",
@@ -894,7 +925,8 @@
   ],
   "freq": {
    "busan": "FM 94.9"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/busan/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-ulsan",
@@ -909,7 +941,8 @@
   ],
   "freq": {
    "busan": "FM 104.1"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/ulsan/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-gyeongnam",
@@ -924,7 +957,8 @@
   ],
   "freq": {
    "busan": "FM 95.5"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/gyeongnam/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-busan",
@@ -941,7 +975,8 @@
   "logo": "cbs",
   "freq": {
    "busan": "FM 102.9"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/busan939/_definst_/busan939.stream/playlist.m3u8"
  },
  {
   "id": "cbs-mfm-busan",
@@ -958,7 +993,8 @@
   "logo": "cbs",
   "freq": {
    "busan": "FM 102.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/busan981/_definst_/busan981.stream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-ulsan",
@@ -975,7 +1011,8 @@
   "logo": "cbs",
   "freq": {
    "busan": "FM 100.3"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/ulsan/_definst_/ulsan.stream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-gyeongnam",
@@ -992,7 +1029,8 @@
   "logo": "cbs",
   "freq": {
    "busan": "FM 106.9"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/gyeongnam/_definst_/gyeongnam.stream/playlist.m3u8"
  },
  {
   "id": "febc-busan",
@@ -1008,7 +1046,8 @@
   "logo": "febc",
   "freq": {
    "busan": "FM 93.3"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/bsfebc/playlist.m3u8"
  },
  {
   "id": "febc-ulsan",
@@ -1024,7 +1063,8 @@
   "logo": "febc",
   "freq": {
    "busan": "FM 107.3"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/uslive/playlist.m3u8"
  },
  {
   "id": "febc-changwon",
@@ -1040,7 +1080,8 @@
   "logo": "febc",
   "freq": {
    "busan": "FM 98.1"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/cwlive/playlist.m3u8"
  },
  {
   "id": "bbs-busan",
@@ -1056,7 +1097,8 @@
   "logo": "bbs",
   "freq": {
    "busan": "FM 89.9"
-  }
+  },
+  "stream": "http://live.cdn.smilecdn.com:1935/bbsfm_live/live.sdp/playlist.m3u8"
  },
  {
   "id": "cpbc-busan",
@@ -1072,7 +1114,8 @@
   "logo": "cpbc",
   "freq": {
    "busan": "FM 101.1"
-  }
+  },
+  "stream": "http://pbcradio.dynamicsmart.com:1935/radio/bscpbc-radio/index.m3u8"
  },
  {
   "id": "wbs-busan",
@@ -1087,7 +1130,8 @@
   ],
   "freq": {
    "busan": "FM 104.9"
-  }
+  },
+  "stream": "https://wbsradio2.kr/wbs-b"
  },
  {
   "id": "befm",
@@ -1101,7 +1145,8 @@
   ],
   "freq": {
    "busan": "FM 90.5"
-  }
+  },
+  "stream": "https://live.cdn.smilecdn.com/befm905_live/live/playlist.m3u8"
  },
  {
   "id": "community-yeonjefm",
@@ -1113,7 +1158,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/yeonjefm"
  },
  {
   "id": "community-namhaefm",
@@ -1125,7 +1171,8 @@
   },
   "regions": [
    "busan"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/namhaefm"
  },
  {
   "id": "kbs-1radio-daegu",
@@ -1227,7 +1274,8 @@
   "logo": "mbc",
   "freq": {
    "daegu": "FM 96.5"
-  }
+  },
+  "stream": "https://5ee1ec6f32118.streamlock.net/amradio/am/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-daegu",
@@ -1244,7 +1292,8 @@
   "logo": "mbc",
   "freq": {
    "daegu": "FM 95.3"
-  }
+  },
+  "stream": "https://5ee1ec6f32118.streamlock.net/fmradio/fm/playlist.m3u8"
  },
  {
   "id": "sbs-powerfm-daegu",
@@ -1261,7 +1310,8 @@
   "logo": "tbc",
   "freq": {
    "daegu": "FM 99.3"
-  }
+  },
+  "stream": "http://203.251.91.122:1935/on-air-Backup/fm/playlist.m3u8"
  },
  {
   "id": "tbn-daegu",
@@ -1276,7 +1326,8 @@
   ],
   "freq": {
    "daegu": "FM 103.9"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/daegu/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-gyeongbuk",
@@ -1291,7 +1342,8 @@
   ],
   "freq": {
    "daegu": "FM 103.5"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/kyungbuk/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-daegu",
@@ -1308,7 +1360,8 @@
   "logo": "cbs",
   "freq": {
    "daegu": "FM 103.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/daegu/_definst_/daegu.stream/playlist.m3u8"
  },
  {
   "id": "cbs-mfm-daegu",
@@ -1325,7 +1378,8 @@
   "logo": "cbs",
   "freq": {
    "daegu": "FM 97.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/daegu939/_definst_/daegu939.stream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-pohang",
@@ -1342,7 +1396,8 @@
   "logo": "cbs",
   "freq": {
    "daegu": "FM 91.5"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/pohang/_definst_/pohang.stream/playlist.m3u8"
  },
  {
   "id": "febc-daegu",
@@ -1358,7 +1413,8 @@
   "logo": "febc",
   "freq": {
    "daegu": "FM 91.9"
-  }
+  },
+  "stream": "https://mlive3.febc.net/live5/daegulive/playlist.m3u8"
  },
  {
   "id": "febc-pohang",
@@ -1374,7 +1430,8 @@
   "logo": "febc",
   "freq": {
    "daegu": "FM 90.3"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/phlive/playlist.m3u8"
  },
  {
   "id": "cpbc-daegu",
@@ -1390,7 +1447,8 @@
   "logo": "cpbc",
   "freq": {
    "daegu": "FM 93.1"
-  }
+  },
+  "stream": "http://live.dgcpbc.co.kr/dgcpbclive/livestream/playlist.m3u8"
  },
  {
   "id": "wbs-daegu",
@@ -1405,7 +1463,8 @@
   ],
   "freq": {
    "daegu": "FM 98.3"
-  }
+  },
+  "stream": "https://wbsradio2.kr/wbs-d"
  },
  {
   "id": "community-scnfm",
@@ -1420,7 +1479,8 @@
   ],
   "freq": {
    "daegu": "FM 89.1"
-  }
+  },
+  "stream": "http://onair.mapofm.net/scnfm"
  },
  {
   "id": "community-daegufm",
@@ -1432,7 +1492,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/daegufm"
  },
  {
   "id": "community-yeongjufm",
@@ -1447,7 +1508,8 @@
   ],
   "freq": {
    "daegu": "FM 89.1"
-  }
+  },
+  "stream": "http://icecast.radios.kr:8000/yeongjufm"
  },
  {
   "id": "community-sjfm",
@@ -1459,7 +1521,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/sjfm"
  },
  {
   "id": "community-sangjufm",
@@ -1471,7 +1534,8 @@
   },
   "regions": [
    "daegu"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/sangjufm"
  },
  {
   "id": "kbs-1radio-gwangju",
@@ -1590,7 +1654,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 93.9"
-  }
+  },
+  "stream": "https://media.kjmbc.co.kr/hls/amlive/GWANGJU-MBC-AM/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-gwangju",
@@ -1607,7 +1672,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 91.5"
-  }
+  },
+  "stream": "https://media.kjmbc.co.kr/hls/fmlive/GWANGJU-MBC-FM/playlist.m3u8"
  },
  {
   "id": "mbc-sfm-mokpo",
@@ -1624,7 +1690,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 89.1"
-  }
+  },
+  "stream": "https://vod.mpmbc.co.kr/live/encoder-am/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-mokpo",
@@ -1641,7 +1708,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 102.3"
-  }
+  },
+  "stream": "https://vod.mpmbc.co.kr/live/encoder-fm/playlist.m3u8"
  },
  {
   "id": "mbc-sfm-yeosu",
@@ -1658,7 +1726,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 100.3"
-  }
+  },
+  "stream": "https://5c3639aa99149.streamlock.net/%ED%91%9C%EC%A4%80FM/%ED%91%9C%EC%A4%80FM/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-yeosu",
@@ -1675,7 +1744,8 @@
   "logo": "mbc",
   "freq": {
    "gwangju": "FM 98.3"
-  }
+  },
+  "stream": "https://5c3639aa99149.streamlock.net/FM4U/FM4U/playlist.m3u8"
  },
  {
   "id": "sbs-powerfm-gwangju",
@@ -1692,7 +1762,8 @@
   "logo": "kbc",
   "freq": {
    "gwangju": "FM 101.1"
-  }
+  },
+  "stream": "https://vod.ikbc.co.kr/KBCFM/kbcra_aac/playlist.m3u8"
  },
  {
   "id": "tbn-gwangju",
@@ -1707,7 +1778,8 @@
   ],
   "freq": {
    "gwangju": "FM 97.3"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/gwangju/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-gwangju",
@@ -1724,7 +1796,8 @@
   "logo": "cbs",
   "freq": {
    "gwangju": "FM 103.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/gwangju/_definst_/gwangju.stream/playlist.m3u8"
  },
  {
   "id": "cbs-mfm-gwangju",
@@ -1741,7 +1814,8 @@
   "logo": "cbs",
   "freq": {
    "gwangju": "FM 98.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/gwangju939/_definst_/gwangju939.stream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-jeonnam",
@@ -1758,7 +1832,8 @@
   "logo": "cbs",
   "freq": {
    "gwangju": "FM 102.1"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/jeonnam/_definst_/jeonnam.stream/playlist.m3u8"
  },
  {
   "id": "febc-gwangju",
@@ -1774,7 +1849,8 @@
   "logo": "febc",
   "freq": {
    "gwangju": "FM 93.1"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/gjlive/playlist.m3u8"
  },
  {
   "id": "febc-mokpo",
@@ -1790,7 +1866,8 @@
   "logo": "febc",
   "freq": {
    "gwangju": "FM 100.5"
-  }
+  },
+  "stream": "https://mlive3.febc.net/live5/mplive/playlist.m3u8"
  },
  {
   "id": "febc-jeonnam",
@@ -1806,7 +1883,8 @@
   "logo": "febc",
   "freq": {
    "gwangju": "FM 97.5"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/jndblive/playlist.m3u8"
  },
  {
   "id": "bbs-gwangju",
@@ -1822,7 +1900,8 @@
   "logo": "bbs",
   "freq": {
    "gwangju": "FM 89.7"
-  }
+  },
+  "stream": "http://live.cdn.smilecdn.com:1935/kjbbs1_live/live/playlist.m3u8"
  },
  {
   "id": "cpbc-gwangju",
@@ -1838,7 +1917,8 @@
   "logo": "cpbc",
   "freq": {
    "gwangju": "FM 99.9"
-  }
+  },
+  "stream": "http://pbcradio.dynamicsmart.com:1935/radio/kjpbc2/index.m3u8"
  },
  {
   "id": "wbs-gwangju",
@@ -1853,7 +1933,8 @@
   ],
   "freq": {
    "gwangju": "FM 107.9"
-  }
+  },
+  "stream": "https://wbsradio2.kr/wbs-g"
  },
  {
   "id": "ggn",
@@ -1867,7 +1948,8 @@
   ],
   "freq": {
    "gwangju": "FM 98.7"
-  }
+  },
+  "stream": "http://media.ggn.or.kr:8080/live"
  },
  {
   "id": "kugak-gwangju",
@@ -1882,7 +1964,8 @@
   ],
   "freq": {
    "gwangju": "FM 99.3"
-  }
+  },
+  "stream": "https://mgugaklive.nowcdn.co.kr/gugakgwangju/Glive.stream/playlist.m3u8"
  },
  {
   "id": "community-kjfm",
@@ -1894,7 +1977,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "stream": "http://radiostream.communityradio.kr/live"
  },
  {
   "id": "community-crfm",
@@ -1906,7 +1990,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/crfm"
  },
  {
   "id": "community-suncheonfm",
@@ -1918,7 +2003,8 @@
   },
   "regions": [
    "gwangju"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/suncheonfm"
  },
  {
   "id": "kbs-1radio-jeonju",
@@ -1986,7 +2072,8 @@
   "logo": "mbc",
   "freq": {
    "jeonbuk": "FM 94.3"
-  }
+  },
+  "stream": "https://live.jmbc.co.kr/live/am_live.m3u8"
  },
  {
   "id": "mbc-fm4u-jeonju",
@@ -2003,7 +2090,8 @@
   "logo": "mbc",
   "freq": {
    "jeonbuk": "FM 99.1"
-  }
+  },
+  "stream": "https://live.jmbc.co.kr/live/fm_live.m3u8"
  },
  {
   "id": "sbs-powerfm-jeonju",
@@ -2020,7 +2108,8 @@
   "logo": "jtv",
   "freq": {
    "jeonbuk": "FM 90.1"
-  }
+  },
+  "stream": "http://61.85.197.53:1935/jtv_radio/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-jeonbuk",
@@ -2035,7 +2124,8 @@
   ],
   "freq": {
    "jeonbuk": "FM 102.5"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/jeonbuk/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-jeonbuk",
@@ -2052,7 +2142,8 @@
   "logo": "cbs",
   "freq": {
    "jeonbuk": "FM 103.7"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/jeonbuk/_definst_/jeonbuk.stream/playlist.m3u8"
  },
  {
   "id": "febc-jeonbuk",
@@ -2068,7 +2159,8 @@
   "logo": "febc",
   "freq": {
    "jeonbuk": "FM 91.1"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/jblive/playlist.m3u8"
  },
  {
   "id": "wbs-jeonbuk",
@@ -2083,7 +2175,8 @@
   ],
   "freq": {
    "jeonbuk": "FM 97.9"
-  }
+  },
+  "stream": "https://wbsradio2.kr/wbs-j"
  },
  {
   "id": "afn-kunsan",
@@ -2111,7 +2204,8 @@
   },
   "regions": [
    "jeonbuk"
-  ]
+  ],
+  "stream": "http://radiostream.communityradio.kr/jcfm1"
  },
  {
   "id": "kbs-1radio-daejeon",
@@ -2179,7 +2273,8 @@
   "logo": "mbc",
   "freq": {
    "daejeon": "FM 92.5"
-  }
+  },
+  "stream": "https://ns1.tjmbc.co.kr/live_am/live_am.stream/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-daejeon",
@@ -2196,7 +2291,8 @@
   "logo": "mbc",
   "freq": {
    "daejeon": "FM 97.5"
-  }
+  },
+  "stream": "https://ns1.tjmbc.co.kr/live_fm/live_fm.stream/playlist.m3u8"
  },
  {
   "id": "sbs-powerfm-daejeon",
@@ -2213,7 +2309,8 @@
   "logo": "tjb",
   "freq": {
    "daejeon": "FM 95.7"
-  }
+  },
+  "stream": "https://vod.tjb.co.kr/radiolive/_definst_/radio_64k/playlist.m3u8"
  },
  {
   "id": "tbn-daejeon",
@@ -2228,7 +2325,8 @@
   ],
   "freq": {
    "daejeon": "FM 102.9"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/daejeon/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-chungnam",
@@ -2240,7 +2338,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "stream": "https://www.tbn.it.kr/chungnam/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-daejeon",
@@ -2257,7 +2356,8 @@
   "logo": "cbs",
   "freq": {
    "daejeon": "FM 91.7"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/daejeon/_definst_/daejeon.stream/playlist.m3u8"
  },
  {
   "id": "febc-daejeon",
@@ -2273,7 +2373,8 @@
   "logo": "febc",
   "freq": {
    "daejeon": "FM 93.3"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/djlive/playlist.m3u8"
  },
  {
   "id": "kugak-daejeon",
@@ -2288,7 +2389,8 @@
   ],
   "freq": {
    "daejeon": "FM 90.5"
-  }
+  },
+  "stream": "https://mgugaklive.nowcdn.co.kr/gugakdaejeon/Daejeonradio.stream/playlist.m3u8"
  },
  {
   "id": "community-sejongfm",
@@ -2300,7 +2402,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/sejongfm"
  },
  {
   "id": "community-hanbatfm",
@@ -2312,7 +2415,8 @@
   },
   "regions": [
    "daejeon"
-  ]
+  ],
+  "stream": "http://115.68.194.186:8000/hanbatfm"
  },
  {
   "id": "kbs-1radio-cheongju",
@@ -2414,7 +2518,8 @@
   "logo": "mbc",
   "freq": {
    "chungbuk": "FM 107.1"
-  }
+  },
+  "stream": "https://mbccbp.coreit.co.kr/radio_stfm/myStream.sdp/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-cheongju",
@@ -2431,7 +2536,8 @@
   "logo": "mbc",
   "freq": {
    "chungbuk": "FM 99.7"
-  }
+  },
+  "stream": "https://mbccbp.coreit.co.kr/radio_fm/myStream.sdp/playlist.m3u8"
  },
  {
   "id": "sbs-powerfm-cheongju",
@@ -2448,7 +2554,8 @@
   "logo": "cjb",
   "freq": {
    "chungbuk": "FM 101.5"
-  }
+  },
+  "stream": "https://wowza1.cjb.co.kr/live/cjbradio/playlist.m3u8"
  },
  {
   "id": "tbn-chungbuk",
@@ -2463,7 +2570,8 @@
   ],
   "freq": {
    "chungbuk": "FM 103.3"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/chungbuk/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-cheongju",
@@ -2480,7 +2588,8 @@
   "logo": "cbs",
   "freq": {
    "chungbuk": "FM 91.5"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/cheongju/_definst_/cheongju.stream/playlist.m3u8"
  },
  {
   "id": "community-obn",
@@ -2492,7 +2601,8 @@
   },
   "regions": [
    "chungbuk"
-  ]
+  ],
+  "stream": "http://icecast.radios.kr:8000/obn"
  },
  {
   "id": "kbs-1radio-chuncheon",
@@ -2628,7 +2738,8 @@
   "logo": "mbc",
   "freq": {
    "gangwon": "FM 92.3"
-  }
+  },
+  "stream": "https://stream.chmbc.co.kr/radio1/fm1_aac/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-chuncheon",
@@ -2645,7 +2756,8 @@
   "logo": "mbc",
   "freq": {
    "gangwon": "FM 94.5"
-  }
+  },
+  "stream": "https://stream.chmbc.co.kr/live_radio2/fm1/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-wonju",
@@ -2662,7 +2774,8 @@
   "logo": "mbc",
   "freq": {
    "gangwon": "FM 98.9"
-  }
+  },
+  "stream": "http://live.wjmbc.co.kr:1935/fm989/fm989/playlist.m3u8"
  },
  {
   "id": "mbc-sfm-gangneung",
@@ -2679,7 +2792,8 @@
   "logo": "mbc",
   "freq": {
    "gangwon": "FM 96.3"
-  }
+  },
+  "stream": "http://123.254.72.24:1935/amlive/livestream/playlist.m3u8"
  },
  {
   "id": "mbc-fm4u-gangneung",
@@ -2696,7 +2810,8 @@
   "logo": "mbc",
   "freq": {
    "gangwon": "FM 94.3"
-  }
+  },
+  "stream": "http://123.254.72.24:1935/fmlive/livestream/playlist.m3u8"
  },
  {
   "id": "sbs-powerfm-chuncheon",
@@ -2713,7 +2828,8 @@
   "logo": "g1",
   "freq": {
    "gangwon": "FM 105.1"
-  }
+  },
+  "stream": "http://61.82.49.4:1935/fm/_definst_/myStream/playlist.m3u8"
  },
  {
   "id": "tbn-gangwon",
@@ -2728,7 +2844,8 @@
   ],
   "freq": {
    "gangwon": "FM 105.9"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/gangwon/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-chuncheon",
@@ -2745,7 +2862,8 @@
   "logo": "cbs",
   "freq": {
    "gangwon": "FM 93.7"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/chuncheon/_definst_/chuncheon.stream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-youngdong",
@@ -2762,7 +2880,8 @@
   "logo": "cbs",
   "freq": {
    "gangwon": "FM 91.5"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/youngdong/_definst_/youngdong.stream/playlist.m3u8"
  },
  {
   "id": "febc-gangwon",
@@ -2778,7 +2897,8 @@
   "logo": "febc",
   "freq": {
    "gangwon": "FM 90.1"
-  }
+  },
+  "stream": "https://mlive3.febc.net/live5/ydlive/playlist.m3u8"
  },
  {
   "id": "kbs-1radio-jeju",
@@ -2844,7 +2964,8 @@
   ],
   "freq": {
    "jeju": "FM 105.5"
-  }
+  },
+  "stream": "https://www.tbn.it.kr/jeju/myStream/playlist.m3u8"
  },
  {
   "id": "cbs-sfm-jeju",
@@ -2861,7 +2982,8 @@
   "logo": "cbs",
   "freq": {
    "jeju": "FM 93.3"
-  }
+  },
+  "stream": "https://m-aac.cbs.co.kr/jeju/_definst_/jeju.stream/playlist.m3u8"
  },
  {
   "id": "febc-jeju",
@@ -2877,7 +2999,8 @@
   "logo": "febc",
   "freq": {
    "jeju": "FM 104.7"
-  }
+  },
+  "stream": "http://mlive2.febc.net:1935/live/jejufm/playlist.m3u8"
  },
  {
   "id": "bbs-jeju",
@@ -2893,7 +3016,8 @@
   "logo": "bbs",
   "freq": {
    "jeju": "FM 94.9"
-  }
+  },
+  "stream": "http://kdbmobile.clouducs.com:1935/jeju/jeju.stream_aac/playlist.m3u8"
  },
  {
   "id": "arirang",
@@ -2908,6 +3032,7 @@
   "logo": "arirang",
   "freq": {
    "jeju": "FM 88.7"
-  }
+  },
+  "stream": "https://amdlive-ch03-ctnd-com.akamaized.net/arirang_3ch/smil:arirang_3ch.smil/playlist.m3u8"
  }
 ]

@@ -1,4 +1,5 @@
-"""Korean radio, live: the stations radio.bsod.kr lists, played through this server.
+"""Korean radio, live: the stations radio.bsod.kr lists, played through this server (the big
+broadcasters' streams asked of the broadcasters themselves: DIRECT).
 
 radio.bsod.kr gives each station a fixed address (/stream?stn=kbs&ch=1radio) that redirects to the
 broadcaster's stream of the moment, often with a one-time token. Browsers can't use those streams
@@ -29,6 +30,7 @@ import urllib.parse
 import urllib.request
 import weakref
 from collections.abc import AsyncIterator
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import transcode
@@ -88,9 +90,94 @@ def _open(url: str):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=TIMEOUT)
 
 
+# ---- the broadcasters' own live addresses (checked 2026-11-12) ----
+# radio.bsod.kr answers this server 403 (Cloudflare) since November 2026. Most stations' streams are
+# at a fixed address ("stream" in radio_stations.json, the broadcasters' own: the addresses that
+# site's templates list, github.com/BSofDeath/radio.bsod.kr); a few are asked for each time (DIRECT:
+# an address with a token, or one that changes by date or server). radio.bsod.kr is left for the rest.
+HLS = "application/vnd.apple.mpegurl"
+KST = timezone(timedelta(hours=9))
+
+
+def _kbs(channel: str) -> str:
+    """KBS: the channel's 128 kbps HLS (its web player's own API; the address carries a policy token).
+    A regional station's channel is "<station code>_<channel>" (10_21: KBS부산 1라디오)."""
+    with _open(f"https://cfpwwwapi.kbs.co.kr/api/v1/landing/live/channel_code/{channel}") as resp:
+        items = json.load(resp).get("channel_item") or []
+    return next(i["service_url"] for i in items if i.get("media_type") in ("radio", "local") and i.get("service_url"))
+
+
+def _text(url: str) -> str:
+    """MBC, SBS: the live address (with a token) as the whole answer."""
+    with _open(url) as resp:
+        return resp.read(4000).decode("utf-8", "replace").strip()
+
+
+def _busan_mbc(kind: str) -> str:
+    """부산MBC: an address with today's date (KST) in a letter code."""
+    code = "".join("qhsagbjcpd"[int(c)] for c in datetime.now(KST).strftime("%y%m%d"))
+    return f"https://brook.bsmbc.com/live/BusanMBC_{kind}_onairstream.{code}/playlist.m3u8"
+
+
+def _afn(mount: str) -> str:
+    """AFN: one of streamtheworld's servers of the moment."""
+    with _open(f"https://playerservices.streamtheworld.com/api/livestream?station={mount}&transports=http%2Chls&version=1.10") as resp:
+        hosts = re.findall(r"<ip>(.*?)</ip>", resp.read(200_000).decode("utf-8", "replace"))
+    return f"https://{hosts[-1]}/{mount}AAC.aac"
+
+
+_MBC = "https://sminiplay.imbc.com/aacplay.ashx?agent=webapp&channel={}"
+_SBS = "https://apis.sbs.co.kr/play-api/1.0/livestream/{}?protocol=hls&ssl=Y"
+_KBS_CHANNELS = {"1radio": "21", "2radio": "22", "3radio": "23", "1fm": "24", "2fm": "25", "hanminjok": "26"}
+_KBS_LOCAL = {  # KBS's regional station codes
+    "busan": "10", "ulsan": "11", "changwon": "20", "jinju": "21", "daegu": "30", "andong": "31", "pohang": "32",
+    "gwangju": "40", "mokpo": "41", "suncheon": "43", "jeonju": "50", "daejeon": "60", "cheongju": "70",
+    "chungju": "71", "chuncheon": "80", "gangneung": "81", "wonju": "82", "jeju": "90",
+}
+DIRECT = {
+    "mbc-sfm": lambda: _text(_MBC.format("sfm")), "mbc-fm4u": lambda: _text(_MBC.format("mfm")),
+    "mbc-chm": lambda: _text(_MBC.format("chm")),
+    "mbc-sfm-busan": lambda: _busan_mbc("AM"), "mbc-fm4u-busan": lambda: _busan_mbc("FM"),
+    "sbs-powerfm": lambda: _text(_SBS.format("powerpc/powerfm")), "sbs-lovefm": lambda: _text(_SBS.format("lovepc/lovefm")),
+    "sbs-dmb": lambda: _text(_SBS.format("sbsdmbpc/sbsdmb")),
+    "afn-humphreys": lambda: _afn("AFNP_OSN"), "afn-kunsan": lambda: _afn("AFNP_KSN"),
+}
+
+
+def _kbs_of(station_id: str) -> str | None:
+    """"kbs-1fm-busan" -> "10_24", "kbs-2fm" -> "25"."""
+    parts = station_id.split("-")
+    if parts[0] != "kbs" or len(parts) < 2 or parts[1] not in _KBS_CHANNELS:
+        return None
+    if len(parts) == 2:
+        return _KBS_CHANNELS[parts[1]]
+    local = _KBS_LOCAL.get(parts[2])
+    return f"{local}_{_KBS_CHANNELS[parts[1]]}" if local else None
+
+
+def _direct(station: dict) -> str | None:
+    sid = station.get("id", "")
+    ask = DIRECT.get(sid)
+    if ask is None and (kbs := _kbs_of(sid)):
+        ask = lambda: _kbs(kbs)  # noqa: E731
+    if ask is None:
+        return None
+    try:
+        url = ask()
+    except Exception as exc:  # noqa: BLE001 - the broadcaster's API moved or failed: the next way then
+        log.info("radio %s: the broadcaster's address: %s", sid, exc)
+        return None
+    return url if url.startswith("https://") else None
+
+
 def resolve(station: dict) -> tuple[str, str]:
-    """(the stream's address now, its content type), from the station's fixed address."""
-    url = station.get("url") or SOURCE + "?" + urllib.parse.urlencode(station["q"])
+    """(the stream's address now, its content type): asked of the broadcaster (DIRECT), its fixed
+    address ("stream"; one's own station's "url"), else radio.bsod.kr's address for it."""
+    if direct := _direct(station):
+        return direct, HLS if ".m3u8" in direct else "audio/aac"
+    url = station.get("stream") or station.get("url") or SOURCE + "?" + urllib.parse.urlencode(station["q"])
+    if station.get("stream") and _is_hls(url, ""):
+        return url, HLS
     try:
         with _open(url) as resp:
             return resp.geturl(), resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
