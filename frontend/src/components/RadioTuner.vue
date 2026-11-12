@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AudioWaveform, ChevronDown, ChevronRight, Share2, Star, Volume1, Volume2 } from '@lucide/vue'
+import { AudioWaveform, ChevronDown, ChevronRight, Share2, Star, Volume1, Volume2, X } from '@lucide/vue'
 import { vLongPress } from '../longPress'
 import { onAirText, useOnAir } from '../radio'
 import { usePlayer } from '../stores/player'
@@ -16,7 +16,9 @@ import StationBadge from './StationBadge.vue'
 // a phone's FM radio. The dial slides under a fixed needle (dragged, flung, tapped, the wheel, the
 // arrow keys); where it stops on a station, that station plays a moment later; between stations, the
 // radio stops. ◀◀ ▶▶ seek the next station (held: SCAN, seven seconds each until a tap). The station
-// playing moves the dial to it. Shown with it: what it has on air (radio_now.py), when known.
+// playing moves the dial to it. Shown with it: what it has on air (radio_now.py), when known. Below,
+// six memory buttons a band (by region, kept with the account): a tap tunes one, held it keeps the
+// station showing.
 const props = defineProps<{ stations: RadioStation[]; regions: string[] }>()
 const region = defineModel<string>('region', { required: true })
 const emit = defineEmits<{ list: [] }>()
@@ -276,6 +278,50 @@ function stopScan() {
   scanning.value = 0
   window.clearTimeout(scanTimer)
 }
+// ---- memory: six buttons a band, by region (ui.radio.presets, kept with the account) ----
+const PRESETS = 6
+const byId = computed(() => new Map(inRegion.value.map((s) => [s.id, s])))
+const presetIds = computed<(string | null)[]>(() => {
+  const saved = ui.radio.presets?.[region.value]?.[band.value]
+  // none kept yet: the region's starred stations of this band
+  const list = saved ?? ui.radio.favorites.filter((id) => { const s = byId.value.get(id); return !!s && bandOf(s, region.value) === band.value })
+  return Array.from({ length: PRESETS }, (_, i) => list[i] ?? null)
+})
+const presets = computed(() => presetIds.value.map((id) => (id ? byId.value.get(id) ?? null : null)))
+const editingPresets = ref(false)
+function keepPresets(list: (string | null)[]) {
+  const all = ui.radio.presets ?? {}
+  ui.radio = { ...ui.radio, presets: { ...all, [region.value]: { ...all[region.value], [band.value]: list } } }
+}
+function savePreset(i: number) {
+  const st = station.value
+  if (!st) return ui.notify(t('radio.presetNothing'))
+  const list = [...presetIds.value]
+  list[i] = st.id
+  keepPresets(list)
+  ui.notify(t('radio.presetSaved', { n: i + 1, name: st.name }))
+}
+function presetTap(i: number) {
+  if (editingPresets.value) {
+    const list = [...presetIds.value]
+    list[i] = null
+    return keepPresets(list)
+  }
+  const st = presets.value[i]
+  if (!st) return ui.notify(t('radio.presetHint'))
+  touched()
+  stopScan()
+  band.value = bandOf(st, region.value)
+  const at = stepOf(dial.value, st.id)
+  if (at === null) return
+  pickedAlt.value = Math.max(0, dial.value.stops.find((s) => s.step === at)?.stations.findIndex((s) => s.id === st.id) ?? 0)
+  glideTo(at, 360)
+}
+const presetLabel = (st: RadioStation) => {
+  const at = stepOf(dial.value, st.id)
+  return at === null ? '' : band.value === 'NET' ? `CH ${dial.value.label(at)}` : dial.value.label(at)
+}
+
 // ---- the hiss between stations (off unless turned on) ----
 const noiseOn = computed(() => !!ui.radio.tunerNoise)
 function toggleNoise() {
@@ -415,6 +461,38 @@ onBeforeUnmount(() => {
         <PlayerIcons name="forward" :size="32" :stroke="1.5" />
       </button>
     </div>
+    <!-- memory: tap tunes, held keeps the station showing -->
+    <section class="flex w-full flex-col gap-2" :aria-label="t('radio.presets')">
+      <div class="flex items-center justify-between px-1 text-[13px] text-muted">
+        <span>{{ t('radio.presets') }} · {{ band }}<span class="ml-1.5 font-light">{{ editingPresets ? t('radio.presetEditHelp') : t('radio.presetHelp') }}</span></span>
+        <button type="button" class="rounded-full px-2.5 py-1 hover:bg-surface hover:text-ink" :class="editingPresets ? 'font-medium text-accent' : ''" @click="editingPresets = !editingPresets">
+          {{ editingPresets ? t('radio.editDone') : t('radio.presetEdit') }}
+        </button>
+      </div>
+      <div class="grid grid-cols-3 gap-2 md:grid-cols-6">
+        <button
+          v-for="(p, i) in presets"
+          :key="i"
+          v-long-press="editingPresets ? null : () => savePreset(i)"
+          type="button"
+          class="relative flex h-14 min-w-0 select-none items-center gap-2 rounded-xl border px-2 text-left [-webkit-touch-callout:none]"
+          :class="p && p.id === station?.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-line-strong'"
+          :aria-label="p ? `${t('radio.preset', { n: i + 1 })}: ${p.name}` : t('radio.presetEmpty', { n: i + 1 })"
+          @click="presetTap(i)"
+        >
+          <span class="text-[13px] font-semibold text-muted">{{ i + 1 }}</span>
+          <template v-if="p">
+            <StationBadge :stn="p.stn" :logo="p.logo" class="h-7 text-[10px]" />
+            <span class="flex min-w-0 flex-col leading-tight">
+              <span class="truncate text-[13px] font-medium tabular-nums">{{ presetLabel(p) }}</span>
+              <span class="truncate text-[11px] text-muted">{{ p.name }}</span>
+            </span>
+            <span v-if="editingPresets" class="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink text-on-ink"><X :size="12" :stroke-width="2.5" /></span>
+          </template>
+          <span v-else class="text-[15px] text-subtle">—</span>
+        </button>
+      </div>
+    </section>
     <label v-if="!fixedVolume" class="flex w-full max-w-[420px] items-center gap-3 px-4 text-muted">
       <Volume1 :size="18" :stroke-width="1.7" aria-hidden="true" />
       <input v-model.number="player.volume" type="range" min="0" max="1" step="0.01" class="flex-1 accent-accent" :aria-label="t('radio.volume')" />

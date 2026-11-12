@@ -1179,6 +1179,15 @@
     "from_manual": "Written here"
   },
   "radio": {
+    "presets": "Memory",
+    "preset": "Memory {n}",
+    "presetEmpty": "Memory {n} (empty)",
+    "presetHelp": "hold to save",
+    "presetEditHelp": "tap to clear",
+    "presetEdit": "Edit",
+    "presetSaved": "Saved to memory {n}: {name}",
+    "presetHint": "Empty. Tune a station, then hold to save it.",
+    "presetNothing": "Tune a station first.",
     "noise": "Tuning noise",
     "share": "Share",
     "copied": "Copied",

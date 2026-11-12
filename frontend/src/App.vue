@@ -253,6 +253,9 @@ provide(PAGE_BACK, { show: showBack, go: () => goBack(parentPage()), owners: hea
 // Settings → player: open the player when a list starts playing; keep the screen on while it's open
 // a tucked-away player bar comes back when something starts playing
 watch(() => [player.playStarts, player.playing] as const, ([, playing], [startsBefore]) => {
+  // (not for the radio tuner: it has its own controls, and a station it tunes or scans would bring
+  // back a bar the person tucked away, over the tuner)
+  if (route.name === 'radio' && ui.views.radioMode === 'tuner' && player.mode === 'live') return
   if (playing || player.playStarts !== startsBefore) ui.barHidden = false
 })
 watch(() => player.playStarts, () => {

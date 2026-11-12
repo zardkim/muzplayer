@@ -89,6 +89,7 @@ async function removeStation(s: RadioStation) {
     await api(`/radio/custom/${s.id.slice(1)}`, { method: 'DELETE' })
     if (live.value?.id === s.id) player.stopStation()
     ui.radio = {
+      ...ui.radio,
       recent: ui.radio.recent.filter((x) => x !== s.id),
       favorites: ui.radio.favorites.filter((x) => x !== s.id),
       hidden: (ui.radio.hidden ?? []).filter((x) => x !== s.id),

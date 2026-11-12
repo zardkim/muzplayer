@@ -63,7 +63,15 @@ function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?:
 
 // radio stations (ids): the ones listened to lately (newest first) and the starred ones; kept with the
 // account, so every device shows the same (prefsSync.ts)
-export interface RadioMarks { recent: string[]; favorites: string[]; hidden?: string[]; tunerNoise?: boolean } // hidden: left out of the Radio page's lists; tunerNoise: the tuner's hiss between stations
+// hidden: left out of the Radio page's lists; tunerNoise: the tuner's hiss between stations (this device);
+// presets: the tuner's memory buttons 1–6, a station id or null each, by region and band
+export interface RadioMarks {
+  recent: string[]
+  favorites: string[]
+  hidden?: string[]
+  tunerNoise?: boolean
+  presets?: Record<string, Partial<Record<'FM' | 'AM' | 'NET', (string | null)[]>>>
+}
 export const RADIO_RECENT_KEPT = 12
 
 export const useUi = defineStore('ui', () => {
@@ -108,7 +116,7 @@ export const useUi = defineStore('ui', () => {
   const views = ref<Record<string, string>>(prefs.views ?? {})
   // colour theme; index.html applies the stored one before the first paint, this keeps it in step
   const playerPrefs = ref<PlayerPrefs>({ ...PLAYER_PREFS, ...prefs.player })
-  const radio = ref<RadioMarks>({ recent: prefs.radio?.recent ?? [], favorites: prefs.radio?.favorites ?? [], hidden: prefs.radio?.hidden ?? [] })
+  const radio = ref<RadioMarks>({ ...prefs.radio, recent: prefs.radio?.recent ?? [], favorites: prefs.radio?.favorites ?? [], hidden: prefs.radio?.hidden ?? [] })
   const theme = ref<Theme>((THEMES as readonly string[]).includes(prefs.theme ?? '') ? (prefs.theme as Theme) : 'default')
   watch(
     theme,

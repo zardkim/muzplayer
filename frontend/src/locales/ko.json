@@ -1179,6 +1179,15 @@
     "from_manual": "직접 입력"
   },
   "radio": {
+    "presets": "메모리",
+    "preset": "메모리 {n}",
+    "presetEmpty": "메모리 {n} (비어 있음)",
+    "presetHelp": "길게 눌러 저장",
+    "presetEditHelp": "눌러서 지우기",
+    "presetEdit": "편집",
+    "presetSaved": "메모리 {n}에 저장: {name}",
+    "presetHint": "비어 있습니다. 방송국을 맞춘 뒤 길게 눌러 저장하세요.",
+    "presetNothing": "방송국을 맞춘 뒤 저장하세요.",
     "noise": "튜닝 잡음",
     "share": "공유",
     "copied": "복사했습니다",

@@ -62,8 +62,22 @@ export function startPrefsSync() {
       skipForward: player.skipForward,
       shuffle: player.shuffle,
       repeat: player.repeat,
-      radio: { recent: [...ui.radio.recent], favorites: [...ui.radio.favorites], hidden: [...(ui.radio.hidden ?? [])] },
+      radio: { recent: [...ui.radio.recent], favorites: [...ui.radio.favorites], hidden: [...(ui.radio.hidden ?? [])], presets: ui.radio.presets ?? {} },
     }
+  }
+
+  /** The tuner's memory buttons as sent: { region: { band: [id | null, ...6] } }, anything else dropped. */
+  function presetsOf(v: unknown): RadioMarks['presets'] | undefined {
+    if (!v || typeof v !== 'object') return undefined
+    const out: NonNullable<RadioMarks['presets']> = {}
+    for (const [region, bands] of Object.entries(v as Record<string, unknown>)) {
+      if (!bands || typeof bands !== 'object') continue
+      for (const band of ['FM', 'AM', 'NET'] as const) {
+        const list = (bands as Record<string, unknown>)[band]
+        if (Array.isArray(list)) (out[region] ??= {})[band] = list.slice(0, 6).map((x) => (typeof x === 'string' ? x : null))
+      }
+    }
+    return out
   }
 
   function apply(s: Partial<Prefs>) {
@@ -84,7 +98,13 @@ export function startPrefsSync() {
       if (s.repeat === 'off' || s.repeat === 'all' || s.repeat === 'one') player.repeat = s.repeat
       if (s.radio && Array.isArray(s.radio.recent) && Array.isArray(s.radio.favorites)) {
         const ids = (a: unknown[]) => a.filter((x): x is string => typeof x === 'string')
-        ui.radio = { recent: ids(s.radio.recent).slice(0, RADIO_RECENT_KEPT), favorites: ids(s.radio.favorites), hidden: ids(Array.isArray(s.radio.hidden) ? s.radio.hidden : []) }
+        ui.radio = {
+          recent: ids(s.radio.recent).slice(0, RADIO_RECENT_KEPT),
+          favorites: ids(s.radio.favorites),
+          hidden: ids(Array.isArray(s.radio.hidden) ? s.radio.hidden : []),
+          tunerNoise: ui.radio.tunerNoise, // (this device's)
+          presets: presetsOf(s.radio.presets) ?? ui.radio.presets,
+        }
       }
     } finally {
       // the watcher below runs after this tick: it must not send back what just arrived
