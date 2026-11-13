@@ -12,6 +12,7 @@ import ViewToggle from '../components/ViewToggle.vue'
 import LoadMore from '../components/LoadMore.vue'
 import { useUi } from '../stores/ui'
 import { useListSearch } from '../listSearch'
+import { rememberAlbums } from '../albumNav'
 import type { ViewMode } from '../types'
 
 const { t } = useI18n()
@@ -34,10 +35,12 @@ async function load() {
   const mine = ++asked
   loading.value = true
   try {
-    const page = await api<Page<Album>>(`/albums${query({ q: q.value.trim() || undefined, sort: sort.value, kind: kind.value, limit: 120, offset: items.value.length })}`)
+    const params = { q: q.value.trim() || undefined, sort: sort.value, kind: kind.value || undefined }
+    const page = await api<Page<Album>>(`/albums${query({ ...params, limit: 120, offset: items.value.length })}`)
     if (mine !== asked) return
     items.value.push(...page.items)
     total.value = page.total
+    rememberAlbums(params, items.value, page.total) // the album page's previous / next
   } finally {
     if (mine === asked) loading.value = false
   }

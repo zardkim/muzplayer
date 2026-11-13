@@ -312,6 +312,8 @@
     "section_playlists": "플레이리스트 (랜덤 100 · 내 플레이리스트)"
   },
   "albums": {
+    "prevAlbum": "이전 앨범",
+    "nextAlbum": "다음 앨범",
     "search": "앨범 이름·아티스트 검색",
     "title": "앨범",
     "count": "앨범 {n}개",

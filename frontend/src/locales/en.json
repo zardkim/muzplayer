@@ -312,6 +312,8 @@
     "section_playlists": "Playlists (Random 100 · mine)"
   },
   "albums": {
+    "prevAlbum": "Previous album",
+    "nextAlbum": "Next album",
     "search": "Search albums or artists",
     "title": "Albums",
     "count": "{n} album | {n} albums",
