@@ -8,3 +8,4 @@ deploy
 docs
 scripts
 *.md
+!THIRD_PARTY_NOTICES.md

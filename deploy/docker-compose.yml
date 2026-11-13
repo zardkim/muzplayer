@@ -14,7 +14,8 @@ name: muzplayer
 
 services:
   app:
-    image: harbor.nurilab.pe.kr/muzplayer/muzplayer:${MUZPLAYER_VERSION:-latest}
+    # the public image (Docker Hub); MUZPLAYER_IMAGE in .env picks another (your own build, a private registry)
+    image: ${MUZPLAYER_IMAGE:-zardkim/muzplayer}:${MUZPLAYER_VERSION:-latest}
     # fixed name: after mounting library/music, `docker restart muzplayer` (Portainer or not)
     container_name: muzplayer
     restart: unless-stopped

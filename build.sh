@@ -1,10 +1,11 @@
 #!/bin/bash
-# Build the muzplayer image and push it to Harbor.
-# Usage: ./build.sh 0.1.0      (also tags latest)
+# The maintainer's build: the image pushed to his own Harbor registry (the public image on Docker Hub
+# is built by GitHub Actions, .github/workflows/docker-publish.yml).
+# Usage: ./build.sh 0.1.0      (also tags latest); REGISTRY=... for another registry
 set -e
-export DOCKER_CONFIG="$HOME/.docker-harbor/muzplayer"
+export DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker-harbor/muzplayer}"
 
-REGISTRY="harbor.nurilab.pe.kr"
+REGISTRY="${REGISTRY:-harbor.nurilab.pe.kr}"
 IMAGE="muzplayer/muzplayer"
 VERSION="${1:?usage: ./build.sh <version>}"
 

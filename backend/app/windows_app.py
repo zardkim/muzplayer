@@ -16,8 +16,11 @@ _cached: tuple[float, dict | None] = (0.0, None)
 
 
 def _api_url(releases: str) -> str:
+    """The latest release's API address: GitHub's (api.github.com) or a Gitea's (same answer fields)."""
     u = urllib.parse.urlsplit(releases)
     owner_repo = u.path.strip("/").removesuffix("/releases")
+    if u.netloc.lower() in ("github.com", "www.github.com"):
+        return f"https://api.github.com/repos/{owner_repo}/releases/latest"
     return urllib.parse.urlunsplit((u.scheme, u.netloc, f"/api/v1/repos/{owner_repo}/releases/latest", "", ""))
 
 

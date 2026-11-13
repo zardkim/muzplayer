@@ -39,7 +39,7 @@ STALE = timedelta(days=90)
 MB_SEARCH = "https://musicbrainz.org/ws/2/artist/"
 WD_API = "https://www.wikidata.org/w/api.php"
 BUGS_SEARCH = "https://music.bugs.co.kr/search/artist?q={q}"
-USER_AGENT = f"muzplayer/{settings.version} (self-hosted music player; https://gitea.nurilab.pe.kr/nuricom/muzplayer)"
+USER_AGENT = f"muzplayer/{settings.version} (self-hosted music player; https://github.com/zardkim/muzplayer)"
 MB_PAUSE = 1.1  # MusicBrainz: one request a second
 _SCRIPT_OK = re.compile(r"^[\sA-Za-z0-9À-ɏ가-힣ㄱ-ㆎ&'’.,!?()\-+/:·]+$")
 _PAIR = re.compile(r"^(.*\S)\(([^()]+)\)$")  # "Mariah Carey(머라이어 캐리)" (not "Mariah Carey (Karaoke)")

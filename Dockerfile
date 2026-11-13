@@ -67,6 +67,8 @@ COPY backend/ ./
 COPY --from=web /web/dist ./static
 COPY --from=ffmpeg /src/ffmpeg /usr/local/bin/ffmpeg
 COPY --from=deno /out/deno /usr/local/bin/deno
+# the licenses that come with the image (GPL-3.0-or-later; FFmpeg's LGPL build and the rest: the notices)
+COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/doc/muzplayer/
 RUN mkdir -p /data /conf && command -v setpriv
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \

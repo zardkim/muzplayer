@@ -4,7 +4,7 @@ Usage: python3 scripts/fetch_radio_logos.py frontend/public/radio-logos   (needs
 """
 import json,urllib.request,urllib.parse,io,sys,os
 from PIL import Image
-UA='muzplayer-logo-fetch/0.1 (personal music server; zardkim@gmail.com)'
+UA='muzplayer-logo-fetch/0.1 (self-hosted music player; https://github.com/zardkim/muzplayer)'
 FILES={
  'kbs-1radio':'KBS Radio 1 logo.svg','kbs-2fm':'KBS2FM logo.svg','kbs':'KBS logo (2001).svg',
  'mbc-sfm':'MBC Standard FM Logo.svg','mbc-fm4u':'MBC FM4U Logo.svg','mbc':'MBC Radio 2018.svg',

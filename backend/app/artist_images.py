@@ -37,7 +37,7 @@ SIZES = {"thumb": 300, "large": 800}
 # only artist.*: a folder.jpg at that depth is usually an album cover (album/<album>/CD1/..., compilations)
 FOLDER_NAMES = ("artist.jpg", "artist.jpeg", "artist.png", "artist.webp")
 WIKIS = ("ko", "en")
-USER_AGENT = "muzplayer/0.9 (self-hosted music player; https://gitea.nurilab.pe.kr/nuricom/muzplayer)"
+USER_AGENT = "muzplayer/0.9 (self-hosted music player; https://github.com/zardkim/muzplayer)"
 TIMEOUT = 15
 PAUSE = 1.0  # seconds between artists: Wikimedia answers 429 to bursts
 THUMB = "500"  # one of Wikimedia's standard thumbnail widths (others are made on demand and rate-limited)
