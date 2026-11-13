@@ -39,6 +39,7 @@ def get_status(_: User = Depends(admin_user)):
 class SettingsIn(BaseModel):
     youtube: bool | None = None
     format: Literal["m4a", "mp3"] | None = None
+    ai: bool | None = None
 
 
 @router.put("/extract/settings")
@@ -47,6 +48,8 @@ def put_settings(body: SettingsIn, _: User = Depends(admin_user)):
         appconf.update({"extract_youtube": "on" if body.youtube else "off"})
     if body.format is not None:
         appconf.update({"extract_format": body.format})
+    if body.ai is not None:
+        appconf.update({"extract_ai": "on" if body.ai else "off"})
     return extract.status()
 
 

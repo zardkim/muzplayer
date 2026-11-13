@@ -109,13 +109,18 @@ def _ask(prompt: str, ctx: dict) -> dict:
         genres=", ".join(f"{g} ({n})" for g, n in ctx["genres"]) or "none",
         artists=", ".join(f"{a} ({n})" for a, n in ctx["artists"]) or "none",
     )
+    return ask_json(system, prompt, SCHEMA, "smart_playlist")
+
+
+def ask_json(system: str, prompt: str, schema: dict, name: str) -> dict:
+    """One answer from the set-up text model, as JSON in the given schema (also extract.py's tags)."""
     which = appconf.provider()
     key = appconf.get(f"{which}_api_key")
     if which == "openai":
         body = {
             "model": appconf.text_model("openai"),
             "input": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-            "text": {"format": {"type": "json_schema", "name": "smart_playlist", "schema": SCHEMA, "strict": True}},
+            "text": {"format": {"type": "json_schema", "name": name, "schema": schema, "strict": True}},
         }
         data = ai_banner._post(OPENAI_URL, json.dumps(body).encode(), {"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         texts = [c.get("text", "") for item in data.get("output", []) for c in item.get("content") or [] if c.get("type") == "output_text"]
@@ -123,7 +128,7 @@ def _ask(prompt: str, ctx: dict) -> dict:
         body = {
             "model": appconf.text_model("gemini"),
             "input": f"{system}\nRequest: {prompt}",
-            "response_format": {"type": "text", "mime_type": "application/json", "schema": SCHEMA},
+            "response_format": {"type": "text", "mime_type": "application/json", "schema": schema},
         }
         data = ai_banner._post(GEMINI_URL, json.dumps(body).encode(), {"x-goog-api-key": key, "Content-Type": "application/json"})
         texts = [

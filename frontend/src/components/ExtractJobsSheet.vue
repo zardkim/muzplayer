@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Music, RotateCcw, Trash2, X } from '@lucide/vue'
+import { CircleAlert, Music, RotateCcw, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
@@ -15,10 +15,14 @@ const { t } = useI18n()
 const ui = useUi()
 interface Job {
   id: number; title: string; format: string; status: 'pending' | 'running' | 'done' | 'failed'; step: string; progress: number
-  error: string | null; found: { title: string; artist: string; album: string; source: string; cover: string | null } | null
+  error: string | null
+  found: {
+    title: string; artist: string; album: string; source: string; cover: string | null
+    review?: string[]; bugs?: { track: string; album: string | null }; lyrics_from?: string | null
+  } | null
   file_path: string | null; track_id: number | null; album_id: number | null; has_cover: boolean; cover_v: number
 }
-interface Status { folder: string; folder_ok: boolean; ytdlp: string | null; deno: boolean; ffmpeg: boolean; youtube: boolean; format: 'm4a' | 'mp3' }
+interface Status { folder: string; folder_ok: boolean; ytdlp: string | null; deno: boolean; ffmpeg: boolean; youtube: boolean; format: 'm4a' | 'mp3'; ai: boolean; ai_ready: boolean }
 const jobs = ref<Job[]>([])
 const status = ref<Status | null>(null)
 let timer = 0
@@ -34,7 +38,7 @@ onMounted(() => {
 })
 onUnmounted(() => window.clearTimeout(timer))
 
-async function setting(body: { youtube?: boolean; format?: string }) {
+async function setting(body: { youtube?: boolean; format?: string; ai?: boolean }) {
   if (body.youtube && !confirm(t('extract.youtubeConfirm'))) return
   status.value = await api<Status>('/extract/settings', { method: 'PUT', body }).catch((e) => (ui.notify(errorMessage(e), true), status.value))
 }
@@ -50,6 +54,13 @@ async function remove(j: Job, file: boolean) {
 const stateText = (j: Job) =>
   j.status === 'running' ? t(`extract.step_${j.step || 'download'}`) + (j.step === 'download' && j.progress ? ` ${Math.round(j.progress * 100)}%` : '') : t(`extract.status_${j.status}`)
 const errorText = (code: string | null) => (code ? errorMessage({ code }) : '')
+// where the tags came from (the AI or the title, confirmed on Bugs), the lyrics, and what to check
+const sources = (j: Job) => {
+  const f = j.found
+  if (!f) return ''
+  return [t(`extract.from_${f.source}`), f.bugs ? t('extract.fromBugs') : '', f.lyrics_from ? t('extract.lyrics') : ''].filter(Boolean).join(' · ')
+}
+const review = (j: Job) => (j.found?.review ?? []).map((r) => t(`extract.review_${r}`)).join(' · ')
 const active = computed(() => jobs.value.filter((j) => j.status === 'pending' || j.status === 'running').length)
 </script>
 
@@ -61,6 +72,10 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
         <label class="flex items-start gap-2.5">
           <input type="checkbox" :checked="status.youtube" class="mt-0.5 size-4 accent-accent" @change="setting({ youtube: ($event.target as HTMLInputElement).checked })" />
           <span>{{ t('extract.youtubeOn') }}<span class="block text-[12px] font-light text-muted">{{ t('extract.youtubeHelp') }}</span></span>
+        </label>
+        <label class="flex items-start gap-2.5" :class="status.ai_ready ? '' : 'opacity-60'">
+          <input type="checkbox" :checked="status.ai && status.ai_ready" :disabled="!status.ai_ready" class="mt-0.5 size-4 accent-accent" @change="setting({ ai: ($event.target as HTMLInputElement).checked })" />
+          <span>{{ t('extract.aiOn') }}<span class="block text-[12px] font-light text-muted">{{ status.ai_ready ? t('extract.aiHelp') : t('extract.aiNoKey') }}</span></span>
         </label>
         <label class="flex items-center gap-2.5">
           <span class="flex-1">{{ t('extract.defaultFormat') }}</span>
@@ -83,8 +98,9 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
           </RouterLink>
           <span v-else class="grid size-12 flex-none place-items-center rounded-lg bg-surface text-muted"><Music :size="20" :stroke-width="1.4" /></span>
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span class="truncate text-[15px]">{{ j.found ? `${j.found.title} · ${j.found.artist}` : j.title }}</span>
-            <span class="truncate text-[12px] text-muted">{{ j.format.toUpperCase() }} · {{ j.found?.album || j.title }}</span>
+            <span class="truncate text-[15px]">{{ j.found ? [j.found.title, j.found.artist].filter(Boolean).join(' · ') : j.title }}</span>
+            <span class="truncate text-[12px] text-muted">{{ j.format.toUpperCase() }} · {{ j.found?.album || j.title }}<template v-if="sources(j)"> · {{ sources(j) }}</template></span>
+            <span v-if="review(j)" class="flex items-center gap-1 text-[12px] text-danger"><CircleAlert :size="13" :stroke-width="1.8" />{{ t('extract.review') }}: {{ review(j) }}</span>
             <span class="text-[12px]" :class="j.status === 'failed' ? 'text-danger' : j.status === 'done' ? 'text-accent' : 'text-muted'">
               {{ stateText(j) }}<template v-if="j.error"> · {{ errorText(j.error) }}</template>
             </span>

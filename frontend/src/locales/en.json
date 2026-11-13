@@ -94,7 +94,7 @@
   "extract": {
     "menu": "Extract audio",
     "title": "Extract audio",
-    "help": "Takes the video's sound out as a song with tags and a cover, into the library's 'Extracted'. The linked song's details are used when there is one, else what the video's title says.",
+    "help": "Takes the video's sound out as a song with tags, a cover and lyrics, into the library's 'Extracted'. The linked song's details are used when there is one, else the AI's (or the title's) reading, confirmed on Bugs.",
     "format": "Format",
     "format_m4a": "Recommended. YouTube's sound (AAC) is kept as it is: no loss.",
     "format_mp3": "Converted at 320 kbps. Plays on older devices.",
@@ -123,7 +123,19 @@
     "step_download": "Downloading",
     "step_tags": "Finding details",
     "step_convert": "Converting",
-    "step_scan": "Adding to the library"
+    "step_scan": "Adding to the library",
+    "aiOn": "Find song details with AI",
+    "aiHelp": "For videos linked to no song, the title, channel and description go to the AI to tell the artist and title (a small cost each). Bugs then confirms the official details.",
+    "aiNoKey": "No AI key: the video title is read by rules and checked on Bugs. Add a key under Admin → AI and YouTube API keys.",
+    "from_track": "linked song",
+    "from_ai": "AI",
+    "from_title": "title rules",
+    "fromBugs": "confirmed on Bugs",
+    "lyrics": "lyrics",
+    "review": "To check",
+    "review_unsure": "the AI wasn't sure",
+    "review_not_music": "may not be a song",
+    "review_no_match": "not found on Bugs"
   },
   "errors": {
     "extract_bot": "YouTube asked this server to sign in. Try again later, or update the app.",

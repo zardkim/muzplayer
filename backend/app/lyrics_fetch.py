@@ -158,8 +158,11 @@ def bugs(title: str, artist: str) -> str | None:
                 track_id = tr.get("trackid")
                 if want_a and (want_a in a or a in want_a):
                     break
-    if not track_id:
-        return None
+    return bugs_by_id(track_id) if track_id else None
+
+
+def bugs_by_id(track_id: str | int) -> str | None:
+    """A Bugs song's lyrics: LRC when they are synced."""
     data = json.loads(_get(BUGS_LYRICS.format(id=track_id)))
     raw = ((data or {}).get("result") or {}).get("lyrics") or ""
     if "|" not in raw:  # plain lyrics only
@@ -199,18 +202,31 @@ def lrclib(title: str, artist: str, album: str, length: float | None) -> str | N
 def _lookup(path: Path, track: Track, album: str) -> tuple[str | None, str | None]:
     """(lyrics text, where from). Synced lyrics from any source beat plain ones."""
     artist = _first_artist(track.artist_text)
-    sources = [
+    return _first([
         ("alsong", lambda: alsong_by_file(path)),
         ("bugs", lambda: bugs(track.title, artist)),
         ("lrclib", lambda: lrclib(track.title, artist, album, track.duration)),
         ("alsong", lambda: alsong_by_name(track.title, artist)),
-    ]
+    ], track.id)
+
+
+def by_name(title: str, artist: str, album: str, length: float | None, bugs_id: str | None = None) -> tuple[str | None, str | None]:
+    """Lyrics for a song not in the library yet (extract.py): (text, where from)."""
+    artist = _first_artist(artist)
+    return _first([
+        ("bugs", lambda: bugs_by_id(bugs_id) if bugs_id else bugs(title, artist)),
+        ("lrclib", lambda: lrclib(title, artist, album, length)),
+        ("alsong", lambda: alsong_by_name(title, artist)),
+    ], title)
+
+
+def _first(sources, what) -> tuple[str | None, str | None]:
     plain: tuple[str | None, str | None] = (None, None)
     for name, find in sources:
         try:
             text = find()
         except Exception as exc:  # noqa: BLE001 - a site down or changed: try the next one
-            log.info("lyrics from %s failed for %d: %s", name, track.id, exc)
+            log.info("lyrics from %s failed for %s: %s", name, what, exc)
             continue
         if not text:
             continue
