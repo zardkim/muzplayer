@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Heart, PenLine } from '@lucide/vue'
+import { ChevronRight, CircleCheck, CircleMinus, Heart, PenLine, Star } from '@lucide/vue'
 import { api } from '../api'
 import { duration } from '../format'
 import { errorMessage } from '../i18n'
@@ -90,25 +90,50 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
           <p class="whitespace-pre-line text-[14px] font-light leading-relaxed text-soft" :class="notesFull ? '' : 'line-clamp-3'">{{ album.description }}</p>
           <span class="flex items-center gap-3">
             <button v-if="longNotes" type="button" class="text-[13px] font-medium text-muted hover:text-ink" @click="notesFull = !notesFull">{{ notesFull ? t('notes.less') : t('notes.more') }}</button>
-            <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.update') }}</button>
+            <!-- it has its introduction: said so (an admin can still change it from here) -->
+            <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-accent hover:text-ink" :title="t('notes.update')" @click="notesOpen = true"><CircleCheck :size="13" :stroke-width="1.8" />{{ t('notes.updated') }}</button>
+            <span v-else class="flex items-center gap-1 text-[13px] text-accent"><CircleCheck :size="13" :stroke-width="1.8" />{{ t('notes.updated') }}</span>
           </span>
         </div>
         <!-- none in its folder, on Bugs or Melon (looked up after a scan) -->
         <span v-else-if="album.kind !== 'chart'" class="flex items-center gap-3 text-[14px] font-light text-muted">
-          {{ t('notes.noneFound') }}
+          <span class="flex items-center gap-1"><CircleMinus :size="14" :stroke-width="1.6" />{{ t('notes.noneShort') }}</span>
           <button v-if="auth.user?.is_admin" type="button" class="flex items-center gap-1 text-[13px] text-muted hover:text-ink" @click="notesOpen = true"><PenLine :size="13" :stroke-width="1.6" />{{ t('notes.add') }}</button>
         </span>
         <div class="flex flex-wrap items-center gap-x-2">
-          <StarRating :value="album.rating" @rate="rate" />
-          <span v-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>
+          <!-- no stars of one's own yet: Melon's score, faintly -->
+          <StarRating :value="album.rating" :hint="album.site_ratings?.melon?.score ?? null" @rate="rate" />
+          <span v-if="!album.rating && album.site_ratings?.melon" class="text-[13px] text-muted">{{ t('albums.melonHint') }}</span>
+          <span v-else-if="!album.rating && album.track_rating_avg" class="text-[13px] text-muted">{{ t('albums.trackAvg', { n: album.track_rating_avg }) }}</span>
         </div>
         <!-- Melon's stars and Bugs' likes, looked up after a scan -->
         <span v-if="album.site_ratings" class="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">
-          <a v-if="album.site_ratings.melon" :href="`https://www.melon.com/album/detail.htm?albumId=${album.site_ratings.melon.id}`" target="_blank" rel="noopener" class="hover:text-ink">
-            {{ t('albums.siteMelon', { score: album.site_ratings.melon.score.toFixed(1), count: album.site_ratings.melon.count.toLocaleString() }) }}
+          <!-- Melon's score as stars (filled to the score, out of five) -->
+          <a
+            v-if="album.site_ratings.melon"
+            :href="`https://www.melon.com/album/detail.htm?albumId=${album.site_ratings.melon.id}`"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center gap-1.5 hover:text-ink"
+            :aria-label="t('albums.siteMelon', { score: album.site_ratings.melon.score.toFixed(1), count: album.site_ratings.melon.count.toLocaleString() })"
+          >
+            <span>{{ t('albums.siteMelonName') }}</span>
+            <Star :size="14" :stroke-width="1.5" fill="currentColor" class="text-accent" aria-hidden="true" />
+            <span class="tabular-nums text-ink/80">{{ album.site_ratings.melon.score.toFixed(1) }}</span>
+            <span>({{ album.site_ratings.melon.count.toLocaleString() }})</span>
           </a>
-          <a v-if="album.site_ratings.bugs" :href="`https://music.bugs.co.kr/album/${album.site_ratings.bugs.id}`" target="_blank" rel="noopener" class="hover:text-ink">
-            {{ t('albums.siteBugs', { likes: album.site_ratings.bugs.likes.toLocaleString() }) }}
+          <!-- Bugs' likes with a heart -->
+          <a
+            v-if="album.site_ratings.bugs"
+            :href="`https://music.bugs.co.kr/album/${album.site_ratings.bugs.id}`"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center gap-1.5 hover:text-ink"
+            :aria-label="t('albums.siteBugs', { likes: album.site_ratings.bugs.likes.toLocaleString() })"
+          >
+            <span>{{ t('albums.siteBugsName') }}</span>
+            <Heart :size="14" :stroke-width="1.5" fill="currentColor" class="text-[#ff3b28]" aria-hidden="true" />
+            <span class="tabular-nums text-ink/80">{{ album.site_ratings.bugs.likes.toLocaleString() }}</span>
           </a>
         </span>
         <div class="mt-2 flex flex-wrap gap-2">

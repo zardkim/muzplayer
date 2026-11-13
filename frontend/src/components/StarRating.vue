@@ -5,7 +5,8 @@ import { Star } from '@lucide/vue'
 
 // 0.5-5 stars in halves: the left half of a star gives n - 0.5, the right half n. Tapping the
 // current value clears the rating. With a mouse, pointing previews that rating (slightly larger).
-const props = withDefaults(defineProps<{ value: number | null; size?: number; label?: string }>(), { size: 22 })
+// `hint`: a score shown faintly while there is no rating (an album's Melon score), filled to it.
+const props = withDefaults(defineProps<{ value: number | null; size?: number; label?: string; hint?: number | null }>(), { size: 22 })
 const emit = defineEmits<{ rate: [stars: number | null] }>()
 const { t } = useI18n()
 const hover = ref<number | null>(null)
@@ -15,6 +16,9 @@ function enter(e: PointerEvent, v: number) {
   if (e.pointerType === 'mouse') hover.value = v // touch has no hover: it would stick after a tap
 }
 const fill = (n: number) => (shown.value >= n ? 'full' : shown.value >= n - 0.5 ? 'half' : 'none')
+const hinted = computed(() => (hover.value === null && props.value === null && props.hint ? props.hint : 0))
+// how much of star n the hint fills (0..1)
+const part = (n: number) => Math.max(0, Math.min(1, hinted.value - (n - 1)))
 </script>
 
 <template>
@@ -30,6 +34,8 @@ const fill = (n: number) => (shown.value >= n ? 'full' : shown.value >= n - 0.5 
       :style="{ width: `${size + 10}px`, height: `${size + 18}px` }"
     >
       <Star :size="size" :stroke-width="1.4" :fill="fill(n) === 'full' ? 'currentColor' : 'none'" />
+      <!-- the hint: filled to its score, faint -->
+      <Star v-if="hinted && part(n) > 0" :size="size" :stroke-width="1.4" fill="currentColor" class="absolute text-accent/45" :style="{ clipPath: `inset(0 ${100 - part(n) * 100}% 0 0)` }" />
       <!-- the filled left half of a half star -->
       <Star v-if="fill(n) === 'half'" :size="size" :stroke-width="1.4" fill="currentColor" class="absolute [clip-path:inset(0_50%_0_0)]" />
       <button

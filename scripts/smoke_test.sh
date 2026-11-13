@@ -231,7 +231,7 @@ check "radio stations listed" "$(curl -s -b "$U" "$BASE/radio/stations" | j 'len
 check "unknown station" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/radio/nope/stream")" 404
 check "radio needs a login" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/radio/stations")" 401
 # statistics: admin only
-check "statistics" "$(curl -s -b "$A" "$BASE/admin/stats" | j 'sorted(d)')" "['days', 'library', 'plays', 'storage', 'users']"
+check "statistics" "$(curl -s -b "$A" "$BASE/admin/stats" | j 'sorted(d)')" "['books', 'days', 'library', 'plays', 'storage', 'users', 'videos']"
 check "statistics admin only" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/admin/stats")" 403
 
 # duplicate artists/genres and album descriptions: admin only

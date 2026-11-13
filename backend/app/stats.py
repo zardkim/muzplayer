@@ -1,4 +1,6 @@
-"""Numbers for the admin statistics page: the library, the people, what was played, the disk.
+"""Numbers for the admin statistics page: the library, the people, what was played, the disk, the
+audiobooks (their listening: book_progress) and the music videos (favorites and playlists: plays of
+videos aren't recorded).
 
 Plays per day and the top lists come from play_history, which keeps each person's latest 1000
 plays (api/me.py HISTORY_KEEP); play counts (all time) from play_counts.
@@ -8,12 +10,13 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import Date, Integer, cast, func, select, text
+from sqlalchemy import Date, Integer, case, cast, func, select, text
 from sqlalchemy.orm import Session
 
 from .config import settings
 from .models import (
-    Album, Artist, Book, FetchedLyrics, Genre, Playlist, PlayCount, PlayHistory, Track, TrackGenre, User,
+    Album, Artist, Book, BookProgress, FetchedLyrics, Genre, Playlist, PlayCount, PlayHistory, Track, TrackGenre, User,
+    Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem,
 )
 
 DAYS = 30
@@ -120,4 +123,82 @@ def collect(db: Session) -> dict:
         "covers": _dir_size(settings.cover_dir),  # album covers and artist photos
         "transcode": _dir_size(settings.data_dir / "transcode"),
     }
-    return {"days": DAYS, "library": library, "users": users, "plays": plays, "storage": storage}
+    return {
+        "days": DAYS, "library": library, "users": users, "plays": plays, "storage": storage,
+        "books": _books(db, since), "videos": _videos(db, since),
+    }
+
+
+def _books(db: Session, since: datetime) -> dict:
+    """The audiobook library and its listening (book_progress: each person's place in each book)."""
+    here = Book.missing_at.is_(None)
+    count, seconds = db.execute(select(func.count(), func.coalesce(func.sum(Book.duration), 0)).where(here)).one()
+    size = sum(int(f.get("size") or 0) for (files,) in db.execute(select(Book.files).where(here)) for f in files or [])
+    authors = {a.strip() for (a,) in db.execute(select(Book.authors).where(here)) for a in (a or "").split(",") if a.strip()}
+    series = db.scalar(select(func.count(func.distinct(Book.series))).where(here, Book.series != ""))
+    chapters = sum(len(c or []) for (c,) in db.execute(select(Book.chapters).where(here)))
+    listened = func.least(BookProgress.position, Book.duration)  # (a place past the end counts as the whole book)
+    started = (BookProgress.position > 0) | BookProgress.finished
+    progress = db.execute(
+        select(
+            func.count(func.distinct(BookProgress.user_id)),
+            func.count().filter(started & ~BookProgress.finished),
+            func.count().filter(BookProgress.finished),
+            func.coalesce(func.sum(case((BookProgress.finished, Book.duration), else_=listened)), 0),
+            func.count().filter(BookProgress.updated_at >= since),
+        ).join(Book, Book.id == BookProgress.book_id).where(started)
+    ).one()
+    top = [
+        {"id": i, "title": title, "authors": authors_, "listeners": n, "finished": f}
+        for i, title, authors_, n, f in db.execute(
+            select(Book.id, Book.title, Book.authors, func.count(), func.count().filter(BookProgress.finished))
+            .join(BookProgress, BookProgress.book_id == Book.id).where(here, started)
+            .group_by(Book.id).order_by(func.count().desc(), Book.title).limit(10)
+        )
+    ]
+    per_user = [
+        {"id": i, "name": name or username, "books": n, "finished": f, "hours": round(float(secs or 0) / 3600, 1)}
+        for i, name, username, n, f, secs in db.execute(
+            select(User.id, User.display_name, User.username, func.count(), func.count().filter(BookProgress.finished),
+                   func.sum(case((BookProgress.finished, Book.duration), else_=listened)))
+            .join(BookProgress, BookProgress.user_id == User.id).join(Book, Book.id == BookProgress.book_id).where(started)
+            .group_by(User.id).order_by(func.count().desc())
+        )
+    ]
+    return {
+        "books": count, "hours": round(float(seconds) / 3600, 1), "bytes": size, "authors": len(authors), "series": series or 0,
+        "chapters": chapters, "listeners": progress[0], "in_progress": progress[1], "finished": progress[2],
+        "listened_hours": round(float(progress[3]) / 3600, 1), "active_days": progress[4], "top": top, "per_user": per_user,
+    }
+
+
+def _videos(db: Session, since: datetime) -> dict:
+    """The music videos: where from (YouTube or the NAS), what kind, and how they are kept (favorites,
+    video playlists)."""
+    count, youtube, local, seconds = db.execute(
+        select(func.count(), func.count().filter(Video.youtube_id.is_not(None)), func.count().filter(Video.file_path.is_not(None)),
+               func.coalesce(func.sum(Video.duration), 0))
+    ).one()
+    kinds = [{"kind": k, "videos": n} for k, n in db.execute(select(Video.kind, func.count()).group_by(Video.kind).order_by(func.count().desc()))]
+    top = [
+        {"id": i, "title": title, "channel": channel, "youtube": bool(yt), "likes": n}
+        for i, title, channel, yt, n in db.execute(
+            select(Video.id, Video.title, Video.channel, Video.youtube_id, func.count())
+            .join(VideoFavorite, VideoFavorite.video_id == Video.id).group_by(Video.id).order_by(func.count().desc(), Video.title).limit(10)
+        )
+    ]
+    channels = [
+        {"name": c, "videos": n}
+        for c, n in db.execute(
+            select(Video.channel, func.count()).where(Video.channel != "").group_by(Video.channel).order_by(func.count().desc()).limit(10)
+        )
+    ]
+    return {
+        "videos": count, "youtube": youtube, "local": local, "local_hours": round(float(seconds) / 3600, 1),
+        "with_album": db.scalar(select(func.count()).select_from(Video).where(Video.album_id.is_not(None))),
+        "added_days": db.scalar(select(func.count()).select_from(Video).where(Video.created_at >= since)),
+        "favorites": db.scalar(select(func.count()).select_from(VideoFavorite)),
+        "playlists": db.scalar(select(func.count()).select_from(VideoPlaylist)),
+        "playlist_items": db.scalar(select(func.count()).select_from(VideoPlaylistItem)),
+        "kinds": kinds, "top": top, "channels": channels,
+    }

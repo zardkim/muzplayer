@@ -102,6 +102,23 @@ def continue_listening(user: User = Depends(current_user), db: Session = Depends
     return {"items": [book_out(b, p) for b, p in rows]}
 
 
+@router.get("/books/mine", dependencies=[Depends(books_enabled)])
+def my_books(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """This person's audiobooks (My playlists → audiobooks): the ones being listened to, most recent
+    first, and the ones finished."""
+    rows = db.execute(
+        select(Book, BookProgress)
+        .join(BookProgress, and_(BookProgress.book_id == Book.id, BookProgress.user_id == user.id))
+        .where(Book.missing_at.is_(None), or_(BookProgress.finished, BookProgress.position > 0))
+        .order_by(BookProgress.updated_at.desc())
+        .limit(500)
+    ).all()
+    return {
+        "listening": [book_out(b, p) for b, p in rows if not p.finished],
+        "finished": [book_out(b, p) for b, p in rows if p.finished],
+    }
+
+
 def get_book_row(db: Session, book_id: int) -> Book:
     book = db.get(Book, book_id)
     if book is None or book.missing_at is not None:

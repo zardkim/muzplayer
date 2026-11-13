@@ -10,8 +10,9 @@ import BaseModal from './BaseModal.vue'
 import VideoThumb from './VideoThumb.vue'
 
 // Registering the video files the NAS keeps in library/video: each gets a kind (and a title,
-// the file name to begin with). Files already registered are marked. All files in one list, or
-// by folder (a folder can be added at once); the view picked last is remembered.
+// the file name to begin with). The files not registered yet, the registered ones, or all (the
+// first that has any to begin with); in one list, or by folder (a folder can be added at once;
+// the view picked last is remembered).
 const { t } = useI18n()
 const ui = useUi()
 const emit = defineEmits<{ close: [] }>()
@@ -26,12 +27,18 @@ const view = computed({
   set: (v: 'all' | 'folders') => (ui.views = { ...ui.views, videoFiles: v }),
 })
 const open = ref<Set<string>>(new Set())
+const show = ref<'todo' | 'done' | 'all'>('todo')
+const counts = computed(() => {
+  const done = (files.value ?? []).filter((f) => f.video_id).length
+  return { todo: (files.value?.length ?? 0) - done, done, all: files.value?.length ?? 0 }
+})
+const shown = computed(() => (files.value ?? []).filter((f) => show.value === 'all' || (show.value === 'done') === !!f.video_id))
 
 const dirOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
 const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const folders = computed(() => {
   const map = new Map<string, VideoFile[]>()
-  for (const f of files.value ?? []) {
+  for (const f of shown.value) {
     const d = dirOf(f.path)
     map.set(d, [...(map.get(d) ?? []), f])
   }
@@ -44,6 +51,7 @@ onMounted(async () => {
     folder.value = r.folder
     files.value = r.items
     titles.value = Object.fromEntries(r.items.map((f) => [f.path, nameOf(f.path).replace(/\.[^.]+$/, '')]))
+    show.value = counts.value.todo ? 'todo' : 'all'
     // folders still holding unregistered files start open
     open.value = new Set(folders.value.filter((g) => g.items.some((f) => !f.video_id)).map((g) => g.dir))
   } catch (e) {
@@ -116,12 +124,26 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
         </div>
       </div>
 
+      <!-- not registered yet / registered / all -->
+      <div v-if="files?.length" class="flex flex-wrap gap-1.5" role="tablist" :aria-label="t('videos.filesShow')">
+        <button
+          v-for="k in (['todo', 'done', 'all'] as const)"
+          :key="k"
+          type="button"
+          role="tab"
+          :aria-selected="show === k"
+          class="h-9 rounded-full border px-3.5 text-[14px]"
+          :class="show === k ? 'border-ink bg-ink text-on-ink' : 'border-line-strong'"
+          @click="show = k"
+        >{{ t(`videos.filesShow_${k}`) }} <span class="ml-0.5 tabular-nums opacity-70">{{ counts[k] }}</span></button>
+      </div>
       <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>
       <p v-else-if="!files" class="text-[14px] text-muted" role="status">{{ t('common.loading') }}</p>
       <p v-else-if="!folder" class="text-[14px] leading-relaxed text-muted">{{ t('videos.noFolder') }}</p>
       <p v-else-if="!files.length" class="text-[14px] text-muted">{{ t('videos.noFiles') }}</p>
+      <p v-else-if="!shown.length" class="text-[14px] text-muted">{{ show === 'todo' ? t('videos.filesAllDone') : t('videos.filesNoneDone') }}</p>
       <template v-else>
-        <template v-for="g in view === 'folders' ? folders : [{ dir: null, items: files }]" :key="g.dir ?? 'all'">
+        <template v-for="g in view === 'folders' ? folders : [{ dir: null, items: shown }]" :key="g.dir ?? 'all'">
           <div v-if="g.dir !== null" class="flex items-center gap-2 border-b border-line pb-2 pt-1">
             <button type="button" class="flex min-w-0 flex-1 items-center gap-2.5 text-left" :aria-expanded="open.has(g.dir)" @click="toggle(g.dir)">
               <Folder :size="18" :stroke-width="1.5" class="flex-none text-muted" />

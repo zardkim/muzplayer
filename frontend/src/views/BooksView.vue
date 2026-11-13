@@ -130,7 +130,7 @@ const chips = computed(() =>
         </div>
       </div>
       <BookGrid :books="items" />
-      <LoadMore v-if="items.length < total" :loading="loading" @click="load" />
+      <LoadMore v-if="items.length < total" auto :loading="loading" @click="load" />
     </section>
     <p v-else-if="loaded && filtered" class="font-light text-muted">{{ t('search.noResults') }}</p>
   </div>

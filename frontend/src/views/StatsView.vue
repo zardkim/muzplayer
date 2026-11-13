@@ -7,7 +7,7 @@ import { errorMessage } from '../i18n'
 import PageHeader from '../components/PageHeader.vue'
 
 // Admin → statistics (backend stats.py): the library, the people, what was played in the last
-// 30 days, and the disk this app uses. Headline numbers as tiles; one-series bars in the accent
+// 30 days, the disk this app uses, the audiobooks (listening) and the music videos. Headline numbers as tiles; one-series bars in the accent
 // colour, each value shown on hover/focus and as text.
 interface Stats {
   days: number
@@ -25,6 +25,19 @@ interface Stats {
     per_user: { id: number; name: string; plays: number; hours: number }[]
   }
   storage: { database: number; covers: number; transcode: number }
+  books: {
+    books: number; hours: number; bytes: number; authors: number; series: number; chapters: number
+    listeners: number; in_progress: number; finished: number; listened_hours: number; active_days: number
+    top: { id: number; title: string; authors: string; listeners: number; finished: number }[]
+    per_user: { id: number; name: string; books: number; finished: number; hours: number }[]
+  }
+  videos: {
+    videos: number; youtube: number; local: number; local_hours: number; with_album: number; added_days: number
+    favorites: number; playlists: number; playlist_items: number
+    kinds: { kind: string; videos: number }[]
+    top: { id: number; title: string; channel: string; youtube: boolean; likes: number }[]
+    channels: { name: string; videos: number }[]
+  }
 }
 const { t, locale } = useI18n()
 const s = ref<Stats | null>(null)
@@ -74,6 +87,31 @@ const quality = computed(() => {
   if (!q) return []
   const total = Math.max(1, q.hires + q.lossless + q.lossy)
   return (['hires', 'lossless', 'lossy'] as const).map((k) => ({ key: k, n: q[k], pct: Math.round((q[k] / total) * 100) }))
+})
+// audiobooks and music videos: a few numbers each, then their lists
+const bookTiles = computed(() => {
+  const b = s.value?.books
+  if (!b) return []
+  return [
+    { label: t('stats.bookCount'), value: num(b.books), sub: t('stats.hours', { n: num(b.hours) }) },
+    { label: t('stats.bookAuthors'), value: num(b.authors), sub: t('stats.bookSeries', { n: num(b.series) }) },
+    { label: t('stats.size'), value: size(b.bytes), sub: t('stats.bookChapters', { n: num(b.chapters) }) },
+    { label: t('stats.bookListened'), value: t('stats.hoursShort', { n: num(b.listened_hours) }), sub: t('stats.bookListeners', { n: b.listeners }) },
+    { label: t('stats.bookInProgress'), value: num(b.in_progress), sub: t('stats.bookActive', { n: s.value!.days, m: b.active_days }) },
+    { label: t('stats.bookFinished'), value: num(b.finished), sub: '' },
+  ]
+})
+const videoTiles = computed(() => {
+  const v = s.value?.videos
+  if (!v) return []
+  return [
+    { label: t('stats.videoCount'), value: num(v.videos), sub: t('stats.videoAdded', { n: s.value!.days, m: v.added_days }) },
+    { label: t('stats.videoYoutube'), value: num(v.youtube), sub: '' },
+    { label: t('stats.videoLocal'), value: num(v.local), sub: t('stats.hours', { n: num(v.local_hours) }) },
+    { label: t('stats.videoAlbum'), value: num(v.with_album), sub: '' },
+    { label: t('stats.videoFavorites'), value: num(v.favorites), sub: '' },
+    { label: t('stats.videoPlaylists'), value: num(v.playlists), sub: t('stats.videoItems', { n: num(v.playlist_items) }) },
+  ]
 })
 const checks = computed(() => {
   const l = s.value?.library
@@ -214,6 +252,89 @@ const checks = computed(() => {
           <p class="mt-1 text-[12px] font-light text-muted">{{ t('stats.note') }}</p>
         </section>
       </div>
+
+      <!-- audiobooks -->
+      <template v-if="s.books.books">
+        <h2 class="-mb-2 mt-2 text-[19px] font-bold md:text-[22px]">{{ t('stats.booksTitle') }}</h2>
+        <div class="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
+          <div v-for="x in bookTiles" :key="x.label" class="flex min-w-0 flex-col gap-0.5 rounded-2xl bg-surface px-3 py-2.5 md:gap-1 md:px-4 md:py-3.5">
+            <span class="truncate text-[12px] text-muted md:text-[13px]">{{ x.label }}</span>
+            <span class="truncate font-display text-[19px] font-bold leading-tight md:text-[26px]">{{ x.value }}</span>
+            <span class="truncate text-[11px] text-muted md:text-[12px]">{{ x.sub }}</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+          <section v-for="list in [
+            { title: t('stats.bookTop'), rows: s.books.top.map((x) => ({ key: x.id, name: x.title, sub: x.authors, n: x.listeners, note: t('stats.bookTopNote', { n: x.listeners, f: x.finished }), to: `/books/${x.id}` })) },
+            { title: t('stats.bookPerUser'), rows: s.books.per_user.map((x) => ({ key: x.id, name: x.name, sub: t('stats.hours', { n: x.hours }), n: x.books, note: t('stats.bookUserNote', { n: x.books, f: x.finished }), to: undefined as string | undefined })) },
+          ]" :key="list.title" class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+            <h2 class="text-[16px] font-bold md:text-lg">{{ list.title }}</h2>
+            <p v-if="!list.rows.length" class="text-[14px] font-light text-muted">{{ t('stats.bookNone') }}</p>
+            <ol class="flex flex-col gap-2 md:gap-2.5">
+              <li v-for="(r, i) in list.rows" :key="r.key" class="flex items-center gap-3">
+                <span class="w-5 flex-none text-right font-display text-[13px] text-muted">{{ i + 1 }}</span>
+                <span class="flex min-w-0 flex-1 flex-col gap-1">
+                  <span class="flex items-baseline justify-between gap-3">
+                    <RouterLink v-if="r.to" :to="r.to" class="truncate text-[14px] hover:underline md:text-[15px]">{{ r.name }}<span v-if="r.sub" class="text-[13px] font-light text-muted"> · {{ r.sub }}</span></RouterLink>
+                    <span v-else class="truncate text-[14px] md:text-[15px]">{{ r.name }}<span v-if="r.sub" class="text-[13px] font-light text-muted"> · {{ r.sub }}</span></span>
+                    <span class="flex-none font-display text-[13px] text-muted">{{ r.note }}</span>
+                  </span>
+                  <span class="h-1.5 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent" :style="{ width: `${(r.n / maxOf(list.rows.map((x) => ({ plays: x.n })), 'plays')) * 100}%` }" /></span>
+                </span>
+              </li>
+            </ol>
+          </section>
+        </div>
+      </template>
+
+      <!-- music videos -->
+      <template v-if="s.videos.videos">
+        <h2 class="-mb-2 mt-2 text-[19px] font-bold md:text-[22px]">{{ t('stats.videosTitle') }}</h2>
+        <div class="grid grid-cols-3 gap-2 md:gap-3 xl:grid-cols-6">
+          <div v-for="x in videoTiles" :key="x.label" class="flex min-w-0 flex-col gap-0.5 rounded-2xl bg-surface px-3 py-2.5 md:gap-1 md:px-4 md:py-3.5">
+            <span class="truncate text-[12px] text-muted md:text-[13px]">{{ x.label }}</span>
+            <span class="truncate font-display text-[19px] font-bold leading-tight md:text-[26px]">{{ x.value }}</span>
+            <span class="truncate text-[11px] text-muted md:text-[12px]">{{ x.sub }}</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+          <section class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+            <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.videoKinds') }}</h2>
+            <ol class="flex flex-col gap-2.5">
+              <li v-for="k in s.videos.kinds" :key="k.kind" class="flex flex-col gap-1">
+                <span class="flex items-baseline justify-between gap-3 text-[15px]">
+                  <span>{{ t(`videos.kinds.${k.kind}`) }}</span>
+                  <span class="font-display text-[13px] text-muted">{{ t('stats.videosN', { n: num(k.videos) }) }}</span>
+                </span>
+                <span class="h-1.5 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent" :style="{ width: `${(k.videos / Math.max(1, ...s.videos.kinds.map((x) => x.videos))) * 100}%` }" /></span>
+              </li>
+            </ol>
+            <template v-if="s.videos.channels.length">
+              <h3 class="mt-2 font-medium">{{ t('stats.videoChannels') }}</h3>
+              <div v-for="c in s.videos.channels" :key="c.name" class="flex items-center justify-between gap-3 text-[14px]">
+                <span class="truncate">{{ c.name }}</span><span class="flex-none font-display text-[13px] text-muted">{{ t('stats.videosN', { n: num(c.videos) }) }}</span>
+              </div>
+            </template>
+          </section>
+          <section class="flex min-w-0 flex-col gap-3 rounded-2xl border border-line p-4 md:p-5">
+            <h2 class="text-[16px] font-bold md:text-lg">{{ t('stats.videoTop') }}</h2>
+            <p v-if="!s.videos.top.length" class="text-[14px] font-light text-muted">{{ t('stats.videoNone') }}</p>
+            <ol class="flex flex-col gap-2 md:gap-2.5">
+              <li v-for="(v, i) in s.videos.top" :key="v.id" class="flex items-center gap-3">
+                <span class="w-5 flex-none text-right font-display text-[13px] text-muted">{{ i + 1 }}</span>
+                <span class="flex min-w-0 flex-1 flex-col gap-1">
+                  <span class="flex items-baseline justify-between gap-3">
+                    <span class="truncate text-[14px] md:text-[15px]">{{ v.title }}<span v-if="v.channel" class="text-[13px] font-light text-muted"> · {{ v.channel }}</span></span>
+                    <span class="flex-none font-display text-[13px] text-muted">♥ {{ num(v.likes) }}</span>
+                  </span>
+                  <span class="h-1.5 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent" :style="{ width: `${(v.likes / Math.max(1, ...s.videos.top.map((x) => x.likes))) * 100}%` }" /></span>
+                </span>
+              </li>
+            </ol>
+            <p class="mt-1 text-[12px] font-light text-muted">{{ t('stats.videoNote') }}</p>
+          </section>
+        </div>
+      </template>
     </template>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, ListMusic, ListVideo, Plus, Sparkles, Zap } from '@lucide/vue'
@@ -11,8 +11,8 @@ import { useUi } from '../stores/ui'
 import PageHeader from '../components/PageHeader.vue'
 import AiPlaylistSheet, { type AiDraft } from '../components/AiPlaylistSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
-import SectionTitle from '../components/SectionTitle.vue'
-import type { Playlist, VideoPlaylist } from '../types'
+import BookGrid from '../components/BookGrid.vue'
+import type { Book, Playlist, VideoPlaylist } from '../types'
 import { youtubeThumb } from '../youtube'
 
 const { t } = useI18n()
@@ -35,17 +35,29 @@ function smartSaved(p: Playlist) {
   library.loadPlaylists().catch(() => {})
   router.push({ name: 'playlist', params: { id: p.id } })
 }
+// My playlists by what they hold: music, music videos, audiobooks (the books being listened to and
+// the finished ones); the tab is in the address (?tab=video), so back comes to it
+type Tab = 'music' | 'video' | 'books'
+const tabs = computed<Tab[]>(() => (appConfig.audiobooks ? ['music', 'video', 'books'] : ['music', 'video']))
+const tab = computed<Tab>({
+  get: () => {
+    // (My Music's "my video playlists" link: #video-playlists)
+    const want = route.hash === '#video-playlists' ? 'video' : route.query.tab
+    return tabs.value.includes(want as Tab) ? (want as Tab) : 'music'
+  },
+  set: (v) => void router.replace({ query: v === 'music' ? {} : { tab: v }, hash: '' }),
+})
 // video playlists (music videos played one after another or shuffled)
 const videoName = ref('')
-onMounted(async () => {
+onMounted(() => {
   library.loadPlaylists().catch(() => {})
-  await library.loadVideoPlaylists().catch(() => {})
-  // from My Music's "my video playlists": straight to them
-  if (route.hash === '#video-playlists') {
-    await nextTick()
-    document.getElementById('video-playlists')?.scrollIntoView({ block: 'start' })
-  }
+  library.loadVideoPlaylists().catch(() => {})
 })
+// my audiobooks, asked for when their tab opens
+const books = ref<{ listening: Book[]; finished: Book[] } | null>(null)
+watch(tab, (v) => {
+  if (v === 'books' && !books.value) api<{ listening: Book[]; finished: Book[] }>('/books/mine').then((r) => (books.value = r), () => (books.value = { listening: [], finished: [] }))
+}, { immediate: true })
 async function createVideoList() {
   if (!videoName.value.trim()) return
   try {
@@ -71,6 +83,20 @@ async function create() {
 <template>
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('playlists.title')" />
+    <div class="-mt-2 flex self-start rounded-full bg-surface p-1" role="tablist" :aria-label="t('playlists.title')">
+      <button
+        v-for="k in tabs"
+        :key="k"
+        type="button"
+        role="tab"
+        :aria-selected="tab === k"
+        class="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[14px] font-medium"
+        :class="tab === k ? 'bg-bg text-ink shadow-sm' : 'text-muted'"
+        @click="tab = k"
+      >{{ t(`playlists.tab_${k}`) }}<span class="tabular-nums text-[12px] opacity-70">{{ k === 'music' ? library.playlists.length : k === 'video' ? library.videoPlaylists.length : books ? books.listening.length + books.finished.length : '' }}</span></button>
+    </div>
+
+    <template v-if="tab === 'music'">
     <form class="flex max-w-md gap-2" @submit.prevent="create">
       <label for="pl-name" class="sr-only">{{ t('playlists.name') }}</label>
       <input id="pl-name" v-model="name" maxlength="200" :placeholder="t('playlists.new')" class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink" />
@@ -102,9 +128,10 @@ async function create() {
       </li>
     </ul>
 
+    </template>
+
     <!-- video playlists -->
-    <section id="video-playlists" class="mt-4 flex scroll-mt-4 flex-col gap-4">
-      <SectionTitle :title="t('videos.videoPlaylists')" />
+    <section v-if="tab === 'video'" id="video-playlists" class="flex flex-col gap-4">
       <form class="flex max-w-md gap-2" @submit.prevent="createVideoList">
         <label for="vpl-name" class="sr-only">{{ t('videos.newPlaylist') }}</label>
         <input id="vpl-name" v-model="videoName" maxlength="200" :placeholder="t('videos.newPlaylist')" class="h-11 min-w-0 flex-1 rounded-full bg-surface px-4 text-base outline-none focus:ring-2 focus:ring-ink" />
@@ -129,5 +156,21 @@ async function create() {
         </li>
       </ul>
     </section>
+
+    <!-- my audiobooks: being listened to, finished -->
+    <template v-if="tab === 'books'">
+      <p v-if="!books" class="font-light text-muted">{{ t('common.loading') }}</p>
+      <p v-else-if="!books.listening.length && !books.finished.length" class="font-light text-muted">{{ t('playlists.booksEmpty') }}</p>
+      <template v-else>
+        <section v-if="books.listening.length" class="flex flex-col gap-3.5">
+          <h2 class="text-[20px] font-bold">{{ t('playlists.booksListening') }} <span class="text-[15px] font-normal text-muted">{{ books.listening.length }}</span></h2>
+          <BookGrid :books="books.listening" />
+        </section>
+        <section v-if="books.finished.length" class="flex flex-col gap-3.5">
+          <h2 class="text-[20px] font-bold">{{ t('playlists.booksFinished') }} <span class="text-[15px] font-normal text-muted">{{ books.finished.length }}</span></h2>
+          <BookGrid :books="books.finished" />
+        </section>
+      </template>
+    </template>
   </div>
 </template>

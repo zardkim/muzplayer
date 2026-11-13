@@ -128,6 +128,19 @@ function tune(s: RadioStation) {
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('radio.title')" :sub="stations.length ? t('radio.count', { n: shown.length }) : ''">
       <template #actions>
+        <!-- the stations as a list or on the tuner's dial -->
+        <div class="mr-1 flex flex-none rounded-full bg-surface p-0.5" role="tablist" :aria-label="t('radio.mode')">
+          <button
+            v-for="m in (['list', 'tuner'] as const)"
+            :key="m"
+            type="button"
+            role="tab"
+            :aria-selected="mode === m"
+            class="h-8 whitespace-nowrap rounded-full px-2.5 text-[13px] font-medium md:px-3 md:text-[14px]"
+            :class="mode === m ? 'bg-bg text-ink shadow-sm' : 'text-muted'"
+            @click="mode = m"
+          >{{ t(`radio.mode_${m}`) }}</button>
+        </div>
         <button type="button" class="grid size-10 place-items-center rounded-full hover:bg-surface" :aria-label="t('radio.add')" :title="t('radio.add')" @click="adding = true">
           <Plus :size="22" :stroke-width="1.7" />
         </button>
@@ -146,18 +159,6 @@ function tune(s: RadioStation) {
         </button>
       </template>
     </PageHeader>
-    <div class="-mt-2 flex self-start rounded-full bg-surface p-1" role="tablist" :aria-label="t('radio.mode')">
-      <button
-        v-for="m in (['list', 'tuner'] as const)"
-        :key="m"
-        type="button"
-        role="tab"
-        :aria-selected="mode === m"
-        class="h-8 rounded-full px-4 text-[14px] font-medium"
-        :class="mode === m ? 'bg-bg text-ink shadow-sm' : 'text-muted'"
-        @click="mode = m"
-      >{{ t(`radio.mode_${m}`) }}</button>
-    </div>
     <RadioTuner v-if="mode === 'tuner' && stations.length" v-model:region="region" :stations="stations.filter((s) => !isHidden(s))" :regions="regions" @list="mode = 'list'" />
     <template v-if="mode === 'list'">
     <p v-if="editing && hiddenCount" class="-mt-3 text-[14px] text-muted">{{ t('radio.hiddenCount', { n: hiddenCount }) }}</p>
