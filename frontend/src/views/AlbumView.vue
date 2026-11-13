@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, Heart, PenLine, Star } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, Heart, PenLine, Star, Tag } from '@lucide/vue'
 import { api } from '../api'
 import { neighbours } from '../albumNav'
 import { useSwipe } from '../swipe'
@@ -12,6 +12,7 @@ import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import type { AlbumDetail } from '../types'
 import AlbumNotesSheet from '../components/AlbumNotesSheet.vue'
+import ExtractTagSheet from '../components/ExtractTagSheet.vue'
 import CoverArt from '../components/CoverArt.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PlayActions from '../components/PlayActions.vue'
@@ -97,6 +98,13 @@ const saveAs = computed(() => {
 })
 // the introduction (under the title); admins update it (AlbumNotesSheet)
 const notesOpen = ref(false)
+// a song taken out of a music video (admins): its tags, edited in its file (ExtractTagSheet); saved,
+// the song may be in another album now
+const tagsOpen = ref(false)
+function tagsSaved(r: { album_id: number | null }) {
+  if (r.album_id && r.album_id !== album.value?.id) void router.replace({ name: 'album', params: { id: r.album_id } })
+  else api<AlbumDetail>(`/albums/${props.id}`).then((a) => (album.value = a), () => {})
+}
 const notesFull = ref(false)
 const longNotes = computed(() => (album.value?.description ?? '').length > 160 || (album.value?.description ?? '').split('\n').length > 3)
 function notesSaved(text: string | null, source: string | null) {
@@ -199,10 +207,14 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
             <Heart :size="19" :stroke-width="1.4" :fill="album.is_favorite ? 'currentColor' : 'none'" />
           </button>
           <DownloadButton class="h-11" :list="saveAs" />
+          <button v-if="auth.user?.is_admin && album.kind === 'extracted'" type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="tagsOpen = true">
+            <Tag :size="16" :stroke-width="1.6" />{{ t('extractTags.edit') }}
+          </button>
         </div>
       </div>
     </div>
     <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" video-buttons />
+    <ExtractTagSheet v-if="tagsOpen" :tracks="album.tracks.map((x) => ({ id: x.id, title: x.title }))" @close="tagsOpen = false" @saved="tagsSaved" />
     <AlbumNotesSheet v-if="notesOpen" :album-id="album.id" :text="album.description" :source="album.description_source" @close="notesOpen = false" @saved="notesSaved" />
   </div>
 </template>

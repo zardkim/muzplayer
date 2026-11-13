@@ -3,7 +3,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,11 @@ from ..scanner import bump_library, prune_orphans, remove_covers, scan_lock
 from ..security import admin_user, api_error
 
 router = APIRouter()
-_STATUS = {"extract_folder": 409, "extract_youtube_off": 403, "extract_no_ytdlp": 409, "extract_source": 400, "extract_format": 400}
+_STATUS = {
+    "extract_folder": 409, "extract_youtube_off": 403, "extract_no_ytdlp": 409, "extract_source": 400, "extract_format": 400,
+    "not_found": 404, "extract_not_extracted": 400, "extract_running": 409, "extract_cover": 400, "extract_no_title": 400,
+    "scan_running": 409, "extract_update_running": 409,
+}
 
 
 def _error(exc: extract.ExtractError):
@@ -123,3 +127,62 @@ def delete_job(job_id: int, file: bool = False, _: User = Depends(admin_user), d
         finally:
             lock.release()
         remove_covers(orphans)
+
+
+# ---- the tag editor (an extracted song's tags, written into its file) ----
+@router.get("/extract/tracks/{track_id}")
+def get_tags(track_id: int, _: User = Depends(admin_user)):
+    try:
+        return extract.edit_info(track_id)
+    except extract.ExtractError as exc:
+        raise _error(exc) from None
+
+
+@router.post("/extract/tracks/{track_id}/suggest")
+def suggest_tags(track_id: int, _: User = Depends(admin_user)):
+    """The tags found again from the song's video (not saved)."""
+    try:
+        return extract.suggest(track_id)
+    except extract.ExtractError as exc:
+        raise _error(exc) from None
+
+
+class TagsIn(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    artist: str = Field("", max_length=300)
+    album: str = Field("", max_length=300)
+    album_artist: str = Field("", max_length=300)
+    year: str = Field("", max_length=10)
+    genre: str = Field("", max_length=100)
+    track: int = Field(1, ge=1, le=999)
+    disc: int = Field(1, ge=1, le=99)
+    cover: Literal["thumbnail", "bugs", "upload"] | None = None
+    cover_url: str | None = Field(None, max_length=500)
+    cover_data: str | None = Field(None, max_length=12_000_000)  # a data: URL (base64)
+    lyrics: bool = False  # look the lyrics up again with these tags
+
+
+@router.put("/extract/tracks/{track_id}")
+def put_tags(track_id: int, body: TagsIn, _: User = Depends(admin_user)):
+    values = body.model_dump(include=set(extract.EDITABLE))
+    try:
+        return extract.retag(track_id, values, body.cover, body.cover_url, body.cover_data, body.lyrics)
+    except extract.ExtractError as exc:
+        raise _error(exc) from None
+
+
+# ---- a newer yt-dlp ----
+@router.post("/extract/ytdlp", status_code=202)
+def update_ytdlp(_: User = Depends(admin_user)):
+    try:
+        return extract.update_ytdlp()
+    except extract.ExtractError as exc:
+        raise _error(exc) from None
+
+
+@router.delete("/extract/ytdlp")
+def reset_ytdlp(_: User = Depends(admin_user)):
+    try:
+        return extract.reset_ytdlp()
+    except extract.ExtractError as exc:
+        raise _error(exc) from None

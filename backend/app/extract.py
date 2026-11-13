@@ -22,12 +22,15 @@ there is none). Saved as cover music/<artist>/<disc>-<track> <title>.m4a (eztag'
 time in the background (ExtractJob).
 """
 
+import base64
+import importlib
 import io
 import logging
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -54,7 +57,7 @@ MP3_RATE = "320k"
 AAC_RATE = "256k"  # an m4a from a source that isn't AAC (YouTube's Opus)
 COVER_PX = 1000
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-_lock = threading.Lock()  # held while a job runs (backup.restore waits for none)
+_lock = threading.Lock()  # held while a job runs or a song's tags are edited (backup.restore waits for none)
 _wake = threading.Event()
 _started = False
 
@@ -105,7 +108,7 @@ def status() -> dict:
         "folder": str(settings.extract_dir), "folder_ok": writable() and folder_name() is not None,
         "ytdlp": ytdlp_version(), "deno": bool(deno()), "ffmpeg": bool(transcode.ffmpeg()),
         "youtube": appconf.get("extract_youtube") == "on", "format": appconf.get("extract_format") or "m4a",
-        "ai": appconf.get("extract_ai") == "on", "ai_ready": ai_banner.configured(),
+        "ai": appconf.get("extract_ai") == "on", "ai_ready": ai_banner.configured(), "ytdlp_update": update_state(),
     }
 
 
@@ -302,6 +305,32 @@ def parse_title(title: str, channel: str) -> tuple[str, str]:
 def _tags(source: dict, info: dict) -> tuple[dict, bytes | None]:
     """The tags to write and the cover (JPEG bytes): the linked song's, else found from the video
     (the AI or its title, then Bugs). Also the lyrics, and what to check ("review")."""
+    tags, bugs_cover, album_cover = _identify(source, info)
+    length = info.get("duration") or source.get("duration")
+    tags["lyrics"], tags["lyrics_from"] = _lyrics(tags, length)
+    # the cover: the video's own picture (its thumbnail cut square); Bugs' or the linked album's only without one
+    cover = _thumbnail(source)
+    tags["cover"] = ("youtube" if source["youtube_id"] else "video") if cover else None
+    if cover is None and bugs_cover:
+        cover, tags["cover"] = _fetch_cover(bugs_cover), "bugs"
+    if cover is None and album_cover is not None and album_cover.is_file():
+        cover, tags["cover"] = album_cover.read_bytes(), "album"
+    return tags, cover
+
+
+def _lyrics(tags: dict, length: float | None) -> tuple[str | None, str | None]:
+    """(lyrics, where from) for a song that is known: Bugs' own when it was found there; a cover's
+    are its original's. A title alone would find some other song's."""
+    if tags.get("original"):
+        o = tags["original"]
+        return lyrics_fetch.by_name(o["title"], o["artist"], "", length, o.get("bugs"))
+    if tags["artist"] and "no_match" not in tags["review"]:
+        return lyrics_fetch.by_name(tags["title"], tags["artist"], tags["album"], length, (tags.get("bugs") or {}).get("track"))
+    return None, None
+
+
+def _identify(source: dict, info: dict) -> tuple[dict, str | None, Path | None]:
+    """The tags (no lyrics, no cover yet), Bugs' album cover address and the linked album's cover file."""
     from .scanner import cover_file
 
     url = f"https://www.youtube.com/watch?v={source['youtube_id']}" if source["youtube_id"] else ""
@@ -326,28 +355,11 @@ def _tags(source: dict, info: dict) -> tuple[dict, bytes | None]:
                 tags |= {"artist": named, "album_artist": named, "album": track.title, "year": "", "track": 1, "disc": 1,
                          "source": "title", "original": {"artist": track.artist_text or "", "title": track.title}}
         album_cover = cover_file(album.id, "large") if album is not None and album.cover_path else None
-    length = info.get("duration") or source.get("duration")
     bugs_cover = None
     if track is None:
         tags, bugs_cover = _find(source, info, album)
     tags["comment"] = url
-    # the lyrics (Bugs' own when the song was found there), only for a song that is known: a title
-    # alone finds some other song's
-    text, where = None, None
-    if tags.get("original"):  # a cover: the song's own lyrics
-        o = tags["original"]
-        text, where = lyrics_fetch.by_name(o["title"], o["artist"], "", length, o.get("bugs"))
-    elif tags["artist"] and "no_match" not in tags["review"]:
-        text, where = lyrics_fetch.by_name(tags["title"], tags["artist"], tags["album"], length, (tags.get("bugs") or {}).get("track"))
-    tags["lyrics"], tags["lyrics_from"] = text, where
-    # the cover: the video's own picture (its thumbnail cut square); Bugs' or the linked album's only without one
-    cover = _thumbnail(source)
-    tags["cover"] = ("youtube" if source["youtube_id"] else "video") if cover else None
-    if cover is None and bugs_cover:
-        cover, tags["cover"] = _fetch_cover(bugs_cover), "bugs"
-    if cover is None and album_cover is not None and album_cover.is_file():
-        cover, tags["cover"] = album_cover.read_bytes(), "album"
-    return tags, cover
+    return tags, bugs_cover, album_cover
 
 
 _VERSION = re.compile(r"\s*[(\[]([^)\]]*\b(?:live|acoustic|remix|ver\.?|version|cover|inst\.?|instrumental|unplugged|라이브|어쿠스틱|리믹스)\b[^)\]]*)[)\]]\s*", re.I)
@@ -605,14 +617,15 @@ def _safe(name: str, fallback: str) -> str:
     return name[:120] or fallback
 
 
-def _target(tags: dict, fmt: str) -> Path:
+def _target(tags: dict, fmt: str, current: Path | None = None) -> Path:
     """extract_dir/<artist>/<disc>-<track> <title>.<fmt> (eztag's "%disc%-%track% %title%": the track
-    two digits, the disc as it is), a number added when the name is taken."""
+    two digits, the disc as it is), a number added when the name is taken (by another file than
+    `current`, the song being renamed)."""
     folder = settings.extract_dir / _safe(tags["album_artist"] or tags["artist"], "Unknown")
     stem = f"{int(tags.get('disc') or 1)}-{int(tags.get('track') or 1):02d} {_safe(tags['title'], 'Untitled')}"
     target = folder / f"{stem}.{fmt}"
     n = 2
-    while target.exists():
+    while target.exists() and not (current is not None and target == current):
         target = folder / f"{stem} ({n}).{fmt}"
         n += 1
     if settings.extract_dir.resolve() not in target.resolve().parents:  # never outside the folder
@@ -653,10 +666,12 @@ def _write_tags(path: Path, fmt: str, tags: dict, cover: bytes | None) -> None:
         f = MP4(path)
         f.tags = f.tags or {}
         pairs = {"\xa9nam": tags["title"], "\xa9ART": tags["artist"], "aART": tags["album_artist"], "\xa9alb": tags["album"],
-                 "\xa9day": tags["year"], "\xa9gen": tags["genre"], "\xa9cmt": tags["comment"]}
+                 "\xa9day": tags["year"], "\xa9gen": tags["genre"], "\xa9cmt": tags.get("comment") or ""}
         for k, v in pairs.items():
             if v:
                 f.tags[k] = [v]
+            elif k != "\xa9cmt":
+                f.tags.pop(k, None)  # emptied in the tag editor
         f.tags["trkn"] = [(int(tags.get("track") or 1), 0)]
         f.tags["disk"] = [(int(tags.get("disc") or 1), 0)]
         if tags.get("lyrics"):
@@ -673,15 +688,18 @@ def _write_tags(path: Path, fmt: str, tags: dict, cover: bytes | None) -> None:
         f = ID3()
     for frame, v in ((TIT2, tags["title"]), (TPE1, tags["artist"]), (TPE2, tags["album_artist"]), (TALB, tags["album"]),
                      (TDRC, tags["year"]), (TCON, tags["genre"])):
+        f.delall(frame.__name__)
         if v:
             f.add(frame(encoding=3, text=v))
     f.add(TRCK(encoding=3, text=str(int(tags.get("track") or 1))))
     f.add(TPOS(encoding=3, text=str(int(tags.get("disc") or 1))))
-    if tags["comment"]:
+    if tags.get("comment"):
         f.add(COMM(encoding=3, lang="kor", desc="", text=tags["comment"]))
     if tags.get("lyrics"):
+        f.delall("USLT")
         f.add(USLT(encoding=3, lang="kor", desc="", text=tags["lyrics"]))
     if cover:
+        f.delall("APIC")
         f.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=cover))
     f.save(path, v2_version=4)
 
@@ -734,3 +752,241 @@ def remove_file(rel: str) -> None:
         if leftovers:
             break
         shutil.rmtree(parent, ignore_errors=True)
+
+
+# ---- 5. the tag editor (an admin fixes what was found) ----
+EDITABLE = ("title", "artist", "album", "album_artist", "year", "genre", "track", "disc")
+BUGS_IMAGES = "image.bugsm.co.kr"
+UPLOAD_MAX = 8_000_000  # bytes of an uploaded cover
+
+
+def read_tags(path: Path) -> dict:
+    """The editable tags in an extracted file, and whether it holds lyrics and a cover."""
+    out: dict = {k: "" for k in EDITABLE} | {"track": 1, "disc": 1, "lyrics": False, "cover": False}
+    if path.suffix.lower() == ".m4a":
+        from mutagen.mp4 import MP4
+
+        t = MP4(path).tags or {}
+        first = lambda k: str((t.get(k) or [""])[0])  # noqa: E731
+        out |= {"title": first("\xa9nam"), "artist": first("\xa9ART"), "album_artist": first("aART"), "album": first("\xa9alb"),
+                "year": first("\xa9day"), "genre": first("\xa9gen"), "lyrics": bool(t.get("\xa9lyr")), "cover": bool(t.get("covr"))}
+        out["track"] = (t.get("trkn") or [(1, 0)])[0][0] or 1
+        out["disc"] = (t.get("disk") or [(1, 0)])[0][0] or 1
+        return out
+    from mutagen.id3 import ID3, ID3NoHeaderError
+
+    try:
+        t = ID3(path)
+    except ID3NoHeaderError:
+        return out
+    text = lambda k: str(t[k].text[0]) if k in t and t[k].text else ""  # noqa: E731
+    number = lambda k: int(m.group()) if (m := re.match(r"\d+", text(k))) else 1  # noqa: E731
+    out |= {"title": text("TIT2"), "artist": text("TPE1"), "album_artist": text("TPE2"), "album": text("TALB"), "year": text("TDRC"),
+            "genre": text("TCON"), "track": number("TRCK"), "disc": number("TPOS"), "lyrics": bool(t.getall("USLT")), "cover": bool(t.getall("APIC"))}
+    return out
+
+
+def _editable(db, track_id: int) -> tuple[Track, Path, ExtractJob | None, Video | None]:
+    """The extracted song (its file in the extraction folder), the job that made it and its video."""
+    track = db.get(Track, track_id)
+    if track is None:
+        raise ExtractError("not_found")
+    path = library_path(track.file_path)
+    if settings.extract_dir.resolve() not in path.resolve().parents or not path.is_file():
+        raise ExtractError("extract_not_extracted")
+    job = db.scalar(select(ExtractJob).where((ExtractJob.track_id == track.id) | (ExtractJob.file_path == track.file_path))
+                    .order_by(ExtractJob.id.desc()).limit(1))
+    video = db.get(Video, job.video_id) if job and job.video_id else None
+    return track, path, job, video
+
+
+def _source(video: Video | None) -> dict | None:
+    if video is None:
+        return None
+    return {"id": video.id, "youtube_id": video.youtube_id, "file_path": video.file_path, "title": video.title,
+            "channel": video.channel, "track_id": video.track_id, "album_id": video.album_id, "duration": video.duration}
+
+
+def edit_info(track_id: int) -> dict:
+    with SessionLocal() as db:
+        track, path, job, video = _editable(db, track_id)
+        return {"track_id": track.id, "album_id": track.album_id, "file_path": track.file_path, "format": path.suffix.lstrip(".").lower(),
+                "tags": read_tags(path), "job_id": job.id if job else None,
+                "video": {"id": video.id, "title": video.title, "youtube_id": video.youtube_id} if video else None}
+
+
+def suggest(track_id: int) -> dict:
+    """What finding the tags again says (the AI or the title, Bugs): shown in the editor, saved
+    only when the admin saves. With Bugs' album cover when it was found there."""
+    with SessionLocal() as db:
+        _, _, _, video = _editable(db, track_id)
+        source = _source(video)
+    if source is None:
+        raise ExtractError("extract_source")
+    tags, bugs_cover, _ = _identify(source, {})
+    return {"tags": {k: tags.get(k, "") for k in EDITABLE}, "review": tags.get("review", []), "original": tags.get("original"),
+            "bugs": tags.get("bugs"), "bugs_cover": bugs_cover}
+
+
+def _cover_from(choice: str | None, url: str | None, data: str | None, source: dict | None) -> bytes | None:
+    """The new cover: the video's thumbnail, Bugs' album cover (its image host only) or an uploaded
+    picture, each cut square. None: keep the file's own."""
+    if not choice:
+        return None
+    if choice == "thumbnail":
+        cover = _thumbnail(source) if source else None
+    elif choice == "bugs":
+        host = urllib.parse.urlsplit(url or "").hostname
+        cover = _fetch_cover(url) if host == BUGS_IMAGES and (url or "").startswith("https://") else None
+    elif choice == "upload":
+        raw = (data or "").split(",", 1)[-1]  # a data: URL or bare base64
+        try:
+            blob = base64.b64decode(raw, validate=True)
+        except ValueError:
+            blob = b""
+        cover = _square(blob) if 0 < len(blob) <= UPLOAD_MAX else None
+    else:
+        cover = None
+    if cover is None:
+        raise ExtractError("extract_cover")
+    return cover
+
+
+def retag(track_id: int, values: dict, cover_choice: str | None = None, cover_url: str | None = None,
+          cover_data: str | None = None, lyrics: bool = False) -> dict:
+    """Writes the editor's tags (and a new cover, the lyrics found again) into the file, renames it
+    to match (cover music/<artist>/<disc>-<track> <title>), and scans it in. The song keeps its row
+    (and with it its likes, stars and playlist places): its path is moved in the database first."""
+    from .scanner import scan_lock
+
+    if not _lock.acquire(timeout=5):
+        raise ExtractError("extract_running")
+    try:
+        with SessionLocal() as db:
+            track, path, job, video = _editable(db, track_id)
+            rel, source = track.file_path, _source(video)
+        fmt = path.suffix.lstrip(".").lower()
+        if fmt not in FORMATS:
+            raise ExtractError("extract_format")
+        tags = read_tags(path) | {k: values[k] for k in EDITABLE if k in values}
+        for k in ("title", "artist", "album", "album_artist", "year", "genre"):
+            tags[k] = " ".join(str(tags[k] or "").split())[:300]
+        tags["track"] = max(1, min(999, int(tags["track"] or 1)))
+        tags["disc"] = max(1, min(99, int(tags["disc"] or 1)))
+        if not tags["title"]:
+            raise ExtractError("extract_no_title")
+        tags["album"] = tags["album"] or tags["title"]
+        tags["album_artist"] = tags["album_artist"] or tags["artist"]
+        cover = _cover_from(cover_choice, cover_url, cover_data, source)
+        tags["lyrics"] = None
+        if lyrics:
+            tags["review"] = []
+            tags["lyrics"] = _lyrics(tags, source.get("duration") if source else None)[0]
+        _write_tags(path, fmt, tags, cover)
+        target = _target(tags, fmt, path)
+        new_rel = rel
+        if target != path:
+            lock = scan_lock()
+            if not lock.acquire(timeout=60):
+                raise ExtractError("scan_running")
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(path, target)
+                new_rel = library_rel(target).replace(os.sep, "/")
+                with SessionLocal() as db:
+                    db.get(Track, track_id).file_path = new_rel
+                    for j in db.scalars(select(ExtractJob).where(ExtractJob.file_path == rel)):
+                        j.file_path = new_rel
+                    db.commit()
+            finally:
+                lock.release()
+            _prune_empty()
+        with SessionLocal() as db:
+            for j in db.scalars(select(ExtractJob).where(ExtractJob.file_path == new_rel)):
+                j.found = (j.found or {}) | {k: tags[k] for k in EDITABLE} | {"edited": True}
+            db.commit()
+    finally:
+        _lock.release()
+    new_id = _scan(new_rel)
+    with SessionLocal() as db:
+        t = db.get(Track, new_id) if new_id else None
+        return {"track_id": new_id, "album_id": t.album_id if t else None, "file_path": new_rel}
+
+
+# ---- 6. a newer yt-dlp (YouTube changes often; the image's may fall behind) ----
+# Installed by an admin into DATA_DIR/pylib (yt-dlp and its JavaScript part alone: the app's other
+# libraries stay the image's), found there before the image's own. Loaded afresh after an update.
+PYLIB = settings.data_dir / "pylib"
+_update = {"state": "idle", "error": None, "at": None}  # idle | running | done | failed
+
+
+def _use_pylib() -> None:
+    if PYLIB.is_dir() and str(PYLIB) not in sys.path:
+        sys.path.insert(0, str(PYLIB))
+
+
+def _forget_ytdlp() -> None:
+    """The next import of yt-dlp loads it again (from pylib when there)."""
+    for name in list(sys.modules):
+        if name.split(".")[0] in ("yt_dlp", "yt_dlp_ejs"):
+            del sys.modules[name]
+    importlib.invalidate_caches()
+
+
+_use_pylib()
+
+
+def update_state() -> dict:
+    return dict(_update) | {"custom": PYLIB.is_dir()}
+
+
+def update_ytdlp() -> dict:
+    if _update["state"] == "running":
+        raise ExtractError("extract_update_running")
+    _update.update(state="running", error=None, at=datetime.now(UTC).isoformat())
+    threading.Thread(target=_install, daemon=True, name="ytdlp-update").start()
+    return update_state()
+
+
+def _install() -> None:
+    new, old = PYLIB.with_name("pylib.new"), PYLIB.with_name("pylib.old")
+    try:
+        shutil.rmtree(new, ignore_errors=True)
+        run = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--no-deps", "--no-cache-dir", "--disable-pip-version-check", "--upgrade",
+             "--target", str(new), "yt-dlp", "yt-dlp-ejs"],
+            capture_output=True, timeout=600, env=os.environ | {"HOME": str(settings.data_dir)},
+        )
+        if run.returncode or not (new / "yt_dlp").is_dir():
+            log.warning("yt-dlp update failed: %s", run.stderr.decode("utf-8", "replace")[-600:])
+            raise ExtractError("extract_update_failed")
+        with _lock:  # no job is using yt-dlp now
+            shutil.rmtree(old, ignore_errors=True)
+            if PYLIB.exists():
+                PYLIB.rename(old)
+            new.rename(PYLIB)
+            shutil.rmtree(old, ignore_errors=True)
+            _use_pylib()
+            _forget_ytdlp()
+        log.info("yt-dlp updated to %s", ytdlp_version())
+        _update.update(state="done", error=None)
+    except ExtractError as exc:
+        _update.update(state="failed", error=str(exc))
+    except Exception:  # noqa: BLE001
+        log.exception("yt-dlp update failed")
+        _update.update(state="failed", error="extract_update_failed")
+    finally:
+        shutil.rmtree(new, ignore_errors=True)
+
+
+def reset_ytdlp() -> dict:
+    """Back to the image's own yt-dlp."""
+    if _update["state"] == "running":
+        raise ExtractError("extract_update_running")
+    with _lock:
+        shutil.rmtree(PYLIB, ignore_errors=True)
+        if str(PYLIB) in sys.path:
+            sys.path.remove(str(PYLIB))
+        _forget_ytdlp()
+    _update.update(state="idle", error=None)
+    return update_state()

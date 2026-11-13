@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CircleAlert, Music, RotateCcw, Trash2, X } from '@lucide/vue'
+import { CircleAlert, Music, RotateCcw, Tag, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import BaseModal from './BaseModal.vue'
 import CoverArt from './CoverArt.vue'
+import ExtractTagSheet from './ExtractTagSheet.vue'
 
 // Admin: the songs taken out of music videos (backend extract.py) — each job's state, the tags it
 // wrote, the album it went into — and the settings: YouTube on or off (its terms), the format.
@@ -18,11 +19,14 @@ interface Job {
   error: string | null
   found: {
     title: string; artist: string; album: string; source: string; cover: string | null
-    review?: string[]; bugs?: { track: string; album: string | null }; lyrics_from?: string | null; original?: { artist: string; title: string }
+    review?: string[]; bugs?: { track: string; album: string | null }; lyrics_from?: string | null; original?: { artist: string; title: string }; edited?: boolean
   } | null
   file_path: string | null; track_id: number | null; album_id: number | null; has_cover: boolean; cover_v: number
 }
-interface Status { folder: string; folder_ok: boolean; ytdlp: string | null; deno: boolean; ffmpeg: boolean; youtube: boolean; format: 'm4a' | 'mp3'; ai: boolean; ai_ready: boolean }
+interface Status {
+  folder: string; folder_ok: boolean; ytdlp: string | null; deno: boolean; ffmpeg: boolean; youtube: boolean; format: 'm4a' | 'mp3'; ai: boolean; ai_ready: boolean
+  ytdlp_update: { state: 'idle' | 'running' | 'done' | 'failed'; error: string | null; custom: boolean }
+}
 const jobs = ref<Job[]>([])
 const status = ref<Status | null>(null)
 let timer = 0
@@ -58,9 +62,28 @@ const errorText = (code: string | null) => (code ? errorMessage({ code }) : '')
 const sources = (j: Job) => {
   const f = j.found
   if (!f) return ''
-  return [f.original ? t('extract.coverOf', { artist: f.original.artist }) : '', t(`extract.from_${f.source}`), f.bugs ? t('extract.fromBugs') : '', f.lyrics_from ? t('extract.lyrics') : ''].filter(Boolean).join(' · ')
+  return [f.edited ? t('extract.edited') : '', f.original ? t('extract.coverOf', { artist: f.original.artist }) : '', t(`extract.from_${f.source}`), f.bugs ? t('extract.fromBugs') : '', f.lyrics_from ? t('extract.lyrics') : ''].filter(Boolean).join(' · ')
 }
 const review = (j: Job) => (j.found?.review ?? []).map((r) => t(`extract.review_${r}`)).join(' · ')
+// a newer yt-dlp (installed on the server beside the image's), or back to the image's
+let statusTimer = 0
+async function followUpdate() {
+  window.clearTimeout(statusTimer)
+  status.value = await api<Status>('/extract/status').catch(() => status.value)
+  if (status.value?.ytdlp_update.state === 'running') statusTimer = window.setTimeout(() => void followUpdate(), 2000)
+  else if (status.value?.ytdlp_update.state === 'failed') ui.notify(errorMessage({ code: status.value.ytdlp_update.error ?? 'extract_update_failed' }), true)
+}
+async function updateYtdlp() {
+  await api('/extract/ytdlp', { method: 'POST' }).catch((e) => ui.notify(errorMessage(e), true))
+  await followUpdate()
+}
+async function resetYtdlp() {
+  if (!confirm(t('extract.ytdlpResetConfirm'))) return
+  status.value = await api<Status>('/extract/ytdlp', { method: 'DELETE' }).then(() => api<Status>('/extract/status')).catch((e) => (ui.notify(errorMessage(e), true), status.value))
+}
+onUnmounted(() => window.clearTimeout(statusTimer))
+// a finished song's tags (ExtractTagSheet)
+const editing = ref<Job | null>(null)
 const active = computed(() => jobs.value.filter((j) => j.status === 'pending' || j.status === 'running').length)
 </script>
 
@@ -85,8 +108,15 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
         </label>
         <p class="text-[12px] text-muted">
           <span :class="status.folder_ok ? '' : 'text-danger'">{{ status.folder_ok ? t('extract.folderOk', { folder: status.folder }) : t('extract.noFolder') }}</span>
-          · yt-dlp {{ status.ytdlp ?? '—' }}{{ status.deno ? '' : ` · ${t('extract.noDeno')}` }}
+          · yt-dlp {{ status.ytdlp ?? '—' }}{{ status.ytdlp_update.custom ? ` (${t('extract.ytdlpCustom')})` : '' }}{{ status.deno ? '' : ` · ${t('extract.noDeno')}` }}
         </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="h-9 rounded-full border border-line-strong bg-bg px-3.5 text-[13px] hover:border-ink disabled:opacity-50" :disabled="status.ytdlp_update.state === 'running'" @click="updateYtdlp">
+            {{ status.ytdlp_update.state === 'running' ? t('extract.ytdlpUpdating') : t('extract.ytdlpUpdate') }}
+          </button>
+          <button v-if="status.ytdlp_update.custom && status.ytdlp_update.state !== 'running'" type="button" class="text-[13px] text-muted underline hover:text-ink" @click="resetYtdlp">{{ t('extract.ytdlpReset') }}</button>
+          <span v-if="status.ytdlp_update.state === 'done'" class="text-[13px] text-accent">{{ t('extract.ytdlpUpdated', { v: status.ytdlp }) }}</span>
+        </div>
       </section>
 
       <h3 class="font-medium">{{ t('extract.jobs') }}<span v-if="active" class="ml-1.5 text-[13px] text-accent">{{ t('extract.active', { n: active }) }}</span></h3>
@@ -107,10 +137,12 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
             <span v-if="j.status === 'running' && j.step === 'download'" class="mt-0.5 h-1 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent transition-[width]" :style="{ width: `${Math.round(j.progress * 100)}%` }" /></span>
           </span>
           <button v-if="j.status === 'failed'" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extract.retry')" :title="t('extract.retry')" @click="retry(j)"><RotateCcw :size="17" :stroke-width="1.7" /></button>
+          <button v-if="j.status === 'done' && j.track_id" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extractTags.edit')" :title="t('extractTags.edit')" @click="editing = j"><Tag :size="17" :stroke-width="1.7" /></button>
           <button v-if="j.status === 'done' && j.file_path" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-danger" :aria-label="t('extract.deleteFile')" :title="t('extract.deleteFile')" @click="remove(j, true)"><Trash2 :size="17" :stroke-width="1.7" /></button>
           <button v-if="j.status !== 'running'" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extract.forget')" :title="t('extract.forget')" @click="remove(j, false)"><X :size="17" :stroke-width="1.7" /></button>
         </li>
       </ul>
     </div>
+    <ExtractTagSheet v-if="editing && editing.track_id" :tracks="[{ id: editing.track_id, title: editing.found?.title ?? editing.title }]" @close="editing = null" @saved="load" />
   </BaseModal>
 </template>
