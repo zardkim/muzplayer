@@ -16,6 +16,7 @@ from .. import album_notes, appconf, artist_aliases, artist_images, artist_links
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
+from ..library_paths import library_path
 from ..lyrics import read_lyrics
 from ..models import (
     Album, AlbumFavorite, AlbumRating, Artist, Favorite, FetchedLyrics, Genre, PlayCount, Track, TrackArtist, TrackGenre,
@@ -691,7 +692,7 @@ def track_file(db: Session, track_id: int) -> tuple[Track, str]:
     rel = os.path.normpath(track.file_path)
     if os.path.isabs(rel) or rel.startswith(".."):
         raise api_error(404, "not_found")
-    path = os.path.join(settings.music_dir, rel)
+    path = str(library_path(rel))
     if not os.path.isfile(path):
         raise api_error(404, "not_found")
     return track, path

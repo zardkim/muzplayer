@@ -29,7 +29,8 @@ class Settings:
     video_dir: Path = Path(os.getenv("VIDEO_DIR", "/library/video"))
     # audio taken out of music videos (extract.py): a folder of the music library mounted writable
     # (the rest of the library stays read-only); scanned as the "extracted" kind
-    extract_dir: Path = Path(os.getenv("EXTRACT_DIR", "") or Path(os.getenv("MUSIC_DIR", "/library/music")) / "cover music")
+    # beside the music folder (library/cover music), listed in the library as its "cover music" folder (library_paths.py)
+    extract_dir: Path = Path(os.getenv("EXTRACT_DIR", "") or Path(os.getenv("MUSIC_DIR", "/library/music")).parent / "cover music")
     # JavaScript runtime yt-dlp needs for YouTube (the image has one)
     deno_path: str = os.getenv("DENO_PATH", "").strip() or "deno"
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))

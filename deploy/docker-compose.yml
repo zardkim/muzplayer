@@ -7,7 +7,7 @@
 #   library/music/      the music library (mount it here yourself, then restart the app)
 #   library/audiobook/  audiobooks (optional; empty or missing = audiobooks off)
 #   library/video/      music videos (optional; registered on the Music videos page)
-#   library/music/cover music/  songs taken out of music videos (the only folder the app writes in the library)
+#   library/cover music/  songs taken out of music videos (the only folder the app writes in; listed in the library)
 # app, db, conf and library are created on the first start.
 # Absolute on purpose: Portainer runs stacks from its own folder, where ./app would not be yours.
 name: muzplayer
@@ -39,9 +39,9 @@ services:
       - ${MUZPLAYER_DIR:?set MUZPLAYER_DIR in .env}/conf:/conf
       # read-only. No mount options here: with one, some Compose versions stop creating a missing folder
       - ${MUZPLAYER_DIR:?set MUZPLAYER_DIR in .env}/library:/library:ro
-      # the one folder the app writes in the library: songs taken out of music videos (Music videos →
-      # ⋮ → Extract audio): cover music/<artist>/<disc>-<track> <title>.m4a
-      - "${MUZPLAYER_DIR:?set MUZPLAYER_DIR in .env}/library/music/cover music:/library/music/cover music"
+      # the one folder the app writes in: songs taken out of music videos (Music videos → ⋮ → Extract
+      # audio), beside the music folder: cover music/<artist>/<disc>-<track> <title>.m4a
+      - "${MUZPLAYER_DIR:?set MUZPLAYER_DIR in .env}/library/cover music:/library/cover music"
 
   db:
     image: postgres:17-alpine

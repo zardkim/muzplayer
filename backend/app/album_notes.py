@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from . import appconf, search_index
 from .config import settings
+from .library_paths import library_path
 from .models import Album, Artist, Track
 from .scanner import DISC_DIR, nfc
 
@@ -60,7 +61,7 @@ def album_dirs(db: Session, album: Album) -> list[Path]:
         d = Path(rel).parent
         if DISC_DIR.match(d.name):
             d = d.parent
-        dirs[settings.music_dir / d] = None
+        dirs[library_path(d.as_posix())] = None
     return list(dirs)
 
 

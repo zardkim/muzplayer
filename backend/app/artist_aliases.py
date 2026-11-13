@@ -230,9 +230,9 @@ def _lookup() -> None:
 
             linked = bugs_artists.run(db)
             # those now linked to the same Bugs artist: one (merge.auto_merge, unless the admin turned it off)
-            from . import merge
+            from . import merge as merging  # (not "merge": that name is this module's merge() above)
 
-            merged = merge.auto_merge(db)
+            merged = merging.auto_merge(db)
             if merged:
                 log.info("artist aliases: %d artists merged into the same Bugs artist", merged)
             if changed or linked:

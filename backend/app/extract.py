@@ -3,8 +3,9 @@
 or an mp3, with tags and a cover written into the file, saved in the extraction folder and scanned
 into the library as the "extracted" kind.
 
-The extraction folder (settings.extract_dir) is a folder of the music library mounted writable; the
-rest of the library stays read-only, and nothing is written anywhere else. YouTube needs yt-dlp and
+The extraction folder (settings.extract_dir, library/cover music) sits beside the music folder,
+mounted writable, and lists in the library as its "cover music" folder (library_paths.py); the
+library stays read-only, and nothing is written anywhere else. YouTube needs yt-dlp and
 a JavaScript runtime (deno, in the image) and is off until an admin turns it on (appconf
 extract_youtube: YouTube's terms allow downloads only where it permits them).
 
@@ -43,6 +44,7 @@ from sqlalchemy import select
 from . import ai_banner, appconf, lyrics_fetch, search_index, transcode
 from .config import settings
 from .db import SessionLocal
+from .library_paths import extract_top, library_path, library_rel
 from .models import Album, Artist, ExtractJob, Genre, LibraryFolder, ScanJob, Track, TrackGenre, Video
 
 log = logging.getLogger(__name__)
@@ -63,7 +65,10 @@ class ExtractError(Exception):
 
 # ---- what this server can do ----
 def folder_name() -> str | None:
-    """The extraction folder's top-level name in the music library, or None when it isn't in it."""
+    """The extraction folder's top-level name in the library, or None when it can't be one (set
+    deeper inside the music folder)."""
+    if (top := extract_top()) is not None:
+        return top
     try:
         rel = settings.extract_dir.resolve().relative_to(settings.music_dir.resolve())
     except (ValueError, OSError):
@@ -196,7 +201,7 @@ def _run(job_id: int) -> None:
         _convert(audio, part, fmt)
         _write_tags(part, fmt, tags, cover)
         os.replace(part, target)
-        rel = target.relative_to(settings.music_dir).as_posix()
+        rel = library_rel(target).replace(os.sep, "/")
         _set(job_id, step="scan", file_path=rel, found={k: v for k, v in tags.items() if k != "lyrics"})
         track_id = _scan(rel)
         _set(job_id, status="done", step="", track_id=track_id, finished_at=datetime.now(UTC))
@@ -680,7 +685,7 @@ def _scan(rel: str) -> int | None:
 
 def remove_file(rel: str) -> None:
     """Deletes an extracted song's file (only inside the extraction folder), and its folders left empty."""
-    path = (settings.music_dir / rel).resolve()
+    path = library_path(rel).resolve()
     root = settings.extract_dir.resolve()
     if root not in path.parents:
         raise ExtractError("extract_folder")

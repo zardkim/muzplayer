@@ -109,7 +109,7 @@
     "youtubeConfirm": "Turn on extracting from YouTube?\n\nYouTube's terms forbid downloads except where permitted. Use it on your own NAS, for videos you have the right to.",
     "defaultFormat": "Default format",
     "folderOk": "Folder: {folder}",
-    "noFolder": "The folder (library/music/cover music) isn't writable. Add the extraction folder mount to docker-compose.",
+    "noFolder": "The folder (library/cover music) isn't writable. Add the extraction folder mount to docker-compose.",
     "noDeno": "no deno (YouTube may fail)",
     "youtubeOff": "Extracting from YouTube is off. Turn it on in Extractions.",
     "noYtdlp": "yt-dlp is missing: YouTube can't be extracted.",

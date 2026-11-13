@@ -109,7 +109,7 @@
     "youtubeConfirm": "YouTube 영상에서 추출을 켤까요?\n\nYouTube 약관은 허용된 경우 외의 다운로드를 금지합니다. 개인 NAS에서, 권리가 있거나 허락된 영상에만 사용하세요.",
     "defaultFormat": "기본 형식",
     "folderOk": "저장 폴더: {folder}",
-    "noFolder": "저장 폴더(library/music/cover music)를 쓸 수 없습니다. docker-compose에 추출 폴더 마운트를 추가하세요.",
+    "noFolder": "저장 폴더(library/cover music)를 쓸 수 없습니다. docker-compose에 추출 폴더 마운트를 추가하세요.",
     "noDeno": "deno 없음(YouTube 추출이 실패할 수 있음)",
     "youtubeOff": "YouTube 추출이 꺼져 있습니다. '추출 작업'의 설정에서 켜세요.",
     "noYtdlp": "yt-dlp가 없어 YouTube에서 추출할 수 없습니다.",

@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, defer
 from . import artist_links, search_index
 from .lyrics import lyrics_in_tags
 from .config import settings
+from .library_paths import extract_top, library_path, library_rel
 from .db import SessionLocal
 from .models import (
     Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanIssue, ScanJob,
@@ -377,7 +378,7 @@ def _cover_from_file(album: Album, path: Path, rel: str) -> bool:
     return _set_album_cover(album, data, f"file:{rel}", mtime)
 
 
-def _cover_from_folder(album: Album, root: Path, directory: Path) -> bool:
+def _cover_from_folder(album: Album, directory: Path) -> bool:
     """cover.jpg (folder.jpg, ...) next to the audio files."""
     image = _folder_cover(directory)
     if image is None:
@@ -386,7 +387,7 @@ def _cover_from_folder(album: Album, root: Path, directory: Path) -> bool:
         data, mtime = image.read_bytes(), image.stat().st_mtime
     except OSError:
         return False
-    return _set_album_cover(album, data, f"folder:{os.path.relpath(image, root)}", mtime)
+    return _set_album_cover(album, data, f"folder:{library_rel(image)}", mtime)
 
 
 def folder_kinds(db: Session) -> dict[str, str]:
@@ -625,12 +626,11 @@ def _ensure_cover(album: Album, path: Path, rel: str, cover_tries: dict[int, int
     if tries >= 3 or album.cover_path:
         return
     cover_tries[album.id] = tries + 1
-    root = settings.music_dir
-    if _cover_from_file(album, path, rel) or _cover_from_folder(album, root, path.parent):
+    if _cover_from_file(album, path, rel) or _cover_from_folder(album, path.parent):
         cover_tries[album.id] = 3
 
 
-def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, int]) -> int:
+def _refresh_covers(db: Session, reachable, cover_tries: dict[int, int]) -> int:
     """Keeps covers in step with their files. Returns how many covers changed.
 
     - a cover whose source (cover.jpg, or the audio file it was embedded in) changed or went
@@ -649,7 +649,7 @@ def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, i
             work.append(album)
         else:
             try:
-                mtime = os.stat(root / album.cover_source.split(":", 1)[1]).st_mtime
+                mtime = os.stat(library_path(album.cover_source.split(":", 1)[1])).st_mtime
             except OSError:
                 mtime = None
             if mtime != album.cover_mtime:
@@ -673,10 +673,10 @@ def _refresh_covers(db: Session, root: Path, reachable, cover_tries: dict[int, i
         before = album.cover_version
         if album.cover_path is None:
             # only a new cover.jpg can have appeared: changed audio files were already tried
-            _cover_from_folder(album, root, (root / rels[0]).parent)
+            _cover_from_folder(album, library_path(rels[0]).parent)
         elif not (
-            any(_cover_from_file(album, root / r, r) for r in rels[:3])
-            or _cover_from_folder(album, root, (root / rels[0]).parent)
+            any(_cover_from_file(album, library_path(r), r) for r in rels[:3])
+            or _cover_from_folder(album, library_path(rels[0]).parent)
         ):
             # the cover is gone from the files: drop it so the placeholder shows
             remove_covers([album.id])
@@ -756,7 +756,7 @@ def _collect(
     """
     by_inode: dict[tuple[int, int], list[tuple[str, Path, os.stat_result, bool]]] = {}
     for path, is_link in _walk(root, on_error, skip_top, skip_paths, start=start, lrc=lrc):
-        rel = os.path.relpath(path, root)
+        rel = library_rel(path)  # (the extraction folder's files under its own top-level name)
         try:
             rel.encode("utf-8")
         except UnicodeEncodeError:
@@ -819,7 +819,12 @@ def _scan(job_id: int) -> None:
         kinds = folder_kinds(db)
         scope = job.folder  # one top-level folder (NFC), or None for the whole library
         start = None
-        if scope is not None:
+        top = extract_top()  # the extraction folder beside the music folder, listed as one of its folders
+        if scope is not None and scope == top:
+            start = settings.extract_dir if settings.extract_dir.is_dir() else None
+            if start is None:
+                raise RuntimeError(f"folder_not_found: {scope}")
+        elif scope is not None:
             # stored names are NFC; on disk the folder may be spelled NFD (made on a Mac)
             start = next((root / e.name for e in os.scandir(root) if e.is_dir() and nfc(e.name) == scope), None)
             if start is None:
@@ -875,7 +880,7 @@ def _scan(job_id: int) -> None:
         def on_error(path: Path, exc: Exception) -> None:
             # usually PUID/PGID lacking permission, an unmounted share or a broken link
             job.errors += 1
-            rel = os.path.relpath(path, root)
+            rel = library_rel(path)
             unavailable.append(rel)
             message = f"cannot read: {getattr(exc, 'strerror', None) or exc}"
             note(rel, message)
@@ -905,7 +910,7 @@ def _scan(job_id: int) -> None:
                         file_error(item[0], exc)
                         cache = _Cache(db, cache.moves)
             for rel, track, is_new in done:
-                track.lrc_file = lrc_key(str(root / rel)) in lrc_files
+                track.lrc_file = lrc_key(str(library_path(rel))) in lrc_files
                 existing[rel] = track
                 if is_new:
                     job.added += 1
@@ -919,7 +924,15 @@ def _scan(job_id: int) -> None:
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
         excluded = {p for p, k in kinds.items() if k == "excluded"}
         lrc_files: set[str] = set()
-        files = [] if scope in excluded else _collect(root, existing, on_error, excluded, skip_paths, start, lrc_files)
+        if scope in excluded:
+            files = []
+        elif start is not None and scope == top:
+            files = _collect(start, existing, on_error, set(), skip_paths, None, lrc_files)
+        else:
+            # a folder of the music library named like the extraction folder is left out (the extraction folder is that name)
+            files = _collect(root, existing, on_error, excluded | ({top} if top else set()), skip_paths, start, lrc_files)
+            if scope is None and top and top not in excluded and settings.extract_dir.is_dir():
+                files += _collect(settings.extract_dir, existing, on_error, set(), skip_paths, None, lrc_files)
         if not files and scope not in excluded and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
             raise RuntimeError(f"library_empty: no audio files found under {start or root}")
@@ -1013,7 +1026,7 @@ def _scan(job_id: int) -> None:
             artist_links.relink(db)  # every song's artists (feat., collaborations), before pruning the unused
             pruned_albums = prune_orphans(db, cache.moves)
             update_album_quality(db)
-        covers = _refresh_covers(db, root, reachable, cover_tries)
+        covers = _refresh_covers(db, reachable, cover_tries)
         banners = _find_banners(db, root)
         from .artist_images import folder_images  # imports scanner helpers
 

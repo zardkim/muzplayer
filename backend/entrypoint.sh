@@ -10,7 +10,7 @@ if [ "$(id -u)" = "0" ]; then
   # only what isn't owned right (the cover cache can hold tens of thousands of files)
   find /data /conf \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
   # the extraction folder (extract.py), when it is mounted writable (Docker makes a missing one as root)
-  EXTRACT="${EXTRACT_DIR:-${MUSIC_DIR:-/library/music}/cover music}"
+  EXTRACT="${EXTRACT_DIR:-$(dirname "${MUSIC_DIR:-/library/music}")/cover music}"
   if [ -d "$EXTRACT" ] && [ -w "$EXTRACT" ]; then
     find "$EXTRACT" \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
   fi

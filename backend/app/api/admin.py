@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, backup, bugs_artists, merge, search_index, stats, youtube
 from ..config import settings
 from ..db import get_db
+from ..library_paths import extract_top
 from ..books import remove_book_covers
 from ..models import (
     ActivityLog, Album, Artist, Book, Favorite, LibraryFolder, LibraryState, PlayCount, PlaylistTrack, ScanIssue, ScanJob, Track,
@@ -197,6 +198,10 @@ def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db, sc
                 names.add(nfc(entry.name))
     except OSError:
         pass  # library not mounted: still show the stored kinds
+    if (top := extract_top()) is not None:  # the extraction folder beside the music folder lists as one of its folders
+        names.discard(top)
+        if settings.extract_dir.is_dir():
+            names.add(top)
     counts: dict[str, int] = {}
     top = func.split_part(Track.file_path, "/", 1)
     rows = db.execute(
