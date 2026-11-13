@@ -295,6 +295,14 @@ MOVED=""
 check "rescan after restore" "$(scan)" done
 check "restored track visible" "$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]')" "$total"
 
+# backup (not restored here: that would sign this test out): made, listed, a whole file, deleted
+bname=$(curl -s -b "$A" -X POST "$BASE/admin/backups" | j 'd["name"]')
+check "backup made" "$(curl -s -b "$A" "$BASE/admin/backups" | j "any(b['name'] == '$bname' for b in d['items'])")" True
+curl -s -b "$A" -o "$TMP/backup.tgz" "$BASE/admin/backups/$bname"
+check "backup holds the database" "$(tar xzf "$TMP/backup.tgz" -O manifest.json | j 'any(t["name"] == "tracks" and t["rows"] > 0 for t in d["tables"]) and "sessions" not in [t["name"] for t in d["tables"]]')" True
+check "bad backup refused" "$(head -c 2000 "$TMP/backup.tgz" | curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/restore" -H 'content-type: application/octet-stream' --data-binary @-)" 400
+check "backup deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/admin/backups/$bname")" 204
+
 # cleanup
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$pid"
 curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type: application/json' -d '{"is_active":false}'

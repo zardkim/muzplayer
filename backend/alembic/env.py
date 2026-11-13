@@ -5,11 +5,20 @@ from alembic import context
 from app import models  # noqa: F401  (registers tables)
 from app.db import Base, engine
 
-if context.config.config_file_name:
+# a connection given (backup.restore: inside the running app, in its transaction): use it, and leave
+# the app's logging alone
+given = context.config.attributes.get("connection")
+
+if context.config.config_file_name and given is None:
     fileConfig(context.config.config_file_name)
 
 
 def run_migrations_online() -> None:
+    if given is not None:
+        context.configure(connection=given, target_metadata=Base.metadata, compare_type=True)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=Base.metadata, compare_type=True)
         with context.begin_transaction():

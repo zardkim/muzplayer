@@ -1,13 +1,16 @@
+import asyncio
+import logging
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, bugs_artists, merge, search_index, stats, youtube
+from .. import ai_banner, album_notes, appconf, artist_aliases, artist_images, backup, bugs_artists, merge, search_index, stats, youtube
 from ..config import settings
 from ..db import get_db
 from ..books import remove_book_covers
@@ -23,6 +26,7 @@ from ..security import admin_user, api_error, delete_user_sessions, hash_passwor
 from .auth import user_out
 
 router = APIRouter(prefix="/admin")
+log = logging.getLogger(__name__)
 
 
 def job_out(job: ScanJob) -> dict:
@@ -704,3 +708,90 @@ def rebuild_search_index(_: User = Depends(admin_user), db: Session = Depends(ge
 def statistics(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """The statistics page: library, people, plays of the last 30 days, disk (stats.py)."""
     return stats.collect(db)
+
+
+# ---- backup and restore (backup.py): the settings and the database, not the library's files ----
+_BACKUP_STATUS = {"backup_busy": 409, "backup_busy_scan": 409, "not_found": 404, "backup_invalid": 400, "backup_newer": 400}
+UPLOAD_MAX = 4 << 30  # 4 GB
+
+
+def _backup_error(exc: backup.BackupError):
+    code = str(exc)
+    return api_error(_BACKUP_STATUS.get(code, 500), code)
+
+
+@router.get("/backups")
+def list_backups(_: User = Depends(admin_user)):
+    return {"items": backup.listing(), "keep": backup.KEEP}
+
+
+@router.post("/backups", status_code=201)
+def make_backup(_: User = Depends(admin_user)):
+    """A backup now (seconds for most libraries); kept on the server, the last few."""
+    try:
+        return backup.create()
+    except backup.BackupError as exc:
+        raise _backup_error(exc) from None
+
+
+@router.get("/backups/{name}")
+def download_backup(name: str, _: User = Depends(admin_user)):
+    try:
+        path = backup.path_of(name)
+    except backup.BackupError as exc:
+        raise _backup_error(exc) from None
+    return FileResponse(path, media_type="application/gzip", filename=name)
+
+
+@router.delete("/backups/{name}", status_code=204)
+def delete_backup(name: str, _: User = Depends(admin_user)):
+    try:
+        backup.path_of(name).unlink()
+    except backup.BackupError as exc:
+        raise _backup_error(exc) from None
+
+
+@router.get("/restore")
+def restore_status(_: User = Depends(admin_user)):
+    """The restore started last: running, done (with what was restored) or failed (with a code)."""
+    return backup.status
+
+
+@router.post("/backups/{name}/restore", status_code=202)
+def restore_backup(name: str, admin: User = Depends(admin_user)):
+    """Replaces the database and the settings with a kept backup's, in the background (GET /restore
+    tells how it went). Everyone signs in again."""
+    try:
+        backup.start_restore(backup.path_of(name))
+    except backup.BackupError as exc:
+        raise _backup_error(exc) from None
+    log.warning("restoring the database from %s, asked by %s", name, admin.username)
+    return backup.status
+
+
+@router.post("/restore", status_code=202)
+async def restore_upload(request: Request, admin: User = Depends(admin_user)):
+    """A backup file sent as the request body (application/octet-stream): kept with the others,
+    then restored as restore_backup does (one that turns out unusable is not kept)."""
+    backup.folder().mkdir(parents=True, exist_ok=True)
+    name = f"muzplayer-uploaded-{datetime.now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
+    tmp = backup.folder() / f".{name}.part"
+    size = 0
+    try:
+        with tmp.open("wb") as f:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > UPLOAD_MAX:
+                    raise api_error(413, "backup_too_large")
+                f.write(chunk)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, backup.folder() / name)
+    finally:
+        tmp.unlink(missing_ok=True)
+    try:
+        await asyncio.to_thread(backup.start_restore, backup.folder() / name, True)
+    except backup.BackupError as exc:
+        (backup.folder() / name).unlink(missing_ok=True)  # not a backup this app can use: not kept
+        raise _backup_error(exc) from None
+    log.warning("restoring the database from an uploaded backup, asked by %s", admin.username)
+    return backup.status

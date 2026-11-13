@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChartColumn, ChevronRight, FolderTree, Images, KeyRound, Library, Plus, RefreshCw, BookHeadphones, ScrollText, Users } from '@lucide/vue'
+import { ChartColumn, ChevronRight, DatabaseBackup, FolderTree, Images, KeyRound, Library, Plus, RefreshCw, BookHeadphones, ScrollText, Users } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { ago, dateTime } from '../format'
@@ -10,6 +10,7 @@ import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
 import type { FolderKind, LibraryFolder, ScanJob, User } from '../types'
 import BaseModal from '../components/BaseModal.vue'
+import BackupCard from '../components/BackupCard.vue'
 import IntegrationsCard from '../components/IntegrationsCard.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ScanIssues from '../components/ScanIssues.vue'
@@ -26,6 +27,7 @@ const menu = computed(() => [
   { key: 'keys', title: 'admin.keysTitle', hint: 'admin.menu_keys', icon: KeyRound },
   ...(appConfig.audiobooks ? [{ key: 'audiobooks', title: 'admin.audiobooks', hint: 'admin.menu_audiobooks', icon: BookHeadphones }] : []),
   { key: 'users', title: 'admin.users', hint: 'admin.menu_users', icon: Users },
+  { key: 'backup', title: 'backup.title', hint: 'admin.menu_backup', icon: DatabaseBackup },
 ])
 const open = computed(() => menu.value.find((x) => x.key === props.section) ?? null)
 // on a phone only the open part shows (none: just the menu)
@@ -722,5 +724,6 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <button type="submit" class="h-12 rounded-full bg-ink text-on-ink">{{ t('common.save') }}</button>
       </form>
     </BaseModal>
+    <BackupCard :class="part('backup')" />
   </div>
 </template>
