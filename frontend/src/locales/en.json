@@ -96,6 +96,18 @@
     "search": "Search covers by title or singer",
     "empty": "No covers yet. Use 'Extract audio' in a music video's ⋮ menu and they gather here."
   },
+  "transfer": {
+      "title": "Copy or move",
+      "songs": "{n} songs",
+      "videos": "{n} videos",
+      "to": "Into which playlist",
+      "newList": "New playlist name",
+      "copy": "Copy",
+      "move": "Move",
+      "copied": "Copied {n}.",
+      "moved": "Moved {n}.",
+      "skipped": "{n} already there skipped."
+  },
   "lyricsAdmin": {
       "open": "Manage lyrics",
       "title": "Lyrics: {title}",
@@ -214,6 +226,9 @@
     "review_no_match": "not found on Bugs"
   },
   "errors": {
+    "same_playlist": "That's the same playlist.",
+    "ai_model": "The AI model set isn't available. Check the model under Admin → AI and YouTube API keys.",
+    "ai_overloaded": "The AI service is busy for a moment. Try again shortly.",
     "lyrics_empty": "The lyrics are empty.",
     "extract_not_extracted": "Only songs in the extraction folder can be edited.",
     "extract_cover": "Couldn't get the cover picture.",

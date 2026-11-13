@@ -96,6 +96,18 @@
     "search": "커버곡 제목·가수 검색",
     "empty": "아직 커버곡이 없습니다. 뮤직 영상의 ⋮ 메뉴에서 '음원으로 추출'을 누르면 여기에 모입니다."
   },
+  "transfer": {
+      "title": "복사·이동",
+      "songs": "곡 {n}개",
+      "videos": "영상 {n}개",
+      "to": "어느 플레이리스트로",
+      "newList": "새 플레이리스트 이름",
+      "copy": "복사",
+      "move": "이동",
+      "copied": "{n}개를 복사했습니다.",
+      "moved": "{n}개를 옮겼습니다.",
+      "skipped": "이미 있던 {n}개는 건너뛰었습니다."
+  },
   "lyricsAdmin": {
       "open": "가사 관리",
       "title": "가사 관리: {title}",
@@ -214,6 +226,9 @@
     "review_no_match": "벅스에서 찾지 못함"
   },
   "errors": {
+    "same_playlist": "같은 플레이리스트입니다.",
+    "ai_model": "설정한 AI 모델을 찾을 수 없습니다. 관리자 → AI·YouTube API 키에서 모델을 확인하세요.",
+    "ai_overloaded": "AI 서비스가 일시적으로 바쁩니다. 잠시 뒤 다시 시도하세요.",
     "lyrics_empty": "가사 내용이 없습니다.",
     "extract_not_extracted": "추출 음원 폴더의 곡만 편집할 수 있습니다.",
     "extract_cover": "커버 그림을 가져오지 못했습니다.",

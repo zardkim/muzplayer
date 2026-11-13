@@ -115,7 +115,7 @@ def candidate_file(token: str) -> Path | None:
     return candidate_dir() / f"{token}.jpg"
 
 
-def _post(url: str, body: bytes, headers: dict) -> dict:
+def _post(url: str, body: bytes, headers: dict, again: bool = True) -> dict:
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:  # noqa: S310 - fixed API hosts
@@ -129,6 +129,13 @@ def _post(url: str, body: bytes, headers: dict) -> dict:
             raise AiError("ai_quota") from None
         if exc.code == 400:  # a refused prompt, or a model/field this API version doesn't take
             raise AiError("ai_rejected") from None
+        if exc.code == 404:  # the model set in the admin page isn't there (any more)
+            raise AiError("ai_model") from None
+        if exc.code >= 500:  # overloaded or down for a moment (Gemini's 503 "model is overloaded"): once more
+            if again:
+                time.sleep(2)
+                return _post(url, body, headers, again=False)
+            raise AiError("ai_overloaded") from None
         raise AiError("ai_bad_response") from None
     except (urllib.error.URLError, TimeoutError, OSError):
         raise AiError("ai_unreachable") from None

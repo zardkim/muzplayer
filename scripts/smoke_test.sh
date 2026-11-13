@@ -143,6 +143,14 @@ fi
 pid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke"}' | j 'd["id"]')
 curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}"
 check "a song already in a playlist isn't added twice" "$(curl -s -b "$A" -X POST "$BASE/playlists/$pid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}" | j '[d["added"], d["skipped"]]')" "[0, 1]"
+# songs moved into another playlist of mine (they leave this one), and not into the same one
+pid2=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke 2"}' | j 'd["id"]')
+check "songs moved into another playlist" "$(curl -s -b "$A" -X POST "$BASE/playlists/$pid/transfer" -H 'content-type: application/json' -d "{\"target_id\":$pid2,\"mode\":\"move\"}" | j '[d["added"], d["removed"]]')" "[1, 1]"
+check "moved: gone from the first, in the second" "$(curl -s -b "$A" "$BASE/playlists/$pid" | j 'len(d["entries"])')/$(curl -s -b "$A" "$BASE/playlists/$pid2" | j 'len(d["entries"])')" "0/1"
+check "not into the same playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$pid2/transfer" -H 'content-type: application/json' -d "{\"target_id\":$pid2}")" 400
+check "not into someone else's playlist" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$pid2/transfer" -H 'content-type: application/json' -d "{\"target_id\":$pid}")" 404
+curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$pid2/transfer" -H 'content-type: application/json' -d "{\"target_id\":$pid,\"mode\":\"move\"}"
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$pid2"
 check "a playlist name of spaces is refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PATCH "$BASE/playlists/$pid" -H 'content-type: application/json' -d '{"name":"   "}')" 422
 check "other user's playlist is 404" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$pid")" 404
 check "other user's playlists don't show mine" "$(curl -s -b "$U" "$BASE/playlists" | j "$pid in [p['id'] for p in d['items']]")" False

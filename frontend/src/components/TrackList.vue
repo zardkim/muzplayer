@@ -28,7 +28,7 @@ const props = withDefaults(
   }>(),
   { showCover: true, showAlbum: true },
 )
-const emit = defineEmits<{ remove: [index: number]; move: [index: number, dir: -1 | 1] }>()
+const emit = defineEmits<{ remove: [index: number]; move: [index: number, dir: -1 | 1]; transfer: [indexes: number[]] }>()
 
 const { t } = useI18n()
 const player = usePlayer()
@@ -196,6 +196,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
       <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => player.playNext(x))">{{ t('common.playNext') }}</button>
       <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => player.addToQueue(x))">{{ t('common.addToQueue') }}</button>
       <button type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="bulk((x) => (ui.playlistPicker = x))">{{ t('common.addToPlaylist') }}</button>
+      <button v-if="editable" type="button" class="h-9 rounded-full px-3.5 hover:bg-on-ink/10" @click="(emit('transfer', [...selected]), (selected = new Set()))">{{ t('transfer.title') }}</button>
       <button type="button" class="h-9 rounded-full bg-on-ink/15 px-3.5" @click="selected = new Set()">{{ t('common.clearSelection') }}</button>
     </div>
 

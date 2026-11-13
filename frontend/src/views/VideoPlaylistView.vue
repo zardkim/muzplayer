@@ -2,13 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, Pencil, Play, Plus, Shuffle, Trash2, X } from '@lucide/vue'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Pencil, Play, Plus, Shuffle, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { VideoPlaylist } from '../types'
 import PageHeader from '../components/PageHeader.vue'
+import PlaylistTransferSheet from '../components/PlaylistTransferSheet.vue'
 import SearchAddSheet from '../components/SearchAddSheet.vue'
 import VideoThumb from '../components/VideoThumb.vue'
 
@@ -22,6 +23,7 @@ const library = useLibrary()
 const playlist = ref<VideoPlaylist | null>(null)
 const error = ref('')
 const adding = ref(false) // the search-and-add sheet
+const transferring = ref(false) // videos copied or moved into another video playlist
 const entries = computed(() => playlist.value?.entries ?? [])
 const videos = computed(() => entries.value.map((e) => e.video))
 
@@ -87,6 +89,9 @@ async function destroy() {
         <button type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="adding = true">
           <Plus :size="16" :stroke-width="1.8" />{{ t('videos.addVideosButton') }}
         </button>
+        <button v-if="entries.length" type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="transferring = true">
+          <ArrowLeftRight :size="16" :stroke-width="1.6" />{{ t('transfer.title') }}
+        </button>
         <button type="button" class="grid size-11 place-items-center rounded-full border border-line-strong" :aria-label="t('videos.renamePlaylist')" :title="t('videos.renamePlaylist')" @click="rename">
           <Pencil :size="17" :stroke-width="1.5" />
         </button>
@@ -127,5 +132,13 @@ async function destroy() {
         @close="adding = false"
       />
     </template>
+    <PlaylistTransferSheet
+      v-if="transferring && playlist"
+      kind="video"
+      :source-id="playlist.id"
+      :items="entries.map((e) => ({ entry: e.entry_id, title: e.video.title, sub: e.video.channel ?? '' }))"
+      @close="transferring = false"
+      @done="load"
+    />
   </div>
 </template>

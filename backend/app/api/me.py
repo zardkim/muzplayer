@@ -2,7 +2,7 @@
 Always scoped to the session user."""
 
 from fastapi import APIRouter, Depends, Query
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy import delete, func, select
@@ -226,13 +226,20 @@ def add_tracks(
     if playlist.kind == "smart":
         raise api_error(400, "smart_playlist")  # its songs come from its rules
     """Adds the songs not in the list yet: {"added": n, "skipped": songs already there}."""
-    valid = set(db.scalars(select(Track.id).where(Track.id.in_(body.track_ids))))
+    added, skipped = _append(db, playlist, body.track_ids)
+    db.commit()
+    return {"added": added, "skipped": skipped}
+
+
+def _append(db: Session, playlist: Playlist, track_ids: list[int]) -> tuple[int, int]:
+    """Adds these songs at the end, those not in the list yet: (added, skipped)."""
+    valid = set(db.scalars(select(Track.id).where(Track.id.in_(track_ids))))
     there = set(db.scalars(select(PlaylistTrack.track_id).where(PlaylistTrack.playlist_id == playlist.id)))
     position = db.scalar(
         select(func.coalesce(func.max(PlaylistTrack.position), -1)).where(PlaylistTrack.playlist_id == playlist.id)
     )
     added = skipped = 0
-    for track_id in body.track_ids:
+    for track_id in track_ids:
         if track_id not in valid:
             continue
         if track_id in there:
@@ -243,8 +250,37 @@ def add_tracks(
         added += 1
         db.add(PlaylistTrack(playlist_id=playlist.id, track_id=track_id, position=position))
     playlist.updated_at = func.now()
+    return added, skipped
+
+
+class TransferIn(BaseModel):
+    target_id: int
+    entry_ids: list[int] | None = Field(None, max_length=20_000)  # None: every song of the list
+    mode: Literal["copy", "move"] = "copy"
+
+
+@router.post("/playlists/{playlist_id}/transfer")
+def transfer_tracks(
+    playlist_id: int, body: TransferIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    """Copies or moves songs of one of my playlists into another (at its end, those not there yet;
+    moved ones leave this list, those the other already had too): {"added", "skipped", "removed"}."""
+    source, target = own_playlist(db, user, playlist_id), own_playlist(db, user, body.target_id)
+    if source.id == target.id:
+        raise api_error(400, "same_playlist")
+    if "smart" in (source.kind, target.kind):
+        raise api_error(400, "smart_playlist")
+    query = select(PlaylistTrack).where(PlaylistTrack.playlist_id == source.id).order_by(PlaylistTrack.position)
+    if body.entry_ids is not None:
+        query = query.where(PlaylistTrack.id.in_(body.entry_ids))
+    entries = list(db.scalars(query))
+    added, skipped = _append(db, target, [e.track_id for e in entries])
+    removed = 0
+    if body.mode == "move" and entries:
+        removed = db.execute(delete(PlaylistTrack).where(PlaylistTrack.id.in_([e.id for e in entries]))).rowcount
+        source.updated_at = func.now()
     db.commit()
-    return {"added": added, "skipped": skipped}
+    return {"added": added, "skipped": skipped, "removed": removed}
 
 
 @router.delete("/playlists/{playlist_id}/tracks/{entry_id}", status_code=204)

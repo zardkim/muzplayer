@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ListMusic, Pencil, Plus, SlidersHorizontal, Trash2, Zap } from '@lucide/vue'
+import { ArrowLeftRight, ListMusic, Pencil, Plus, SlidersHorizontal, Trash2, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -12,6 +12,7 @@ import BaseModal from '../components/BaseModal.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlayActions from '../components/PlayActions.vue'
+import PlaylistTransferSheet from '../components/PlaylistTransferSheet.vue'
 import SearchAddSheet from '../components/SearchAddSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import TrackList from '../components/TrackList.vue'
@@ -28,6 +29,8 @@ const newName = ref('')
 const editingRules = ref(false)
 const adding = ref(false) // the search-and-add sheet
 const smart = computed(() => playlist.value?.kind === 'smart')
+// songs copied or moved into another of my playlists: those picked in the list, else all (ticked in the sheet)
+const transfer = ref<number[] | null>(null)
 
 async function load() {
   try {
@@ -119,6 +122,9 @@ async function destroy() {
       <button v-if="smart && playlist.can_edit" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
       </button>
+      <button v-if="!smart && playlist.can_edit && tracks.length" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="transfer = []">
+        <ArrowLeftRight :size="15" :stroke-width="1.6" />{{ t('transfer.title') }}
+      </button>
       <DownloadButton v-if="tracks.length" class="h-[38px]" :list="saveAs" />
       <button v-if="smart" type="button" class="h-[38px] rounded-full border border-line-strong px-4 text-[15px] disabled:opacity-40" :disabled="!tracks.length" @click="snapshot">{{ t('common.saveAsPlaylist') }}</button>
       <button v-else-if="playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
@@ -129,7 +135,16 @@ async function destroy() {
       </button>
     </div>
     <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
-    <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" @remove="remove" @move="move" />
+    <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" @remove="remove" @move="move" @transfer="(ix) => (transfer = ix.map((i) => playlist!.entries[i].entry_id!))" />
+    <PlaylistTransferSheet
+      v-if="transfer"
+      kind="music"
+      :source-id="playlist.id"
+      :items="playlist.entries.map((e) => ({ entry: e.entry_id!, title: e.track.title, sub: e.track.artist ?? '' }))"
+      :picked="transfer"
+      @close="transfer = null"
+      @done="load"
+    />
     <SearchAddSheet
       v-if="adding"
       kind="tracks"

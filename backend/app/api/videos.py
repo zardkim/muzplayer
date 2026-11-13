@@ -662,13 +662,20 @@ def add_to_video_playlist(
 ):
     playlist = _own(db, user, playlist_id)
     """Adds the videos not in the list yet: {"added": n, "skipped": videos already there}."""
-    valid = set(db.scalars(select(Video.id).where(Video.id.in_(body.video_ids))))
+    added, skipped = _append_videos(db, playlist, body.video_ids)
+    db.commit()
+    return {"added": added, "skipped": skipped}
+
+
+def _append_videos(db: Session, playlist: VideoPlaylist, video_ids: list[int]) -> tuple[int, int]:
+    """Adds these videos at the end, those not in the list yet: (added, skipped)."""
+    valid = set(db.scalars(select(Video.id).where(Video.id.in_(video_ids))))
     there = set(db.scalars(select(VideoPlaylistItem.video_id).where(VideoPlaylistItem.playlist_id == playlist.id)))
     position = db.scalar(
         select(func.coalesce(func.max(VideoPlaylistItem.position), -1)).where(VideoPlaylistItem.playlist_id == playlist.id)
     )
     added = skipped = 0
-    for video_id in body.video_ids:
+    for video_id in video_ids:
         if video_id not in valid:
             continue
         if video_id in there:
@@ -679,8 +686,34 @@ def add_to_video_playlist(
         added += 1
         db.add(VideoPlaylistItem(playlist_id=playlist.id, video_id=video_id, position=position))
     playlist.updated_at = func.now()
+    return added, skipped
+
+
+class VideoTransferIn(BaseModel):
+    target_id: int
+    entry_ids: list[int] | None = Field(None, max_length=20_000)  # None: every video of the list
+    mode: Literal["copy", "move"] = "copy"
+
+
+@router.post("/video-playlists/{playlist_id}/transfer")
+def transfer_videos(
+    playlist_id: int, body: VideoTransferIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")
+):
+    """Copies or moves videos of one of my video playlists into another: {"added", "skipped", "removed"}."""
+    source, target = _own(db, user, playlist_id), _own(db, user, body.target_id)
+    if source.id == target.id:
+        raise api_error(400, "same_playlist")
+    query = select(VideoPlaylistItem).where(VideoPlaylistItem.playlist_id == source.id).order_by(VideoPlaylistItem.position)
+    if body.entry_ids is not None:
+        query = query.where(VideoPlaylistItem.id.in_(body.entry_ids))
+    items = list(db.scalars(query))
+    added, skipped = _append_videos(db, target, [i.video_id for i in items])
+    removed = 0
+    if body.mode == "move" and items:
+        removed = db.execute(delete(VideoPlaylistItem).where(VideoPlaylistItem.id.in_([i.id for i in items]))).rowcount
+        source.updated_at = func.now()
     db.commit()
-    return {"added": added, "skipped": skipped}
+    return {"added": added, "skipped": skipped, "removed": removed}
 
 
 @router.delete("/video-playlists/{playlist_id}/videos/{entry_id}", status_code=204)
