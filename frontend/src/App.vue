@@ -2,7 +2,7 @@
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, ListVideo, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -339,19 +339,6 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         :to="{ name: 'playlist', params: { id: p.id } }"
         class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
         :class="route.name === 'playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
-      >
-        <span class="truncate">{{ p.name }}</span>
-      </RouterLink>
-      <div v-if="!ui.sidebarCollapsed" class="mx-3.5 mb-1 mt-5 flex items-center justify-between text-[13px] text-muted">
-        <RouterLink :to="{ path: '/playlists', hash: '#video-playlists' }" class="hover:text-ink">{{ t('videos.myVideoPlaylists') }}</RouterLink>
-        <ListVideo :size="16" :stroke-width="1.4" />
-      </div>
-      <RouterLink
-        v-for="p in ui.sidebarCollapsed ? [] : library.videoPlaylists.slice(0, 10)"
-        :key="`v${p.id}`"
-        :to="{ name: 'video-playlist', params: { id: p.id } }"
-        class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
-        :class="route.name === 'video-playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
       >
         <span class="truncate">{{ p.name }}</span>
       </RouterLink>

@@ -509,6 +509,15 @@
     "decadeName": "The {n}s"
   },
   "playlists": {
+    "ticked": "{n} selected",
+    "deleteN": "Delete ({n})",
+    "toolNew": "New",
+    "toolEdit": "Edit",
+    "toolDone": "Done",
+    "countMusic": "{n}",
+    "countVideo": "{n}",
+    "default": "default",
+    "deleteManyConfirm": "Delete {n} playlists?\n{names}",
     "tab_music": "Music",
     "tab_video": "Music videos",
     "tab_books": "Audiobooks",

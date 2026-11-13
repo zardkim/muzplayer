@@ -509,6 +509,15 @@
     "decadeName": "{n}년대"
   },
   "playlists": {
+    "ticked": "{n}개 선택",
+    "deleteN": "삭제 ({n})",
+    "toolNew": "새로 만들기",
+    "toolEdit": "편집",
+    "toolDone": "완료",
+    "countMusic": "{n}개",
+    "countVideo": "{n}개",
+    "default": "기본",
+    "deleteManyConfirm": "플레이리스트 {n}개를 삭제할까요?\n{names}",
     "tab_music": "음악",
     "tab_video": "뮤직 영상",
     "tab_books": "오디오북",

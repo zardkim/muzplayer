@@ -30,8 +30,15 @@ const menu = computed(() => [
   { key: 'backup', title: 'backup.title', hint: 'admin.menu_backup', icon: DatabaseBackup },
 ])
 const open = computed(() => menu.value.find((x) => x.key === props.section) ?? null)
-// on a phone only the open part shows (none: just the menu)
-const part = (key: string) => (open.value?.key === key ? '' : 'max-md:hidden')
+// as the settings page: the menu, and one part beside it (wide screens: the first when none is
+// open); on a phone the menu alone, or the open part alone
+const shown = computed(() => open.value?.key ?? 'library')
+const part = (key: string) => (shown.value !== key ? 'hidden' : open.value ? '' : 'max-md:hidden')
+// the log and statistics are pages of their own, listed in the same menu
+const pages = [
+  { key: 'logs', title: 'logs.title', hint: 'admin.menu_logs', icon: ScrollText },
+  { key: 'stats', title: 'stats.title', hint: 'admin.menu_stats', icon: ChartColumn },
+]
 
 const job = ref<ScanJob | null>(null)
 const hasMissing = ref(false)
@@ -382,28 +389,29 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
   <div class="flex flex-col gap-7">
     <!-- phone: the open part's name (back goes to the menu); wide screens: Admin over everything -->
     <PageHeader v-if="open" :title="t(open.title)" :icon="open.icon" class="md:hidden" />
-    <PageHeader :title="t('admin.title')" :class="open ? 'hidden md:flex' : ''">
-      <template #actions>
-        <RouterLink to="/admin/logs" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ScrollText :size="16" :stroke-width="1.6" />{{ t('logs.title') }}</RouterLink>
-        <RouterLink to="/admin/stats" class="hidden h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-sm hover:border-ink md:flex"><ChartColumn :size="16" :stroke-width="1.6" />{{ t('stats.title') }}</RouterLink>
-      </template>
-    </PageHeader>
+    <PageHeader :title="t('admin.title')" :class="open ? 'hidden md:flex' : ''" />
 
-    <nav v-if="!open" :aria-label="t('admin.title')" class="-mt-3 flex flex-col md:hidden">
+    <div class="flex flex-col gap-8 md:flex-row md:items-start md:gap-6 lg:gap-10">
+    <nav :aria-label="t('admin.title')" class="-mt-3 flex-col md:sticky md:top-0 md:mt-0 md:flex md:w-48 md:flex-none lg:w-56" :class="open ? 'hidden' : 'flex'">
       <RouterLink
-        v-for="x in [...menu, { key: 'logs', title: 'logs.title', hint: 'admin.menu_logs', icon: ScrollText }, { key: 'stats', title: 'stats.title', hint: 'admin.menu_stats', icon: ChartColumn }]"
+        v-for="x in [...menu, ...pages]"
         :key="x.key"
         :to="x.key === 'stats' || x.key === 'logs' ? { name: x.key } : { name: 'admin', params: { section: x.key } }"
-        class="flex min-h-[64px] items-center gap-4 border-b border-surface"
+        :replace="!!open && x.key !== 'stats' && x.key !== 'logs'"
+        class="flex min-h-[64px] items-center gap-4 border-b border-surface md:min-h-0 md:rounded-xl md:border-0 md:px-3 md:py-2.5"
+        :class="[shown === x.key ? 'md:bg-surface' : 'md:hover:bg-surface', x.key === 'logs' ? 'md:mt-3 md:border-t md:border-line md:rounded-t-none md:pt-3.5' : '']"
+        :aria-current="shown === x.key ? 'page' : undefined"
       >
         <component :is="x.icon" :size="22" :stroke-width="1.4" class="flex-none text-muted" />
         <span class="flex min-w-0 flex-1 flex-col">
-          <span class="text-[17px]">{{ t(x.title) }}<span v-if="x.key === 'users' && pendingCount" class="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-medium text-white">{{ t('admin.pendingCount', { n: pendingCount }) }}</span></span>
-          <span class="truncate text-[13px] font-light text-muted">{{ t(x.hint) }}</span>
+          <span class="text-[17px] md:text-[15px]" :class="shown === x.key ? 'md:font-medium' : ''">{{ t(x.title) }}<span v-if="x.key === 'users' && pendingCount" class="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-medium text-white">{{ t('admin.pendingCount', { n: pendingCount }) }}</span></span>
+          <span class="truncate text-[13px] font-light text-muted md:hidden">{{ t(x.hint) }}</span>
         </span>
-        <ChevronRight :size="18" class="flex-none text-subtle" />
+        <ChevronRight :size="18" class="flex-none text-subtle md:hidden" />
       </RouterLink>
     </nav>
+
+    <div class="min-w-0 flex-1 flex-col gap-7" :class="open ? 'flex' : 'hidden md:flex'">
 
     <section :class="part('library')" class="flex flex-col gap-5 rounded-2xl border border-line p-5 md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
@@ -725,5 +733,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       </form>
     </BaseModal>
     <BackupCard :class="part('backup')" />
+    </div>
+    </div>
   </div>
 </template>
