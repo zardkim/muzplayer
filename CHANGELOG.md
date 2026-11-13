@@ -2,6 +2,10 @@
 
 muzplayer의 버전별 변경 사항입니다(개발 계획서 `music_player_plan.md`의 변경 이력에서 만듦).
 
+## 0.69.2 — 2026-11-14
+
+GitHub(zardkim/muzplayer) 공개 준비. LICENSE(GPL-3.0-or-later)·THIRD_PARTY_NOTICES.md(이미지 `/usr/share/doc/muzplayer`에도), README 한·영 새로 작성, 데모 스크린샷 13장, 위키(`docs/wiki` → GitHub 위키), CHANGELOG.md(`scripts/changelog.py`). docker-compose 이미지 `${MUZPLAYER_IMAGE:-zardkim/muzplayer}`(내 NAS는 `.env`에 Harbor), GitHub Actions가 v 태그로 Docker Hub에 amd64·arm64(deno를 TARGETARCH별로). Windows 앱 릴리스 조회가 GitHub 주소도 받음. 테마 이름에서 다른 서비스 이름 제거(웜 그레이·모던 다크·프레시 그린)
+
 ## 0.69.1 — 2026-11-14
 
 사이드바의 '내 영상 플레이리스트' 묶음 제거(내 플레이리스트의 영상 탭과 중복). 관리자 페이지를 설정 페이지처럼 왼쪽 서브 메뉴 + 고른 섹션 하나(PC도), 로그·통계는 메뉴 아래쪽. 내 플레이리스트: 'AI로 만들기' 제거(`AiPlaylistSheet.vue` 삭제), 분류(음악·영상·오디오북)를 제목 줄의 아이콘 탭으로, 관리 툴바(새로 만들기·스마트 재생목록 만들기·편집 → 체크한 것 이름 변경/조건 편집·여러 개 삭제, 기본 플레이리스트는 삭제 불가)
