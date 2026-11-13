@@ -41,7 +41,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from sqlalchemy import select
 
-from . import ai_banner, appconf, lyrics_fetch, search_index, transcode
+from . import ai_banner, appconf, artist_aliases, lyrics_fetch, search_index, transcode
 from .config import settings
 from .db import SessionLocal
 from .library_paths import extract_top, library_path, library_rel
@@ -317,6 +317,14 @@ def _tags(source: dict, info: dict) -> tuple[dict, bytes | None]:
                 "year": str(album.year) if album and album.year else "", "genre": genre or "", "track": track.track_no or 1,
                 "disc": track.disc_no or 1, "source": "track", "review": [],
             }
+            # the singer the video's title names, when it isn't the song's: a cover ("소향 - Love wins all"
+            # linked to IU's song): that singer, the song's title and genre; not the original's album
+            named = parse_title(info.get("title") or source["title"], "")[0]
+            singer = db.get(Artist, track.artist_id) if track.artist_id else None
+            names = [track.artist_text or "", *([singer.name, singer.display_name or "", *artist_aliases.visible(singer)] if singer else [])]
+            if named and not _fits(named, names):
+                tags |= {"artist": named, "album_artist": named, "album": track.title, "year": "", "track": 1, "disc": 1,
+                         "source": "title", "original": {"artist": track.artist_text or "", "title": track.title}}
         album_cover = cover_file(album.id, "large") if album is not None and album.cover_path else None
     length = info.get("duration") or source.get("duration")
     bugs_cover = None
@@ -326,7 +334,10 @@ def _tags(source: dict, info: dict) -> tuple[dict, bytes | None]:
     # the lyrics (Bugs' own when the song was found there), only for a song that is known: a title
     # alone finds some other song's
     text, where = None, None
-    if tags["artist"] and "no_match" not in tags["review"]:
+    if tags.get("original"):  # a cover: the song's own lyrics
+        o = tags["original"]
+        text, where = lyrics_fetch.by_name(o["title"], o["artist"], "", length, o.get("bugs"))
+    elif tags["artist"] and "no_match" not in tags["review"]:
         text, where = lyrics_fetch.by_name(tags["title"], tags["artist"], tags["album"], length, (tags.get("bugs") or {}).get("track"))
     tags["lyrics"], tags["lyrics_from"] = text, where
     # the cover: the video's own picture (its thumbnail cut square); Bugs' or the linked album's only without one
@@ -349,8 +360,11 @@ def _find(source: dict, info: dict, album: Album | None) -> tuple[dict, str | No
     title_in, channel = info.get("title") or source["title"], info.get("channel") or info.get("uploader") or source["channel"]
     review: list[str] = []
     read = _ai(title_in, channel, info.get("description") or "", info.get("duration") or source.get("duration"))
+    named = parse_title(title_in, "")[0]  # the singer the title names ("" when it names none)
     if read is not None:
         artist, title, version = read["artist"], read["title"], read["version"]
+        if named and not _fits(named, [artist]):
+            artist = named  # the singer in the video's own title, whoever the AI thinks the song is by
         if not read["is_music"]:
             review.append("not_music")
         elif read["confidence"] < REVIEW_CONFIDENCE:
@@ -360,13 +374,24 @@ def _find(source: dict, info: dict, album: Album | None) -> tuple[dict, str | No
         m = _VERSION.search(title)
         version = m.group(1).strip() if m else ""
         title = _VERSION.sub(" ", title).strip() if m else title
+    if version.casefold() in ("cover", "커버"):
+        version = ""  # a cover is told by its singer (and listed under covers), not by its title
     found = _bugs(artist, title) if artist and title else None
+    original = _bugs("", title) if found is None and title else None  # the song itself, when only one singer has it
+    if original is not None and (not artist or _fits(artist, [original["artist"]])):  # the same singer after all
+        found, original = original, None
     tags = {"title": title, "artist": artist, "album": "", "album_artist": artist, "year": "", "genre": "", "track": 1, "disc": 1,
             "source": "ai" if read is not None else "title", "version": version, "review": review}
     if read is not None:
         tags |= {"album": read["album"], "year": read["year"], "genre": read["genre"], "featured": read["featured"]}
     cover = None
-    if found is None:
+    if found is None and original is not None and artist:
+        # a cover of a song Bugs knows (by someone else): its title, genre and lyrics
+        tags["review"] = [r for r in review if r != "unsure"]
+        tags |= {"title": original["title"], "genre": original["genre"] or tags["genre"],
+                 "original": {"artist": original["artist"], "title": original["title"], "bugs": original["track_id"]}}
+        title = original["title"]
+    elif found is None:
         tags["review"].append("no_match")
         if tags.get("featured"):
             tags["title"] = f"{title} (Feat. {tags['featured']})"
@@ -451,19 +476,31 @@ def _plain(text: str) -> str:
     return search_index.norm(lyrics_fetch._clean_title(text or "")).replace(" ", "")
 
 
+def _fits(name: str, names: list[str]) -> bool:
+    """Whether a singer's name is one of these (or within one: "아이유" in "아이유(IU)")."""
+    x = search_index.norm(name).replace(" ", "")
+    return bool(x) and any(y and (x in y or y in x) for y in (search_index.norm(n).replace(" ", "") for n in names))
+
+
 def _bugs(artist: str, title: str) -> dict | None:
-    """The song on Bugs with this title whose artist fits (None: not there, or Bugs didn't answer)."""
+    """The song on Bugs with this title whose artist fits (None: not there, or Bugs didn't answer).
+    Without an artist: the song with this title when only one artist has it (the original of a cover)."""
     try:
-        soup = _bugs_page(BUGS + "search/track?q=" + urllib.parse.quote(f"{artist} {lyrics_fetch._clean_title(title)}"))
-        want_t, want_a = _plain(title), search_index.norm(artist).replace(" ", "")
+        soup = _bugs_page(BUGS + "search/track?q=" + urllib.parse.quote(f"{artist} {lyrics_fetch._clean_title(title)}".strip()))
+        want_t = _plain(title)
         row = None
+        same: dict[str, object] = {}  # artist -> their first row with this title
         for tr in soup.select("table.trackList tbody tr[trackid]")[:20]:
             t = tr.select_one("p.title a")
             names = [a.get("title") or a.get_text(strip=True) for a in tr.select("p.artist a")]
-            a = search_index.norm(" ".join(names)).replace(" ", "")
-            if t and _plain(t.get("title") or t.get_text()) == want_t and want_a and a and (want_a in a or a in want_a):
+            if not t or _plain(t.get("title") or t.get_text()) != want_t:
+                continue
+            if artist and _fits(artist, [" ".join(names)]):
                 row = tr
                 break
+            same.setdefault(search_index.norm(" ".join(names)).replace(" ", ""), tr)
+        if row is None and not artist and len(same) == 1:
+            row = next(iter(same.values()))
         if row is None:
             return None
         names = [a.get("title") or a.get_text(strip=True) for a in row.select("p.artist a")]

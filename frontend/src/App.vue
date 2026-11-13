@@ -64,7 +64,7 @@ setUnauthorizedHandler(() => {
 // They are dropped when the library changed (a scan, a banner), checked at most once a minute.
 // (home is left out: its recently played row changes as you listen)
 const KEPT = ['SearchView', 'AlbumsView', 'ArtistsView', 'TracksView', 'GenresView', 'FoldersView', 'CollectionsView', 'ChartsView', 'BooksView', 'MixView']
-const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'genres', 'folders', 'charts', 'chart-list', 'books', 'mix']
+const KEPT_ROUTES = ['search', 'albums', 'artists', 'tracks', 'covers', 'genres', 'folders', 'charts', 'chart-list', 'books', 'mix']
 const mainEl = ref<HTMLElement | null>(null)
 // a long page scrolled well down (one and a half screens): a button back to the top
 const farDown = ref(false)
@@ -229,7 +229,7 @@ watch(
 // (an installed app has no browser buttons). Read again on every page change.
 const canBack = computed(() => (route.fullPath, !!window.history.state?.back))
 const canForward = computed(() => (route.fullPath, !!window.history.state?.forward))
-const TOP_PAGES = ['home', 'albums', 'artists', 'tracks', 'genres', 'folders', 'books', 'library', 'search']
+const TOP_PAGES = ['home', 'albums', 'artists', 'tracks', 'covers', 'genres', 'folders', 'books', 'library', 'search']
 const showBack = computed(
   () => !TOP_PAGES.includes(String(route.name)) || (route.name === 'folders' && !!route.query.path) || (route.name === 'tracks' && !!route.query.genre),
 )

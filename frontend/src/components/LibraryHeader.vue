@@ -2,11 +2,11 @@
 import { useRoute } from 'vue-router'
 import { type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Disc3, Folder, MicVocal, Music2, Search, Tags, X } from '@lucide/vue'
+import { AudioLines, Disc3, Folder, MicVocal, Music2, Search, Tags, X } from '@lucide/vue'
 import { LIBRARY_ROUTES, type LibraryRoute } from '../router'
 import PageHeader from './PageHeader.vue'
 
-// The library's pages (albums, artists, songs, genres, folders) share one header: the title and
+// The library's pages (albums, artists, songs, covers, genres, folders) share one header: the title and
 // their tabs (the slot sits right of the count line). Each tab is its own route, so lists stay alive
 // and back/forward move between them. Searching narrows the tab itself (its kind alone): from the
 // top bar on a PC (App.vue). On a phone the 🔍 by the title searches the whole library, kind by kind
@@ -21,10 +21,11 @@ const LABELS: Record<LibraryRoute, string> = {
   albums: 'nav.albums',
   artists: 'nav.artists',
   tracks: 'nav.songs',
+  covers: 'nav.covers',
   genres: 'nav.genres',
   folders: 'nav.folders',
 }
-const ICONS: Record<LibraryRoute, Component> = { albums: Disc3, artists: MicVocal, tracks: Music2, genres: Tags, folders: Folder }
+const ICONS: Record<LibraryRoute, Component> = { albums: Disc3, artists: MicVocal, tracks: Music2, covers: AudioLines, genres: Tags, folders: Folder }
 </script>
 
 <template>

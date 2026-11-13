@@ -167,6 +167,7 @@ def list_tracks(
     genre_id: int | None = None,
     album_id: int | None = None,
     artist_id: int | None = None,
+    kind: str | None = Query(None, pattern="^extracted$"),  # songs of that album kind (the library's covers page)
     sort: str = Query("title", pattern="^(title|artist|album|recent|relevance)$"),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -184,6 +185,8 @@ def list_tracks(
     if artist_id:
         conds.append(Track.artist_id == artist_id)
         conds.append(Track.chart_id.is_(None))
+    if kind:
+        conds.append(Track.album_id.in_(select(Album.id).where(Album.kind == kind)))
 
     order = {
         "title": [func.lower(Track.title)],
@@ -196,7 +199,7 @@ def list_tracks(
     # the rows carry this user's favorites; only the count is the same for everyone
     _, total = cached(
         db,
-        f"tracks-total:{q.strip()}:{genre_id}:{album_id}:{artist_id}",
+        f"tracks-total:{q.strip()}:{genre_id}:{album_id}:{artist_id}:{kind}",
         lambda: db.scalar(select(func.count()).select_from(Track).where(*conds)),
     )
     rows = db.execute(track_query(user.id).where(*conds).order_by(*order, Track.id).limit(limit).offset(offset))

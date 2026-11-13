@@ -18,7 +18,7 @@ interface Job {
   error: string | null
   found: {
     title: string; artist: string; album: string; source: string; cover: string | null
-    review?: string[]; bugs?: { track: string; album: string | null }; lyrics_from?: string | null
+    review?: string[]; bugs?: { track: string; album: string | null }; lyrics_from?: string | null; original?: { artist: string; title: string }
   } | null
   file_path: string | null; track_id: number | null; album_id: number | null; has_cover: boolean; cover_v: number
 }
@@ -58,7 +58,7 @@ const errorText = (code: string | null) => (code ? errorMessage({ code }) : '')
 const sources = (j: Job) => {
   const f = j.found
   if (!f) return ''
-  return [t(`extract.from_${f.source}`), f.bugs ? t('extract.fromBugs') : '', f.lyrics_from ? t('extract.lyrics') : ''].filter(Boolean).join(' · ')
+  return [f.original ? t('extract.coverOf', { artist: f.original.artist }) : '', t(`extract.from_${f.source}`), f.bugs ? t('extract.fromBugs') : '', f.lyrics_from ? t('extract.lyrics') : ''].filter(Boolean).join(' · ')
 }
 const review = (j: Job) => (j.found?.review ?? []).map((r) => t(`extract.review_${r}`)).join(' · ')
 const active = computed(() => jobs.value.filter((j) => j.status === 'pending' || j.status === 'running').length)

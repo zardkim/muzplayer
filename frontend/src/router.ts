@@ -3,7 +3,7 @@ import { appConfig } from './config'
 import { useAuth } from './stores/auth'
 
 // the library menu's tabs (LibraryHeader.vue), in order
-export const LIBRARY_ROUTES = ['albums', 'artists', 'tracks', 'genres', 'folders'] as const
+export const LIBRARY_ROUTES = ['albums', 'artists', 'tracks', 'covers', 'genres', 'folders'] as const
 export type LibraryRoute = (typeof LIBRARY_ROUTES)[number]
 
 export const router = createRouter({
@@ -14,6 +14,7 @@ export const router = createRouter({
     { path: '/', name: 'home', component: () => import('./views/HomeView.vue') },
     { path: '/search', name: 'search', component: () => import('./views/SearchView.vue') },
     { path: '/tracks', name: 'tracks', component: () => import('./views/TracksView.vue') },
+    { path: '/covers', name: 'covers', component: () => import('./views/TracksView.vue') }, // the songs taken out of music videos
     { path: '/albums', name: 'albums', component: () => import('./views/AlbumsView.vue') },
     { path: '/albums/:id', name: 'album', component: () => import('./views/AlbumView.vue'), props: true },
     { path: '/artists', name: 'artists', component: () => import('./views/ArtistsView.vue') },

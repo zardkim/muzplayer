@@ -219,6 +219,8 @@ if [ "$xvid" != none ]; then
   check "audio extracted from a NAS video" "$xst" done
   xalbum=$(curl -s -b "$A" "$BASE/extract/jobs" | j "next(x['album_id'] for x in d['items'] if x['id'] == $xjob)")
   check "extracted song listed as extracted" "$(curl -s -b "$A" "$BASE/albums/$xalbum" | j 'd["kind"]')" extracted
+  xtrack=$(curl -s -b "$A" "$BASE/extract/jobs" | j "next(x['track_id'] for x in d['items'] if x['id'] == $xjob)")
+  check "extracted song on the covers page" "$(curl -s -b "$A" "$BASE/tracks?kind=extracted&limit=500" | j "any(x['id'] == $xtrack for x in d['items'])")" True
   check "extracted song deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/extract/jobs/$xjob?file=true")" 204
   for _ in $(seq 1 30); do [ "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["status"]')" = running ] || break; sleep 1; done
   [ -n "$xmade" ] && curl -s -b "$A" -o /dev/null -X DELETE "$BASE/videos/$xvid"

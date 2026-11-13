@@ -20,6 +20,7 @@
     "myMusic": "My music",
     "explore": "Explore",
     "songs": "Songs",
+    "covers": "Covers",
     "charts": "Charts & Themes",
     "audiobooks": "Audiobooks",
     "expandMenu": "Expand menu",
@@ -91,6 +92,10 @@
     "restoredCovers": "Album covers missing on this server are being made again by a scan.",
     "restoreHelp": "A backup from another version can be restored (it is brought up to this one); not one from a newer version. If a large file is refused through your public address (the proxy's upload limit), restore through the NAS's local address."
   },
+  "covers": {
+    "search": "Search covers by title or singer",
+    "empty": "No covers yet. Use 'Extract audio' in a music video's ⋮ menu and they gather here."
+  },
   "extract": {
     "menu": "Extract audio",
     "title": "Extract audio",
@@ -132,6 +137,7 @@
     "from_title": "title rules",
     "fromBugs": "confirmed on Bugs",
     "lyrics": "lyrics",
+    "coverOf": "cover (original: {artist})",
     "review": "To check",
     "review_unsure": "the AI wasn't sure",
     "review_not_music": "may not be a song",
