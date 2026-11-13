@@ -36,11 +36,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # linux/amd64 only for now: the image's deno is the x86_64 build
+      - uses: docker/setup-qemu-action@v3  # arm64 (Raspberry Pi, ARM NAS) built under emulation
+
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           build-args: APP_VERSION=${{ steps.v.outputs.version }}
           tags: |

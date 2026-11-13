@@ -33,7 +33,7 @@
   color-scheme: light;
 }
 
-/* Plexamp-style theme: warm grey paper, orange accent, the playing song's cover colour glowing
+/* Warm grey theme: warm grey paper, orange accent, the playing song's cover colour glowing
    through the background (App.vue sets --ambient). Colours only; the layout stays the same. Picked
    in Settings, kept per browser (index.html sets data-theme before the first paint). */
 :root[data-theme="plexamp"] {
@@ -66,7 +66,7 @@
   transition: background 0.6s;
 }
 
-/* Modern dark (Spotify-like): near-black, raised greys, green accent, white pills with black text;
+/* Modern dark: near-black, raised greys, green accent, white pills with black text;
    the playing song's cover colour washes down from the top of the page (App.vue sets --ambient). */
 :root[data-theme="spotify"] {
   --color-bg: #121212;

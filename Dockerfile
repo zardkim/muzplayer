@@ -41,10 +41,15 @@ RUN ./configure --disable-everything --disable-autodetect --disable-doc --disabl
 # ---- deno: the JavaScript runtime yt-dlp needs for YouTube (extract.py), checked against its release sum ----
 FROM python:3.12-slim AS deno
 ARG DENO_VERSION=2.9.8
-ARG DENO_SHA256=e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609
+# per architecture (amd64 / arm64: the platform being built, TARGETARCH set by BuildKit; no default here,
+# or it would override BuildKit's)
+ARG TARGETARCH
+ARG DENO_SHA256_AMD64=e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609
+ARG DENO_SHA256_ARM64=d49596c20b9788cf8f5d8ddf644103d4bde56ed239753f0bdb92ba9361d51905
 RUN python -c "import hashlib, io, os, urllib.request, zipfile; \
-data = urllib.request.urlopen('https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip').read(); \
-assert hashlib.sha256(data).hexdigest() == '${DENO_SHA256}', 'deno checksum'; \
+arch, want = {'amd64': ('x86_64', '${DENO_SHA256_AMD64}'), 'arm64': ('aarch64', '${DENO_SHA256_ARM64}')}['${TARGETARCH}' or 'amd64']; \
+data = urllib.request.urlopen(f'https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-{arch}-unknown-linux-gnu.zip').read(); \
+assert hashlib.sha256(data).hexdigest() == want, 'deno checksum'; \
 zipfile.ZipFile(io.BytesIO(data)).extract('deno', '/out'); os.chmod('/out/deno', 0o755)" \
  && /out/deno --version
 
