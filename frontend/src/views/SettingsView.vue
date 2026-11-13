@@ -112,6 +112,21 @@ const newer = (a: string, b: string) => {
   return false
 }
 const winUpdate = computed(() => !!(native && winApp.value?.version && newer(winApp.value.version, native.version)))
+// in the app (0.3.0 and later): it downloads the installer itself, installs it and starts again;
+// an older app only gets the download link
+const updating = ref<number | null>(null)
+const updateError = ref('')
+async function updateApp() {
+  if (!native?.update || !winApp.value?.url) return
+  updateError.value = ''
+  updating.value = 0
+  native.onUpdateProgress?.((f) => (updating.value = f))
+  const r = await native.update(winApp.value.url).catch(() => ({ ok: false, error: 'download' }))
+  if (!r.ok) {
+    updating.value = null
+    updateError.value = t('settings.windowsUpdateFailed')
+  }
+}
 // on a phone: the home screen icon (index.html takes it when the app is added)
 const phone = isIos || isAndroid
 const iconFile = (v: string) => (v === 'auto' || v === 'light' ? '/icon-180.png' : `/icon-${v}-180.png`)
@@ -275,10 +290,18 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
             <p v-if="winApp?.size" class="text-[13px] font-light text-muted">{{ mb(winApp.size) }} MB · {{ t('settings.windowsUnsigned') }}</p>
             <a v-if="winApp && winApp.url" :href="winApp.page" target="_blank" rel="noopener" class="self-start text-[13px] text-muted underline">{{ t('settings.windowsReleases') }}</a>
           </div>
-          <p v-if="winUpdate" class="mt-2 text-[14px]">
-            {{ t('settings.windowsNewer', { v: winApp!.version }) }}
-            <a :href="winApp!.url || winApp!.page" class="text-accent underline">{{ t('settings.windowsDownload') }}</a>
-          </p>
+          <div v-if="winUpdate" class="mt-2 flex flex-col items-start gap-2.5 rounded-2xl bg-surface p-4">
+            <p class="text-[14px]">{{ t('settings.windowsNewer', { v: winApp!.version }) }}</p>
+            <template v-if="native?.update && winApp!.url">
+              <button type="button" class="flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-[15px] text-on-ink disabled:opacity-60" :disabled="updating !== null" @click="updateApp">
+                <Download :size="18" />{{ updating === null ? t('settings.windowsUpdate') : updating >= 1 ? t('settings.windowsInstalling') : t('settings.windowsUpdating', { n: Math.round(updating * 100) }) }}
+              </button>
+              <span v-if="updating !== null" class="h-1 w-full max-w-xs rounded-full bg-line"><span class="block h-full rounded-full bg-accent transition-[width]" :style="{ width: `${Math.round(updating * 100)}%` }" /></span>
+              <p class="text-[13px] font-light text-muted">{{ t('settings.windowsUpdateHelp') }}</p>
+            </template>
+            <a v-else :href="winApp!.url || winApp!.page" class="text-[14px] text-accent underline">{{ t('settings.windowsDownload') }}</a>
+            <p v-if="updateError" class="text-[13px] text-danger">{{ updateError }}</p>
+          </div>
 
           <!-- a phone: which icon the home screen gets -->
           <div v-if="phone && !native" class="mt-4 flex flex-col gap-2.5">

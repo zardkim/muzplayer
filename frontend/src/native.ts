@@ -12,6 +12,9 @@ interface MuzNative {
   version: string
   state(s: { title: string; artist: string; playing: boolean; position: number; duration: number }): void
   onCommand(handler: (cmd: Command) => void): void
+  /** Since app 0.3.0: downloads the installer, installs it and restarts in the new version. */
+  update?(url: string): Promise<{ ok: boolean; error?: string }>
+  onUpdateProgress?(handler: (fraction: number) => void): void
 }
 
 export const native = (window as unknown as { muzNative?: MuzNative }).muzNative ?? null
