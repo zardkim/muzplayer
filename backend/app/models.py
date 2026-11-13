@@ -579,3 +579,26 @@ class VideoPlaylistItem(Base):
     position: Mapped[int] = mapped_column(Integer)
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
+
+class ExtractJob(Base):
+    """Audio taken out of a music video (extract.py): YouTube through yt-dlp or a NAS file through
+    ffmpeg, made an m4a or mp3 with tags and a cover in the extraction folder, then scanned."""
+
+    __tablename__ = "extract_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id", ondelete="SET NULL"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    format: Mapped[str] = mapped_column(String(8), default="m4a", server_default="m4a")  # m4a | mp3
+    # pending | running | done | failed; step while running: download | convert | tags | scan
+    status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
+    step: Mapped[str] = mapped_column(String(16), default="", server_default="")
+    progress: Mapped[float] = mapped_column(Float, default=0, server_default="0")  # 0..1 of the download
+    error: Mapped[str | None] = mapped_column(String(200))  # a code for the frontend
+    title: Mapped[str] = mapped_column(String(500), default="", server_default="")  # the video's, at the time
+    found: Mapped[dict | None] = mapped_column(JSON)  # the tags written and where they came from
+    file_path: Mapped[str | None] = mapped_column(Text)  # relative to MUSIC_DIR
+    track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

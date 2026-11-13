@@ -57,6 +57,7 @@ const kinds = [
   { key: 'unofficial', label: 'albums.kind_unofficial' },
   { key: 'compilation', label: 'albums.kind_compilation' },
   { key: 'soundtrack', label: 'albums.kind_soundtrack' },
+  { key: 'extracted', label: 'albums.kind_extracted' },
 ]
 const sorts = [
   { key: 'recent', label: 'albums.sortRecent' },

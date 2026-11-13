@@ -202,6 +202,27 @@ check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sort
 check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
 check "no similar videos of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/related")" 404
+# a song taken out of a NAS video (extract.py; no internet): into the library as "extracted", then deleted
+export XPATH="연결테스트/Banana Pancakes.mp4"
+xvid=$(curl -s -b "$A" "$BASE/videos/files" | python3 -c 'import json,os,sys; d=json.load(sys.stdin); print(next((f["video_id"] or "" for f in d["items"] if f["path"] == os.environ["XPATH"]), "none"))')
+xmade=""
+if [ "$xvid" = "" ]; then
+  xvid=$(curl -s -b "$A" -X POST "$BASE/videos/files" -H 'content-type: application/json' -d "{\"path\":\"$XPATH\",\"kind\":\"mv\",\"title\":\"Banana Pancakes\"}" | j 'd["id"]'); xmade=1
+fi
+check "extraction folder ready" "$(curl -s -b "$A" "$BASE/extract/status" | j 'd["folder_ok"]')" True
+check "only an admin extracts" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/$xvid/extract" -H 'content-type: application/json' -d '{}')" 403
+if [ "$xvid" != none ]; then
+  xjob=$(curl -s -b "$A" -X POST "$BASE/videos/$xvid/extract" -H 'content-type: application/json' -d '{"format":"m4a"}' | j 'd["id"]')
+  for _ in $(seq 1 90); do
+    xst=$(curl -s -b "$A" "$BASE/extract/jobs" | j "next(x['status'] for x in d['items'] if x['id'] == $xjob)"); [ "$xst" = done ] || [ "$xst" = failed ] && break; sleep 1
+  done
+  check "audio extracted from a NAS video" "$xst" done
+  xalbum=$(curl -s -b "$A" "$BASE/extract/jobs" | j "next(x['album_id'] for x in d['items'] if x['id'] == $xjob)")
+  check "extracted song listed as extracted" "$(curl -s -b "$A" "$BASE/albums/$xalbum" | j 'd["kind"]')" extracted
+  check "extracted song deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/extract/jobs/$xjob?file=true")" 204
+  for _ in $(seq 1 30); do [ "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["status"]')" = running ] || break; sleep 1; done
+  [ -n "$xmade" ] && curl -s -b "$A" -o /dev/null -X DELETE "$BASE/videos/$xvid"
+fi
 check "liked videos answer" "$(curl -s -b "$A" "$BASE/videos?liked=true" | j 'sorted(d)')" "['items', 'total']"
 check "NAS video path stays in the video folder" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/files" -H 'content-type: application/json' -d '{"path":"../music","kind":"mv"}')" 404
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$sid"

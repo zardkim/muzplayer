@@ -26,7 +26,8 @@ RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o 
 RUN ./configure --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-network \
       --disable-ffplay --disable-ffprobe --disable-avdevice \
       --enable-static --disable-shared --extra-ldexeflags=-static \
-      --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le,mjpeg --enable-muxer=mp3,null,image2 \
+      --enable-libmp3lame --enable-encoder=libmp3lame,pcm_s16le,mjpeg,aac --enable-muxer=mp3,null,image2,ipod,mp4 \
+      --enable-bsf=aac_adtstoasc \
       --enable-protocol=file,pipe \
       --enable-demuxer=mp3,flac,mov,aac,ogg,wav,asf,ape,aiff,mpegts,matroska,avi \
       --enable-parser=mpegaudio,flac,aac,vorbis,opus,h264,hevc,vp8,vp9,mpeg4video,mpegvideo \
@@ -34,7 +35,18 @@ RUN ./configure --disable-everything --disable-autodetect --disable-doc --disabl
       --enable-filter=aresample,aformat,anull,volume,null,scale,format \
  && make -j"$(nproc)" ffmpeg && strip ffmpeg && ./ffmpeg -hide_banner -encoders | grep -q libmp3lame \
  && ./ffmpeg -hide_banner -encoders | grep -q pcm_s16le && ./ffmpeg -hide_banner -muxers | grep -q ' null ' \
- && ./ffmpeg -hide_banner -encoders | grep -q mjpeg && ./ffmpeg -hide_banner -decoders | grep -q ' hevc '
+ && ./ffmpeg -hide_banner -encoders | grep -q mjpeg && ./ffmpeg -hide_banner -decoders | grep -q ' hevc ' \
+ && ./ffmpeg -hide_banner -encoders | grep -q ' aac ' && ./ffmpeg -hide_banner -muxers | grep -q ' ipod '
+
+# ---- deno: the JavaScript runtime yt-dlp needs for YouTube (extract.py), checked against its release sum ----
+FROM python:3.12-slim AS deno
+ARG DENO_VERSION=2.9.8
+ARG DENO_SHA256=e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609
+RUN python -c "import hashlib, io, os, urllib.request, zipfile; \
+data = urllib.request.urlopen('https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip').read(); \
+assert hashlib.sha256(data).hexdigest() == '${DENO_SHA256}', 'deno checksum'; \
+zipfile.ZipFile(io.BytesIO(data)).extract('deno', '/out'); os.chmod('/out/deno', 0o755)" \
+ && /out/deno --version
 
 # ---- runtime ----
 FROM python:3.12-slim
@@ -54,6 +66,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 COPY --from=web /web/dist ./static
 COPY --from=ffmpeg /src/ffmpeg /usr/local/bin/ffmpeg
+COPY --from=deno /out/deno /usr/local/bin/deno
 RUN mkdir -p /data /conf && command -v setpriv
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \

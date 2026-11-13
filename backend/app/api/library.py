@@ -291,7 +291,7 @@ def list_albums(
     request: Request,
     q: str = "",
     artist_id: int | None = None,
-    kind: str | None = Query(None, pattern="^(album|unofficial|compilation|soundtrack)$"),
+    kind: str | None = Query(None, pattern="^(album|unofficial|compilation|soundtrack|extracted)$"),
     sort: str = Query("recent", pattern="^(recent|title|artist|year|rating)$"),
     limit: int = Query(60, ge=1, le=500),
     offset: int = Query(0, ge=0),

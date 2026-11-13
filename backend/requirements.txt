@@ -7,3 +7,5 @@ mutagen==1.48.1
 pillow==13.0.0
 argon2-cffi==25.1.0
 beautifulsoup4==4.15.0
+# audio out of YouTube videos (extract.py); [default] brings yt-dlp-ejs, its YouTube player solver
+yt-dlp[default]==2026.10.26

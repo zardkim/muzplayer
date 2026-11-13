@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownUp, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
+import { ArrowDownUp, AudioLines, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
@@ -12,6 +12,8 @@ import SearchField from '../components/SearchField.vue'
 import SelectPill from '../components/SelectPill.vue'
 import { useListSearch } from '../listSearch'
 import VideoFilesSheet from '../components/VideoFilesSheet.vue'
+import ExtractJobsSheet from '../components/ExtractJobsSheet.vue'
+import ExtractStartSheet from '../components/ExtractStartSheet.vue'
 import YoutubeAddSheet from '../components/YoutubeAddSheet.vue'
 import YoutubeIcon from '../components/YoutubeIcon.vue'
 import VideoCard from '../components/VideoCard.vue'
@@ -30,6 +32,8 @@ const total = ref(0)
 const loading = ref(false)
 const error = ref('')
 const addingFiles = ref(false)
+const extracting = ref<VideoListItem | null>(null) // admin: a video's sound as a song (ExtractStartSheet)
+const extractJobs = ref(false)
 const addingYoutube = ref(false)
 const kind = computed({
   get: () => (ui.views.videoKind as VideoKind | undefined) || null,
@@ -100,6 +104,10 @@ function playAll(shuffle: boolean) {
   <div class="flex flex-col gap-6">
     <PageHeader :title="t('videos.pageTitle')" :sub="total ? t('videos.pageSub', { n: total }) : ''">
       <template #actions>
+        <!-- songs taken out of videos (extract.py) -->
+        <button v-if="auth.user?.is_admin" type="button" class="grid size-10 place-items-center rounded-full bg-surface hover:bg-surface-2" :aria-label="t('extract.jobsTitle')" :title="t('extract.jobsTitle')" @click="extractJobs = true">
+          <AudioLines :size="18" :stroke-width="1.6" />
+        </button>
         <button v-if="auth.user?.is_admin" type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-surface px-3 text-[14px] hover:bg-surface-2 sm:px-4" :aria-label="t('videos.addYoutube')" :title="t('videos.addYoutube')" @click="addingYoutube = true">
           <YoutubeIcon :size="18" /><span class="max-sm:hidden">{{ t('videos.addYoutube') }}</span>
         </button>
@@ -146,7 +154,7 @@ function playAll(shuffle: boolean) {
       <h2 v-if="!kind" class="text-[19px] font-bold">{{ t(`videos.kinds.${s.kind}`) }} <span class="text-[14px] font-normal text-muted">{{ s.items.length }}</span></h2>
       <ul class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <li v-for="v in s.items" :key="v.id">
-          <VideoCard :video="v" @play="play(v)" @changed="load()" @liked="(on) => liked(v, on)" />
+          <VideoCard :video="v" @play="play(v)" @changed="load()" @liked="(on) => liked(v, on)" @extract="extracting = v" />
         </li>
       </ul>
     </section>
@@ -154,6 +162,8 @@ function playAll(shuffle: boolean) {
     <LoadMore v-if="items.length < total" :loading="loading" @click="load(true)" />
 
     <VideoFilesSheet v-if="addingFiles" @close="addingFiles = false" />
+    <ExtractStartSheet v-if="extracting" :video="extracting" @close="extracting = null" @queued="(extracting = null), (extractJobs = true)" />
+    <ExtractJobsSheet v-if="extractJobs" @close="extractJobs = false" />
     <YoutubeAddSheet v-if="addingYoutube" @close="addingYoutube = false" @added="load()" />
   </div>
 </template>

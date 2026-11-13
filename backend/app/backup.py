@@ -194,10 +194,10 @@ def check(path: Path) -> dict:
 
 def _busy_locks() -> list[threading.Lock]:
     """Everything that writes the library in the background: none may run during a restore."""
-    from . import album_notes, artist_aliases, artist_images, artist_links, search_index
+    from . import album_notes, artist_aliases, artist_images, artist_links, extract, search_index
     from .scanner import scan_lock
 
-    return [scan_lock(), artist_aliases._lock, album_notes._lookup_lock, artist_images._lock, artist_links._lock, search_index._rebuild_lock]
+    return [scan_lock(), artist_aliases._lock, album_notes._lookup_lock, artist_images._lock, artist_links._lock, search_index._rebuild_lock, extract._lock]
 
 
 # ---- a restore runs in the background (a large library takes a while; a proxy may cut a long

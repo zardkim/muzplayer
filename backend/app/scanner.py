@@ -37,7 +37,7 @@ COVER_SIZES = {"thumb": 300, "large": 1000}
 BATCH = 200
 ISSUES_KEPT = 5000  # scan problems kept for the admin's list
 
-FOLDER_KINDS = ("album", "compilation", "chart", "theme", "excluded")
+FOLDER_KINDS = ("album", "compilation", "chart", "theme", "excluded", "extracted")  # extracted: extract.py's folder
 COLLECTION_KINDS = ("chart", "theme")  # folders of collections: each folder with audio files is one
 UNOFFICIAL_DIRS = {"비정규", "unofficial"}  # compared casefolded, at any depth
 VARIOUS_ARTISTS = "Various Artists"
@@ -398,7 +398,7 @@ def folder_kinds(db: Session) -> dict[str, str]:
 class Placement:
     """Where a file belongs, decided by its path alone."""
 
-    kind: str  # album kind: album | unofficial | compilation | chart (also for themes)
+    kind: str  # album kind: album | unofficial | compilation | extracted | chart (also for themes)
     chart_folder: str | None = None  # relative folder of the chart week or theme, as on disk
     chart_source: str = ""
     chart_kind: str = "chart"  # chart | theme
@@ -418,6 +418,8 @@ def placement(rel: str, kinds: dict[str, str]) -> Placement:
         return Placement("chart", str(Path(*folders)), group, folder_kind)
     if folder_kind == "compilation":
         return Placement("compilation")
+    if folder_kind == "extracted":  # audio taken out of music videos (extract.py)
+        return Placement("extracted")
     if any(nfc(p).casefold() in UNOFFICIAL_DIRS for p in parts[:-1]):
         return Placement("unofficial")
     return Placement("album")

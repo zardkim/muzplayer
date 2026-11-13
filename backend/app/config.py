@@ -27,6 +27,11 @@ class Settings:
     books_root: Path | None = _path("AUDIOBOOK_DIR")
     # music videos on the NAS (library/video): registered one by one on the Music videos page
     video_dir: Path = Path(os.getenv("VIDEO_DIR", "/library/video"))
+    # audio taken out of music videos (extract.py): a folder of the music library mounted writable
+    # (the rest of the library stays read-only); scanned as the "extracted" kind
+    extract_dir: Path = Path(os.getenv("EXTRACT_DIR", "") or Path(os.getenv("MUSIC_DIR", "/library/music")) / "cover music")
+    # JavaScript runtime yt-dlp needs for YouTube (the image has one)
+    deno_path: str = os.getenv("DENO_PATH", "").strip() or "deno"
     data_dir: Path = Path(os.getenv("DATA_DIR", "/data"))
     # settings changed in the app (API keys): conf/settings.json
     conf_dir: Path = Path(os.getenv("CONF_DIR", "/conf"))

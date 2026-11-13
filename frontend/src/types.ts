@@ -29,7 +29,7 @@ export interface Track {
   chart_position?: number | null // only in chart lists
 }
 
-export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'soundtrack' | 'chart'
+export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'soundtrack' | 'chart' | 'extracted'
 
 export interface Album {
   id: number
@@ -159,7 +159,7 @@ export interface CollectionsHome {
   counts: { charts: number; themes: number }
 }
 
-export type FolderKind = 'album' | 'compilation' | 'chart' | 'theme' | 'excluded'
+export type FolderKind = 'album' | 'compilation' | 'chart' | 'theme' | 'excluded' | 'extracted'
 
 export interface LibraryFolder {
   path: string

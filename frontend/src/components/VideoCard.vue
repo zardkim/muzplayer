@@ -15,7 +15,7 @@ import YoutubeIcon from './YoutubeIcon.vue'
 // or an admin, may change it), put it in a video playlist. The ⋮ menu: a NAS file's title,
 // thumbnail (another scene) and song (picked from a search), and removing it.
 const props = defineProps<{ video: VideoListItem }>()
-const emit = defineEmits<{ play: []; changed: []; liked: [boolean] }>()
+const emit = defineEmits<{ play: []; changed: []; liked: [boolean]; extract: [] }>()
 const { t } = useI18n()
 const ui = useUi()
 const menu = ref(false)
@@ -134,6 +134,9 @@ onUnmounted(() => document.removeEventListener('click', outside))
             <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
             <div class="my-1 border-t border-line" />
           </template>
+          <!-- its sound as a song (extract.py) -->
+          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), emit('extract')">{{ t('extract.menu') }}</button>
+          <div class="my-1 border-t border-line" />
           <button type="button" class="px-4 py-2.5 text-left text-danger hover:bg-surface" @click="remove">{{ t('videos.remove') }}</button>
         </div>
       </span>

@@ -128,7 +128,7 @@ async function loadFolders() {
   folders.value = (await api<{ items: LibraryFolder[] }>('/admin/folders')).items
 }
 
-const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'theme', 'excluded']
+const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'theme', 'excluded', 'extracted']
 async function setKind(folder: LibraryFolder, kind: FolderKind) {
   try {
     await api('/admin/folders', { method: 'PUT', body: { path: folder.path, kind } })
