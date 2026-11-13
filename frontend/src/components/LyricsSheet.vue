@@ -6,18 +6,26 @@ import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
 import type { Lyrics } from '../types'
 import BaseModal from './BaseModal.vue'
+import { useAuth } from '../stores/auth'
+import { useLyrics } from '../stores/lyrics'
 
 // A song's lyrics from a list (ui.lyricsTarget), without playing it: the synced lines as text.
 // The song that is playing shows them in the player instead, in time.
 const { t } = useI18n()
 const ui = useUi()
 const target = ui.lyricsTarget!
+const auth = useAuth()
+const { fresh } = useLyrics()
+function manage() {
+  ui.lyricsAdmin = { ...target }
+  ui.lyricsTarget = null
+}
 const lyrics = ref<Lyrics | null>(null)
 const error = ref('')
 
 onMounted(async () => {
   try {
-    lyrics.value = await api<Lyrics>(`/tracks/${target.trackId}/lyrics`)
+    lyrics.value = await api<Lyrics>(`/tracks/${target.trackId}/lyrics${fresh.has(target.trackId) ? `?v=${fresh.get(target.trackId)}` : ''}`)
   } catch (e) {
     error.value = errorMessage(e)
   }
@@ -40,5 +48,6 @@ onMounted(async () => {
     </template>
     <p v-else-if="lyrics.plain" class="whitespace-pre-line text-[17px] leading-relaxed">{{ lyrics.plain }}</p>
     <p v-else class="text-[15px] text-muted">{{ t('lyricsSheet.none') }}</p>
+    <button v-if="auth.user?.is_admin" type="button" class="mt-6 h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="manage">{{ t('lyricsAdmin.open') }}</button>
   </BaseModal>
 </template>

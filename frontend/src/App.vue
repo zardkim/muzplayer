@@ -28,6 +28,7 @@ import BookPlayer from './components/BookPlayer.vue'
 import CoverArt from './components/CoverArt.vue'
 import LivePlayer from './components/LivePlayer.vue'
 import LyricsSheet from './components/LyricsSheet.vue'
+import LyricsAdminSheet from './components/LyricsAdminSheet.vue'
 import NowPlaying from './components/NowPlaying.vue'
 import PlayerIcons from './components/PlayerIcons.vue'
 import PlayerBar from './components/PlayerBar.vue'
@@ -136,6 +137,7 @@ useOverlayHistory(router, [
   { open: () => !!ui.playlistPicker, close: () => (ui.playlistPicker = null) },
   { open: () => !!ui.videoTarget, close: () => (ui.videoTarget = null) },
   { open: () => !!ui.lyricsTarget, close: () => (ui.lyricsTarget = null) },
+  { open: () => !!ui.lyricsAdmin, close: () => (ui.lyricsAdmin = null) },
   { open: () => !!ui.videoPick, close: () => (ui.videoPick = null) },
   { open: () => !!ui.videoLink, close: () => (ui.videoLink = null) },
   { open: () => !!ui.videoQueue, close: () => (ui.videoQueue = null) },
@@ -489,6 +491,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     </Transition>
     <PlaylistPicker v-if="ui.playlistPicker" />
     <LyricsSheet v-if="ui.lyricsTarget" :key="ui.lyricsTarget.trackId" />
+    <LyricsAdminSheet v-if="ui.lyricsAdmin" :key="`a${ui.lyricsAdmin.trackId}`" />
     <VideoSheet v-if="ui.videoTarget" :key="`${ui.videoTarget.albumId}-${ui.videoTarget.trackId}`" />
     <VideoPlayer v-if="ui.videoQueue" />
     <VideoPlaylistPicker v-if="ui.videoPick" />

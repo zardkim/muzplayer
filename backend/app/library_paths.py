@@ -40,3 +40,13 @@ def library_rel(path: Path | str) -> str:
             inner = os.path.relpath(p, d)
             return top if inner == "." else f"{top}/{inner}"
     return os.path.relpath(path, settings.music_dir)
+
+
+def chosen_lrc(rel: str) -> Path | None:
+    """Where the lyrics an admin chose for a song are kept: DATA_DIR/lrc/<its library path>.lrc
+    (the library is read-only). None for a path that would lead outside that folder."""
+    base = settings.data_dir / "lrc"
+    p = os.path.normpath(rel)
+    if os.path.isabs(p) or p.startswith(".."):
+        return None
+    return base / (os.path.splitext(p)[0] + ".lrc")

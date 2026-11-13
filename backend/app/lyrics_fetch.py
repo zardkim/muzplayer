@@ -240,7 +240,7 @@ def fetched(db: Session, track: Track, path: Path, album: str) -> dict | None:
     """Lyrics fetched for the song: from the database, or looked up now (once; again after
     RETRY_DAYS when nothing was found). None when there are none."""
     row = db.get(FetchedLyrics, track.id)
-    fresh = row is not None and (row.lrc or row.fetched_at > datetime.now(UTC) - timedelta(days=RETRY_DAYS))
+    fresh = row is not None and (row.pinned or row.lrc or row.fetched_at > datetime.now(UTC) - timedelta(days=RETRY_DAYS))
     if not fresh:
         with _busy_lock:
             if track.id in _busy:  # another request is looking it up: don't ask the sites twice
@@ -264,3 +264,102 @@ def fetched(db: Session, track: Track, path: Path, album: str) -> dict | None:
             with _busy_lock:
                 _busy.discard(track.id)
     return parse(row.lrc) if row and row.lrc else None
+
+
+# ---- candidates for an admin to choose from (api/lyrics_admin.py) ----
+CANDIDATES = 10  # a source's at most
+
+
+def _alsong_list(title: str, artist: str) -> list[dict]:
+    """AlSong's songs of this title and artist, each with its lyrics (only the song's details are
+    kept: the entries also name who registered them)."""
+    query = (f"<ns1:strTitle>{html.escape(title)}</ns1:strTitle><ns1:strArtistName>{html.escape(artist)}</ns1:strArtistName>"
+             "<ns1:nCurPage>0</ns1:nCurPage>")
+    body = _SOAP.format(op="GetResembleLyric2", enc=_ENC, query=query).encode()
+    headers = {"Content-Type": "application/soap+xml; charset=utf-8", "SOAPAction": '"ALSongWebServer/GetResembleLyric2"', "User-Agent": "gSOAP/2.7"}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(ALSONG_URL, data=body, headers=headers), timeout=TIMEOUT) as resp:
+            content = resp.read()
+    except urllib.error.HTTPError as exc:
+        if exc.code != 500:
+            raise
+        return []
+    out = []
+    for item in ET.fromstring(content).findall(".//{*}ST_GET_RESEMBLELYRIC2_RETURN"):
+        get = lambda name: (item.findtext(f"{{*}}{name}") or "").strip()  # noqa: E731
+        text = re.sub(r"<br\s*/?>", "\n", get("strLyric"), flags=re.I)
+        if "[" in text:
+            out.append({"source": "alsong", "title": get("strTitle"), "artist": get("strArtistName"), "album": get("strAlbumName"), "lrc": text})
+        if len(out) >= CANDIDATES * 3:
+            break
+    return out
+
+
+def _bugs_list(title: str, artist: str) -> list[dict]:
+    page = _get(BUGS_SEARCH.format(q=urllib.parse.quote(f"{artist} {title}".strip())), {"Referer": "https://music.bugs.co.kr/"})
+    out = []
+    for tr in BeautifulSoup(page.decode("utf-8", "replace"), "html.parser").select("table.trackList tbody tr[trackid]")[:6]:
+        t, a, al = tr.select_one("p.title a"), tr.select("p.artist a"), tr.select_one("a.album")
+        try:
+            text = bugs_by_id(tr["trackid"])
+        except Exception:  # noqa: BLE001 - that song's lyrics: skip it
+            continue
+        if text:
+            out.append({
+                "source": "bugs", "title": (t.get("title") or t.get_text(strip=True)) if t else "",
+                "artist": ", ".join(dict.fromkeys((x.get("title") or x.get_text(strip=True)) for x in a)),
+                "album": (al.get("title") or al.get_text(strip=True)) if al else "", "lrc": text,
+            })
+    return out
+
+
+def _lrclib_list(title: str, artist: str) -> list[dict]:
+    params = urllib.parse.urlencode({"track_name": title, **({"artist_name": artist} if artist else {})})
+    items = json.loads(_get(f"https://lrclib.net/api/search?{params}", {"Accept": "application/json"})) or []
+    return [
+        {"source": "lrclib", "title": i.get("trackName") or "", "artist": i.get("artistName") or "", "album": i.get("albumName") or "",
+         "duration": i.get("duration"), "lrc": i.get("syncedLyrics") or i.get("plainLyrics")}
+        for i in items if not i.get("instrumental") and (i.get("syncedLyrics") or i.get("plainLyrics"))
+    ][: CANDIDATES * 2]
+
+
+def candidates(title: str, artist: str, path: Path | None, sources: list[str]) -> dict:
+    """Lyrics to choose from, source by source (AlSong's match of the file itself first): each with
+    its song's details and whether it is synced; the same lyrics once. Sources not answering are
+    left out (their names come back in "failed")."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    jobs = {}
+    if "alsong" in sources and path is not None:
+        jobs["alsong_file"] = lambda: [{"source": "alsong", "title": title, "artist": artist, "album": "", "lrc": t, "file": True}
+                                       for t in [alsong_by_file(path)] if t]
+    if "alsong" in sources:
+        jobs["alsong"] = lambda: _alsong_list(title, artist)
+    if "bugs" in sources:
+        jobs["bugs"] = lambda: _bugs_list(title, artist)
+    if "lrclib" in sources:
+        jobs["lrclib"] = lambda: _lrclib_list(title, artist)
+    results: dict[str, list[dict]] = {}
+    failed: list[str] = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {name: pool.submit(find) for name, find in jobs.items()}
+        for name, future in futures.items():
+            try:
+                results[name] = future.result(timeout=30)
+            except Exception as exc:  # noqa: BLE001
+                log.info("lyrics candidates from %s failed: %s", name, exc)
+                failed.append(name.split("_")[0])
+    seen: set[str] = set()
+    out: list[dict] = []
+    per: dict[str, int] = {}
+    for name in ("alsong_file", "alsong", "bugs", "lrclib"):
+        for c in results.get(name, []):
+            key = re.sub(r"\s+", "", c["lrc"] or "")[:2000]  # the same lyrics with the same timing (other timings are what's chosen between)
+            if not key or key in seen or per.get(c["source"], 0) >= CANDIDATES:
+                continue
+            seen.add(key)
+            per[c["source"]] = per.get(c["source"], 0) + 1
+            parsed = parse(c["lrc"])
+            out.append(c | {"lrc": c["lrc"][:200_000], "synced": bool(parsed["synced"]), "lines": len(parsed["synced"] or []),
+                            "first": (parsed["synced"][0][0] if parsed["synced"] else None)})
+    return {"items": out, "failed": sorted(set(failed))}

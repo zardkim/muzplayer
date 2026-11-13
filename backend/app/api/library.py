@@ -16,8 +16,8 @@ from .. import album_notes, appconf, artist_aliases, artist_images, artist_links
 from ..cache import cached, image_response, library_version, shared_json
 from ..config import settings
 from ..db import get_db
-from ..library_paths import library_path
-from ..lyrics import read_lyrics
+from ..library_paths import chosen_lrc, library_path
+from ..lyrics import parse, read_lyrics, read_text
 from ..models import (
     Album, AlbumFavorite, AlbumRating, Artist, Favorite, FetchedLyrics, Genre, PlayCount, Track, TrackArtist, TrackGenre,
     TrackRating, User, Video,
@@ -67,7 +67,8 @@ def track_query(user_id: int) -> Select:
     video = exists().where(Video.track_id == Track.id).correlate(Track)
     # lyrics: its own (tags, .lrc next to it; scanner) or fetched for it (lyrics_fetch), synced or plain
     fetched = exists().where(FetchedLyrics.track_id == Track.id, FetchedLyrics.lrc.is_not(None)).correlate(Track)
-    lrc = or_(Track.lrc_tag.is_(True), Track.lrc_file, fetched)
+    hidden = exists().where(FetchedLyrics.track_id == Track.id, FetchedLyrics.pinned, FetchedLyrics.lrc.is_(None)).correlate(Track)  # an admin's "none"
+    lrc = and_(or_(Track.lrc_tag.is_(True), Track.lrc_file, fetched), ~hidden)
     # every artist of the song (artist_links), each its own link: [{"id", "name", "role"}]
     artists = (
         select(func.json_agg(aggregate_order_by(
@@ -740,6 +741,12 @@ def lyrics(track_id: int, _: User = Depends(current_user), db: Session = Depends
     """{"synced": [[seconds, line], ...] | null, "plain": str | null}: the song's own (its .lrc or
     tags, read each time), else lyrics fetched for it (lyrics_fetch.py: looked up the first time)."""
     track, path = track_file(db, track_id)
+    pinned = db.get(FetchedLyrics, track.id)
+    if pinned is not None and pinned.pinned:  # an admin's choice (api/lyrics_admin.py), ahead of the song's own
+        lrc = chosen_lrc(track.file_path)
+        text = (read_text(lrc) if lrc and lrc.is_file() else None) or pinned.lrc  # its file (DATA_DIR/lrc) as it is now, else the copy
+        found = parse(text) if text else {"synced": None, "plain": None}
+        return JSONResponse(found, headers={"Cache-Control": "private, max-age=600"})
     found = read_lyrics(Path(path))
     if not found["synced"]:
         album = db.scalar(select(Album.title).where(Album.id == track.album_id)) if track.album_id else ""

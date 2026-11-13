@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AArrowDown, AArrowUp } from '@lucide/vue'
+import { AArrowDown, AArrowUp, FilePenLine } from '@lucide/vue'
+import { useAuth } from '../stores/auth'
 import { coverWash } from '../coverColor'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
@@ -16,6 +17,12 @@ const { t } = useI18n()
 const player = usePlayer()
 const lyrics = useLyrics()
 const ui = useUi()
+const auth = useAuth()
+// admins: these lyrics wrong or out of time → LyricsAdminSheet
+function manage() {
+  const s = player.current
+  if (s) ui.lyricsAdmin = { trackId: s.id, title: s.title, artist: s.artist ?? '' }
+}
 const box = ref<HTMLElement | null>(null)
 const lines = ref<HTMLElement[]>([])
 
@@ -91,6 +98,17 @@ watch(() => lyrics.lyrics, async () => {
     <!-- text size -->
     <!-- phone: top left (the close button is top right); PC: bottom right -->
     <div class="absolute flex gap-1" :class="large ? 'bottom-2.5 right-2.5' : bold ? 'bottom-2 right-0' : 'left-3 top-1'">
+      <button
+        v-if="auth.user?.is_admin && player.current"
+        type="button"
+        class="grid size-9 place-items-center rounded-full text-ink backdrop-blur-sm"
+        :class="bold ? 'bg-white/15' : 'bg-bg/60'"
+        :aria-label="t('lyricsAdmin.open')"
+        :title="t('lyricsAdmin.open')"
+        @click="manage"
+      >
+        <FilePenLine :size="17" :stroke-width="1.6" />
+      </button>
       <button
         v-for="by in [-1, 1]"
         :key="by"

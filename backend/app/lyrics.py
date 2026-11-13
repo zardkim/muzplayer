@@ -152,3 +152,36 @@ def read_lyrics(path: Path) -> dict:
             return result
         plain = plain or result["plain"]
     return {"synced": None, "plain": plain}
+
+
+def shift_lrc(text: str, offset_ms: int) -> str:
+    """The LRC with every time stamp moved offset_ms later (earlier when negative; not before 0):
+    an admin's fix of their timing, written into the file so any player shows it so."""
+    if not offset_ms:
+        return text
+
+    def move(m: re.Match) -> str:
+        frac = m.group(3) or "0"
+        at = int(m.group(1)) * 60 + int(m.group(2)) + int(frac) / 10 ** len(frac) + offset_ms / 1000
+        at = max(0.0, at)
+        return f"[{int(at // 60):02d}:{at % 60:05.2f}]"
+
+    return STAMP.sub(move, text)
+
+
+def read_text(path: Path) -> str | None:
+    """A lyrics file's text (whatever its encoding), or None when it can't be read."""
+    try:
+        return _decode(path.read_bytes()[:512_000])
+    except OSError:
+        return None
+
+
+def own_texts(path: Path) -> list[str]:
+    """The song's own lyrics as written: its .lrc, then those in its tags."""
+    texts = [t for t in [_sidecar(path)] if t]
+    try:
+        texts += _from_tags(path)
+    except Exception:  # noqa: BLE001 - unreadable tags: none
+        pass
+    return texts

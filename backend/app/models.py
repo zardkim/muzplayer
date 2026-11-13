@@ -236,7 +236,9 @@ class Chart(Base):
 
 
 class FetchedLyrics(Base):
-    """Lyrics looked up for a song without its own (lyrics_fetch.py). lrc NULL: none were found."""
+    """Lyrics looked up for a song without its own (lyrics_fetch.py). lrc NULL: none were found.
+    Pinned: chosen by an admin (api/lyrics_admin.py; their file is DATA_DIR/lrc/<the song's path>.lrc,
+    this a copy), shown ahead of the song's own (lrc NULL: none shown at all), never looked up again."""
 
     __tablename__ = "fetched_lyrics"
 
@@ -244,6 +246,7 @@ class FetchedLyrics(Base):
     lrc: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(String(32))  # alsong | bugs | lrclib
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
 
 
 class NameAlias(Base):

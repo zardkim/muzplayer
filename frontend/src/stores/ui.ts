@@ -107,6 +107,8 @@ export const useUi = defineStore('ui', () => {
   const videoPick = ref<import('../types').VideoListItem[] | null>(null)
   // the lyrics sheet (App.vue): a song's lyrics from a list, without playing it
   const lyricsTarget = ref<{ trackId: number; title: string; artist: string } | null>(null)
+  // admins: a song's lyrics to fix (LyricsAdminSheet)
+  const lyricsAdmin = ref<{ trackId: number; title: string; artist: string } | null>(null)
 
   // PC: the bottom player bar can be tucked away, the sidebar folded to icons, and each list page
   // shown as a list, covers or a grid
@@ -163,7 +165,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinked,
+    radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, lyricsAdmin, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinked,
     barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, wide, playerTab,
   }
 })

@@ -75,6 +75,11 @@ check "search index built" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["
 # lyrics: the song's own, else looked up once (needs the internet: only the shape is checked) and kept
 check "lyrics answer" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics" | j 'sorted(d)')" "['plain', 'synced']"
 check "lyrics answer again" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/$fid/lyrics")" 200
+# an admin's lyrics for the song (api/lyrics_admin.py): ahead of its own, shifted, then back to automatic
+check "lyrics admin reads the song" "$(curl -s -b "$A" "$BASE/admin/lyrics/$fid" | j '"shown" in d')" True
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/admin/lyrics/$fid" -H 'content-type: application/json' -d '{"lrc":"[00:01.00]smoke line\n[00:04.00]smoke two","source":"manual","offset_ms":500}'
+check "chosen lyrics shown, shifted" "$(curl -s -b "$A" "$BASE/tracks/$fid/lyrics?v=1" | j 'd["synced"][0]')" "[1.5, 'smoke line']"
+check "lyrics back to automatic" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/admin/lyrics/$fid")" 204
 check "search box suggests words" "$(curl -s -b "$A" "$BASE/search/suggest?q=a" | j 'sorted(d)')" "['items']"
 check "songs say whether they have lyrics" "$(curl -s -b "$A" "$BASE/tracks?limit=1" | j '"has_lyrics" in d["items"][0]')" True
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/$tid"
