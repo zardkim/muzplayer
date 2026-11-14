@@ -52,33 +52,124 @@ muzplayer reads your NAS music folder as it is and shows it like a streaming app
 
 ## Install (Docker Compose)
 
-Two containers: `app` and `db` (PostgreSQL). No build needed.
+Two containers: `app` (muzplayer) and `db` (PostgreSQL). Nothing to build: the image is
+[`zardkim/muzplayer`](https://hub.docker.com/r/zardkim/muzplayer) on Docker Hub (amd64 and arm64).
+The examples use `/srv/muzplayer`; on a Synology NAS use something like `/volume1/docker/muzplayer`.
+
+### 1. Make the install folder and get the files
 
 ```bash
 mkdir -p /srv/muzplayer && cd /srv/muzplayer
 curl -fsSLo docker-compose.yml https://raw.githubusercontent.com/zardkim/muzplayer/main/deploy/docker-compose.yml
-curl -fsSLo .env https://raw.githubusercontent.com/zardkim/muzplayer/main/deploy/.env.example
+curl -fsSLo .env.example      https://raw.githubusercontent.com/zardkim/muzplayer/main/deploy/.env.example
+cp .env.example .env          # the settings file must be named exactly .env
 ```
 
-Edit `.env` — at least:
+- Docker Compose reads only the `.env` file **next to** `docker-compose.yml`. Left as `.env.example` (or renamed to anything else) it is ignored.
+- Files starting with a dot are hidden in most file managers; use `ls -a` to see `.env`.
+- Don't edit `docker-compose.yml`: everything you change is in `.env`.
 
-| Setting | Meaning |
-|---|---|
-| `MUZPLAYER_DIR` | Absolute path of this folder; `app`, `db`, `conf` and `library` are created under it |
-| `POSTGRES_PASSWORD` | A long random string; don't change it after the first start |
-| `PUID` / `PGID` | The user the app runs as (`id <user>`); it must be able to read the music |
-| `HTTP_PORT` | Port to open (default `18150`) |
-| `DEFAULT_LOCALE` | `en` for English by default |
+### 2. Settings in `.env`
 
-Bind-mount your music into `library/music` (audiobooks into `library/audiobook`, videos into `library/video`) — symbolic links don't work:
+The four in **bold** must be set.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| **`MUZPLAYER_DIR`** | `/volume1/docker/muzplayer` | **Absolute** path of the install folder; `app`, `db`, `conf` and `library` are created under it. No relative paths like `./` |
+| **`POSTGRES_PASSWORD`** | `change-me-…` | Database password: a long random string (e.g. `openssl rand -hex 24`). **Never change it after the first start** |
+| **`PUID`** / **`PGID`** | `1026` / `100` | The user the app runs as; it must be able to **read** your music. `id <user>` → `uid=1026(…) gid=100(users)` means `PUID=1026`, `PGID=100` |
+| **`HTTP_PORT`** | `18150` | Port to open: `http://<server>:18150`, or point your reverse proxy at it |
+| `MUZPLAYER_IMAGE` | `zardkim/muzplayer` | Image to run; change only for your own build |
+| `MUZPLAYER_VERSION` | `latest` | Image tag; pin a version like `0.69.2` to stay on it |
+| `COOKIE_SECURE` | `true` | `true` behind HTTPS. **Set `false` when you open it as plain `http://IP:port`**, or sign-in won't stick |
+| `DEFAULT_LOCALE` | `ko` | Interface language when the browser doesn't choose: `ko` or `en` |
+| `TZ` | `Asia/Seoul` | Time zone (play history, statistics) |
+| `SCAN_INTERVAL_MINUTES` | `60` | Automatic rescan interval; `0` = manual only |
+| `TRANSCODE_CACHE_MB` | `2048` | Space for converted songs in `app/transcode` |
+| `SESSION_DAYS` | `60` | How long a sign-in lasts |
+| `FFMPEG_PATH` | (empty) | Leave empty; only to use another ffmpeg |
+
+The admin account, AI and YouTube keys and the sign-up mode are set **in the app** (admin page), not in `.env`.
+
+### 3. Folders and mounting your music
+
+On the first start these are created under `MUZPLAYER_DIR`:
+
+```
+/srv/muzplayer/            ← MUZPLAYER_DIR
+├── docker-compose.yml
+├── .env
+├── app/            ← cover and transcode caches, lyrics chosen by the admin (app/lrc)
+├── conf/           ← settings and API keys changed in the app
+├── db/             ← the database
+└── library/        ← mounted read-only into the app
+    ├── music/      ← mount your music here          (required)
+    ├── audiobook/  ← mount audiobooks here          (optional)
+    ├── video/      ← mount music video files here   (optional)
+    └── cover music/← audio extracted from videos (the only folder the app writes to)
+```
+
+Don't copy your music: **bind-mount** it into `library/music`. Create the empty folders first:
 
 ```bash
-mkdir -p library/music
-sudo mount --bind /path/to/music library/music
-docker compose up -d
+cd /srv/muzplayer && mkdir -p library/music library/audiobook library/video
 ```
 
-Open `http://<host>:18150`: the first account created there becomes the admin, so create it before exposing the app. Then choose the library folder kinds in the admin page and start a scan. Running behind an HTTPS reverse proxy is recommended (`COOKIE_SECURE=true` is the default).
+> ⚠ **Symbolic links don't work** — the container can't follow them. Use a mount.
+
+**A — Linux (`/etc/fstab`, survives reboots)**
+
+```bash
+# /etc/fstab
+/srv/music      /srv/muzplayer/library/music      none  bind,ro  0 0
+/srv/audiobook  /srv/muzplayer/library/audiobook  none  bind,ro  0 0
+
+sudo mount -a
+```
+
+**B — Synology NAS (Task Scheduler)** — Control Panel → Task Scheduler → Create → Triggered Task → User-defined script; user **root**, event **Boot-up**; run it once after saving:
+
+```bash
+D=/volume1/docker/muzplayer
+mkdir -p $D/library/music $D/library/audiobook $D/library/video
+grep -qs " $D/library/music " /proc/mounts     || mount --bind /volume1/music     $D/library/music
+grep -qs " $D/library/audiobook " /proc/mounts || mount --bind /volume1/audiobook $D/library/audiobook
+sleep 30 && docker restart muzplayer
+```
+
+**C — Shares on another NAS or PC (NFS / SMB)**
+
+```bash
+sudo mount -t nfs  192.168.0.20:/volume1/music  /srv/muzplayer/library/music -o ro
+sudo mount -t cifs //192.168.0.20/music /srv/muzplayer/library/music -o ro,username=<user>,uid=<PUID>,gid=<PGID>
+```
+
+**Check**
+
+```bash
+ls /srv/muzplayer/library/music | head                      # your music must show
+sudo -u '#<PUID>' ls /srv/muzplayer/library/music           # and be readable as PUID
+```
+
+Nothing listed: the mount didn't happen. `Permission denied`: change `PUID`/`PGID` or give that user read access.
+Mounted after the app started? `docker restart muzplayer`.
+
+### 4. Start and first setup
+
+```bash
+docker compose up -d
+docker compose logs --tail 20 app      # ready when "Uvicorn running" shows
+```
+
+1. Open `http://<server>:18150`. **The first account created becomes the admin** — create it before exposing the app.
+2. Admin → **Library folders**: choose the kind of each folder right under `library/music` (album, compilation, chart, theme, excluded).
+3. Press **Start scan** (the first scan of a big library takes a while).
+4. Admin → **Users**: create accounts for family and friends, or choose the sign-up mode.
+5. (Optional) Admin → **External service keys**: YouTube search, AI (Gemini, OpenAI).
+
+- Phones: Safari → Share → **Add to Home Screen** / Chrome → **Install app**.
+- From outside, put an HTTPS reverse proxy in front of `http://<server>:18150` and keep `COOKIE_SECURE=true`.
+- **Portainer:** Stacks → Add stack → paste `docker-compose.yml`, add each `.env` line under **Environment variables**, Deploy. Do step 3 (folders and mounts) first all the same.
 
 ## Update
 
