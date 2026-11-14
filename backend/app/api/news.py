@@ -1,11 +1,12 @@
 """What's new: albums, audiobooks, music videos, charts and themes added since the person last
 looked (the bell in the app). Counted from when they were added (created_at), per person
 (User.news_seen_at), so every device of theirs agrees. The first look starts from then: a new
-account, or this update, doesn't greet anyone with the whole library."""
+account, or this update, doesn't greet anyone with the whole library. The news page itself asks for
+a span instead (`days`: the last month unless they pick another), the bell's count stays the new."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -25,14 +26,19 @@ SHOWN = 24  # of each kind; the counts are of all
 
 
 @router.get("/me/news")
-def news(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """What was added after news_seen_at, newest first. `until` is when this was looked up: marking
-    it seen up to then (POST /me/news/seen) keeps what arrives meanwhile new."""
+def news(
+    days: int | None = Query(None, ge=1, le=366),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """What was added after news_seen_at (or in the last `days`), newest first. `until` is when this
+    was looked up: marking it seen up to then (POST /me/news/seen) keeps what arrives meanwhile new."""
     until = now()
-    since = user.news_seen_at
-    if since is None:
+    since = until - timedelta(days=days) if days else user.news_seen_at
+    if user.news_seen_at is None:
         user.news_seen_at = until
         db.commit()
+    if since is None:
         return {"since": until, "until": until, "total": 0, "counts": {}, "albums": [], "books": [], "videos": [], "charts": []}
 
     def counted(stmt):

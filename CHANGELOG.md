@@ -2,6 +2,10 @@
 
 muzplayer의 버전별 변경 사항입니다(개발 계획서 `music_player_plan.md`의 변경 이력에서 만듦).
 
+## 0.70.0 — 2026-11-14
+
+Hi-Res 배지를 Hi-Res Audio 로고 이미지로(`public/hires.png`, 앨범 상세는 크게, 상표 고지 추가). '새로 추가됨' 페이지는 기간으로(기본 1개월, 1주·3개월 선택: `GET /me/news?days=`), 종 아이콘 숫자는 그대로 마지막 확인 뒤 새로 들어온 것
+
 ## 0.69.2 — 2026-11-14
 
 GitHub(zardkim/muzplayer) 공개 준비. LICENSE(GPL-3.0-or-later)·THIRD_PARTY_NOTICES.md(이미지 `/usr/share/doc/muzplayer`에도), README 한·영 새로 작성, 데모 스크린샷 13장, 위키(`docs/wiki` → GitHub 위키), CHANGELOG.md(`scripts/changelog.py`). docker-compose 이미지 `${MUZPLAYER_IMAGE:-zardkim/muzplayer}`(내 NAS는 `.env`에 Harbor), GitHub Actions가 v 태그로 Docker Hub에 amd64·arm64(deno를 TARGETARCH별로). Windows 앱 릴리스 조회가 GitHub 주소도 받음. 테마 이름에서 다른 서비스 이름 제거(웜 그레이·모던 다크·프레시 그린)

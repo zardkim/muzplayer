@@ -545,8 +545,10 @@
   "news": {
     "title": "What's new",
     "bellNew": "{n} new",
-    "since": "Added since {when}",
-    "empty": "Nothing new since you last looked.",
+    "empty": "Nothing was added in this time.",
+    "span_7": "1 week",
+    "span_30": "1 month",
+    "span_90": "3 months",
     "albums": "New albums",
     "books": "New audiobooks",
     "videos": "New videos",

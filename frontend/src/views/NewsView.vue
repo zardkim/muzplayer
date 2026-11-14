@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bell } from '@lucide/vue'
-import { ago } from '../format'
-import { loadNews, markNewsSeen, type News } from '../news'
+import { api } from '../api'
+import { markNewsSeen, type News } from '../news'
 import { useUi } from '../stores/ui'
 import type { VideoListItem } from '../types'
 import AlbumGrid from '../components/AlbumGrid.vue'
@@ -12,19 +12,30 @@ import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import VideoCard from '../components/VideoCard.vue'
 
-// What was added since this person last looked (the bell): albums, audiobooks, music videos, charts
-// and themes. Opening it counts as seeing them; they stay on the page until it is left.
+// What was added lately: albums, audiobooks, music videos, charts and themes of the last month (or
+// week, or three months). Opening it counts as seeing what the bell had.
 const { t } = useI18n()
 const ui = useUi()
+const SPANS = [7, 30, 90]
+const days = ref(30)
 const shown = ref<News | null>(null)
 const loaded = ref(false)
 
-onMounted(async () => {
-  const n = await loadNews(true)
-  shown.value = n && { ...n, counts: { ...n.counts } }
-  loaded.value = true
-  markNewsSeen()
-})
+watch(
+  days,
+  async (d) => {
+    try {
+      const n = await api<News>(`/me/news?days=${d}`)
+      if (d !== days.value) return
+      shown.value = n
+      markNewsSeen(n.until)
+    } catch {
+      /* offline: kept as it was */
+    }
+    loaded.value = true
+  },
+  { immediate: true },
+)
 
 const c = computed(() => shown.value?.counts ?? {})
 const charts = computed(() => shown.value?.charts.filter((x) => x.kind === 'chart') ?? [])
@@ -39,7 +50,18 @@ const more = (all: number | undefined, here: number) => (all && all > here ? t('
 
 <template>
   <div class="flex flex-col gap-8">
-    <PageHeader :title="t('news.title')" :icon="Bell" :sub="shown?.total ? t('news.since', { when: ago(shown.since) }) : undefined" />
+    <PageHeader :title="t('news.title')" :icon="Bell" />
+    <div class="-mt-4 flex gap-2">
+      <button
+        v-for="d in SPANS"
+        :key="d"
+        type="button"
+        class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink"
+        :aria-pressed="days === d"
+        :class="days === d ? 'border-ink bg-ink text-on-ink' : ''"
+        @click="days = d"
+      >{{ t(`news.span_${d}`) }}</button>
+    </div>
     <p v-if="loaded && !shown?.total" class="font-light text-muted">{{ t('news.empty') }}</p>
 
     <section v-if="shown?.albums.length" class="flex flex-col gap-3">

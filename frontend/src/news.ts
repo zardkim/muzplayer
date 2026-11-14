@@ -33,11 +33,11 @@ export async function loadNews(force = false) {
 }
 
 /** The news page was looked at: seen up to when its lists were made (what came after stays new). */
-export async function markNewsSeen() {
+export async function markNewsSeen(until: string) {
   const n = news.value
   if (!n?.total) return
   try {
-    await api('/me/news/seen', { method: 'POST', body: { until: n.until } })
+    await api('/me/news/seen', { method: 'POST', body: { until } })
     news.value = { ...n, total: 0, counts: {} }
   } catch {
     /* tried again next time */

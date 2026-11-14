@@ -51,6 +51,9 @@ mutagen (GPL-2.0-or-later) is the reason muzplayer itself is released under the 
   `frontend/public/logos/` (KBS, MBC, SBS, Melon, Bugs, Genie, Billboard and others) are trademarks
   of their owners. They are shown only to identify the stations and charts; muzplayer is not
   affiliated with or endorsed by them.
+- The Hi-Res Audio logo (`frontend/public/hires.png`) is a trademark of the Japan Audio Society. It
+  marks albums whose files are above CD quality (24-bit or over 48 kHz); muzplayer is not certified
+  by or affiliated with the Japan Audio Society.
 - Album information, ratings, artist names and lyrics are looked up from third-party services
   (Bugs, Melon, AlSong, LRCLIB, MusicBrainz, Wikidata, Wikipedia, Deezer). Some of these are
   **unofficial integrations**; they may change or stop working, and their use is subject to each
@@ -61,6 +64,7 @@ mutagen (GPL-2.0-or-later) is the reason muzplayer itself is released under the 
 
 - 방송사·차트 로고는 각 소유자의 상표이며, 방송과 차트를 구분하는 용도로만 표시합니다. muzplayer는
   이들과 관계가 없습니다.
+- Hi-Res Audio 로고는 일본오디오협회(JAS)의 상표이며, CD보다 높은 음질의 앨범을 표시하는 데만 씁니다.
 - 앨범 정보·별점·가사 등은 외부 서비스에서 가져오며, 일부는 **비공식 연동**입니다. 각 서비스의 약관을
   따르고 개인적·비상업적 용도로만 사용하세요.
 - YouTube 음원 추출은 기본으로 꺼져 있습니다. 권리가 있거나 허락된 영상에만 사용하세요.
