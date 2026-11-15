@@ -5,6 +5,7 @@ import { api } from '../api'
 import { usePlayer } from '../stores/player'
 import type { Chart, ChartDetail } from '../types'
 import { sourceLogo } from '../format'
+import NewBadge from './NewBadge.vue'
 import CoverArt from './CoverArt.vue'
 import SourceLogo from './SourceLogo.vue'
 import PlayerIcons from './PlayerIcons.vue'
@@ -37,7 +38,7 @@ async function play(id: number) {
             <span v-if="c.source" class="absolute left-2 top-2 flex max-w-[calc(100%-3.5rem)] items-center gap-1 rounded-full bg-ink/80 py-0.5 pr-2 text-[12px] font-medium text-on-ink" :class="sourceLogo(c.source) ? 'pl-0.5' : 'pl-2'"><SourceLogo :source="c.source" :size="18" class="rounded-full" /><span class="truncate">{{ c.source }}</span></span>
           </CoverArt>
           <span class="flex min-w-0 flex-col">
-            <span class="truncate text-base">{{ c.title }}</span>
+            <span class="flex min-w-0 items-center gap-1.5"><NewBadge :created="c.created_at" /><span class="truncate text-base">{{ c.title }}</span></span>
             <span class="truncate text-sm font-light text-muted">{{ t('common.tracks', c.track_count) }}</span>
           </span>
         </RouterLink>

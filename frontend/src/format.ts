@@ -66,3 +66,9 @@ export function sourceLogo(source: string): string | null {
 export function chartSource(source: string): string {
   return source.replace(/\s*(?:차트|charts?)\s*$/i, '').trim()
 }
+
+/** Added in the last week (the NEW badge on albums, charts and themes; the news page's default span too). */
+export const NEW_DAYS = 7
+export function isNew(created: string | null | undefined): boolean {
+  return !!created && Date.now() - new Date(created).getTime() < NEW_DAYS * 86_400_000
+}

@@ -17,6 +17,8 @@
   --color-danger: #c8261d;
   --color-like: #f0243c; /* a liked song or album: the same red in every theme */
   --color-on-ink: #ffffff; /* text and icons on an ink-filled button */
+  --color-new: #d93b22; /* the NEW badge: each theme's accent */
+  --color-on-new: #ffffff;
   --color-soft: #52525b; /* secondary text on the player screens */
   --color-sheet: #f7f6f2; /* full-screen player background */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
@@ -50,6 +52,8 @@
   --color-accent-soft: #e3cfb6;
   --color-danger: #b3261e;
   --color-on-ink: #fbfaf8;
+  --color-new: #a8630f;
+  --color-on-new: #ffffff;
   --color-soft: #4a4642;
   --color-sheet: #d3cdc7;
   --glass-bg: rgb(250 248 245 / 0.92);
@@ -82,6 +86,8 @@
   --color-accent-soft: #17311f;
   --color-danger: #f3727f;
   --color-on-ink: #000000;
+  --color-new: #1ed760;
+  --color-on-new: #000000;
   --color-soft: #b3b3b3;
   --color-sheet: #121212;
   --glass-bg: rgb(24 24 24 / 0.88);
@@ -112,6 +118,8 @@
   --color-accent-soft: #e8f9ed;
   --color-danger: #e5322d;
   --color-on-ink: #ffffff;
+  --color-new: #008529;
+  --color-on-new: #ffffff;
   --color-soft: #4d4d4d;
   --color-sheet: #ffffff;
   --glass-bg: rgb(255 255 255 / 0.94);

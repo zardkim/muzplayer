@@ -5,6 +5,7 @@ import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { Album, ViewMode } from '../types'
 import CoverArt from './CoverArt.vue'
+import NewBadge from './NewBadge.vue'
 import PlayerIcons from './PlayerIcons.vue'
 import QualityBadge from './QualityBadge.vue'
 
@@ -22,7 +23,7 @@ const shown = useProgressive(() => props.albums)
       <RouterLink :to="{ name: 'album', params: { id: a.id } }" class="flex min-w-0 flex-1 items-center gap-3.5">
         <CoverArt :album-id="a.id" :has-cover="a.has_cover" :version="a.cover_v" rounded="rounded-md" class="size-14 flex-none" />
         <span class="flex min-w-0 flex-1 flex-col">
-          <span class="truncate text-[16px]">{{ a.title || t('common.unknownAlbum') }}</span>
+          <span class="flex min-w-0 items-center gap-1.5"><NewBadge :created="a.created_at" /><span class="truncate text-[16px]">{{ a.title || t('common.unknownAlbum') }}</span></span>
           <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">
             <span v-if="a.kind === 'unofficial' || a.kind === 'compilation' || a.kind === 'soundtrack'" class="flex-none rounded border border-line-strong px-1 text-[11px] leading-[18px]">{{ t(`albums.kind_${a.kind}`) }}</span>
             <QualityBadge :quality="a.quality" />
@@ -56,7 +57,7 @@ const shown = useProgressive(() => props.albums)
       <RouterLink :to="{ name: 'album', params: { id: a.id } }" class="flex flex-col gap-2">
         <CoverArt :album-id="a.id" :has-cover="a.has_cover" :version="a.cover_v" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-base">{{ a.title || t('common.unknownAlbum') }}</span>
+          <span class="flex min-w-0 items-center gap-1.5"><NewBadge :created="a.created_at" /><span class="truncate text-base">{{ a.title || t('common.unknownAlbum') }}</span></span>
           <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">
             <span v-if="a.kind === 'unofficial' || a.kind === 'compilation' || a.kind === 'soundtrack'" class="flex-none rounded border border-line-strong px-1 text-[11px] leading-[18px]">{{ t(`albums.kind_${a.kind}`) }}</span>
             <QualityBadge :quality="a.quality" />

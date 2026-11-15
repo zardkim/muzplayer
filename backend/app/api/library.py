@@ -288,6 +288,7 @@ def album_out(row) -> dict:
         "has_cover": bool(album.cover_path),
         "cover_v": album.cover_version if album.cover_path else 0,
         "track_count": track_count,
+        "created_at": album.created_at,  # (the NEW badge)
     }
 
 

@@ -43,6 +43,7 @@ export interface Album {
   has_cover: boolean
   cover_v: number
   track_count: number
+  created_at?: string // added (the NEW badge)
 }
 
 export interface AlbumDetail extends Album {
