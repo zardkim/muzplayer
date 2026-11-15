@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { BookHeadphones, Check, ChevronRight, ListMusic, ListVideo, Pencil, Plus, SquareCheckBig, Trash2, Zap } from '@lucide/vue'
-import { api } from '../api'
+import { api, coverUrl } from '../api'
 import { appConfig } from '../config'
 import BaseModal from '../components/BaseModal.vue'
 import { errorMessage } from '../i18n'
@@ -125,7 +125,7 @@ async function reload() {
 
 <template>
   <div class="flex flex-col gap-5">
-    <PageHeader :title="t('playlists.title')">
+    <PageHeader :title="t('nav.playlistsAll')">
       <!-- the kinds: on the title's line, as icons -->
       <template #actions>
         <div class="flex flex-none rounded-full bg-surface p-0.5 md:p-1" role="tablist" :aria-label="t('playlists.title')">
@@ -206,6 +206,25 @@ async function reload() {
         </component>
       </li>
     </ul>
+    <!-- everyone's shared playlists: only listened to here (their maker or an admin edits them on their page) -->
+    <section v-if="!editing && library.sharedPlaylists.length" class="mt-4 flex flex-col gap-1">
+      <h2 class="text-[20px] font-bold">{{ t('shared.title') }} <span class="text-[15px] font-normal text-muted">{{ library.sharedPlaylists.length }}</span></h2>
+      <ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
+        <li v-for="p in library.sharedPlaylists" :key="p.id">
+          <RouterLink :to="{ name: 'playlist', params: { id: p.id } }" class="flex min-h-[72px] items-center gap-3.5 border-b border-surface">
+            <span class="grid size-[52px] flex-none place-items-center overflow-hidden rounded-lg bg-surface">
+              <img v-if="p.cover" :src="coverUrl(p.cover.id, 'thumb', p.cover.v)" alt="" loading="lazy" class="h-full w-full object-cover" />
+              <ListMusic v-else :size="22" :stroke-width="1.3" />
+            </span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate text-[17px]">{{ p.name }}</span>
+              <span class="truncate text-sm font-light text-muted">{{ t('common.tracks', p.track_count ?? 0) }}{{ p.owner ? ` · ${p.owner}` : '' }}</span>
+            </span>
+            <ChevronRight :size="18" class="text-subtle" />
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
     </template>
 
     <!-- video playlists -->

@@ -277,6 +277,11 @@ watch(
   },
   { immediate: true },
 )
+// the sidebar's playlists: mine, then the shared ones (ten of each; the playlists page has them all)
+const sidePlaylists = computed(() => [
+  { label: 'nav.playlists', items: library.playlists.slice(0, 10) },
+  { label: 'shared.title', items: library.sharedPlaylists.slice(0, 10) },
+])
 // the PC player page keeps the bar (it holds the controls)
 const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 </script>
@@ -329,19 +334,25 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       >
         <ListMusic :size="20" :stroke-width="1.4" />
       </RouterLink>
+      <!-- playlists: mine, then everyone's shared ones -->
       <div v-if="!ui.sidebarCollapsed" class="mx-3.5 mb-1 mt-6 flex items-center justify-between text-[13px] text-muted">
-        <RouterLink to="/playlists" class="hover:text-ink">{{ t('nav.playlists') }}</RouterLink>
+        <RouterLink to="/playlists" class="hover:text-ink">{{ t('nav.playlistsAll') }}</RouterLink>
         <ListMusic :size="16" :stroke-width="1.4" />
       </div>
-      <RouterLink
-        v-for="p in ui.sidebarCollapsed ? [] : library.playlists.slice(0, 10)"
-        :key="p.id"
-        :to="{ name: 'playlist', params: { id: p.id } }"
-        class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
-        :class="route.name === 'playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
-      >
-        <span class="truncate">{{ p.name }}</span>
-      </RouterLink>
+      <template v-if="!ui.sidebarCollapsed">
+        <template v-for="group in sidePlaylists" :key="group.label">
+          <p v-if="group.items.length" class="mx-3.5 mb-0.5 mt-2 text-[12px] text-subtle">{{ t(group.label) }}</p>
+          <RouterLink
+            v-for="p in group.items"
+            :key="p.id"
+            :to="{ name: 'playlist', params: { id: p.id } }"
+            class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
+            :class="route.name === 'playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
+          >
+            <span class="truncate">{{ p.name }}</span>
+          </RouterLink>
+        </template>
+      </template>
       <div class="flex-1" />
       <RouterLink
         v-if="auth.user.is_admin"

@@ -12,12 +12,12 @@ import ChartGrid from '../components/ChartGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import VideoCard from '../components/VideoCard.vue'
 
-// What was added lately: albums, audiobooks, music videos, charts and themes of the last month (or
-// week, or three months). Opening it counts as seeing what the bell had.
+// What was added lately: albums, audiobooks, music videos, charts and themes of the last week (or
+// a month, or three). Opening it counts as seeing what the bell had.
 const { t } = useI18n()
 const ui = useUi()
 const SPANS = [7, 30, 90]
-const days = ref(30)
+const days = ref(7)
 const shown = ref<News | null>(null)
 const loaded = ref(false)
 

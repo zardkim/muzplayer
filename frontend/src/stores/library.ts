@@ -10,6 +10,7 @@ export const useLibrary = defineStore('library', () => {
   const favoriteOverrides = reactive(new Map<number, boolean>())
   const ratingOverrides = reactive(new Map<number, number | null>())
   const playlists = ref<Playlist[]>([])
+  const sharedPlaylists = ref<Playlist[]>([]) // everyone's (the sidebar and the playlists page)
   const videoPlaylists = ref<VideoPlaylist[]>([]) // the sidebar, My Music, the playlists page and the video picker
 
   function isFavorite(track: Track) {
@@ -44,7 +45,12 @@ export const useLibrary = defineStore('library', () => {
   }
 
   async function loadPlaylists() {
-    playlists.value = (await api<{ items: Playlist[] }>('/playlists')).items
+    const [mine, shared] = await Promise.all([
+      api<{ items: Playlist[] }>('/playlists'),
+      api<{ items: Playlist[] }>('/playlists/shared').catch(() => ({ items: sharedPlaylists.value })),
+    ])
+    playlists.value = mine.items
+    sharedPlaylists.value = shared.items
   }
 
   async function loadVideoPlaylists() {
@@ -68,8 +74,9 @@ export const useLibrary = defineStore('library', () => {
     favoriteOverrides.clear()
     ratingOverrides.clear()
     playlists.value = []
+    sharedPlaylists.value = []
     videoPlaylists.value = []
   }
 
-  return { isFavorite, toggleFavorite, rating, rate, playlists, loadPlaylists, videoPlaylists, loadVideoPlaylists, createPlaylist, addToPlaylist, reset }
+  return { isFavorite, toggleFavorite, rating, rate, playlists, sharedPlaylists, loadPlaylists, videoPlaylists, loadVideoPlaylists, createPlaylist, addToPlaylist, reset }
 })

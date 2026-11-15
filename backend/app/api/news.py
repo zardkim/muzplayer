@@ -2,7 +2,7 @@
 looked (the bell in the app). Counted from when they were added (created_at), per person
 (User.news_seen_at), so every device of theirs agrees. The first look starts from then: a new
 account, or this update, doesn't greet anyone with the whole library. The news page itself asks for
-a span instead (`days`: the last month unless they pick another), the bell's count stays the new."""
+a span instead (`days`: the last week unless they pick another), the bell's count stays the new."""
 
 from datetime import datetime, timedelta
 
