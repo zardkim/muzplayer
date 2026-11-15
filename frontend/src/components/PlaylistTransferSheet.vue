@@ -33,7 +33,7 @@ function tick(entry: number) {
 }
 const targets = computed(() =>
   props.kind === 'music'
-    ? library.playlists.filter((p) => p.id !== props.sourceId && p.kind !== 'smart').map((p) => ({ id: p.id, name: p.name, count: p.track_count ?? 0 }))
+    ? library.editablePlaylists.filter((p) => p.id !== props.sourceId).map((p) => ({ id: p.id, name: p.name, count: p.track_count ?? 0 }))
     : library.videoPlaylists.filter((p) => p.id !== props.sourceId).map((p) => ({ id: p.id, name: p.name, count: p.count })),
 )
 const target = ref<number | 'new' | null>(null)

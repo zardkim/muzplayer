@@ -244,6 +244,8 @@ export interface Playlist {
   is_shared?: boolean // everyone sees and plays it (charts & themes page, home)
   chart_id?: number | null // the chart or theme it was made from
   owner?: string // who made it (the shared list)
+  can_edit?: boolean // (the shared lists) I may change it: its maker, or an admin
+  sort_order?: number | null // its place in my own order
   rules: SmartRules | null
   track_count: number | null // null for a smart playlist until it is opened
   cover?: { id: number; v: number } | null // its first song's album cover (the list's card)
@@ -254,6 +256,7 @@ export interface Playlist {
 export interface PlaylistDetail extends Playlist {
   entries: { entry_id: number | null; track: Track }[] // no entry_id in a smart playlist
   can_edit: boolean // its maker (or, a shared one, an admin); others only listen
+  missing?: { id: number; path: string; label: string }[] // an imported file's songs not found (yet)
 }
 
 export type RuleField = 'genre' | 'artist' | 'year' | 'rating' | 'favorite' | 'plays' | 'last_played' | 'added' | 'folder' | 'duration'

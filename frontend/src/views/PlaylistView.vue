@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeftRight, ListMusic, Pencil, Plus, SlidersHorizontal, Trash2, Zap } from '@lucide/vue'
+import { ArrowLeftRight, ChevronDown, FileDown, ListMusic, Pencil, Plus, RefreshCw, SlidersHorizontal, Trash2, Users, X, Zap } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -95,13 +95,40 @@ async function snapshot() {
   }
 }
 
+// my own ordinary list made shared (everyone sees it), or a shared one made its owner's alone again
+const canShare = computed(() => !!playlist.value && playlist.value.can_edit && !smart.value && !playlist.value.is_default)
+async function toggleShared() {
+  const p = playlist.value
+  if (!p) return
+  const shared = !p.is_shared
+  if (!confirm(t(shared ? 'playlists.shareConfirm' : 'playlists.unshareConfirm', { name: p.name }))) return
+  await run(() => api(`/playlists/${props.id}`, { method: 'PATCH', body: { shared } }))
+  ui.notify(t(shared ? 'playlists.shared' : 'playlists.unshared'))
+}
+
+// an imported file's songs not found: kept, looked for again after each scan or now
+const missingOpen = ref(false)
+async function rematch() {
+  try {
+    const r = await api<{ found: number; left: number }>(`/playlists/${props.id}/missing/rematch`, { method: 'POST' })
+    ui.notify(t('playlists.rematched', r))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
+  await load()
+  library.loadPlaylists().catch(() => {})
+}
+function forget(id?: number) {
+  if (id === undefined && !confirm(t('playlists.forgetAllConfirm'))) return
+  run(() => api(`/playlists/${props.id}/missing${id === undefined ? '' : `/${id}`}`, { method: 'DELETE' }))
+}
+
 async function destroy() {
   if (!playlist.value || !confirm(t('playlists.deleteConfirm', { name: playlist.value.name }))) return
   try {
-    const shared = playlist.value.is_shared
     await api(`/playlists/${props.id}`, { method: 'DELETE' })
     await library.loadPlaylists()
-    router.replace({ name: shared ? 'charts' : 'playlists' }) // a shared list lives on the charts & themes page
+    router.replace({ name: 'playlists' })
   } catch (e) {
     ui.notify(errorMessage(e), true)
   }
@@ -130,12 +157,59 @@ async function destroy() {
       <button v-else-if="playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong" :aria-label="t('common.rename')" @click="(newName = playlist.name), (renaming = true)">
         <Pencil :size="16" :stroke-width="1.4" />
       </button>
+      <button
+        v-if="canShare && (playlist.is_shared || !playlist.chart_id)"
+        type="button"
+        class="grid size-[38px] place-items-center rounded-full border border-line-strong"
+        :class="playlist.is_shared ? 'bg-ink text-on-ink' : ''"
+        :aria-label="t(playlist.is_shared ? 'playlists.unshare' : 'playlists.share')"
+        :title="t(playlist.is_shared ? 'playlists.unshare' : 'playlists.share')"
+        :aria-pressed="!!playlist.is_shared"
+        @click="toggleShared"
+      >
+        <Users :size="16" :stroke-width="1.5" />
+      </button>
+      <a
+        v-if="tracks.length"
+        :href="`/api/v1/playlists/${playlist.id}/export`"
+        download
+        class="grid size-[38px] place-items-center rounded-full border border-line-strong"
+        :aria-label="t('playlists.export')"
+        :title="t('playlists.export')"
+      >
+        <FileDown :size="16" :stroke-width="1.5" />
+      </a>
       <button v-if="!playlist.is_default && playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong text-danger" :aria-label="t('common.delete')" @click="destroy">
         <Trash2 :size="16" :stroke-width="1.4" />
       </button>
     </div>
     <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
     <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" @remove="remove" @move="move" @transfer="(ix) => (transfer = ix.map((i) => playlist!.entries[i].entry_id!))" />
+    <!-- an imported file's songs not in the library (yet) -->
+    <section v-if="playlist.can_edit && playlist.missing?.length" class="flex flex-col gap-2 rounded-2xl border border-line p-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="flex flex-1 items-center gap-2 text-left text-[16px] font-medium" :aria-expanded="missingOpen" @click="missingOpen = !missingOpen">
+          <ChevronDown :size="17" :stroke-width="1.7" class="transition-transform" :class="missingOpen ? '' : '-rotate-90'" />
+          <span class="text-danger">{{ t('playlists.missingTitle', { n: playlist.missing.length }) }}</span>
+        </button>
+        <button type="button" class="flex h-9 items-center gap-1.5 rounded-full border border-line-strong px-3.5 text-[14px] hover:border-ink" @click="rematch">
+          <RefreshCw :size="15" :stroke-width="1.6" />{{ t('playlists.rematch') }}
+        </button>
+        <button type="button" class="h-9 rounded-full px-3 text-[14px] text-muted hover:text-danger" @click="forget()">{{ t('playlists.forgetAll') }}</button>
+      </div>
+      <p class="text-[13px] font-light text-muted">{{ t('playlists.missingHelp') }}</p>
+      <ul v-if="missingOpen" class="flex flex-col">
+        <li v-for="m in playlist.missing" :key="m.id" class="flex items-center gap-2 border-t border-line py-2">
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-[14px]">{{ m.label }}</span>
+            <span class="truncate text-[12px] text-muted" :title="m.path">{{ m.path }}</span>
+          </span>
+          <button type="button" class="grid size-8 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('playlists.forget')" :title="t('playlists.forget')" @click="forget(m.id)">
+            <X :size="16" :stroke-width="1.6" />
+          </button>
+        </li>
+      </ul>
+    </section>
     <PlaylistTransferSheet
       v-if="transfer"
       kind="music"

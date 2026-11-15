@@ -584,7 +584,7 @@ def _own(db: Session, user: User, playlist_id: int) -> VideoPlaylist:
     return playlist
 
 
-DEFAULT_VIDEO_NAMES = {"ko": "기본 영상 플레이리스트", "en": "My video playlist"}
+DEFAULT_VIDEO_NAMES = {"ko": "기본 영상 재생목록", "en": "My video playlist"}
 
 
 def _playlist_out(p: VideoPlaylist, count: int, thumb: str | None = None) -> dict:

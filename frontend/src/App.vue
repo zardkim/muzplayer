@@ -2,7 +2,7 @@
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronDown, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -194,7 +194,6 @@ const sideNav = computed(() => [
   { key: 'videos', to: '/videos', label: 'nav.videos', icon: Clapperboard },
   ...(appConfig.audiobooks ? [books] : []),
   { key: 'favorites', to: '/favorites', label: 'nav.favorites', icon: Heart },
-  { key: 'history', to: '/history', label: 'nav.history', icon: History },
   { key: 'mymusic', to: '/library', label: 'nav.myMusic', icon: User },
 ])
 // (phone) my music before the library
@@ -277,11 +276,21 @@ watch(
   },
   { immediate: true },
 )
-// the sidebar's playlists: mine, then the shared ones (ten of each; the playlists page has them all)
+// the sidebar's playlists: mine, the shared ones, my video lists (ten of each, then a link to the playlists page)
+const SIDE_LISTS = 10
 const sidePlaylists = computed(() => [
-  { label: 'nav.playlists', items: library.playlists.slice(0, 10) },
-  { label: 'shared.title', items: library.sharedPlaylists.slice(0, 10) },
+  { label: 'nav.playlists', route: 'playlist', items: library.playlists, more: '/playlists' },
+  { label: 'shared.title', route: 'playlist', items: library.sharedPlaylists, more: '/playlists' },
+  { label: 'videos.myVideoPlaylists', route: 'video-playlist', items: library.videoPlaylists, more: '/playlists?tab=video' },
 ])
+// a group folded away (its heading stays), kept with the account
+const folded = (label: string) => ui.views[`side:${label}`] === 'folded'
+function fold(label: string) {
+  const views = { ...ui.views }
+  if (folded(label)) delete views[`side:${label}`]
+  else views[`side:${label}`] = 'folded'
+  ui.views = views
+}
 // the PC player page keeps the bar (it holds the controls)
 const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 </script>
@@ -324,33 +333,53 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       >
         <component :is="item.icon" :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t(item.label) }}</span>
       </RouterLink>
+      <!-- playlists: the menu, and under it recently played, mine, the shared ones and my video lists -->
       <RouterLink
-        v-if="ui.sidebarCollapsed"
         to="/playlists"
-        class="mt-4 flex h-11 flex-none items-center justify-center rounded-full font-light hover:bg-surface"
-        :class="active('playlists', '/playlists') ? 'bg-surface-2' : ''"
-        :title="t('nav.playlists')"
-        :aria-label="t('nav.playlists')"
+        class="mt-4 flex h-11 flex-none items-center gap-3 rounded-full text-base"
+        :class="[active('playlists', '/playlists') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
+        :title="ui.sidebarCollapsed ? t('nav.playlistsAll') : undefined"
+        :aria-label="ui.sidebarCollapsed ? t('nav.playlistsAll') : undefined"
       >
-        <ListMusic :size="20" :stroke-width="1.4" />
+        <ListMusic :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t('nav.playlistsAll') }}</span>
       </RouterLink>
-      <!-- playlists: mine, then everyone's shared ones -->
-      <div v-if="!ui.sidebarCollapsed" class="mx-3.5 mb-1 mt-6 flex items-center justify-between text-[13px] text-muted">
-        <RouterLink to="/playlists" class="hover:text-ink">{{ t('nav.playlistsAll') }}</RouterLink>
-        <ListMusic :size="16" :stroke-width="1.4" />
-      </div>
+      <RouterLink
+        to="/history"
+        class="flex flex-none items-center gap-3 rounded-full"
+        :class="[
+          active('history', '/history') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface',
+          ui.sidebarCollapsed ? 'h-11 justify-center' : 'h-9 pl-11 pr-3.5 text-[15px]',
+        ]"
+        :title="ui.sidebarCollapsed ? t('nav.history') : undefined"
+        :aria-label="ui.sidebarCollapsed ? t('nav.history') : undefined"
+      >
+        <History :size="ui.sidebarCollapsed ? 20 : 16" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t('nav.history') }}</span>
+      </RouterLink>
       <template v-if="!ui.sidebarCollapsed">
         <template v-for="group in sidePlaylists" :key="group.label">
-          <p v-if="group.items.length" class="mx-3.5 mb-0.5 mt-2 text-[12px] text-subtle">{{ t(group.label) }}</p>
+          <button
+            v-if="group.items.length"
+            type="button"
+            class="mb-0.5 ml-11 mr-3.5 mt-2.5 flex items-center justify-between text-[12px] text-subtle hover:text-ink"
+            :aria-expanded="!folded(group.label)"
+            @click="fold(group.label)"
+          >
+            {{ t(group.label) }}<ChevronDown :size="14" :stroke-width="1.6" class="transition-transform" :class="folded(group.label) ? '-rotate-90' : ''" />
+          </button>
           <RouterLink
-            v-for="p in group.items"
+            v-for="p in folded(group.label) ? [] : group.items.slice(0, SIDE_LISTS)"
             :key="p.id"
-            :to="{ name: 'playlist', params: { id: p.id } }"
-            class="flex h-9 flex-none items-center truncate rounded-full px-3.5 text-[15px]"
-            :class="route.name === 'playlist' && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
+            :to="{ name: group.route, params: { id: p.id } }"
+            class="flex h-9 flex-none items-center truncate rounded-full pl-11 pr-3.5 text-[15px]"
+            :class="route.name === group.route && route.params.id === String(p.id) ? 'bg-surface-2' : 'font-light hover:bg-surface'"
           >
             <span class="truncate">{{ p.name }}</span>
           </RouterLink>
+          <RouterLink
+            v-if="!folded(group.label) && group.items.length > SIDE_LISTS"
+            :to="group.more"
+            class="flex h-8 flex-none items-center rounded-full pl-11 pr-3.5 text-[13px] text-muted hover:bg-surface hover:text-ink"
+          >{{ t('nav.moreN', { n: group.items.length - SIDE_LISTS }) }}</RouterLink>
         </template>
       </template>
       <div class="flex-1" />

@@ -1085,6 +1085,12 @@ def _scan(job_id: int) -> None:
         from . import artist_aliases
 
         artist_aliases.lookup_missing()  # other names of the artists not looked up yet
+        from . import playlist_import
+
+        try:
+            playlist_import.rematch_after_scan()  # imported playlists' missing songs, maybe added now
+        except Exception:
+            log.exception("looking for imported playlists' missing songs failed")
 
 
 def _link_chart_duplicates(db: Session) -> None:

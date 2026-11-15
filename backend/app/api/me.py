@@ -1,7 +1,10 @@
 """Per-user data: playlists (and smart ones), liked songs, play history and counts.
 Always scoped to the session user."""
 
-from fastapi import APIRouter, Depends, Query
+import asyncio
+import urllib.parse
+
+from fastapi import APIRouter, Depends, Query, Request, Response
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
@@ -10,11 +13,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .. import ai_playlist
+from .. import ai_playlist, playlist_import
 from ..ai_banner import AiError
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistTrack, Track, User
+from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistMissing, PlaylistTrack, Track, User
 from ..security import api_error, current_user
 from ..smart import Rules, apply_rules
 from .library import track_out, track_query
@@ -36,7 +39,7 @@ def can_edit(user: User, playlist: Playlist) -> bool:
     return playlist.user_id == user.id or (playlist.is_shared and user.is_admin)
 
 
-DEFAULT_NAMES = {"ko": "기본 플레이리스트", "en": "My playlist"}
+DEFAULT_NAMES = {"ko": "기본 재생목록", "en": "My playlist"}
 
 
 def ensure_default(db: Session, model, user: User, names: dict[str, str]) -> None:
@@ -59,6 +62,7 @@ def playlist_out(p: Playlist, track_count: int | None) -> dict:
         "is_shared": p.is_shared,
         "chart_id": p.chart_id,
         "rules": p.rules,
+        "sort_order": p.sort_order,
         "track_count": track_count,  # None for a smart playlist: known once it is opened
         "created_at": p.created_at,
         "updated_at": p.updated_at,
@@ -77,6 +81,7 @@ class PlaylistIn(BaseModel):
 class PlaylistPatch(BaseModel):
     name: Name | None = None
     rules: Rules | None = None  # smart playlists only
+    shared: bool | None = None  # everyone sees it (my own manual lists, not the default one)
 
 
 class TrackIdsIn(BaseModel):
@@ -85,6 +90,10 @@ class TrackIdsIn(BaseModel):
 
 class OrderIn(BaseModel):
     entry_ids: list[int]
+
+
+class ListOrderIn(BaseModel):
+    playlist_ids: list[int] = Field(max_length=10_000)
 
 
 @router.get("/playlists")
@@ -118,7 +127,7 @@ def first_covers(db: Session, playlist_ids: list[int]) -> dict[int, dict]:
 
 
 @router.get("/playlists/shared")
-def shared_playlists(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+def shared_playlists(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     """Everyone's shared playlists (charts & themes page, home), newest first, with who made each."""
     rows = db.execute(
         select(Playlist, func.count(PlaylistTrack.id), User.display_name)
@@ -129,7 +138,17 @@ def shared_playlists(_: User = Depends(current_user), db: Session = Depends(get_
         .order_by(Playlist.created_at.desc())
     ).all()
     covers = first_covers(db, [p.id for p, _, _ in rows])
-    return {"items": [{**playlist_out(p, c), "cover": covers.get(p.id), "owner": who} for p, c, who in rows]}
+    return {"items": [{**playlist_out(p, c), "cover": covers.get(p.id), "owner": who, "can_edit": can_edit(user, p)} for p, c, who in rows]}
+
+
+@router.put("/playlists/order", status_code=204)
+def order_playlists(body: ListOrderIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """My playlists in my own order (the playlists page's "my order"); others' are left alone."""
+    mine = {p.id: p for p in db.scalars(select(Playlist).where(Playlist.user_id == user.id, Playlist.id.in_(body.playlist_ids)))}
+    for place, pid in enumerate(body.playlist_ids):
+        if pid in mine:
+            mine[pid].sort_order = place
+    db.commit()
 
 
 @router.post("/playlists", status_code=201)
@@ -140,6 +159,72 @@ def create_playlist(body: PlaylistIn, user: User = Depends(current_user), db: Se
     db.add(playlist)
     db.commit()
     return playlist_out(playlist, None if playlist.kind == "smart" else 0)
+
+
+@router.post("/playlists/import")
+async def import_playlist(
+    request: Request,
+    name: str = Query("", max_length=300),
+    create: bool = False,
+    target_id: int | None = None,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db, scope="function"),
+):
+    """A playlist file from another player (.m3u, .m3u8, .pls; the request body as it is) matched to
+    the library's songs (playlist_import.py): each entry with how it was found, or missing. With
+    create, a new playlist (`name`: the file's, or as changed) of the songs found, in the file's order,
+    or (target_id) they are added at the end of one of mine. The entries not found (missing, or
+    several songs alike) are kept with it, to be looked for again after each scan."""
+    raw = b""
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > playlist_import.MAX_BYTES:
+            raise api_error(413, "playlist_file_too_large")
+    return await asyncio.to_thread(_import, db, user, raw, name, create, target_id)
+
+
+def _import(db: Session, user: User, raw: bytes, name: str, create: bool, target_id: int | None) -> dict:
+    entries = playlist_import.parse(playlist_import.decode(raw))
+    if not entries:
+        raise api_error(400, "playlist_file_empty")
+    lib = playlist_import.Library(db)
+    found = [(e, *playlist_import.match(lib, e)) for e in entries]
+    ids = [song.id for _, _, song in found if song]
+    tracks = {t.id: t for t in db.scalars(select(Track).where(Track.id.in_(ids)))} if ids else {}
+    out = {
+        "name": name.strip()[:200] or "playlist",
+        "total": len(found),
+        "found": len(ids),
+        "items": [
+            {
+                "path": e.path,
+                "label": e.title or playlist_import.file_name(e.path),
+                "how": how,
+                "track": {"id": song.id, "title": tracks[song.id].title, "artist": tracks[song.id].artist_text, "path": tracks[song.id].file_path} if song else None,
+            }
+            for e, how, song in found
+        ],
+    }
+    if create:
+        if target_id is not None:
+            playlist = own_playlist(db, user, target_id)
+            if playlist.kind == "smart":
+                raise api_error(400, "smart_playlist")
+        elif not ids:
+            raise api_error(400, "playlist_file_no_match")
+        else:
+            playlist = Playlist(user_id=user.id, name=out["name"])
+            db.add(playlist)
+            db.flush()
+        added, skipped = _append(db, playlist, ids)
+        kept = 0
+        for place, (e, how, song) in enumerate(found):
+            if song is None and how in ("missing", "ambiguous"):
+                db.add(PlaylistMissing(playlist_id=playlist.id, position=place, path=e.path, label=e.title, duration=e.duration))
+                kept += 1
+        db.commit()
+        out |= {"playlist_id": playlist.id, "added": added, "skipped": skipped, "kept_missing": kept}
+    return out
 
 
 class AiPlaylistIn(BaseModel):
@@ -188,7 +273,63 @@ def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Sessi
         .order_by(PlaylistTrack.position, PlaylistTrack.id)
     ).all()
     entries = [{"entry_id": r[-1], "track": track_out(r[:-1])} for r in rows]
-    return {**playlist_out(playlist, len(entries)), **editable, "entries": entries}
+    missing = db.scalars(select(PlaylistMissing).where(PlaylistMissing.playlist_id == playlist.id).order_by(PlaylistMissing.position, PlaylistMissing.id))
+    return {
+        **playlist_out(playlist, len(entries)),
+        **editable,
+        "entries": entries,
+        "missing": [{"id": m.id, "path": m.path, "label": m.label or playlist_import.file_name(m.path)} for m in missing],
+    }
+
+
+@router.get("/playlists/{playlist_id}/export")
+def export_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """The playlist as an .m3u8 file (UTF-8): each song's artist, title and length, and its path
+    in the music library (other players read it relative to where the file is put)."""
+    playlist = db.get(Playlist, playlist_id)
+    if playlist is None or not (playlist.is_shared or playlist.user_id == user.id):
+        raise api_error(404, "not_found")
+    if playlist.kind == "smart":
+        rules = smart_rules(playlist)
+        ids = [r[0].id for r in db.execute(apply_rules(track_query(user.id), rules, user.id))] if rules else []
+    else:
+        ids = list(db.scalars(select(PlaylistTrack.track_id).where(PlaylistTrack.playlist_id == playlist.id).order_by(PlaylistTrack.position, PlaylistTrack.id)))
+    tracks = {t.id: t for t in db.scalars(select(Track).where(Track.id.in_(ids)))} if ids else {}
+    lines = ["#EXTM3U", f"#PLAYLIST:{playlist.name}"]
+    for tid in ids:
+        t = tracks.get(tid)
+        if t is None:
+            continue
+        who = f"{t.artist_text} - " if t.artist_text else ""
+        lines += [f"#EXTINF:{round(t.duration or -1)},{who}{t.title}", t.file_path]
+    name = f"{playlist.name}.m3u8"
+    quoted = urllib.parse.quote(name)
+    return Response(
+        "\n".join(lines) + "\n",
+        media_type="audio/x-mpegurl; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=\"playlist.m3u8\"; filename*=UTF-8''{quoted}"},
+    )
+
+
+@router.post("/playlists/{playlist_id}/missing/rematch")
+def rematch_missing(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """The songs of an imported file not found before, looked for again now: {"found", "left"}."""
+    playlist = own_playlist(db, user, playlist_id)
+    return playlist_import.rematch(db, [playlist.id])
+
+
+@router.delete("/playlists/{playlist_id}/missing/{missing_id}", status_code=204)
+def forget_missing(playlist_id: int, missing_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    playlist = own_playlist(db, user, playlist_id)
+    db.execute(delete(PlaylistMissing).where(PlaylistMissing.id == missing_id, PlaylistMissing.playlist_id == playlist.id))
+    db.commit()
+
+
+@router.delete("/playlists/{playlist_id}/missing", status_code=204)
+def forget_all_missing(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    playlist = own_playlist(db, user, playlist_id)
+    db.execute(delete(PlaylistMissing).where(PlaylistMissing.playlist_id == playlist.id))
+    db.commit()
 
 
 @router.patch("/playlists/{playlist_id}")
@@ -202,6 +343,11 @@ def update_playlist(
         if playlist.kind != "smart":
             raise api_error(400, "not_smart")
         playlist.rules = body.rules.model_dump()
+    if body.shared is not None and body.shared != playlist.is_shared:
+        # a smart list's songs are worked out for whoever opens it (their likes, their plays): not shared
+        if body.shared and (playlist.kind == "smart" or playlist.is_default or playlist.user_id != user.id):
+            raise api_error(400, "cannot_share")
+        playlist.is_shared = body.shared
     db.commit()
     if playlist.kind == "smart":
         return playlist_out(playlist, None)

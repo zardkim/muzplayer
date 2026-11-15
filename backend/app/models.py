@@ -303,10 +303,27 @@ class Playlist(Base):
     # shared: everyone sees and plays it (charts & themes page, home); its maker or an admin edits it
     is_shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"))  # made from it
+    sort_order: Mapped[int | None] = mapped_column(Integer)  # its place in its owner's own order (none: first)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class PlaylistMissing(Base):
+    """An entry of an imported playlist file not found in the library (playlist_import.py): kept
+    with the playlist and looked for again after each scan (or when asked); found, it is added
+    at the end of the playlist and dropped from here."""
+
+    __tablename__ = "playlist_missing"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("playlists.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)  # its place in the file
+    path: Mapped[str] = mapped_column(Text)  # as the file wrote it
+    label: Mapped[str] = mapped_column(Text, default="")  # artist - title from the file, if any
+    duration: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PlaylistTrack(Base):

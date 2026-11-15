@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { BookHeadphones, Check, ChevronRight, ListMusic, ListVideo, Pencil, Plus, SquareCheckBig, Trash2, Zap } from '@lucide/vue'
+import { ArrowDown, ArrowDownUp, ArrowUp, BookHeadphones, Check, ChevronRight, FileUp, ListMusic, ListVideo, Pencil, Plus, SquareCheckBig, Trash2, Zap } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import { appConfig } from '../config'
 import BaseModal from '../components/BaseModal.vue'
@@ -10,6 +10,8 @@ import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import PageHeader from '../components/PageHeader.vue'
+import SelectPill from '../components/SelectPill.vue'
+import PlaylistImportSheet from '../components/PlaylistImportSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
 import BookGrid from '../components/BookGrid.vue'
 import type { Book, Playlist, VideoPlaylist } from '../types'
@@ -60,6 +62,29 @@ const items = computed<Item[]>(() =>
     : library.playlists.map((p) => ({ id: p.id, name: p.name, smart: p.kind === 'smart', locked: !!p.is_default })),
 )
 const editing = ref(false)
+// a playlist file from another player, being read (PlaylistImportSheet)
+const importing = ref<File | null>(null)
+const importInput = ref<HTMLInputElement | null>(null)
+function pickImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  importing.value = input.files?.[0] ?? null
+  input.value = ''
+}
+// the order of my playlists (library store): lately changed, by name, or my own; moving one in edit
+// mode makes the order my own, starting from the one shown
+const SORTS = ['recent', 'name', 'manual'] as const
+const sort = computed({
+  get: () => ((SORTS as readonly string[]).includes(ui.views.playlistSort) ? ui.views.playlistSort : 'recent'),
+  set: (v: string) => (ui.views = { ...ui.views, playlistSort: v }),
+})
+async function moveList(i: number, by: -1 | 1) {
+  const ids = library.playlists.map((p) => p.id)
+  const j = i + by
+  if (j < 0 || j >= ids.length) return
+  ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  sort.value = 'manual'
+  await library.orderPlaylists(ids).catch((e) => ui.notify(errorMessage(e), true))
+}
 const ticked = ref(new Set<number>())
 watch(tab, () => ((editing.value = false), (ticked.value = new Set())))
 function tick(id: number) {
@@ -156,6 +181,10 @@ async function reload() {
         <button v-if="tab === 'music'" type="button" class="flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] hover:bg-bg" @click="(smartEdit = undefined), (smartOpen = true)">
           <Zap :size="16" :stroke-width="1.6" />{{ t('smart.new') }}
         </button>
+        <button v-if="tab === 'music'" type="button" class="flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] hover:bg-bg" :title="t('importList.title')" @click="importInput?.click()">
+          <FileUp :size="16" :stroke-width="1.6" />{{ t('importList.button') }}
+        </button>
+        <input ref="importInput" type="file" accept=".m3u,.m3u8,.pls,audio/x-mpegurl,audio/mpegurl,audio/x-scpls" class="hidden" @change="pickImport" />
         <span class="flex-1" />
         <span class="px-2 text-[13px] text-muted">{{ t(tab === 'music' ? 'playlists.countMusic' : 'playlists.countVideo', { n: items.length }) }}</span>
         <button type="button" class="flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] hover:bg-bg disabled:opacity-40" :disabled="!items.length" @click="editing = true">
@@ -176,6 +205,7 @@ async function reload() {
         </button>
       </template>
     </div>
+    <PlaylistImportSheet v-if="importing" :file="importing" @close="importing = null" />
     <SmartRulesSheet v-if="smartOpen" :playlist="smartEdit" @close="(smartOpen = false), (smartEdit = undefined)" @saved="smartSaved" />
     <BaseModal v-if="naming" :title="naming.mode === 'new' ? t(tab === 'video' ? 'videos.newPlaylist' : 'playlists.new') : t('common.rename')" @close="naming = null">
       <form class="flex flex-col gap-4" @submit.prevent="submitName">
@@ -188,13 +218,16 @@ async function reload() {
     </BaseModal>
 
     <template v-if="tab === 'music'">
+    <div v-if="library.playlists.length > 1" class="flex justify-end">
+      <SelectPill v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="SORTS.map((k) => ({ value: k, label: t(`playlists.sort_${k}`) }))" />
+    </div>
     <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
     <ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 xl:grid-cols-3">
-      <li v-for="p in library.playlists" :key="p.id">
+      <li v-for="(p, i) in library.playlists" :key="p.id" class="flex items-center gap-1">
         <component
           :is="editing ? 'label' : 'RouterLink'"
           :to="editing ? undefined : { name: 'playlist', params: { id: p.id } }"
-          class="flex min-h-[72px] cursor-pointer items-center gap-3.5 border-b border-surface"
+          class="flex min-h-[72px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 border-b border-surface"
         >
           <input v-if="editing" type="checkbox" class="size-[18px] flex-none accent-ink" :checked="ticked.has(p.id)" @change="tick(p.id)" />
           <span class="grid size-[52px] flex-none place-items-center rounded-lg bg-surface"><Zap v-if="p.kind === 'smart'" :size="22" :stroke-width="1.3" /><ListMusic v-else :size="22" :stroke-width="1.3" /></span>
@@ -204,6 +237,10 @@ async function reload() {
           </span>
           <ChevronRight v-if="!editing" :size="18" class="text-subtle" />
         </component>
+        <template v-if="editing">
+          <button type="button" class="grid size-9 flex-none place-items-center rounded-full hover:bg-surface disabled:opacity-30" :disabled="i === 0" :aria-label="t('playlists.moveUp', { name: p.name })" @click="moveList(i, -1)"><ArrowUp :size="17" :stroke-width="1.6" /></button>
+          <button type="button" class="grid size-9 flex-none place-items-center rounded-full hover:bg-surface disabled:opacity-30" :disabled="i === library.playlists.length - 1" :aria-label="t('playlists.moveDown', { name: p.name })" @click="moveList(i, 1)"><ArrowDown :size="17" :stroke-width="1.6" /></button>
+        </template>
       </li>
     </ul>
     <!-- everyone's shared playlists: only listened to here (their maker or an admin edits them on their page) -->
