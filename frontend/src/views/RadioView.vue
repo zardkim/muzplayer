@@ -112,6 +112,8 @@ const byId = computed(() => new Map(stations.value.map((s) => [s.id, s])))
 const pick = (ids: string[]) => ids.map((id) => byId.value.get(id)).filter((s): s is RadioStation => !!s && !isHidden(s))
 const favorites = computed(() => pick(ui.radio.favorites))
 const recent = computed(() => pick(ui.radio.recent))
+// the station on now, else the one listened to last: shown on top (and the tuner's dial opens at it)
+const last = computed(() => live.value ?? recent.value[0] ?? null)
 const isFavorite = (s: RadioStation) => ui.radio.favorites.includes(s.id)
 function toggleFavorite(s: RadioStation) {
   const f = ui.radio.favorites
@@ -159,23 +161,23 @@ function tune(s: RadioStation) {
         </button>
       </template>
     </PageHeader>
-    <RadioTuner v-if="mode === 'tuner' && stations.length" v-model:region="region" :stations="stations.filter((s) => !isHidden(s))" :regions="regions" @list="mode = 'list'" />
+    <RadioTuner v-if="mode === 'tuner' && stations.length" v-model:region="region" :stations="stations.filter((s) => !isHidden(s))" :regions="regions" :last="last" @list="mode = 'list'" />
     <template v-if="mode === 'list'">
     <p v-if="editing && hiddenCount" class="-mt-3 text-[14px] text-muted">{{ t('radio.hiddenCount', { n: hiddenCount }) }}</p>
 
-    <!-- what is on now -->
-    <div v-if="live" class="flex items-center gap-3.5 rounded-2xl bg-surface p-3.5">
-      <button type="button" class="flex min-w-0 flex-1 items-center gap-3.5 text-left" :aria-label="t('player.open')" @click="ui.playerOpen = true">
-      <StationBadge :stn="live.stn" :logo="live.logo" class="size-12 text-[15px]" />
+    <!-- what is on now, else the station listened to last -->
+    <div v-if="last" class="flex items-center gap-3.5 rounded-2xl bg-surface p-3.5">
+      <button type="button" class="flex min-w-0 flex-1 items-center gap-3.5 text-left" :aria-label="live ? t('player.open') : `${t('player.play')}: ${last.name}`" @click="live ? (ui.playerOpen = true) : tune(last)">
+      <StationBadge :stn="last.stn" :logo="last.logo" class="size-12 text-[15px]" />
       <span class="flex min-w-0 flex-1 flex-col">
-        <span class="flex items-center gap-2"><span class="rounded bg-danger px-1.5 text-[11px] font-bold leading-[18px] text-white">LIVE</span><span class="truncate text-[17px] font-medium">{{ live.name }}</span></span>
-        <span class="text-[13px] font-light text-muted">{{ player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
+        <span class="flex items-center gap-2"><span v-if="live" class="rounded bg-danger px-1.5 text-[11px] font-bold leading-[18px] text-white">LIVE</span><span class="truncate text-[17px] font-medium">{{ last.name }}</span></span>
+        <span class="text-[13px] font-light text-muted">{{ !live ? t('radio.lastHeard') : player.playing ? t('radio.onAir') : t('radio.paused') }}</span>
       </span>
       </button>
-      <button type="button" class="grid size-11 place-items-center rounded-full bg-ink text-on-ink" :aria-label="player.playing ? t('player.pause') : t('player.play')" @click="player.toggle()">
-        <PlayerIcons :name="player.playing ? 'pause' : 'play'" :size="20" :stroke="1.8" />
+      <button type="button" class="grid size-11 place-items-center rounded-full bg-ink text-on-ink" :aria-label="live && player.playing ? t('player.pause') : t('player.play')" @click="live ? player.toggle() : tune(last)">
+        <PlayerIcons :name="live && player.playing ? 'pause' : 'play'" :size="20" :stroke="1.8" />
       </button>
-      <button type="button" class="grid size-11 place-items-center rounded-full border border-line-strong" :aria-label="t('radio.stop')" :title="t('radio.stop')" @click="player.stopStation()">
+      <button v-if="live" type="button" class="grid size-11 place-items-center rounded-full border border-line-strong" :aria-label="t('radio.stop')" :title="t('radio.stop')" @click="player.stopStation()">
         <Square :size="16" :stroke-width="2" />
       </button>
     </div>

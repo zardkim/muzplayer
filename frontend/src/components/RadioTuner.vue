@@ -19,7 +19,7 @@ import StationBadge from './StationBadge.vue'
 // playing moves the dial to it. Shown with it: what it has on air (radio_now.py), when known. Below,
 // six memory buttons a band (by region, kept with the account): a tap tunes one, held it keeps the
 // station showing.
-const props = defineProps<{ stations: RadioStation[]; regions: string[] }>()
+const props = defineProps<{ stations: RadioStation[]; regions: string[]; last?: RadioStation | null }>()
 const region = defineModel<string>('region', { required: true })
 const emit = defineEmits<{ list: [] }>()
 const { t } = useI18n()
@@ -56,11 +56,17 @@ function showStation(st: RadioStation | null) {
   return true
 }
 function start() {
-  if (showStation(live.value)) return
+  if (showStation(live.value ?? props.last ?? null)) return
   band.value = bands.value.includes(band.value) ? band.value : bands.value[0] ?? 'FM'
   pos.value = dial.value.stops[0]?.step ?? 0
 }
-onMounted(start)
+// opened: at the station on now, else the one listened to last (in its own region)
+onMounted(() => {
+  const st = live.value ?? props.last
+  const inIt = st && (st.custom || st.regions.includes(region.value))
+  if (st && !inIt && st.regions[0] && props.regions.includes(st.regions[0])) region.value = st.regions[0] // (start follows)
+  else start()
+})
 watch(region, start)
 // the station changed elsewhere (the mini player's next station, the list): the dial follows
 watch(() => live.value?.id, (id) => {

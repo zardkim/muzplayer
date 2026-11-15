@@ -1455,6 +1455,7 @@
     "title": "Radio",
     "count": "{n} stations",
     "live": "Live radio",
+    "lastHeard": "Listened to last",
     "onAir": "On air",
     "paused": "Paused · play again for what is on now",
     "stop": "Turn the radio off",
