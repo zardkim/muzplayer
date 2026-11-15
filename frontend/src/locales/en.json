@@ -448,8 +448,7 @@
     "random100": "Random 100",
     "emptyList": "Nothing to play.",
     "section_stations": "Stations",
-    "section_shared": "Shared playlists",
-    "section_playlists": "Playlists (Random 100 · mine)"
+    "section_playlists": "Playlists (Random 100 · mine · shared)"
   },
   "albums": {
     "prevAlbum": "Previous album",
@@ -542,6 +541,7 @@
   "playlists": {
     "sort_recent": "Lately changed",
     "sort_name": "By name",
+    "manage": "Manage",
     "sort_manual": "My order",
     "moveUp": "Move ‘{name}’ up",
     "moveDown": "Move ‘{name}’ down",

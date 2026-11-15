@@ -448,8 +448,7 @@
     "random100": "랜덤 100",
     "emptyList": "재생할 곡이 없습니다.",
     "section_stations": "스테이션",
-    "section_shared": "공용 재생목록",
-    "section_playlists": "재생목록 (랜덤 100 · 내 재생목록)"
+    "section_playlists": "재생목록 (랜덤 100 · 내 재생목록 · 공용 재생목록)"
   },
   "albums": {
     "prevAlbum": "이전 앨범",
@@ -542,6 +541,7 @@
   "playlists": {
     "sort_recent": "최근 수정순",
     "sort_name": "이름순",
+    "manage": "관리",
     "sort_manual": "직접 정한 순서",
     "moveUp": "‘{name}’ 위로",
     "moveDown": "‘{name}’ 아래로",

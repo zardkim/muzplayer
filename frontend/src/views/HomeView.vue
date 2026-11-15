@@ -18,7 +18,6 @@ import OnThisDay from '../components/OnThisDay.vue'
 import NewsBell from '../components/NewsBell.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlaylistCircles from '../components/PlaylistCircles.vue'
-import SharedPlaylists from '../components/SharedPlaylists.vue'
 import StationGrid from '../components/StationGrid.vue'
 import VideoRow from '../components/VideoRow.vue'
 import PlayerIcons from '../components/PlayerIcons.vue'
@@ -95,7 +94,6 @@ const tabs = computed(() => [
       <BannerCarousel v-if="key === 'banners' && featured.length" :items="featured" size="compact" />
       <PlaylistCircles v-else-if="key === 'playlists'" />
       <StationGrid v-else-if="key === 'stations'" />
-      <SharedPlaylists v-else-if="key === 'shared'" />
       <OnThisDay v-else-if="key === 'onThisDay'" />
       <section v-else-if="key === 'mixes' && mixes.length" class="flex flex-col gap-3">
         <SectionTitle :title="t('home.mixes')" />

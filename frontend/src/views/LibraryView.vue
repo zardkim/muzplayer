@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronRight, Clock, Download, Heart, ListMusic, ListVideo, Plus, Settings, Users, Zap } from '@lucide/vue'
-import { api } from '../api'
+import { ArrowDownUp, ChevronRight, Clock, Download, FileUp, Heart, ListMusic, ListVideo, Plus, Settings, SquareCheckBig, Users, Zap } from '@lucide/vue'
+import { api, coverUrl } from '../api'
 import { errorMessage } from '../i18n'
 import { canSave, offline } from '../offline'
 import { useAuth } from '../stores/auth'
@@ -17,6 +17,8 @@ import BaseModal from '../components/BaseModal.vue'
 import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
 import PageHeader from '../components/PageHeader.vue'
+import PlaylistImportSheet from '../components/PlaylistImportSheet.vue'
+import SelectPill from '../components/SelectPill.vue'
 import SectionTitle from '../components/SectionTitle.vue'
 
 const { t } = useI18n()
@@ -40,6 +42,22 @@ onMounted(async () => {
   ])
   favorites.value = f.items
   historyCount.value = new Set(h.items.map((x) => x.id)).size
+})
+
+// (phones have no sidebar: the playlists are managed here, the full manager is /playlists)
+// a playlist file from another player, being read (PlaylistImportSheet)
+const importing = ref<File | null>(null)
+const importInput = ref<HTMLInputElement | null>(null)
+function pickImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  importing.value = input.files?.[0] ?? null
+  input.value = ''
+}
+// the order of my playlists (library store), as on the playlists page
+const SORTS = ['recent', 'name', 'manual'] as const
+const sort = computed({
+  get: () => ((SORTS as readonly string[]).includes(ui.views.playlistSort) ? ui.views.playlistSort : 'recent'),
+  set: (v: string) => (ui.views = { ...ui.views, playlistSort: v }),
 })
 
 // a new playlist of songs, or of videos
@@ -71,9 +89,19 @@ async function create() {
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between">
         <RouterLink to="/playlists" class="text-[22px] font-bold">{{ t('nav.playlists') }}</RouterLink>
-        <button type="button" class="flex h-[34px] items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" @click="(newName = ''), (creating = 'songs')">
-          <Plus :size="16" :stroke-width="1.6" />{{ t('playlists.new') }}
+        <RouterLink to="/playlists" class="flex h-[34px] items-center gap-1.5 rounded-full border border-line-strong px-3.5 text-sm">
+          <SquareCheckBig :size="15" :stroke-width="1.6" />{{ t('playlists.manage') }}
+        </RouterLink>
+      </div>
+      <div class="-mr-5 flex items-center gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
+        <button type="button" class="flex h-[38px] flex-none items-center gap-1 rounded-full bg-ink px-3.5 text-sm text-on-ink" @click="(newName = ''), (creating = 'songs')">
+          <Plus :size="16" :stroke-width="1.8" />{{ t('playlists.toolNew') }}
         </button>
+        <button type="button" class="flex h-[38px] flex-none items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" :title="t('importList.title')" @click="importInput?.click()">
+          <FileUp :size="16" :stroke-width="1.6" />{{ t('importList.button') }}
+        </button>
+        <input ref="importInput" type="file" accept=".m3u,.m3u8,.pls,audio/x-mpegurl,audio/mpegurl,audio/x-scpls" class="hidden" @change="pickImport" />
+        <SelectPill v-if="library.playlists.length > 1" v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="SORTS.map((k) => ({ value: k, label: t(`playlists.sort_${k}`) }))" />
       </div>
       <p v-if="!library.playlists.length" class="font-light text-muted">{{ t('playlists.empty') }}</p>
       <RouterLink v-for="p in library.playlists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
@@ -81,6 +109,21 @@ async function create() {
         <span class="flex flex-col">
           <span class="text-[17px]">{{ p.name }}</span>
           <span class="text-sm font-light text-muted">{{ p.kind === 'smart' ? t('smart.badge') : t('common.tracks', p.track_count ?? 0) }}</span>
+        </span>
+      </RouterLink>
+    </section>
+
+    <!-- everyone's shared playlists -->
+    <section v-if="library.sharedPlaylists.length" class="flex flex-col gap-3">
+      <h2 class="text-[22px] font-bold">{{ t('shared.title') }}</h2>
+      <RouterLink v-for="p in library.sharedPlaylists" :key="p.id" :to="{ name: 'playlist', params: { id: p.id } }" class="flex items-center gap-3.5">
+        <span class="grid size-[52px] flex-none place-items-center overflow-hidden rounded-lg bg-surface">
+          <img v-if="p.cover" :src="coverUrl(p.cover.id, 'thumb', p.cover.v)" alt="" loading="lazy" class="h-full w-full object-cover" />
+          <ListMusic v-else :size="22" :stroke-width="1.3" />
+        </span>
+        <span class="flex min-w-0 flex-col">
+          <span class="truncate text-[17px]">{{ p.name }}</span>
+          <span class="truncate text-sm font-light text-muted">{{ t('common.tracks', p.track_count ?? 0) }}{{ p.owner ? ` · ${p.owner}` : '' }}</span>
         </span>
       </RouterLink>
     </section>
@@ -157,6 +200,7 @@ async function create() {
     </nav>
 
 
+    <PlaylistImportSheet v-if="importing" :file="importing" @close="importing = null" />
     <BaseModal v-if="creating" :title="creating === 'videos' ? t('videos.newPlaylist') : t('playlists.new')" @close="creating = null">
       <form class="flex flex-col gap-4" @submit.prevent="create">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
