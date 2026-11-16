@@ -360,6 +360,7 @@
     "default_playlist": "기본 재생목록는 삭제할 수 없습니다."
   },
   "common": {
+    "discN": "디스크 {n}",
     "scanError": "읽기 오류",
     "sort": "정렬",
     "kind": "분류",

@@ -382,7 +382,7 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
     tracks = db.execute(
         track_query(user.id)
         .where(Track.album_id == album_id, present_tracks())
-        .order_by(Track.disc_no.nulls_first(), Track.track_no.nulls_last(), Track.title)
+        .order_by(Track.disc_no.nulls_first(), Track.track_no.nulls_last(), Track.file_path)
     )
     tracks = [track_out(t) for t in tracks]
     rated = [t["rating"] for t in tracks if t["rating"]]

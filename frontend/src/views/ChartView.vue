@@ -82,7 +82,7 @@ function applied(banner: CollectionBanner | null) {
         </button>
       </div>
     </div>
-    <TrackList :tracks="chart.tracks" :ranked="chart.tracks.some((tr) => tr.chart_position != null)" />
+    <TrackList :tracks="chart.tracks" ranked />
     <BannerSheet v-if="editing" :chart="chart" @close="editing = false" @applied="applied" />
   </div>
 </template>

@@ -360,6 +360,7 @@
     "default_playlist": "The default playlist can’t be deleted."
   },
   "common": {
+    "discN": "Disc {n}",
     "scanError": "Read error",
     "sort": "Sort",
     "kind": "Category",

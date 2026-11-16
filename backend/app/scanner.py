@@ -44,6 +44,8 @@ UNOFFICIAL_DIRS = {"비정규", "unofficial"}  # compared casefolded, at any dep
 VARIOUS_ARTISTS = "Various Artists"
 # "001 Artist - Title.mp3": a short number then a separator; "2002.mp3" is a title, not a rank
 RANK_PREFIX = re.compile(r"^\s*(\d{1,3})(?:[\s._\-)\]]+)")
+# "1-03 Artist - Title.mp3": disc 1, track 3 (no rank; the numbers repeat from disc to disc)
+DISC_TRACK = re.compile(r"^\s*(\d{1,2})[-.](\d{1,3})(?:[\s._\-)\]]+)")
 DISC_DIR = re.compile(r"^(?:cd|disc|disk)\s*[-_.]?\s*(\d+)$", re.IGNORECASE)
 BANNER_NAMES = ("banner.jpg", "banner.jpeg", "banner.png", "banner.webp")
 
@@ -521,6 +523,14 @@ def _apply_tags(
     track.artist_id = cache.artist((artists or [""])[0])
     track.track_no = _number(_first(raw, "tracknumber"))
     track.disc_no = _number(_first(raw, "discnumber"))
+    if track.track_no is None or track.disc_no is None:  # untagged: from the name, "1-03 …", "03 …", ".../CD2/…"
+        stem, folder = nfc(path.stem), nfc(path.parent.name)
+        numbers = DISC_TRACK.match(stem)
+        rank = RANK_PREFIX.match(stem)
+        if track.track_no is None:
+            track.track_no = int(numbers.group(2)) if numbers else int(rank.group(1)) if rank else None
+        if track.disc_no is None and (numbers or (m := DISC_DIR.match(folder))):
+            track.disc_no = int(numbers.group(1)) if numbers else int(m.group(1))
     _set_info(track, info)
     track.tag_json = {k: v[:5] for k, v in raw.items() if len(k) < 64}
     track.tag_kind = tag_kind(raw)
@@ -591,13 +601,14 @@ def _classify(
     """
     rel = Path(track.file_path)
     stem = nfc(rel.stem)
-    if place.kind == "chart":  # "001 Artist - Title" -> "Artist - Title"
-        stem = RANK_PREFIX.sub("", stem) or stem
+    # "001 Artist - Title" -> "Artist - Title", "1-03 Title" -> "Title" (the numbers are the rank, or disc and track)
+    stem = RANK_PREFIX.sub("", DISC_TRACK.sub("", stem)) or stem
     track.title = (_first(raw, "title") or stem)[:1000]
     if track.tag_kind is None:
         track.tag_kind = tag_kind(raw)
     kind = album_kind(place, track)
-    album_title = _first(raw, "album") or nfc(rel.parent.name) or ""
+    folder = rel.parent.parent if DISC_DIR.match(nfc(rel.parent.name)) and len(rel.parts) > 2 else rel.parent  # .../Album/CD2/x.mp3
+    album_title = _first(raw, "album") or nfc(folder.name) or ""
     album_artist = _first(raw, "albumartist") or (
         VARIOUS_ARTISTS if kind in ("compilation", "soundtrack") else (_pick(raw, "artist") or [""])[0]
     )
@@ -611,7 +622,10 @@ def _classify(
     if place.chart_folder is not None:
         track.chart_id = cache.chart(place.chart_folder, place.chart_source, place.chart_kind)
         rank = RANK_PREFIX.match(rel.stem)
-        track.chart_position = int(rank.group(1)) if rank else _number(_first(raw, "tracknumber"))
+        if DISC_TRACK.match(rel.stem):
+            track.chart_position = None
+        else:
+            track.chart_position = int(rank.group(1)) if rank else _number(_first(raw, "tracknumber"))
     else:
         track.chart_id = None
         track.chart_position = None

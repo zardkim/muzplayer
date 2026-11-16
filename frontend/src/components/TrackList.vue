@@ -22,7 +22,8 @@ const props = withDefaults(
     showCover?: boolean
     showAlbum?: boolean
     numbered?: boolean // show track_no instead of the list position
-    ranked?: boolean // chart: show chart_position (list position when missing)
+    discs?: boolean // album with more than one disc: a heading before each disc's songs
+    ranked?: boolean // chart or theme: show chart_position, or the list position when some are missing or the same
     editable?: boolean // playlist mode: remove / move up / move down
     videoButtons?: boolean // album page: every song gets the YouTube button (grey: none yet, find and add)
   }>(),
@@ -37,6 +38,11 @@ const ui = useUi()
 const isAdmin = computed(() => !!useAuth().user?.is_admin) // only an admin finds and adds videos
 // rows (i stays the index into props.tracks: play, select and the menu use the whole list)
 const shown = useProgressive(() => props.tracks)
+// the ranks are shown only when every song has its own ("1-01", "1-02", "2-01" read as 1, 1, 2 were disc numbers)
+const ranks = computed(() => {
+  const p = props.tracks.map((tr) => tr.chart_position)
+  return p.every((n) => n != null) && new Set(p).size === p.length
+})
 // row labels looked up once per list, not several times per row (a long list spent much of its time here)
 const L = computed(() => ({
   select: t('common.select'), scanError: t('common.scanError'), play: t('common.play'), videos: t('videos.play'), findVideos: t('videos.trackVideo'), lyrics: t('lyricsSheet.show'), missing: t('common.missingFile'),
@@ -206,126 +212,130 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
     </div>
 
     <ol class="flex flex-col" @touchstart="touchstart" @touchmove="touchmove" @touchend="touchend" @touchcancel="touchend" @click.capture="hold.onClickCapture">
-      <li
-        v-for="(track, i) in shown"
-        :key="`${track.id}-${i}`"
-        :data-i="i"
-        class="group relative flex [-webkit-touch-callout:none] min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
-        :class="[
-          // rows off screen skip layout and paint; not the one with its menu open (it would be clipped)
-          menuOpen === i ? '' : '[contain-intrinsic-size:auto_69px] [content-visibility:auto]',
-          isCurrent(track) ? 'bg-accent-soft' : selected.has(i) ? 'bg-surface' : 'md:hover:bg-surface/60',
-          track.missing ? 'opacity-40' : '',
-        ]"
-      >
-        <input
-          type="checkbox"
-          class="hidden size-[18px] flex-none accent-ink md:block"
-          :checked="selected.has(i)"
-          :aria-label="`${L.select}: ${track.title}`"
-          @change="toggleSelect(i)"
-        />
-        <span
-          v-if="!showCover || numbered || ranked"
-          class="w-7 flex-none text-center font-display text-[15px]"
-          :class="isCurrent(track) ? 'text-accent' : ranked ? 'font-medium text-ink' : 'text-muted'"
-        >{{ ranked ? (track.chart_position ?? i + 1) : numbered ? (track.track_no ?? '–') : i + 1 }}</span>
-
-        <button
-          type="button"
-          class="flex min-w-0 flex-1 items-center gap-3.5 py-1.5 text-left"
-          :disabled="track.missing"
-          :aria-label="`${L.play}: ${track.title}`"
-          @click="play(i)"
+      <template v-for="(track, i) in shown" :key="`${track.id}-${i}`">
+        <li
+          v-if="discs && (i === 0 || (track.disc_no ?? 1) !== (shown[i - 1].disc_no ?? 1))"
+          class="px-2.5 pb-2 pt-5 text-[13px] font-medium text-muted"
+        >{{ t('common.discN', { n: track.disc_no ?? 1 }) }}</li>
+        <li
+          :data-i="i"
+          class="group relative flex [-webkit-touch-callout:none] min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
+          :class="[
+            // rows off screen skip layout and paint; not the one with its menu open (it would be clipped)
+            menuOpen === i ? '' : '[contain-intrinsic-size:auto_69px] [content-visibility:auto]',
+            isCurrent(track) ? 'bg-accent-soft' : selected.has(i) ? 'bg-surface' : 'md:hover:bg-surface/60',
+            track.missing ? 'opacity-40' : '',
+          ]"
         >
-          <CoverArt v-if="showCover" :album-id="track.album_id" :has-cover="track.has_cover" :version="track.cover_v" rounded="rounded-md" class="size-[52px] flex-none" />
-          <span class="flex min-w-0 flex-col">
-            <span class="flex min-w-0 items-center gap-1.5">
-              <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
-              <span v-if="track.popular && ui.playerPrefs.showPopular" class="flex flex-none items-center gap-0.5 rounded-full bg-accent-soft px-1.5 text-[11px] font-medium leading-[18px] text-accent"><Flame :size="11" :stroke-width="2" />{{ L.popular }}</span>
-              <!-- the last scan could not read the file again (admin → library lists why) -->
-              <span v-if="track.scan_error" class="flex flex-none items-center gap-0.5 rounded-full bg-danger/10 px-1.5 text-[11px] font-medium leading-[18px] text-danger" :title="track.scan_error"><TriangleAlert :size="11" :stroke-width="2.2" />{{ L.scanError }}</span>
+          <input
+            type="checkbox"
+            class="hidden size-[18px] flex-none accent-ink md:block"
+            :checked="selected.has(i)"
+            :aria-label="`${L.select}: ${track.title}`"
+            @change="toggleSelect(i)"
+          />
+          <span
+            v-if="!showCover || numbered || ranked"
+            class="w-7 flex-none text-center font-display text-[15px]"
+            :class="isCurrent(track) ? 'text-accent' : ranked ? 'font-medium text-ink' : 'text-muted'"
+          >{{ ranked ? (ranks ? track.chart_position : i + 1) : numbered ? (track.track_no ?? '–') : i + 1 }}</span>
+
+          <button
+            type="button"
+            class="flex min-w-0 flex-1 items-center gap-3.5 py-1.5 text-left"
+            :disabled="track.missing"
+            :aria-label="`${L.play}: ${track.title}`"
+            @click="play(i)"
+          >
+            <CoverArt v-if="showCover" :album-id="track.album_id" :has-cover="track.has_cover" :version="track.cover_v" rounded="rounded-md" class="size-[52px] flex-none" />
+            <span class="flex min-w-0 flex-col">
+              <span class="flex min-w-0 items-center gap-1.5">
+                <span class="truncate text-[16px]" :class="isCurrent(track) ? 'font-medium text-accent' : ''">{{ track.title }}</span>
+                <span v-if="track.popular && ui.playerPrefs.showPopular" class="flex flex-none items-center gap-0.5 rounded-full bg-accent-soft px-1.5 text-[11px] font-medium leading-[18px] text-accent"><Flame :size="11" :stroke-width="2" />{{ L.popular }}</span>
+                <!-- the last scan could not read the file again (admin → library lists why) -->
+                <span v-if="track.scan_error" class="flex flex-none items-center gap-0.5 rounded-full bg-danger/10 px-1.5 text-[11px] font-medium leading-[18px] text-danger" :title="track.scan_error"><TriangleAlert :size="11" :stroke-width="2.2" />{{ L.scanError }}</span>
+              </span>
+              <span class="truncate text-[14px] font-light text-muted">
+                <template v-if="track.missing">{{ L.missing }}</template>
+                <template v-else>{{ track.artist || L.unknownArtist }}<template v-if="showAlbum"> · {{ track.album || L.unknownAlbum }}</template></template>
+              </span>
             </span>
-            <span class="truncate text-[14px] font-light text-muted">
-              <template v-if="track.missing">{{ L.missing }}</template>
-              <template v-else>{{ track.artist || L.unknownArtist }}<template v-if="showAlbum"> · {{ track.album || L.unknownAlbum }}</template></template>
-            </span>
+          </button>
+
+          <span class="hidden w-10 flex-none items-center gap-0.5 text-[13px] text-muted md:flex">
+            <template v-if="library.rating(track)"><Star :size="13" fill="currentColor" class="text-accent" />{{ library.rating(track) }}</template>
           </span>
-        </button>
+          <span class="hidden w-14 flex-none font-display text-[14px] text-muted md:block">{{ duration(track.duration) }}</span>
 
-        <span class="hidden w-10 flex-none items-center gap-0.5 text-[13px] text-muted md:flex">
-          <template v-if="library.rating(track)"><Star :size="13" fill="currentColor" class="text-accent" />{{ library.rating(track) }}</template>
-        </span>
-        <span class="hidden w-14 flex-none font-display text-[14px] text-muted md:block">{{ duration(track.duration) }}</span>
-
-        <span class="flex flex-none items-center">
-          <!-- before the heart: lyrics, then YouTube -->
-          <button v-if="track.has_lyrics && !track.missing" type="button" class="grid size-9 place-items-center text-muted hover:text-ink md:size-10" :aria-label="`${L.lyrics}: ${track.title}`" :title="L.lyrics" @click="showLyrics(track)">
-            <MicVocal :size="19" :stroke-width="1.4" />
-          </button>
-          <span v-else-if="lyricsColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
-          <button
-            v-if="(track.has_video || (videoButtons && isAdmin)) && !track.missing"
-            type="button"
-            class="grid size-9 place-items-center md:size-10"
-            :class="track.has_video ? '' : 'opacity-35 grayscale hover:opacity-70'"
-            :aria-label="`${track.has_video ? L.videos : L.findVideos}: ${track.title}`"
-            :title="track.has_video ? L.videos : L.findVideos"
-            @click="playVideo(track)"
-          >
-            <YoutubeIcon :size="22" />
-          </button>
-          <span v-else-if="videoColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
-          <button
-            type="button"
-            class="grid size-11 place-items-center"
-            :class="library.isFavorite(track) ? 'text-like' : 'text-ink'"
-            :aria-label="library.isFavorite(track) ? L.favRemove : L.favAdd"
-            :aria-pressed="library.isFavorite(track)"
-            @click="fav(track)"
-          >
-            <Heart :size="20" :stroke-width="1.3" :fill="library.isFavorite(track) ? 'currentColor' : 'none'" />
-          </button>
-          <span class="relative" data-track-menu>
+          <span class="flex flex-none items-center">
+            <!-- before the heart: lyrics, then YouTube -->
+            <button v-if="track.has_lyrics && !track.missing" type="button" class="grid size-9 place-items-center text-muted hover:text-ink md:size-10" :aria-label="`${L.lyrics}: ${track.title}`" :title="L.lyrics" @click="showLyrics(track)">
+              <MicVocal :size="19" :stroke-width="1.4" />
+            </button>
+            <span v-else-if="lyricsColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
+            <button
+              v-if="(track.has_video || (videoButtons && isAdmin)) && !track.missing"
+              type="button"
+              class="grid size-9 place-items-center md:size-10"
+              :class="track.has_video ? '' : 'opacity-35 grayscale hover:opacity-70'"
+              :aria-label="`${track.has_video ? L.videos : L.findVideos}: ${track.title}`"
+              :title="track.has_video ? L.videos : L.findVideos"
+              @click="playVideo(track)"
+            >
+              <YoutubeIcon :size="22" />
+            </button>
+            <span v-else-if="videoColumn" class="size-9 flex-none md:size-10" aria-hidden="true" />
             <button
               type="button"
-              class="grid size-11 place-items-center text-ink"
-              :aria-label="L.more"
-              :aria-expanded="menuOpen === i"
-              @click="(e) => openMenu(e, i)"
+              class="grid size-11 place-items-center"
+              :class="library.isFavorite(track) ? 'text-like' : 'text-ink'"
+              :aria-label="library.isFavorite(track) ? L.favRemove : L.favAdd"
+              :aria-pressed="library.isFavorite(track)"
+              @click="fav(track)"
             >
-              <EllipsisVertical :size="20" :stroke-width="1.3" />
+              <Heart :size="20" :stroke-width="1.3" :fill="library.isFavorite(track) ? 'currentColor' : 'none'" />
             </button>
-            <div
-              v-if="menuOpen === i"
-              class="absolute right-0 z-30 flex w-56 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl"
-              :class="menuUp ? 'bottom-11' : 'top-11'"
-            >
-              <template v-if="!track.missing">
-                <StarRating :value="library.rating(track)" :size="18" class="px-2.5" @rate="(n) => rate(track, n)" />
-                <div class="my-1 border-t border-line" />
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.startRadio(track))">{{ t('common.startRadio') }}</button>
-                <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
-              </template>
-              <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
-              <!-- each of its artists (feat. too); one: just "go to artist" -->
-              <template v-if="(track.artists?.length ?? 0) > 1">
-                <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="truncate px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtistNamed', { name: a.name }) }}</RouterLink>
-              </template>
-              <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
-              <template v-if="editable">
-                <div class="my-1 border-t border-line" />
-                <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="16" />{{ t('common.moveUp') }}</button>
-                <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === tracks.length - 1" @click="action(() => emit('move', i, 1))"><ArrowDown :size="16" />{{ t('common.moveDown') }}</button>
-                <button type="button" class="px-4 py-3 text-left text-danger hover:bg-surface" @click="action(() => emit('remove', i))">{{ t('common.remove') }}</button>
-              </template>
-            </div>
+            <span class="relative" data-track-menu>
+              <button
+                type="button"
+                class="grid size-11 place-items-center text-ink"
+                :aria-label="L.more"
+                :aria-expanded="menuOpen === i"
+                @click="(e) => openMenu(e, i)"
+              >
+                <EllipsisVertical :size="20" :stroke-width="1.3" />
+              </button>
+              <div
+                v-if="menuOpen === i"
+                class="absolute right-0 z-30 flex w-56 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[15px] shadow-xl"
+                :class="menuUp ? 'bottom-11' : 'top-11'"
+              >
+                <template v-if="!track.missing">
+                  <StarRating :value="library.rating(track)" :size="18" class="px-2.5" @rate="(n) => rate(track, n)" />
+                  <div class="my-1 border-t border-line" />
+                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
+                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
+                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
+                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.startRadio(track))">{{ t('common.startRadio') }}</button>
+                  <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
+                </template>
+                <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
+                <!-- each of its artists (feat. too); one: just "go to artist" -->
+                <template v-if="(track.artists?.length ?? 0) > 1">
+                  <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="truncate px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtistNamed', { name: a.name }) }}</RouterLink>
+                </template>
+                <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
+                <template v-if="editable">
+                  <div class="my-1 border-t border-line" />
+                  <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="16" />{{ t('common.moveUp') }}</button>
+                  <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === tracks.length - 1" @click="action(() => emit('move', i, 1))"><ArrowDown :size="16" />{{ t('common.moveDown') }}</button>
+                  <button type="button" class="px-4 py-3 text-left text-danger hover:bg-surface" @click="action(() => emit('remove', i))">{{ t('common.remove') }}</button>
+                </template>
+              </div>
+            </span>
           </span>
-        </span>
-      </li>
+        </li>
+      </template>
     </ol>
   </div>
 </template>
