@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.orm import Session
 
 from .. import appconf, extract
@@ -17,7 +17,7 @@ router = APIRouter()
 _STATUS = {
     "extract_folder": 409, "extract_youtube_off": 403, "extract_no_ytdlp": 409, "extract_source": 400, "extract_format": 400,
     "not_found": 404, "extract_not_extracted": 400, "extract_running": 409, "extract_cover": 400, "extract_no_title": 400,
-    "scan_running": 409, "extract_update_running": 409,
+    "scan_running": 409, "extract_update_running": 409, "extract_album": 400,
 }
 
 
@@ -29,7 +29,7 @@ def job_out(job: ExtractJob, track: Track | None = None, album: Album | None = N
     return {
         "id": job.id, "video_id": job.video_id, "title": job.title, "format": job.format, "status": job.status,
         "step": job.step, "progress": job.progress, "error": job.error, "found": job.found, "file_path": job.file_path,
-        "track_id": job.track_id, "album_id": track.album_id if track else None,
+        "track_id": job.track_id, "album_id": track.album_id if track else None, "target": job.target,
         "has_cover": bool(album and album.cover_path), "cover_v": album.cover_version if album else 0,
         "created_at": job.created_at, "finished_at": job.finished_at,
     }
@@ -57,8 +57,24 @@ def put_settings(body: SettingsIn, _: User = Depends(admin_user)):
     return extract.status()
 
 
+class IntoIn(BaseModel):
+    album_id: int
+    cover: Literal["keep", "new"] = "keep"  # the album's art as it is, or made anew from its songs' pictures
+    title: str | None = Field(None, max_length=300)  # a new name for the album
+
+
 class ExtractIn(BaseModel):
     format: Literal["m4a", "mp3"] | None = None
+    album: IntoIn | None = None  # into an album already extracted, instead of one of its own
+
+
+@router.get("/videos/{video_id}/extract/albums")
+def extract_albums(video_id: int, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """The extracted albums of the singer the video names, to put its song into."""
+    video = db.get(Video, video_id)
+    if video is None:
+        raise api_error(404, "not_found")
+    return {"items": extract.album_choices(db, video)}
 
 
 @router.post("/videos/{video_id}/extract", status_code=202)
@@ -68,7 +84,8 @@ def extract_video(video_id: int, body: ExtractIn, admin: User = Depends(admin_us
     if video is None:
         raise api_error(404, "not_found")
     try:
-        job = extract.enqueue(db, video, admin.id, body.format or appconf.get("extract_format") or "m4a")
+        job = extract.enqueue(db, video, admin.id, body.format or appconf.get("extract_format") or "m4a",
+                              body.album.model_dump() if body.album else None)
     except extract.ExtractError as exc:
         raise _error(exc) from None
     return job_out(job)
@@ -99,6 +116,18 @@ def retry_job(job_id: int, _: User = Depends(admin_user), db: Session = Depends(
     return job_out(job)
 
 
+class CancelIn(BaseModel):
+    ids: list[int] | None = None  # none: every waiting and running job
+
+
+@router.post("/extract/jobs/cancel", status_code=202)
+def cancel_jobs(body: CancelIn, _: User = Depends(admin_user)):
+    """Stops jobs: waiting ones at once, the running one at its next step (both end as failed
+    "extract_cancelled", to be tried again)."""
+    extract.cancel(body.ids)
+    return {"ok": True}
+
+
 @router.delete("/extract/jobs/{job_id}", status_code=204)
 def delete_job(job_id: int, file: bool = False, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """Forgets a job; with file=true also deletes the song it made (and scans the folder)."""
@@ -107,10 +136,11 @@ def delete_job(job_id: int, file: bool = False, _: User = Depends(admin_user), d
         raise api_error(404, "not_found")
     if job.status == "running":
         raise api_error(409, "extract_running")
-    rel = job.file_path
+    rel, track_id = job.file_path, job.track_id
     db.delete(job)
     db.commit()
     if file and rel:
+        extract.forget_cover(track_id)
         try:
             extract.remove_file(rel)
         except extract.ExtractError as exc:
@@ -120,7 +150,11 @@ def delete_job(job_id: int, file: bool = False, _: User = Depends(admin_user), d
         if not lock.acquire(timeout=30):
             raise api_error(409, "scan_running")
         try:
+            # a video linked to the song stays (unlinked): deleting the song would take it along
+            db.execute(update(Video).where(Video.track_id.in_(select(Track.id).where(Track.file_path == rel))).values(track_id=None))
             db.execute(delete(Track).where(Track.file_path == rel))
+            # likewise a video linked to its album, when the album goes with its last song
+            db.execute(update(Video).where(Video.album_id.in_(select(Album.id).where(~exists().where(Track.album_id == Album.id)))).values(album_id=None))
             orphans = prune_orphans(db)
             bump_library(db)
             db.commit()

@@ -42,7 +42,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from . import ai_banner, appconf, artist_aliases, lyrics_fetch, search_index, transcode
 from .config import settings
@@ -58,6 +58,8 @@ AAC_RATE = "256k"  # an m4a from a source that isn't AAC (YouTube's Opus)
 COVER_PX = 1000
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 _lock = threading.Lock()  # held while a job runs or a song's tags are edited (backup.restore waits for none)
+_stop: set[int] = set()  # jobs an admin stopped while they ran: they end at their next step (or ffmpeg is killed)
+_current: list[int | None] = [None]  # the job running now
 _wake = threading.Event()
 _started = False
 
@@ -113,9 +115,15 @@ def status() -> dict:
 
 
 # ---- the queue ----
-def enqueue(db, video: Video, user_id: int, fmt: str) -> ExtractJob:
+def enqueue(db, video: Video, user_id: int, fmt: str, target: dict | None = None) -> ExtractJob:
     if fmt not in FORMATS:
         raise ExtractError("extract_format")
+    if target is not None:
+        album = db.get(Album, target["album_id"])
+        if album is None or album.kind != "extracted" or target.get("cover") not in ("keep", "new"):
+            raise ExtractError("extract_album")
+        name = " ".join((target.get("title") or "").split())[:300]
+        target = {"album_id": album.id, "cover": target["cover"], "title": name or None}
     if not writable() or folder_name() is None:
         raise ExtractError("extract_folder")
     if video.youtube_id:
@@ -125,7 +133,7 @@ def enqueue(db, video: Video, user_id: int, fmt: str) -> ExtractJob:
             raise ExtractError("extract_no_ytdlp")
     elif not video.file_path:
         raise ExtractError("extract_source")
-    job = ExtractJob(video_id=video.id, user_id=user_id, format=fmt, title=video.title)
+    job = ExtractJob(video_id=video.id, user_id=user_id, format=fmt, title=video.title, target=target)
     db.add(job)
     db.commit()
     start_worker()
@@ -158,6 +166,8 @@ def _loop() -> None:
                 job_id = db.scalar(select(ExtractJob.id).where(ExtractJob.status == "pending").order_by(ExtractJob.id).limit(1))
             if job_id is None:
                 break
+            while _update["state"] == "waiting":  # a yt-dlp update goes in between two jobs
+                time.sleep(1)
             with _lock:
                 _run(job_id)
 
@@ -169,6 +179,27 @@ def _set(job_id: int, **values) -> None:
             for k, v in values.items():
                 setattr(job, k, v)
             db.commit()
+
+
+def _check() -> None:
+    """Ends the running job here when an admin stopped it."""
+    if _current[0] in _stop:
+        raise ExtractError("extract_cancelled")
+
+
+def cancel(job_ids: list[int] | None = None) -> None:
+    """Stops jobs (all waiting and running ones when none named): a waiting one at once, the running
+    one at its next step. They end as failed "extract_cancelled", to be tried again."""
+    with SessionLocal() as db:
+        q = select(ExtractJob).where(ExtractJob.status.in_(("pending", "running")))
+        if job_ids is not None:
+            q = q.where(ExtractJob.id.in_(job_ids))
+        for job in db.scalars(q):
+            if job.status == "running":
+                _stop.add(job.id)
+            else:
+                job.status, job.error, job.finished_at = "failed", "extract_cancelled", datetime.now(UTC)
+        db.commit()
 
 
 def _run(job_id: int) -> None:
@@ -185,7 +216,12 @@ def _run(job_id: int) -> None:
         db.commit()
         source = {"id": video.id, "youtube_id": video.youtube_id, "file_path": video.file_path, "title": video.title,
                   "channel": video.channel, "track_id": video.track_id, "album_id": video.album_id, "duration": video.duration}
-        fmt = job.format
+        fmt, target = job.format, job.target
+        linked = db.get(Track, video.track_id) if video.track_id else None
+        if target is None and linked is not None and (album := db.get(Album, linked.album_id)) is not None and album.kind == "extracted":
+            # taken out again: into the album its song is in, as its next one (not on that song's number)
+            target = {"album_id": album.id, "cover": "keep", "title": None}
+    _current[0] = job_id
     work = Path(tempfile.mkdtemp(prefix="extract-", dir=settings.data_dir))
     try:
         info: dict = {}
@@ -195,18 +231,31 @@ def _run(job_id: int) -> None:
             audio = settings.video_dir / source["file_path"]
             if not audio.is_file():
                 raise ExtractError("extract_source")
+        _check()
         _set(job_id, step="tags", progress=1)
         tags, cover = _tags(source, info)
+        own = cover  # the song's own picture, kept for an album's art made from its songs' later
+        into = _into(target, tags) if target else None
+        if into is not None:
+            cover = _collage([*(_original_cover(i, p) for i, p in into["songs"]), own]) if into["cover"] == "new" else into["art"] or own
+        _check()
         _set(job_id, step="convert")
-        target = _target(tags, fmt)
-        part = target.with_name(f".{target.name}.part")
-        target.parent.mkdir(parents=True, exist_ok=True)
+        path = _target(tags, fmt)
+        part = path.with_name(f".{path.name}.part")
+        path.parent.mkdir(parents=True, exist_ok=True)
         _convert(audio, part, fmt)
         _write_tags(part, fmt, tags, cover)
-        os.replace(part, target)
-        rel = library_rel(target).replace(os.sep, "/")
+        _check()
+        if into is not None and (into["cover"] == "new" or into["renamed"]):
+            _restyle([p for _, p in into["songs"]], tags["album"], cover if into["cover"] == "new" else None)
+        os.replace(part, path)
+        rel = library_rel(path).replace(os.sep, "/")
         _set(job_id, step="scan", file_path=rel, found={k: v for k, v in tags.items() if k != "lyrics"})
         track_id = _scan(rel)
+        if track_id:
+            _link(source["id"], track_id)
+            if own:
+                _keep_cover(track_id, own)
         _set(job_id, status="done", step="", track_id=track_id, finished_at=datetime.now(UTC))
         log.info("extracted %s -> %s", source["title"], rel)
     except ExtractError as exc:
@@ -215,10 +264,188 @@ def _run(job_id: int) -> None:
         log.exception("extract %s failed", source["title"])
         _set(job_id, status="failed", error="extract_failed", finished_at=datetime.now(UTC))
     finally:
+        _current[0] = None
+        _stop.discard(job_id)
         shutil.rmtree(work, ignore_errors=True)
         for p in settings.extract_dir.rglob(".*.part"):
             p.unlink(missing_ok=True)
         _prune_empty()
+
+
+# ---- into an album already extracted (the same singer's): its next number, its art kept or made anew ----
+COVERS = settings.data_dir / "extract-covers"  # each extracted song's own picture (<track id>.jpg), for an album's art
+
+
+def album_choices(db, video: Video) -> list[dict]:
+    """The extracted albums of the singer the video names (its title, or the song it is linked to)."""
+    names = [n for n in (parse_title(video.title, video.channel or "")[0],) if n]
+    if video.track_id and (track := db.get(Track, video.track_id)) is not None and track.artist_text:
+        names.append(track.artist_text)
+    if not names:
+        return []
+    rows = db.execute(
+        select(Album, Artist.name, func.count(Track.id))
+        .join(Artist, Artist.id == Album.album_artist_id)
+        .join(Track, (Track.album_id == Album.id) & Track.missing_at.is_(None))
+        .where(Album.kind == "extracted")
+        .group_by(Album.id, Artist.name)
+        .order_by(Album.title)
+    ).all()
+    return [
+        {"id": a.id, "title": a.title, "artist": artist, "track_count": n, "has_cover": bool(a.cover_path), "cover_v": a.cover_version}
+        for a, artist, n in rows
+        if any(_fits(name, [artist]) for name in names)
+    ]
+
+
+def _into(target: dict, tags: dict) -> dict | None:
+    """Files the song under the chosen album: its name (or the new one), album artist and year as its
+    files have them (else the scanner would make another), and the next number. None, and the song
+    an album of its own, when the album is gone."""
+    with SessionLocal() as db:
+        album = db.get(Album, target["album_id"])
+        rows = db.execute(
+            select(Track.id, Track.file_path, Track.disc_no, Track.track_no)
+            .where(Track.album_id == album.id, Track.missing_at.is_(None)).order_by(Track.disc_no, Track.track_no, Track.file_path)
+        ).all() if album is not None and album.kind == "extracted" else []
+    root = settings.extract_dir.resolve()
+    songs = [(i, p) for i, rel, _, _ in rows if (p := library_path(rel)).is_file() and root in p.resolve().parents]
+    if not songs:
+        tags["review"] = [*tags.get("review", []), "album_gone"]
+        return None
+    first = read_tags(songs[0][1])
+    disc = max((d or 1) for _, _, d, _ in rows)
+    tags |= {"album": target.get("title") or first["album"] or tags["album"], "album_artist": first["album_artist"] or tags["album_artist"],
+             "year": first["year"], "disc": disc, "track": max((n or 0) for _, _, d, n in rows if (d or 1) == disc) + 1}
+    return {"songs": songs, "cover": target["cover"], "renamed": tags["album"] != first["album"], "art": _embedded(songs[0][1])}
+
+
+def _embedded(path: Path) -> bytes | None:
+    """The picture in a song's file."""
+    try:
+        if path.suffix.lower() == ".m4a":
+            from mutagen.mp4 import MP4
+
+            pics = (MP4(path).tags or {}).get("covr") or []
+            return bytes(pics[0]) if pics else None
+        from mutagen.id3 import ID3
+
+        pics = ID3(path).getall("APIC")
+        return pics[0].data if pics else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _original_cover(track_id: int, path: Path) -> bytes | None:
+    """A song's own picture (not the album's art it may carry now): kept when it was extracted, else
+    its video's thumbnail, else what its file has."""
+    kept = COVERS / f"{track_id}.jpg"
+    if kept.is_file():
+        return kept.read_bytes()
+    with SessionLocal() as db:
+        video = db.scalar(select(Video).where(Video.track_id == track_id).limit(1))
+        if video is None:
+            job = db.scalar(select(ExtractJob).where(ExtractJob.track_id == track_id).order_by(ExtractJob.id.desc()).limit(1))
+            video = db.get(Video, job.video_id) if job and job.video_id else None
+        source = _source(video)
+    return (_thumbnail(source) if source else None) or _embedded(path)
+
+
+def _keep_cover(track_id: int, cover: bytes) -> None:
+    COVERS.mkdir(parents=True, exist_ok=True)
+    (COVERS / f"{track_id}.jpg").write_bytes(cover)
+
+
+def forget_cover(track_id: int | None) -> None:
+    if track_id:
+        (COVERS / f"{track_id}.jpg").unlink(missing_ok=True)
+
+
+def _collage(covers: list[bytes | None]) -> bytes | None:
+    """An album's art from its songs' pictures: two side by side, three as one large and two small,
+    four or more as the first four in a square."""
+    pics = []
+    for data in covers:
+        if not data:
+            continue
+        try:
+            pics.append(Image.open(io.BytesIO(data)).convert("RGB"))
+        except Exception:  # noqa: BLE001
+            continue
+    if not pics:
+        return None
+    side, half = COVER_PX, COVER_PX // 2
+
+    def cut(im: Image.Image, w: int, h: int) -> Image.Image:  # filled, the middle kept
+        scale = max(w / im.width, h / im.height)
+        im = im.resize((max(w, round(im.width * scale)), max(h, round(im.height * scale))), Image.LANCZOS)
+        left, top = (im.width - w) // 2, (im.height - h) // 2
+        return im.crop((left, top, left + w, top + h))
+
+    art = Image.new("RGB", (side, side))
+    if len(pics) == 1:
+        art.paste(cut(pics[0], side, side), (0, 0))
+    elif len(pics) == 2:
+        art.paste(cut(pics[0], half, side), (0, 0))
+        art.paste(cut(pics[1], side - half, side), (half, 0))
+    elif len(pics) == 3:
+        art.paste(cut(pics[0], half, side), (0, 0))
+        art.paste(cut(pics[1], side - half, half), (half, 0))
+        art.paste(cut(pics[2], side - half, side - half), (half, half))
+    else:
+        for i, im in enumerate(pics[:4]):
+            art.paste(cut(im, half, half), ((i % 2) * half, (i // 2) * half))
+    out = io.BytesIO()
+    art.save(out, "JPEG", quality=90)
+    return out.getvalue()
+
+
+def _restyle(paths: list[Path], album: str, cover: bytes | None) -> None:
+    """The album's other songs: its (new) name, and the new art when there is one. Their numbers,
+    titles and lyrics stay."""
+    from .scanner import scan_lock
+
+    lock = scan_lock()
+    if not lock.acquire(timeout=60):
+        raise ExtractError("scan_running")
+    try:
+        for path in paths:
+            if path.suffix.lower() == ".m4a":
+                from mutagen.mp4 import MP4, MP4Cover
+
+                f = MP4(path)
+                f.tags = f.tags or {}
+                f.tags["\xa9alb"] = [album]
+                if cover:
+                    f.tags["covr"] = [MP4Cover(cover, imageformat=MP4Cover.FORMAT_JPEG)]
+                f.save()
+            else:
+                from mutagen.id3 import APIC, ID3, TALB
+
+                f = ID3(path)
+                f.delall("TALB")
+                f.add(TALB(encoding=3, text=album))
+                if cover:
+                    f.delall("APIC")
+                    f.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=cover))
+                f.save(path, v2_version=4)
+        with SessionLocal() as db:  # the jobs that made them show the album's name
+            rels = [library_rel(p).replace(os.sep, "/") for p in paths]
+            for j in db.scalars(select(ExtractJob).where(ExtractJob.file_path.in_(rels))):
+                j.found = (j.found or {}) | {"album": album}
+            db.commit()
+    finally:
+        lock.release()
+
+
+def _link(video_id: int, track_id: int) -> None:
+    """The video, when it isn't linked yet, to the song taken out of it (one already linked to a song
+    or an album keeps that)."""
+    with SessionLocal() as db:
+        video = db.get(Video, video_id)
+        if video is not None and video.track_id is None and video.album_id is None:
+            video.track_id = track_id
+            db.commit()
 
 
 def _prune_empty() -> None:
@@ -237,6 +464,7 @@ def _download(job_id: int, youtube_id: str, work: Path) -> tuple[Path, dict]:
     last = [0.0]
 
     def hook(d: dict) -> None:
+        _check()
         if d.get("status") == "downloading" and time.monotonic() - last[0] > 1:
             last[0] = time.monotonic()
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
@@ -254,6 +482,7 @@ def _download(job_id: int, youtube_id: str, work: Path) -> tuple[Path, dict]:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={youtube_id}", download=True)
     except yt_dlp.utils.DownloadError as exc:
+        _check()  # stopped (yt-dlp may wrap what the hook raised)
         log.info("yt-dlp %s: %s", youtube_id, str(exc)[:300])
         raise ExtractError(_why(str(exc))) from None
     files = [p for p in work.iterdir() if p.name.startswith("source.")]
@@ -637,9 +866,19 @@ def _ffmpeg(args: list[str]) -> bool:
     exe = transcode.ffmpeg()
     if exe is None:
         raise ExtractError("extract_convert")
-    run = subprocess.run([exe, "-hide_banner", "-nostdin", "-loglevel", "error", "-y", *args], capture_output=True, timeout=1800)
+    with tempfile.TemporaryFile() as errors:
+        run = subprocess.Popen([exe, "-hide_banner", "-nostdin", "-loglevel", "error", "-y", *args], stdout=subprocess.DEVNULL, stderr=errors)
+        ends = time.monotonic() + 1800
+        while run.poll() is None:  # killed when the job is stopped (or takes over half an hour)
+            if _current[0] in _stop or time.monotonic() > ends:
+                run.kill()
+                run.wait()
+                _check()
+                raise ExtractError("extract_convert")
+            time.sleep(0.3)
+        errors.seek(0)
+        err = errors.read().decode("utf-8", "replace")
     if run.returncode:
-        err = run.stderr.decode("utf-8", "replace")
         if "matches no streams" in err:
             raise ExtractError("extract_no_audio")  # a video without sound
         log.info("ffmpeg: %s", err[-400:])
@@ -883,6 +1122,8 @@ def retag(track_id: int, values: dict, cover_choice: str | None = None, cover_ur
             tags["review"] = []
             tags["lyrics"] = _lyrics(tags, source.get("duration") if source else None)[0]
         _write_tags(path, fmt, tags, cover)
+        if cover:
+            _keep_cover(track_id, cover)  # the song's own picture now (for an album's art made from its songs')
         target = _target(tags, fmt, path)
         new_rel = rel
         if target != path:
@@ -917,7 +1158,7 @@ def retag(track_id: int, values: dict, cover_choice: str | None = None, cover_ur
 # Installed by an admin into DATA_DIR/pylib (yt-dlp and its JavaScript part alone: the app's other
 # libraries stay the image's), found there before the image's own. Loaded afresh after an update.
 PYLIB = settings.data_dir / "pylib"
-_update = {"state": "idle", "error": None, "at": None}  # idle | running | done | failed
+_update = {"state": "idle", "error": None, "at": None}  # idle | running | waiting (for a job) | done | failed
 
 
 def _use_pylib() -> None:
@@ -941,7 +1182,7 @@ def update_state() -> dict:
 
 
 def update_ytdlp() -> dict:
-    if _update["state"] == "running":
+    if _update["state"] in ("running", "waiting"):
         raise ExtractError("extract_update_running")
     _update.update(state="running", error=None, at=datetime.now(UTC).isoformat())
     threading.Thread(target=_install, daemon=True, name="ytdlp-update").start()
@@ -960,7 +1201,10 @@ def _install() -> None:
         if run.returncode or not (new / "yt_dlp").is_dir():
             log.warning("yt-dlp update failed: %s", run.stderr.decode("utf-8", "replace")[-600:])
             raise ExtractError("extract_update_failed")
-        with _lock:  # no job is using yt-dlp now
+        if not _lock.acquire(blocking=False):  # a job is using yt-dlp: in once it ends (the next one waits)
+            _update.update(state="waiting")
+            _lock.acquire()
+        try:
             shutil.rmtree(old, ignore_errors=True)
             if PYLIB.exists():
                 PYLIB.rename(old)
@@ -968,6 +1212,8 @@ def _install() -> None:
             shutil.rmtree(old, ignore_errors=True)
             _use_pylib()
             _forget_ytdlp()
+        finally:
+            _lock.release()
         log.info("yt-dlp updated to %s", ytdlp_version())
         _update.update(state="done", error=None)
     except ExtractError as exc:
@@ -981,7 +1227,7 @@ def _install() -> None:
 
 def reset_ytdlp() -> dict:
     """Back to the image's own yt-dlp."""
-    if _update["state"] == "running":
+    if _update["state"] in ("running", "waiting"):
         raise ExtractError("extract_update_running")
     with _lock:
         shutil.rmtree(PYLIB, ignore_errors=True)

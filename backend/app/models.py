@@ -618,6 +618,8 @@ class ExtractJob(Base):
     error: Mapped[str | None] = mapped_column(String(200))  # a code for the frontend
     title: Mapped[str] = mapped_column(String(500), default="", server_default="")  # the video's, at the time
     found: Mapped[dict | None] = mapped_column(JSON)  # the tags written and where they came from
+    # the album to go into instead of one of its own: {"album_id", "cover": keep | new, "title": a new name or None}
+    target: Mapped[dict | None] = mapped_column(JSON)
     file_path: Mapped[str | None] = mapped_column(Text)  # relative to MUSIC_DIR
     track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

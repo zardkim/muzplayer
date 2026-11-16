@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CircleAlert, Music, RotateCcw, Tag, Trash2, X } from '@lucide/vue'
+import { CircleAlert, Music, RotateCcw, Square, Tag, Trash2, X } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
@@ -25,20 +25,23 @@ interface Job {
 }
 interface Status {
   folder: string; folder_ok: boolean; ytdlp: string | null; deno: boolean; ffmpeg: boolean; youtube: boolean; format: 'm4a' | 'mp3'; ai: boolean; ai_ready: boolean
-  ytdlp_update: { state: 'idle' | 'running' | 'done' | 'failed'; error: string | null; custom: boolean }
+  ytdlp_update: { state: 'idle' | 'running' | 'waiting' | 'done' | 'failed'; error: string | null; custom: boolean }
 }
 const jobs = ref<Job[]>([])
 const status = ref<Status | null>(null)
 let timer = 0
 async function load() {
   const r = await api<{ items: Job[]; running: boolean }>('/extract/jobs')
+  // a job just finished: its video was linked to the new song, the video list shows it
+  const was = new Set(jobs.value.filter((j) => j.status === 'running').map((j) => j.id))
+  if (r.items.some((j) => j.status === 'done' && was.has(j.id))) ui.videoLinked++
   jobs.value = r.items
   window.clearTimeout(timer)
   if (r.running) timer = window.setTimeout(() => void load().catch(() => {}), 2000)
 }
 onMounted(() => {
   load().catch((e) => ui.notify(errorMessage(e), true))
-  api<Status>('/extract/status').then((s) => (status.value = s), () => {})
+  void followUpdate() // an update still going on (the sheet was closed meanwhile): followed again
 })
 onUnmounted(() => window.clearTimeout(timer))
 
@@ -55,9 +58,24 @@ async function remove(j: Job, file: boolean) {
   await api(`/extract/jobs/${j.id}?file=${file}`, { method: 'DELETE' }).catch((e) => ui.notify(errorMessage(e), true))
   await load()
 }
+// a running job's steps: where it is of the four, and how far (the download counts its bytes)
+const STEPS = ['download', 'tags', 'convert', 'scan']
+const stepAt = (j: Job) => Math.max(0, STEPS.indexOf(j.step || 'download'))
+const done = (j: Job) => (stepAt(j) + (j.step === 'download' || !j.step ? j.progress : 0)) / STEPS.length
+const cancelled = (j: Job) => j.status === 'failed' && j.error === 'extract_cancelled'
 const stateText = (j: Job) =>
-  j.status === 'running' ? t(`extract.step_${j.step || 'download'}`) + (j.step === 'download' && j.progress ? ` ${Math.round(j.progress * 100)}%` : '') : t(`extract.status_${j.status}`)
-const errorText = (code: string | null) => (code ? errorMessage({ code }) : '')
+  j.status === 'running'
+    ? `${t('extract.stepOf', { n: stepAt(j) + 1, total: STEPS.length })} · ${t(`extract.step_${j.step || 'download'}`)}${j.step === 'download' && j.progress ? ` ${Math.round(j.progress * 100)}%` : ''}${stopping.value.has(j.id) ? ` · ${t('extract.stopping')}` : ''}`
+    : cancelled(j) ? t('extract.status_cancelled') : t(`extract.status_${j.status}`)
+const errorText = (j: Job) => (j.error && !cancelled(j) ? errorMessage({ code: j.error }) : '')
+// stop: a waiting job at once, the running one at its next step (then tried again with retry)
+const stopping = ref(new Set<number>())
+async function stop(ids?: number[]) {
+  if (!ids && !confirm(t('extract.stopAllConfirm'))) return
+  for (const j of jobs.value) if (j.status === 'running' && (!ids || ids.includes(j.id))) stopping.value.add(j.id)
+  await api('/extract/jobs/cancel', { method: 'POST', body: { ids: ids ?? null } }).catch((e) => ui.notify(errorMessage(e), true))
+  await load()
+}
 // where the tags came from (the AI or the title, confirmed on Bugs), the lyrics, and what to check
 const sources = (j: Job) => {
   const f = j.found
@@ -70,9 +88,10 @@ let statusTimer = 0
 async function followUpdate() {
   window.clearTimeout(statusTimer)
   status.value = await api<Status>('/extract/status').catch(() => status.value)
-  if (status.value?.ytdlp_update.state === 'running') statusTimer = window.setTimeout(() => void followUpdate(), 2000)
+  if (busy.value) statusTimer = window.setTimeout(() => void followUpdate(), 2000)
   else if (status.value?.ytdlp_update.state === 'failed') ui.notify(errorMessage({ code: status.value.ytdlp_update.error ?? 'extract_update_failed' }), true)
 }
+const busy = computed(() => status.value?.ytdlp_update.state === 'running' || status.value?.ytdlp_update.state === 'waiting')
 async function updateYtdlp() {
   await api('/extract/ytdlp', { method: 'POST' }).catch((e) => ui.notify(errorMessage(e), true))
   await followUpdate()
@@ -111,15 +130,21 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
           · yt-dlp {{ status.ytdlp ?? '—' }}{{ status.ytdlp_update.custom ? ` (${t('extract.ytdlpCustom')})` : '' }}{{ status.deno ? '' : ` · ${t('extract.noDeno')}` }}
         </p>
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="h-9 rounded-full border border-line-strong bg-bg px-3.5 text-[13px] hover:border-ink disabled:opacity-50" :disabled="status.ytdlp_update.state === 'running'" @click="updateYtdlp">
-            {{ status.ytdlp_update.state === 'running' ? t('extract.ytdlpUpdating') : t('extract.ytdlpUpdate') }}
+          <button type="button" class="h-9 rounded-full border border-line-strong bg-bg px-3.5 text-[13px] hover:border-ink disabled:opacity-50" :disabled="busy" @click="updateYtdlp">
+            {{ busy ? t('extract.ytdlpUpdating') : t('extract.ytdlpUpdate') }}
           </button>
-          <button v-if="status.ytdlp_update.custom && status.ytdlp_update.state !== 'running'" type="button" class="text-[13px] text-muted underline hover:text-ink" @click="resetYtdlp">{{ t('extract.ytdlpReset') }}</button>
+          <button v-if="status.ytdlp_update.custom && !busy" type="button" class="text-[13px] text-muted underline hover:text-ink" @click="resetYtdlp">{{ t('extract.ytdlpReset') }}</button>
+          <span v-if="status.ytdlp_update.state === 'waiting'" class="text-[13px] text-muted">{{ t('extract.ytdlpWaiting') }}</span>
           <span v-if="status.ytdlp_update.state === 'done'" class="text-[13px] text-accent">{{ t('extract.ytdlpUpdated', { v: status.ytdlp }) }}</span>
         </div>
       </section>
 
-      <h3 class="font-medium">{{ t('extract.jobs') }}<span v-if="active" class="ml-1.5 text-[13px] text-accent">{{ t('extract.active', { n: active }) }}</span></h3>
+      <h3 class="flex items-center font-medium">
+        <span class="flex-1">{{ t('extract.jobs') }}<span v-if="active" class="ml-1.5 text-[13px] text-accent">{{ t('extract.active', { n: active }) }}</span></span>
+        <button v-if="active > 1" type="button" class="flex h-8 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] font-normal hover:border-ink" @click="stop()">
+          <Square :size="13" :stroke-width="2" />{{ t('extract.stopAll') }}
+        </button>
+      </h3>
       <p v-if="!jobs.length" class="text-[14px] font-light text-muted">{{ t('extract.none') }}</p>
       <ul class="flex flex-col">
         <li v-for="j in jobs" :key="j.id" class="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
@@ -131,15 +156,31 @@ const active = computed(() => jobs.value.filter((j) => j.status === 'pending' ||
             <span class="truncate text-[15px]">{{ j.found ? [j.found.title, j.found.artist].filter(Boolean).join(' · ') : j.title }}</span>
             <span class="truncate text-[12px] text-muted">{{ j.format.toUpperCase() }} · {{ j.found?.album || j.title }}<template v-if="sources(j)"> · {{ sources(j) }}</template></span>
             <span v-if="review(j)" class="flex items-center gap-1 text-[12px] text-danger"><CircleAlert :size="13" :stroke-width="1.8" />{{ t('extract.review') }}: {{ review(j) }}</span>
-            <span class="text-[12px]" :class="j.status === 'failed' ? 'text-danger' : j.status === 'done' ? 'text-accent' : 'text-muted'">
-              {{ stateText(j) }}<template v-if="j.error"> · {{ errorText(j.error) }}</template>
+            <span class="text-[12px]" :class="j.status === 'failed' && !cancelled(j) ? 'text-danger' : j.status === 'done' ? 'text-accent' : 'text-muted'">
+              {{ stateText(j) }}<template v-if="errorText(j)"> · {{ errorText(j) }}</template>
             </span>
-            <span v-if="j.status === 'running' && j.step === 'download'" class="mt-0.5 h-1 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent transition-[width]" :style="{ width: `${Math.round(j.progress * 100)}%` }" /></span>
+            <span
+              v-if="j.status === 'running'"
+              class="mt-0.5 h-1 rounded-full bg-surface"
+              role="progressbar"
+              :aria-valuenow="Math.round(done(j) * 100)"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            ><span class="block h-full rounded-full bg-accent transition-[width]" :style="{ width: `${Math.max(3, Math.round(done(j) * 100))}%` }" /></span>
           </span>
+          <button
+            v-if="j.status === 'running' || j.status === 'pending'"
+            type="button"
+            class="flex h-9 flex-none items-center gap-1.5 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink disabled:opacity-50"
+            :disabled="stopping.has(j.id)"
+            @click="stop([j.id])"
+          >
+            <component :is="j.status === 'running' ? Square : X" :size="14" :stroke-width="2" />{{ j.status === 'running' ? t('extract.stop') : t('extract.cancel') }}
+          </button>
           <button v-if="j.status === 'failed'" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extract.retry')" :title="t('extract.retry')" @click="retry(j)"><RotateCcw :size="17" :stroke-width="1.7" /></button>
           <button v-if="j.status === 'done' && j.track_id" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extractTags.edit')" :title="t('extractTags.edit')" @click="editing = j"><Tag :size="17" :stroke-width="1.7" /></button>
           <button v-if="j.status === 'done' && j.file_path" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-danger" :aria-label="t('extract.deleteFile')" :title="t('extract.deleteFile')" @click="remove(j, true)"><Trash2 :size="17" :stroke-width="1.7" /></button>
-          <button v-if="j.status !== 'running'" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extract.forget')" :title="t('extract.forget')" @click="remove(j, false)"><X :size="17" :stroke-width="1.7" /></button>
+          <button v-if="j.status === 'done' || j.status === 'failed'" type="button" class="grid size-9 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('extract.forget')" :title="t('extract.forget')" @click="remove(j, false)"><X :size="17" :stroke-width="1.7" /></button>
         </li>
       </ul>
     </div>
