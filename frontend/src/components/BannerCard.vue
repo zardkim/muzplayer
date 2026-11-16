@@ -49,7 +49,7 @@ async function play() {
     :is="link ? 'RouterLink' : 'div'"
     :to="link ? { name: 'chart', params: { id: chart.id } } : undefined"
     class="relative block overflow-hidden rounded-2xl bg-[#111113] text-white"
-    :class="{ small: 'aspect-[16/9]', compact: 'aspect-[2/1] md:aspect-[4/1]', header: 'aspect-[16/9] md:aspect-[5/2]', hero: 'aspect-[16/9] md:aspect-[6/1]' }[size]"
+    :class="{ small: 'aspect-[16/9]', compact: 'aspect-[2/1] md:aspect-[4/1]', header: 'aspect-[16/9] md:aspect-[5/1]', hero: 'aspect-[16/9] md:aspect-[6/1]' }[size]"
     :style="{ '--tint': tint ?? '38 38 44' }"
   >
     <img v-if="src && !failed" :src="src" alt="" class="absolute inset-0 h-full w-full object-cover" @error="failed = true" />
