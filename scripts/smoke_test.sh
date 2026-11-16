@@ -212,7 +212,7 @@ check "no thumbnail for a video that isn't there" "$(curl -s -b "$A" -o /dev/nul
 check "only an admin adds YouTube videos" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"dQw4w9WgXcQ\",\"kind\":\"mv\",\"album_id\":$aid}")" 403
 check "only an admin registers NAS videos" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/videos/files")" 403
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
-check "only NAS videos are linked by name" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
+check "no linking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
 check "no similar videos of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/related")" 404
 # a song taken out of a NAS video (extract.py; no internet): into the library as "extracted", then deleted
@@ -241,6 +241,15 @@ if [ "$xvid" != none ]; then
   check "a library song's tags not editable" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/extract/tracks/$(curl -s -b "$A" "$BASE/tracks?limit=1" | j 'd["items"][0]["id"]')")" 400
   check "extracted song deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/extract/jobs/$xjob?file=true")" 204
   for _ in $(seq 1 30); do [ "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["status"]')" = running ] || break; sleep 1; done
+  # linked to an album instead of its song (then back as it was)
+  xwas=$(curl -s -b "$A" "$BASE/videos?q=Banana%20Pancakes&limit=200" | j "next((x['track_id'] for x in d['items'] if x['id'] == $xvid), None)")
+  link() { curl -s -b "$1" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/$xvid/link" -H 'content-type: application/json' -d "$2"; }
+  check "video linked to an album" "$(curl -s -b "$A" -X POST "$BASE/videos/$xvid/link" -H 'content-type: application/json' -d "{\"album_id\":$aid}" | j '[d["album_id"], d["track_id"], d["target"]["type"]]')" "[$aid, None, 'album']"
+  check "album's videos listed" "$(curl -s -b "$A" "$BASE/videos?album_id=$aid&limit=200" | j "any(x['id'] == $xvid for x in d['items']) and all(x['album_id'] == $aid for x in d['items'])")" True
+  check "song and album not both" "$(link "$A" "{\"album_id\":$aid,\"track_id\":1}")" 422
+  check "no linking to a missing album" "$(link "$A" '{"album_id":999999}')" 404
+  check "only an admin links videos" "$(link "$U" "{\"album_id\":$aid}")" 403
+  if [ "$xwas" = None ]; then link "$A" '{}' > /dev/null; else link "$A" "{\"track_id\":$xwas}" > /dev/null; fi
   [ -n "$xmade" ] && curl -s -b "$A" -o /dev/null -X DELETE "$BASE/videos/$xvid"
 fi
 check "liked videos answer" "$(curl -s -b "$A" "$BASE/videos?liked=true" | j 'sorted(d)')" "['items', 'total']"

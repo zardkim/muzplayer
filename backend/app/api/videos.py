@@ -108,6 +108,7 @@ def _matches(q: str):
 def all_videos(
     kind: Kind | None = None,
     q: str = Query("", max_length=200),
+    album_id: int | None = None,  # only the videos linked to this album (its page)
     liked: bool = False,  # only the videos this person liked
     sort: str = Query("recent", pattern="^(recent|oldest|title|artist)$"),
     offset: int = Query(0, ge=0),
@@ -122,6 +123,8 @@ def all_videos(
         cond.append(_matches(q.strip()))
     if liked:
         cond.append(_liked(user.id))
+    if album_id is not None:
+        cond.append(Video.album_id == album_id)
     total = db.scalar(select(func.count()).select_from(_listing(user.id).where(*cond).subquery()))
     # artist: the song's, else the album's, else the channel; a NAS file without any comes last
     artist = func.lower(func.coalesce(func.nullif(Track.artist_text, ""), Artist.name, func.nullif(Video.channel, "")))
@@ -418,6 +421,43 @@ def guess_track(db: Session, rel: str, title: str | None = None) -> int | None:
     return None
 
 
+def guess_album(db: Session, rel: str, title: str | None = None) -> int | None:
+    """The album a video is of, only when a name says it exactly: "Artist - Album" (either way round),
+    the album's title alone, or its title in a folder named after the artist; the name, without
+    [MV]-like marks, equal to the album's title, its artist (when given) the album's. None when no album
+    or more than one fits: an album nearly matching is left for an admin to link by hand."""
+    path = Path(rel)
+    folder = path.parent.name if path.parent != Path(".") else ""
+    guesses: list[tuple[str, str]] = []  # (artist or "", album)
+    for text in dict.fromkeys(t for t in (title, path.stem, folder) if t):
+        text = text.replace("_", " ")
+        if " - " in text:
+            a, b = (s.strip() for s in text.split(" - ", 1))
+            guesses += [(a, b), (b, a)]
+        if folder and text != folder:
+            guesses.append((folder, text))
+        guesses.append(("", text))
+    for artist, name in guesses:
+        want = _clean(name)
+        if len(want) < 2:
+            continue
+        rows = db.execute(
+            select(Album.id, Album.title, Artist.name)
+            .outerjoin(Artist, Artist.id == Album.album_artist_id)
+            .where(Album.kind != "chart", func.lower(Album.title).contains(want.split()[0], autoescape=True))
+            .limit(500)
+        ).all()
+        hits = [r for r in rows if search_index.norm(r.title) == want]
+        if artist:
+            who = _clean(artist)
+            hits = [r for r in hits if who and r.name and (who in search_index.norm(r.name) or search_index.norm(r.name) in who)]
+        if len(hits) == 1:
+            return hits[0].id
+        if hits:
+            return None  # the same title by several artists (or twice): don't guess
+    return None
+
+
 @router.get("/videos/files")
 def video_files(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
     """The video files in library/video (sub-folders too), each saying whether it is registered.
@@ -465,12 +505,14 @@ def add_video_file(body: VideoFileIn, user: User = Depends(admin_user), db: Sess
         raise api_error(404, "not_found")
     rel = os.path.relpath(path, _video_root().resolve())
     title = (body.title or "").strip() or Path(rel).stem
-    track_id = body.track_id
-    if track_id is None and body.album_id is None:
+    track_id, album_id = body.track_id, body.album_id
+    if track_id is None and album_id is None:
         track_id = guess_track(db, rel, title)  # its song, when the name says so
+        if track_id is None:
+            album_id = guess_album(db, rel, title)  # else its album, when the name is exactly its title
     video = Video(
         file_path=rel, kind=body.kind, title=title,
-        channel="", track_id=track_id, album_id=body.album_id, added_by=user.id,
+        channel="", track_id=track_id, album_id=album_id, added_by=user.id,
     )
     db.add(video)
     try:
@@ -484,25 +526,39 @@ def add_video_file(body: VideoFileIn, user: User = Depends(admin_user), db: Sess
 
 class LinkIn(BaseModel):
     track_id: int | None = None  # the song picked (Music videos page: searched for by a keyword)
-    auto: bool = False  # find its song from its name instead; neither: no song
+    album_id: int | None = None  # or the album picked
+    auto: bool = False  # find its song (else its album) from its name instead; none: on its own
+
+    @model_validator(mode="after")
+    def one_target(self):
+        if self.album_id is not None and self.track_id is not None:
+            raise ValueError("album_id or track_id")
+        return self
 
 
 @router.post("/videos/{video_id}/link")
 def link_video(video_id: int, body: LinkIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """A NAS file's (or a YouTube video's of the Music videos page) song: the one picked, found again
-    from its name (404 video_no_song when none fits), or none."""
+    """A video's song or album: the one picked, found again from its name (its song, else the album
+    its name is exactly the title of; 404 video_no_song when none fits), or none."""
     video = _editable(db, user, video_id)
-    if not video.file_path and video.album_id is not None:
-        raise api_error(400, "not_a_file")  # a YouTube video of an album stays with it
+    track_id = album_id = None
     if body.track_id is not None:
         if db.get(Track, body.track_id) is None:
             raise api_error(404, "not_found")
         track_id = body.track_id
-    else:
-        track_id = guess_track(db, video.file_path or video.title, video.title) if body.auto else None
-        if body.auto and track_id is None:
+    elif body.album_id is not None:
+        album = db.get(Album, body.album_id)
+        if album is None or album.kind == "chart":  # a chart's hidden album: not an album to link to
+            raise api_error(404, "not_found")
+        album_id = album.id
+    elif body.auto:
+        name = video.file_path or video.title
+        track_id = guess_track(db, name, video.title)
+        if track_id is None:
+            album_id = guess_album(db, name, video.title)
+        if track_id is None and album_id is None:
             raise api_error(404, "video_no_song")
-    video.track_id, video.album_id = track_id, None
+    video.track_id, video.album_id = track_id, album_id
     try:
         db.commit()
     except IntegrityError:  # the song (or nothing) has this YouTube video already

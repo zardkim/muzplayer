@@ -72,9 +72,10 @@ async function remakeThumb() {
     remaking.value = false
   }
 }
-// a NAS file's song: picked from a search (the link sheet, App.vue), or let go
-function pickSong() {
+// its song or album: picked from a search (the link sheet, App.vue), or let go
+function pickLink(tab: 'track' | 'album') {
   menu.value = false
+  ui.videoLinkTab = tab
   ui.videoLink = props.video
 }
 async function unlink() {
@@ -128,12 +129,11 @@ onUnmounted(() => document.removeEventListener('click', outside))
             <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
             <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
           </template>
-          <!-- its song: NAS files, and YouTube videos added by their link (an album's stay with it) -->
-          <template v-if="video.file_path || !video.album_id">
-            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickSong">{{ t('videos.linkSong') }}</button>
-            <button v-if="video.track_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
-            <div class="my-1 border-t border-line" />
-          </template>
+          <!-- its song or album -->
+          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('track')">{{ t('videos.linkSong') }}</button>
+          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('album')">{{ t('videos.linkAlbum') }}</button>
+          <button v-if="video.track_id || video.album_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
+          <div class="my-1 border-t border-line" />
           <!-- its sound as a song (extract.py) -->
           <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), emit('extract')">{{ t('extract.menu') }}</button>
           <div class="my-1 border-t border-line" />

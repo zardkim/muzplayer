@@ -18,6 +18,7 @@ import DownloadButton from '../components/DownloadButton.vue'
 import PlayActions from '../components/PlayActions.vue'
 import QualityBadge from '../components/QualityBadge.vue'
 import StarRating from '../components/StarRating.vue'
+import VideoRow from '../components/VideoRow.vue'
 import TrackList from '../components/TrackList.vue'
 import Marquee from '../components/Marquee.vue'
 
@@ -214,6 +215,8 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
       </div>
     </div>
     <TrackList :tracks="album.tracks" :show-cover="false" :show-album="false" :numbered="!multiDisc" video-buttons />
+    <!-- videos of the whole album (a concert, a showcase…; linked on the Music videos page), only when there are some -->
+    <VideoRow v-if="album.video_count" :key="album.id" :album-id="album.id" :title="t('videos.forAlbum')" class="mt-4" />
     <ExtractTagSheet v-if="tagsOpen" :tracks="album.tracks.map((x) => ({ id: x.id, title: x.title }))" @close="tagsOpen = false" @saved="tagsSaved" />
     <AlbumNotesSheet v-if="notesOpen" :album-id="album.id" :text="album.description" :source="album.description_source" @close="notesOpen = false" @saved="notesSaved" />
   </div>

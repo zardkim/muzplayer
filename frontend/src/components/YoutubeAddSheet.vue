@@ -23,14 +23,13 @@ async function add() {
   error.value = ''
   try {
     const v = await api<VideoListItem>('/videos', { method: 'POST', body: { video: link.value.trim(), kind: kind.value } })
-    let linked = false
+    let linked: 'track' | 'album' | null = null
     try {
-      await api(`/videos/${v.id}/link`, { method: 'POST', body: { auto: true } })
-      linked = true
+      linked = (await api<VideoListItem>(`/videos/${v.id}/link`, { method: 'POST', body: { auto: true } })).target?.type ?? null
     } catch {
-      /* no song fits its title: it stays on its own */
+      /* no song or album fits its title: it stays on its own (an admin links it by hand) */
     }
-    ui.notify(linked ? t('videos.addedLinked') : t('videos.added'))
+    ui.notify(linked === 'album' ? t('videos.addedLinkedAlbum') : linked ? t('videos.addedLinked') : t('videos.added'))
     emit('added')
     emit('close')
   } catch (e) {

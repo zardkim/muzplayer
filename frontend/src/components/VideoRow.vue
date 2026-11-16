@@ -8,16 +8,19 @@ import type { Page, VideoListItem } from '../types'
 import SectionTitle from './SectionTitle.vue'
 import VideoThumb from './VideoThumb.vue'
 
-// A row of music videos (home, my music): the newest ones, or this person's liked ones. A tap plays
-// the row from that one; the heading opens the whole list. Nothing is shown while there are none.
-const props = defineProps<{ title: string; to: RouteLocationRaw; liked?: boolean }>()
+// A row of music videos (home, my music): the newest ones, this person's liked ones, or an album's
+// (its page, oldest first, all of them). A tap plays the row from that one; the heading opens the
+// whole list. Nothing is shown while there are none.
+const props = defineProps<{ title: string; to?: RouteLocationRaw; liked?: boolean; albumId?: number }>()
 const { t } = useI18n()
 const ui = useUi()
 const items = ref<VideoListItem[]>([])
 const total = ref(0)
 
 onMounted(async () => {
-  const r = await api<Page<VideoListItem>>(`/videos${query({ liked: props.liked ? 'true' : undefined, sort: 'recent', limit: 12 })}`).catch(() => null)
+  const r = await api<Page<VideoListItem>>(
+    `/videos${query({ liked: props.liked ? 'true' : undefined, album_id: props.albumId, sort: props.albumId ? 'oldest' : 'recent', limit: props.albumId ? 60 : 12 })}`,
+  ).catch(() => null)
   if (r) {
     items.value = r.items
     total.value = r.total

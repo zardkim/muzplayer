@@ -99,8 +99,9 @@ export const useUi = defineStore('ui', () => {
   // a NAS video's thumbnail made again: its new address (the browser keeps the old one a day)
   const thumbBust = ref<Record<number, number>>({})
   const inlineVideo = ref<number | null>(null) // the video card playing in place (InlineVideo.vue)
-  // a NAS video whose song is being picked (App.vue: search by a keyword, pick the song)
+  // a video whose song or album is being picked (App.vue: search by a keyword, pick one)
   const videoLink = ref<import('../types').VideoListItem | null>(null)
+  const videoLinkTab = ref<'track' | 'album'>('track')
   // a video's song changed there: lists showing it load again
   const videoLinked = ref(0)
   // videos to put in a video playlist (the picker, App.vue)
@@ -165,7 +166,7 @@ export const useUi = defineStore('ui', () => {
   const playerTab = ref<'lyrics' | 'queue'>('lyrics')
 
   return {
-    radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, lyricsAdmin, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinked,
+    radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, lyricsAdmin, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinkTab, videoLinked,
     barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, wide, playerTab,
   }
 })

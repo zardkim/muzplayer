@@ -16,7 +16,7 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
 from mutagen.easymp4 import EasyMP4Tags
 from PIL import Image
-from sqlalchemy import delete, exists, func, insert, select, text, update
+from sqlalchemy import delete, exists, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, defer
 
@@ -1157,8 +1157,13 @@ def carry_album_marks(db: Session, moves: dict[int, int]) -> None:
         for model in (AlbumRating, AlbumFavorite):
             taken = select(model.user_id).where(model.album_id == new)
             db.execute(update(model).where(model.album_id == old, model.user_id.not_in(taken)).values(album_id=new))
-        taken = select(Video.youtube_id).where(Video.album_id == new)
-        db.execute(update(Video).where(Video.album_id == old, Video.youtube_id.not_in(taken)).values(album_id=new))
+        # NAS files (no YouTube id) always; a YouTube video unless the new album has it already
+        taken = select(Video.youtube_id).where(Video.album_id == new, Video.youtube_id.is_not(None))
+        db.execute(
+            update(Video)
+            .where(Video.album_id == old, or_(Video.youtube_id.is_(None), Video.youtube_id.not_in(taken)))
+            .values(album_id=new)
+        )
 
 
 def prune_orphans(db: Session, moves: dict[int, int] | None = None) -> list[int]:
