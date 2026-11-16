@@ -11,8 +11,8 @@ import PageHeader from '../components/PageHeader.vue'
 import SharedPlaylists from '../components/SharedPlaylists.vue'
 import SectionTitle from '../components/SectionTitle.vue'
 
-// Charts and themes: featured banners, then a row per chart source, today's themes,
-// a row per theme category and what came in lately.
+// Charts and themes: featured banners (what came in lately first), what came in lately, then
+// a row per chart source, today's themes and a row per theme category.
 const { t } = useI18n()
 const home = ref<CollectionsHome | null>(null)
 const error = ref('')
@@ -33,6 +33,11 @@ onMounted(async () => {
     <template v-else-if="home">
       <p v-if="!home.hero.length" class="font-light text-muted">{{ t('charts.empty') }}</p>
       <BannerCarousel v-else :items="home.hero" />
+
+      <section v-if="home.recent.length" class="flex flex-col gap-3.5">
+        <SectionTitle :title="t('charts.recent')" />
+        <ChartGrid :charts="home.recent" row />
+      </section>
 
       <!-- the playlists made from charts and themes for everyone -->
       <SharedPlaylists />
@@ -56,10 +61,6 @@ onMounted(async () => {
         <ChartGrid :charts="c.items" row />
       </section>
 
-      <section v-if="home.recent.length" class="flex flex-col gap-3.5">
-        <SectionTitle :title="t('charts.recent')" />
-        <ChartGrid :charts="home.recent" row />
-      </section>
     </template>
   </div>
 </template>

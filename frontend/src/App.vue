@@ -2,7 +2,7 @@
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronDown, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User, Users } from '@lucide/vue'
+import { ArrowLeft, ArrowRight, ArrowUp, BookHeadphones, ChartNoAxesColumn, Clapperboard, ChevronDown, ChevronLeft, ChevronUp, Heart, History, House, LibraryBig, ListMusic, PanelLeftClose, PanelLeftOpen, Radio, RefreshCw, Search, User } from '@lucide/vue'
 import { api, setUnauthorizedHandler } from './api'
 import { appConfig } from './config'
 import { coverGlow } from './coverColor'
@@ -333,17 +333,31 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       >
         <component :is="item.icon" :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t(item.label) }}</span>
       </RouterLink>
-      <!-- playlists: the menu, and under it recently played, mine, the shared ones and my video lists -->
+      <!-- playlists: the menu (a click folds what's under it), and under it recently played, mine, the shared ones and my video lists -->
       <RouterLink
+        v-if="ui.sidebarCollapsed"
         to="/playlists"
-        class="mt-4 flex h-11 flex-none items-center gap-3 rounded-full text-base"
-        :class="[active('playlists', '/playlists') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
-        :title="ui.sidebarCollapsed ? t('nav.playlistsAll') : undefined"
-        :aria-label="ui.sidebarCollapsed ? t('nav.playlistsAll') : undefined"
+        class="mt-4 flex h-11 flex-none items-center justify-center gap-3 rounded-full text-base"
+        :class="active('playlists', '/playlists') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface'"
+        :title="t('nav.playlistsAll')"
+        :aria-label="t('nav.playlistsAll')"
       >
-        <ListMusic :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t('nav.playlistsAll') }}</span>
+        <ListMusic :size="20" :stroke-width="1.4" class="flex-none" />
       </RouterLink>
+      <div v-else class="mt-4 flex h-11 flex-none items-center rounded-full text-base" :class="active('playlists', '/playlists') ? 'bg-surface-2 font-medium' : 'font-light'">
+        <button
+          type="button"
+          class="flex h-full min-w-0 flex-1 items-center gap-3 rounded-full px-3.5 hover:bg-surface"
+          :aria-expanded="!folded('nav.playlistsAll')"
+          @click="fold('nav.playlistsAll')"
+        >
+          <ListMusic :size="20" :stroke-width="1.4" class="flex-none" /><span class="truncate">{{ t('nav.playlistsAll') }}</span>
+          <ChevronDown :size="16" :stroke-width="1.6" class="flex-none text-subtle transition-transform" :class="folded('nav.playlistsAll') ? '-rotate-90' : ''" />
+        </button>
+        <RouterLink to="/playlists" class="mr-1.5 flex-none rounded-full px-2.5 py-1 text-[13px] font-light text-muted hover:bg-surface hover:text-ink">{{ t('playlists.manage') }}</RouterLink>
+      </div>
       <RouterLink
+        v-if="ui.sidebarCollapsed || !folded('nav.playlistsAll')"
         to="/history"
         class="flex flex-none items-center gap-3 rounded-full"
         :class="[
@@ -355,7 +369,7 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       >
         <History :size="ui.sidebarCollapsed ? 20 : 16" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed" class="truncate">{{ t('nav.history') }}</span>
       </RouterLink>
-      <template v-if="!ui.sidebarCollapsed">
+      <template v-if="!ui.sidebarCollapsed && !folded('nav.playlistsAll')">
         <template v-for="group in sidePlaylists" :key="group.label">
           <button
             v-if="group.items.length"
@@ -383,16 +397,6 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
         </template>
       </template>
       <div class="flex-1" />
-      <RouterLink
-        v-if="auth.user.is_admin"
-        to="/admin"
-        class="flex h-11 flex-none items-center gap-3 rounded-full text-[15px]"
-        :class="[active('admin', '/admin') ? 'bg-surface-2 font-medium' : 'font-light hover:bg-surface', ui.sidebarCollapsed ? 'justify-center' : 'px-3.5']"
-        :title="ui.sidebarCollapsed ? t('nav.admin') : undefined"
-        :aria-label="ui.sidebarCollapsed ? t('nav.admin') : undefined"
-      >
-        <Users :size="20" :stroke-width="1.4" class="flex-none" /><span v-if="!ui.sidebarCollapsed">{{ t('nav.admin') }}</span>
-      </RouterLink>
       <!-- the person: switch accounts, devices, settings, sign out -->
       <AccountMenu variant="sidebar" :collapsed="ui.sidebarCollapsed" class="mt-1 flex-none" />
     </nav>

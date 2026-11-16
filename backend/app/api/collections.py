@@ -161,7 +161,10 @@ def _collections_home(db: Session) -> dict:
     picks = list(themes)
     random.Random(date.today().isoformat()).shuffle(picks)
     recent = sorted(rows, key=lambda r: (r[0].created_at, r[0].id), reverse=True)[:12]
-    hero = [weeks[0] for _, weeks in sorted(by_source.items())] + picks[:3]
+    # the banners: what came in lately, each source's latest week and three of today's themes,
+    # the newest first
+    hero = list({r[0].id: r for r in recent[:3] + [weeks[0] for _, weeks in sorted(by_source.items())] + picks[:3]}.values())
+    hero.sort(key=lambda r: (r[0].created_at, r[0].id), reverse=True)
 
     shown = {c.id for c, _ in hero + picks[:12] + recent}
     for weeks in by_source.values():
