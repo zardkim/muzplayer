@@ -5,7 +5,8 @@ import { ChevronDown, EllipsisVertical, Heart, ListPlus, Play, Tag } from '@luci
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
+import { type VideoKind, type VideoListItem } from '../types'
+import { kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import CoverArt from './CoverArt.vue'
 import InlineVideo from './InlineVideo.vue'
 import VideoThumb from './VideoThumb.vue'
@@ -19,6 +20,7 @@ const emit = defineEmits<{ play: []; changed: []; liked: [boolean]; extract: [] 
 const { t } = useI18n()
 const ui = useUi()
 const menu = ref(false)
+loadVideoKinds()
 const kindMenu = ref(false)
 const liked = ref(!!props.video.is_favorite)
 async function like() {
@@ -159,23 +161,23 @@ onUnmounted(() => document.removeEventListener('click', outside))
           type="button"
           class="flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] text-muted"
           :class="video.can_edit ? 'hover:bg-surface hover:text-ink' : 'cursor-default'"
-          :aria-label="`${t('videos.kind')}: ${t(`videos.kinds.${video.kind}`)}`"
+          :aria-label="`${t('videos.kind')}: ${kindName(video.kind)}`"
           :title="video.can_edit ? t('videos.changeKind') : t('videos.kind')"
           :aria-expanded="video.can_edit ? kindMenu : undefined"
           @click="video.can_edit && (kindMenu = !kindMenu)"
         >
-          <Tag :size="15" :stroke-width="1.5" />{{ t(`videos.kinds.${video.kind}`) }}<ChevronDown v-if="video.can_edit" :size="14" :stroke-width="1.5" />
+          <Tag :size="15" :stroke-width="1.5" />{{ kindName(video.kind) }}<ChevronDown v-if="video.can_edit" :size="14" :stroke-width="1.5" />
         </button>
         <div v-if="kindMenu" class="absolute left-0 top-9 z-30 flex w-40 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[14px] shadow-xl">
           <button
-            v-for="k in VIDEO_KINDS"
+            v-for="k in kindKeys"
             :key="k"
             type="button"
             class="px-4 py-2 text-left hover:bg-surface"
             :class="video.kind === k ? 'font-medium text-accent' : ''"
             :disabled="video.kind === k"
             @click="setKind(k)"
-          >{{ t(`videos.kinds.${k}`) }}</button>
+          >{{ kindName(k) }}</button>
         </div>
       </span>
       <button type="button" class="grid size-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('videos.addToPlaylist')" :title="t('videos.addToPlaylist')" @click="ui.videoPick = [video]">

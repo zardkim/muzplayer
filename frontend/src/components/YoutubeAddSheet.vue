@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
+import { type VideoKind, type VideoListItem } from '../types'
+import { firstKind, kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import BaseModal from './BaseModal.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
@@ -14,7 +15,10 @@ const { t } = useI18n()
 const ui = useUi()
 const emit = defineEmits<{ close: []; added: [] }>()
 const link = ref('')
-const kind = ref<VideoKind>('mv')
+const kind = ref<VideoKind>(firstKind())
+loadVideoKinds().then(() => {
+  if (!kindKeys.value.includes(kind.value)) kind.value = firstKind()
+})
 const busy = ref(false)
 const error = ref('')
 
@@ -50,7 +54,7 @@ async function add() {
       </label>
       <div class="flex flex-wrap items-center gap-1.5" role="radiogroup" :aria-label="t('videos.kind')">
         <button
-          v-for="k in VIDEO_KINDS"
+          v-for="k in kindKeys"
           :key="k"
           type="button"
           role="radio"
@@ -58,7 +62,7 @@ async function add() {
           class="h-9 rounded-full px-3.5 text-[14px]"
           :class="kind === k ? 'bg-ink text-on-ink' : 'bg-surface'"
           @click="kind = k"
-        >{{ t(`videos.kinds.${k}`) }}</button>
+        >{{ kindName(k) }}</button>
       </div>
       <p v-if="error" role="alert" class="text-[13px] text-danger">{{ error }}</p>
       <button type="submit" class="h-11 self-end rounded-full bg-ink px-6 text-[15px] text-on-ink disabled:opacity-50" :disabled="busy || !link.trim()">{{ t('videos.register') }}</button>

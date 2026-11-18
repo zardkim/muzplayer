@@ -7,6 +7,7 @@ import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { Album, Artist, Page, Track, VideoListItem } from '../types'
+import { kindName, loadVideoKinds } from '../videoKinds'
 import ArtistPhoto from './ArtistPhoto.vue'
 import BaseModal from './BaseModal.vue'
 import CoverArt from './CoverArt.vue'
@@ -24,6 +25,7 @@ import PickRow from './PickRow.vue'
 const props = defineProps<{ kind: 'tracks' | 'videos'; listId: number; listName: string; has: number[] }>()
 const emit = defineEmits<{ close: []; added: [] }>()
 const { t } = useI18n()
+loadVideoKinds()
 const library = useLibrary()
 const ui = useUi()
 const q = ref('')
@@ -265,7 +267,7 @@ function close() {
             <span class="relative aspect-video w-24 flex-none overflow-hidden rounded-lg bg-surface"><VideoThumb :video="v" :icon="18" /></span>
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="line-clamp-2 text-[14px] leading-snug">{{ v.title }}</span>
-              <span class="truncate text-[12px] text-muted">{{ t(`videos.kinds.${v.kind}`) }}<template v-if="v.target"> · {{ v.target.artist || v.target.title }}</template></span>
+              <span class="truncate text-[12px] text-muted">{{ kindName(v.kind) }}<template v-if="v.target"> · {{ v.target.artist || v.target.title }}</template></span>
             </span>
             <span v-if="inList.has(v.id)" class="grid size-10 flex-none place-items-center text-accent" :aria-label="t('playlists.inList')"><Check :size="20" :stroke-width="2" /></span>
             <button v-else type="button" class="grid size-10 flex-none place-items-center rounded-full border border-line-strong hover:border-ink" :aria-label="`${t('common.add')}: ${v.title}`" @click="addVideo(v.id)">

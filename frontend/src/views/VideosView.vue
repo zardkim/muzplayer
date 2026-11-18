@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownUp, AudioLines, FolderPlus, Heart, LayoutGrid, Play, Shuffle } from '@lucide/vue'
+import { ArrowDownUp, AudioLines, FolderPlus, Heart, LayoutGrid, Play, Shuffle, Tags } from '@lucide/vue'
 import { api, query } from '../api'
 import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type VideoKind, type VideoListItem } from '../types'
+import { type VideoKind, type VideoListItem } from '../types'
+import { kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import PageHeader from '../components/PageHeader.vue'
 import SearchField from '../components/SearchField.vue'
 import SelectPill from '../components/SelectPill.vue'
@@ -15,6 +16,7 @@ import VideoFilesSheet from '../components/VideoFilesSheet.vue'
 import ExtractJobsSheet from '../components/ExtractJobsSheet.vue'
 import ExtractStartSheet from '../components/ExtractStartSheet.vue'
 import YoutubeAddSheet from '../components/YoutubeAddSheet.vue'
+import VideoKindsSheet from '../components/VideoKindsSheet.vue'
 import YoutubeIcon from '../components/YoutubeIcon.vue'
 import VideoCard from '../components/VideoCard.vue'
 import LoadMore from '../components/LoadMore.vue'
@@ -35,6 +37,7 @@ const addingFiles = ref(false)
 const extracting = ref<VideoListItem | null>(null) // admin: a video's sound as a song (ExtractStartSheet)
 const extractJobs = ref(false)
 const addingYoutube = ref(false)
+const editingKinds = ref(false) // admin: the kinds themselves (VideoKindsSheet)
 const kind = computed({
   get: () => (ui.views.videoKind as VideoKind | undefined) || null,
   set: (v: VideoKind | null) => (ui.views = { ...ui.views, videoKind: v ?? '' }),
@@ -52,7 +55,7 @@ const sort = computed({
 })
 // all kinds: a section per kind; one kind: just its videos
 const sections = computed(() =>
-  (kind.value ? [kind.value] : VIDEO_KINDS)
+  (kind.value ? [kind.value] : kindKeys.value)
     .map((k) => ({ kind: k, items: items.value.filter((v) => v.kind === k) }))
     .filter((s) => s.items.length),
 )
@@ -78,6 +81,16 @@ async function load(more = false) {
   }
 }
 onMounted(() => load())
+// a kind that was removed since it was picked: all of them
+function kindsLoaded() {
+  if (kind.value && !kindKeys.value.includes(kind.value)) kind.value = null
+}
+loadVideoKinds().then(kindsLoaded)
+// the kinds were changed: a removed one's videos are in another now
+function kindsChanged() {
+  kindsLoaded()
+  load()
+}
 watch([kind, likedOnly, sort], () => load())
 // a video's song picked (the link sheet): its card shows it
 watch(() => ui.videoLinked, () => load())
@@ -133,17 +146,23 @@ function playAll(shuffle: boolean) {
         >
           <Heart :size="15" :stroke-width="1.8" :fill="likedOnly ? 'currentColor' : 'none'" /><span class="max-sm:hidden">{{ t('videos.liked') }}</span>
         </button>
-        <SelectPill v-model="kind" fill :label="t('videos.kind')" :icon="LayoutGrid" :options="[{ value: null, label: t('videos.all') }, ...VIDEO_KINDS.map((k) => ({ value: k, label: t(`videos.kinds.${k}`) }))]" />
+        <SelectPill v-model="kind" fill :label="t('videos.kind')" :icon="LayoutGrid" :options="[{ value: null, label: t('videos.all') }, ...kindKeys.map((k) => ({ value: k, label: kindName(k) }))]" />
         <SelectPill v-model="sort" fill :label="t('videos.sort')" :icon="ArrowDownUp" :options="SORTS.map((s) => ({ value: s, label: t(`videos.sorts.${s}`) }))" />
       </div>
     </div>
 
-    <div v-if="items.length" class="-mt-2 flex gap-2">
-      <button type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] text-on-ink" @click="playAll(false)">
-        <Play :size="15" fill="currentColor" />{{ t('videos.playAll') }}
-      </button>
-      <button type="button" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[14px]" @click="playAll(true)">
-        <Shuffle :size="16" :stroke-width="1.6" />{{ t('videos.shufflePlay') }}
+    <div v-if="items.length || auth.user?.is_admin" class="-mt-2 flex gap-2">
+      <template v-if="items.length">
+        <button type="button" class="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] text-on-ink" @click="playAll(false)">
+          <Play :size="15" fill="currentColor" />{{ t('videos.playAll') }}
+        </button>
+        <button type="button" class="flex h-10 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[14px]" @click="playAll(true)">
+          <Shuffle :size="16" :stroke-width="1.6" />{{ t('videos.shufflePlay') }}
+        </button>
+      </template>
+      <!-- admin: the kinds themselves -->
+      <button v-if="auth.user?.is_admin" type="button" class="ml-auto flex h-10 items-center gap-1.5 rounded-full px-3 text-[14px] text-muted hover:bg-surface hover:text-ink" :aria-label="t('videoKinds.manage')" :title="t('videoKinds.manage')" @click="editingKinds = true">
+        <Tags :size="16" :stroke-width="1.6" /><span class="max-sm:hidden">{{ t('videoKinds.manage') }}</span>
       </button>
     </div>
 
@@ -151,7 +170,7 @@ function playAll(shuffle: boolean) {
     <p v-else-if="!loading && !items.length" class="max-w-xl font-light leading-relaxed text-muted">{{ q.trim() ? t('search.noResults') : t('videos.pageEmpty') }}</p>
 
     <section v-for="s in sections" :key="s.kind" class="flex flex-col gap-3">
-      <h2 v-if="!kind" class="text-[19px] font-bold">{{ t(`videos.kinds.${s.kind}`) }} <span class="text-[14px] font-normal text-muted">{{ s.items.length }}</span></h2>
+      <h2 v-if="!kind" class="text-[19px] font-bold">{{ kindName(s.kind) }} <span class="text-[14px] font-normal text-muted">{{ s.items.length }}</span></h2>
       <ul class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <li v-for="v in s.items" :key="v.id">
           <VideoCard :video="v" @play="play(v)" @changed="load()" @liked="(on) => liked(v, on)" @extract="extracting = v" />
@@ -165,5 +184,6 @@ function playAll(shuffle: boolean) {
     <ExtractStartSheet v-if="extracting" :video="extracting" @close="extracting = null" @queued="(extracting = null), (extractJobs = true)" />
     <ExtractJobsSheet v-if="extractJobs" @close="extractJobs = false" />
     <YoutubeAddSheet v-if="addingYoutube" @close="addingYoutube = false" @added="load()" />
+    <VideoKindsSheet v-if="editingKinds" @close="editingKinds = false" @changed="kindsChanged" />
   </div>
 </template>

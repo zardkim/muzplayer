@@ -8,6 +8,7 @@ import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { VideoPlaylist } from '../types'
+import { kindName, loadVideoKinds } from '../videoKinds'
 import PageHeader from '../components/PageHeader.vue'
 import PlaylistTransferSheet from '../components/PlaylistTransferSheet.vue'
 import SearchAddSheet from '../components/SearchAddSheet.vue'
@@ -17,6 +18,7 @@ import VideoThumb from '../components/VideoThumb.vue'
 // rename, reorder, remove videos, delete the list.
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
+loadVideoKinds()
 const router = useRouter()
 const ui = useUi()
 const library = useLibrary()
@@ -111,7 +113,7 @@ async function destroy() {
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="line-clamp-2 text-[15px] leading-snug">{{ e.video.title }}</span>
               <span class="truncate text-[13px] text-muted">
-                {{ t(`videos.kinds.${e.video.kind}`) }}<template v-if="e.video.target"> · {{ e.video.target.title }}</template><template v-else-if="e.video.file_path"> · {{ t('videos.nas') }}</template>
+                {{ kindName(e.video.kind) }}<template v-if="e.video.target"> · {{ e.video.target.title }}</template><template v-else-if="e.video.file_path"> · {{ t('videos.nas') }}</template>
               </span>
             </span>
           </button>

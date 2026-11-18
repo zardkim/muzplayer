@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { kindName, loadVideoKinds } from '../videoKinds'
 import { ChevronLeft } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
@@ -40,6 +41,7 @@ interface Stats {
   }
 }
 const { t, locale } = useI18n()
+loadVideoKinds()
 const s = ref<Stats | null>(null)
 const error = ref('')
 onMounted(async () => {
@@ -303,7 +305,7 @@ const checks = computed(() => {
             <ol class="flex flex-col gap-2.5">
               <li v-for="k in s.videos.kinds" :key="k.kind" class="flex flex-col gap-1">
                 <span class="flex items-baseline justify-between gap-3 text-[15px]">
-                  <span>{{ t(`videos.kinds.${k.kind}`) }}</span>
+                  <span>{{ kindName(k.kind) }}</span>
                   <span class="font-display text-[13px] text-muted">{{ t('stats.videosN', { n: num(k.videos) }) }}</span>
                 </span>
                 <span class="h-1.5 rounded-full bg-surface"><span class="block h-full rounded-full bg-accent" :style="{ width: `${(k.videos / Math.max(1, ...s.videos.kinds.map((x) => x.videos))) * 100}%` }" /></span>

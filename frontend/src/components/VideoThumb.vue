@@ -33,7 +33,7 @@ const time = computed(() => {
 
 <template>
   <span class="absolute inset-0 block">
-    <img v-if="!failed" :src="src" alt="" loading="lazy" class="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" @error="failed = true" />
+    <img v-if="!failed" :src="src" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" @error="failed = true" />
     <span v-else class="grid h-full w-full place-items-center bg-ink/90 text-on-ink/70"><Film :size="icon" :stroke-width="1.2" /></span>
     <span v-if="length && time" class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1 text-[11px] leading-4 text-white">{{ time }}</span>
   </span>

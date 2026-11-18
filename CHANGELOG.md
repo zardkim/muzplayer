@@ -2,6 +2,10 @@
 
 muzplayer의 버전별 변경 사항입니다(개발 계획서 `music_player_plan.md`의 변경 이력에서 만듦).
 
+## 0.76.0 — 2026-11-18
+
+**뮤직영상 분류 관리** — 분류를 DB 표로(`video_kinds`, 마이그레이션 0041: 기본 6개 mv·concert·tv·fan·cover·other, 영상은 키를 그대로 가짐). 관리자가 뮤직영상 페이지의 '분류 관리'(`VideoKindsSheet.vue`)에서 추가('기타' 앞, 키 `k<n>`, 50개까지)·이름 변경(기본 분류는 비우면 원래 이름)·순서 변경(위/아래)·삭제(그 영상은 '기타'로, '기타'는 못 지움). API `GET/POST /video-kinds`, `PATCH/DELETE /video-kinds/{key}`, 영상 등록·변경은 있는 분류만(`video_kind_unknown`). 화면은 `videoKinds.ts`(목록·`kindName`)로 페이지 묶음·선택 목록·카드 메뉴·등록 창·통계가 같은 목록을 씀. **모바일 스크롤 끊김** — 옆으로 밀어 다음 페이지로 가는 기능(`siblingSwipe.ts`)의 막는(non-passive) touchmove를 모든 페이지의 `<main>`에 달던 것을 넘길 페이지가 있을 때만 달도록(Safari는 그 처리기를 손가락이 움직일 때마다 기다림), 영상 썸네일 `decoding="async"`. 스모크에 분류 7건
+
 ## 0.75.0 — 2026-11-18
 
 전체 점검과 정리(`docs/cleanup_plan.md`) — **사용자 전환 삭제**(0.51.0부터 화면 없음: `/auth/accounts`·`/auth/switch`, 두 번째 쿠키 `muz_others`는 로그아웃 때 지움; 로그아웃은 204, 다른 계정이 이어받지 않음), **AI 재생목록 백엔드 삭제**(0.69.1부터 화면 없음: `POST /playlists/ai`, `/config`의 `ai_playlists`; 추출 태그용 `ask_json`만 `ai_text.py`로 남김), 안 쓰는 컴포넌트(`PlayerControls.vue`)·상수·함수·번역 키 49개 삭제. 외부 사이트 요청을 `net.py` 하나로(브라우저 UA·앱 UA, `get`·`get_json`·`get_page`; 9개 모듈), 플레이어 세 개의 당겨서 닫기를 `swipe.ts`의 `usePullToClose`로, 반복되던 입력창·버튼 스타일을 `field`·`pill`·`pill-sm`·`pill-select` 유틸리티로. 보안: uvicorn이 믿는 프록시를 모두(`*`)에서 사설 대역으로(`FORWARDED_ALLOW_IPS`, 기본 `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`), 응답 헤더 `X-Content-Type-Options: nosniff`·`X-Frame-Options: SAMEORIGIN`·`Referrer-Policy`, 벅스 가사 API를 https로. 성능: 영어 번역은 쓸 때만 불러옴(첫 i18n 청크 265KB → 206KB). 마이그레이션 0040(외래키 인덱스 4개, 안 쓰던 `artists.bio` 삭제). 스모크: 사용자 전환·AI 8건 빼고 로그아웃 3건 추가

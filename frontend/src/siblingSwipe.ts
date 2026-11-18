@@ -186,20 +186,33 @@ export function useSiblingSwipe(el: Ref<HTMLElement | null>) {
       if (old) {
         old.removeEventListener('click', onClick, true)
         old.removeEventListener('touchstart', start)
-        old.removeEventListener('touchmove', move)
         old.removeEventListener('touchend', end)
         old.removeEventListener('touchcancel', end)
       }
       if (now) {
         now.addEventListener('click', onClick, true)
         now.addEventListener('touchstart', start, { passive: true })
-        // not passive: once a swipe is sideways the page must not also scroll
-        now.addEventListener('touchmove', move, { passive: false })
         now.addEventListener('touchend', end)
         now.addEventListener('touchcancel', end)
       }
     },
     { immediate: true },
+  )
+  // The move listener can't be passive (once a swipe is sideways the page must not also scroll), and
+  // while there is one the browser waits for it before scrolling at every move of the finger (iPhone
+  // Safari strictly so): a page busy for a moment (pictures coming in) stutters. So it is there only
+  // on a page that has a next or previous one to swipe to.
+  let moveOn: HTMLElement | null = null
+  watch(
+    [el, () => route.fullPath],
+    () => {
+      const want = el.value && here() >= 0 ? el.value : null
+      if (want === moveOn) return
+      moveOn?.removeEventListener('touchmove', move)
+      want?.addEventListener('touchmove', move, { passive: false })
+      moveOn = want
+    },
+    { immediate: true, flush: 'post' },
   )
   function onClick(e: MouseEvent) {
     if (el.value) remember(e, el.value)

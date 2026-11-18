@@ -6,6 +6,7 @@ import { api } from '../api'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
 import type { VideoListItem } from '../types'
+import { kindName, loadVideoKinds } from '../videoKinds'
 import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 import PlayerIcons from './PlayerIcons.vue'
@@ -16,6 +17,7 @@ import ArtistPhoto from './ArtistPhoto.vue'
 // or a video playlist. The music pauses while a video plays. Under it: what plays next and similar
 // artists (their pages).
 const { t } = useI18n()
+loadVideoKinds()
 const ui = useUi()
 const player = usePlayer()
 const queue = ui.videoQueue!
@@ -173,7 +175,7 @@ function close() {
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-[17px] font-medium">{{ current.title }}</span>
           <span class="truncate text-[13px] text-muted">
-            {{ t(`videos.kinds.${current.kind}`) }}
+            {{ kindName(current.kind) }}
             <template v-if="current.target"> · {{ current.target.title }} · {{ current.target.artist || t('common.unknownArtist') }}</template>
             <template v-else-if="current.file_path"> · {{ t('videos.nas') }}</template>
           </span>

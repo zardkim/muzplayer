@@ -11,20 +11,21 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, StringConstraints, model_validator
-from sqlalchemy import case, delete, exists, func, literal, or_, select
+from sqlalchemy import case, delete, exists, func, literal, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .. import search_index, video_thumbs, youtube
 from ..config import settings
 from ..db import get_db
-from ..models import Album, Artist, LibraryFolder, Track, TrackGenre, User, Video, VideoFavorite, VideoPlaylist, VideoPlaylistItem
+from ..models import Album, Artist, LibraryFolder, Track, TrackGenre, User, Video, VideoFavorite, VideoKind, VideoPlaylist, VideoPlaylistItem
 from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
 
-KINDS = ("mv", "concert", "tv", "fan", "cover", "other")
-Kind = Literal["mv", "concert", "tv", "fan", "cover", "other"]
+# a video_kinds key (the kinds are in the database: an admin adds, renames, orders and removes them)
+Kind = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,16}$")]
+FALLBACK_KIND = "other"  # where the videos of a removed kind go; it can't be removed itself
 # a name or title: spaces around it dropped, then something must be left
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
@@ -270,6 +271,7 @@ class VideoIn(BaseModel):
 
 @router.post("/videos", status_code=201)
 def add_video(body: VideoIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    _known_kind(db, body.kind)
     youtube_id = youtube.video_id(body.video)
     if youtube_id is None:
         raise api_error(400, "video_bad_link")
@@ -318,7 +320,7 @@ def _editable(db: Session, user: User, video_id: int) -> Video:
 def update_video(video_id: int, body: VideoPatch, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     video = _editable(db, user, video_id)
     if body.kind is not None:
-        video.kind = body.kind
+        video.kind = _known_kind(db, body.kind)
     if body.position is not None:
         video.position = body.position
     if body.title is not None:
@@ -332,6 +334,93 @@ def delete_video(video_id: int, user: User = Depends(current_user), db: Session 
     db.delete(_editable(db, user, video_id))
     db.commit()
     video_thumbs.remove(video_id)
+
+
+# ---- the kinds (video_kinds): everyone sees them, an admin manages them ----
+def _known_kind(db: Session, key: str) -> str:
+    if db.get(VideoKind, key) is None:
+        raise api_error(400, "video_kind_unknown")
+    return key
+
+
+def _kinds(db: Session) -> list[VideoKind]:
+    return list(db.scalars(select(VideoKind).order_by(VideoKind.position, VideoKind.key)))
+
+
+def kind_out(kind: VideoKind, count: int = 0) -> dict:
+    # name None: a built-in kind, named by the app in the viewer's language
+    return {"key": kind.key, "name": kind.name, "count": count, "fixed": kind.key == FALLBACK_KIND}
+
+
+@router.get("/video-kinds")
+def list_kinds(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """The kinds in their order, each with how many videos it has."""
+    counts = dict(db.execute(select(Video.kind, func.count()).group_by(Video.kind)).all())
+    return [kind_out(k, counts.get(k.key, 0)) for k in _kinds(db)]
+
+
+KindName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+
+
+class KindIn(BaseModel):
+    name: KindName
+
+
+@router.post("/video-kinds", status_code=201)
+def add_kind(body: KindIn, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """A new kind, just before "other" (which stays last unless moved)."""
+    kinds = _kinds(db)
+    if len(kinds) >= 50:
+        raise api_error(400, "video_kind_too_many")
+    n = 1 + max((int(k.key[1:]) for k in kinds if re.fullmatch(r"k\d+", k.key)), default=0)
+    at = next((i for i, k in enumerate(kinds) if k.key == FALLBACK_KIND), len(kinds))
+    kind = VideoKind(key=f"k{n}", name=body.name)
+    kinds.insert(at, kind)
+    db.add(kind)
+    for i, k in enumerate(kinds):
+        k.position = i
+    db.commit()
+    return kind_out(kind)
+
+
+class KindPatch(BaseModel):
+    name: KindName | None = None
+    default_name: bool = False  # a built-in kind: back to the app's own name
+    move: int | None = Field(None, ge=-1, le=1)  # one place up (-1) or down (1)
+
+
+@router.patch("/video-kinds/{key}")
+def change_kind(key: str, body: KindPatch, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    kinds = _kinds(db)
+    i = next((i for i, k in enumerate(kinds) if k.key == key), None)
+    if i is None:
+        raise api_error(404, "not_found")
+    kind = kinds[i]
+    if body.name is not None:
+        kind.name = body.name
+    elif body.default_name:
+        if re.fullmatch(r"k\d+", kind.key):  # an added kind has no other name
+            raise api_error(400, "video_kind_no_default")
+        kind.name = None
+    if body.move and 0 <= i + body.move < len(kinds):
+        kinds.insert(i + body.move, kinds.pop(i))
+        for n, k in enumerate(kinds):
+            k.position = n
+    db.commit()
+    return kind_out(kind, db.scalar(select(func.count()).where(Video.kind == key)) or 0)
+
+
+@router.delete("/video-kinds/{key}", status_code=204)
+def delete_kind(key: str, _: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    """Its videos go to "other"."""
+    if key == FALLBACK_KIND:
+        raise api_error(400, "video_kind_fixed")
+    kind = db.get(VideoKind, key)
+    if kind is None:
+        raise api_error(404, "not_found")
+    db.execute(update(Video).where(Video.kind == key).values(kind=FALLBACK_KIND))
+    db.delete(kind)
+    db.commit()
 
 
 # ---- video files on the NAS (library/video; the library is mounted read-only) ----
@@ -500,6 +589,7 @@ class VideoFileIn(BaseModel):
 
 @router.post("/videos/files", status_code=201)
 def add_video_file(body: VideoFileIn, user: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
+    _known_kind(db, body.kind)
     path = _inside(body.path)
     if path is None:
         raise api_error(404, "not_found")

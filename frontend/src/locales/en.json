@@ -346,6 +346,10 @@
     "video_not_found": "The video does not exist or is private.",
     "video_not_embeddable": "This video can only be watched on YouTube.",
     "video_exists": "This video is already in the list.",
+    "video_kind_unknown": "That category no longer exists. Try reloading the page.",
+    "video_kind_fixed": "The 'Other' category can't be removed. Videos of a removed category go there.",
+    "video_kind_too_many": "You can have up to 50 categories.",
+    "video_kind_no_default": "A category you added can't have an empty name.",
     "smart_playlist": "Songs cannot be added to a smart playlist by hand.",
     "not_smart": "Not a smart playlist.",
     "already_set_up": "An admin account already exists. Please log in.",
@@ -1634,5 +1638,20 @@
     "none": "No lyrics.",
     "show": "Show lyrics",
     "synced": "Synced lyrics (LRC)"
+  },
+  "videoKinds": {
+    "manage": "Manage categories",
+    "title": "Music video categories",
+    "help": "Add categories, rename and reorder them, or remove them. The Music videos page shows categories in this order. Clearing a built-in category's name gives it back its own name.",
+    "name": "Category name",
+    "count": "{n} videos",
+    "up": "Move up",
+    "down": "Move down",
+    "remove": "Remove category",
+    "fixed": "'Other' can't be removed",
+    "removeConfirm": "Remove the '{name}' category?",
+    "removeConfirmVideos": "Remove the '{name}' category? Its {n} videos move to '{other}'.",
+    "add": "Add category",
+    "addPlaceholder": "New category name"
   }
 }

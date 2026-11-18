@@ -346,6 +346,10 @@
     "video_not_found": "없거나 비공개인 영상입니다.",
     "video_not_embeddable": "이 영상은 다른 사이트에서 재생할 수 없게 되어 있습니다.",
     "video_exists": "이미 등록된 영상입니다.",
+    "video_kind_unknown": "없는 분류입니다. 화면을 새로 고쳐 보세요.",
+    "video_kind_fixed": "'기타' 분류는 지울 수 없습니다. 지운 분류의 영상이 이곳으로 옵니다.",
+    "video_kind_too_many": "분류는 50개까지 만들 수 있습니다.",
+    "video_kind_no_default": "직접 만든 분류는 이름을 비울 수 없습니다.",
     "smart_playlist": "스마트 재생목록에는 곡을 직접 넣을 수 없습니다.",
     "not_smart": "스마트 재생목록이 아닙니다.",
     "already_set_up": "이미 관리자 계정이 있습니다. 로그인하세요.",
@@ -1634,5 +1638,20 @@
     "none": "가사가 없습니다.",
     "show": "가사 보기",
     "synced": "시간에 맞춘 가사(LRC)"
+  },
+  "videoKinds": {
+    "manage": "분류 관리",
+    "title": "뮤직영상 분류",
+    "help": "분류를 추가하고, 이름과 순서를 바꾸고, 지울 수 있습니다. 뮤직영상 페이지는 이 순서대로 분류를 보여 줍니다. 기본 분류의 이름을 비우면 원래 이름으로 돌아갑니다.",
+    "name": "분류 이름",
+    "count": "영상 {n}개",
+    "up": "위로",
+    "down": "아래로",
+    "remove": "분류 삭제",
+    "fixed": "'기타'는 지울 수 없습니다",
+    "removeConfirm": "'{name}' 분류를 지울까요?",
+    "removeConfirmVideos": "'{name}' 분류를 지울까요? 이 분류의 영상 {n}개는 '{other}'(으)로 옮겨집니다.",
+    "add": "분류 추가",
+    "addPlaceholder": "새 분류 이름"
   }
 }

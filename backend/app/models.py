@@ -559,12 +559,23 @@ class Video(Base):
     youtube_id: Mapped[str | None] = mapped_column(String(16))
     file_path: Mapped[str | None] = mapped_column(String(1000))
     duration: Mapped[int | None] = mapped_column(Integer)  # seconds; NAS files (video_thumbs.py)
-    kind: Mapped[str] = mapped_column(String(16))  # mv | concert | tv | fan | cover | other
+    kind: Mapped[str] = mapped_column(String(16))  # a video_kinds key: mv | concert | tv | fan | cover | other | k<n>
     title: Mapped[str] = mapped_column(String(500))
     channel: Mapped[str] = mapped_column(String(200), default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
     added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class VideoKind(Base):
+    """The kinds music videos are sorted by (the Music videos page): the six built in, and any an
+    admin adds. A video holds its kind's key, which never changes; renaming changes only the name."""
+
+    __tablename__ = "video_kinds"
+
+    key: Mapped[str] = mapped_column(String(16), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(50))  # None: a built-in kind's own name, translated
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
 
 class VideoFavorite(Base):
     """A video someone liked (their own, like song favorites)."""

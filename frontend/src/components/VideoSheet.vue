@@ -8,7 +8,8 @@ import { errorMessage } from '../i18n'
 import { useAuth } from '../stores/auth'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type Video, type VideoKind, type VideoResult } from '../types'
+import { type Video, type VideoKind, type VideoResult } from '../types'
+import { kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import { youtubeApi, type YTPlayer } from '../youtube'
 import BaseModal from './BaseModal.vue'
 import VideoThumb from './VideoThumb.vue'
@@ -21,7 +22,7 @@ const ui = useUi()
 const player = usePlayer()
 const canAdd = computed(() => !!useAuth().user?.is_admin) // adding videos is an admin's; the others watch
 const target = computed(() => ui.videoTarget!)
-const KINDS = VIDEO_KINDS
+loadVideoKinds()
 
 const videos = ref<Video[]>([])
 const current = ref<Video | null>(null)
@@ -37,7 +38,7 @@ const link = ref('')
 const error = ref('')
 
 const base = computed(() => (target.value.albumId ? `/albums/${target.value.albumId}` : `/tracks/${target.value.trackId}`))
-const grouped = computed(() => KINDS.map((k) => ({ kind: k, items: videos.value.filter((v) => v.kind === k) })).filter((g) => g.items.length))
+const grouped = computed(() => kindKeys.value.map((k) => ({ kind: k, items: videos.value.filter((v) => v.kind === k) })).filter((g) => g.items.length))
 const youtubeSearchUrl = computed(() => `https://www.youtube.com/results?${new URLSearchParams({ search_query: q.value })}`)
 
 function suggestion() {
@@ -210,7 +211,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
       <!-- registered videos -->
       <p v-if="!videos.length && !adding" class="text-[15px] font-light text-muted">{{ t('videos.empty') }}</p>
       <section v-for="g in grouped" :key="g.kind" class="flex flex-col gap-1">
-        <h3 class="text-[13px] font-medium text-muted">{{ t(`videos.kinds.${g.kind}`) }}</h3>
+        <h3 class="text-[13px] font-medium text-muted">{{ kindName(g.kind) }}</h3>
         <div v-for="v in g.items" :key="v.id" class="flex items-center gap-3 rounded-xl py-1.5" :class="current?.id === v.id ? 'bg-accent-soft' : ''">
           <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="`${t('common.play')}: ${v.title}`" @click="watch(v)">
             <span class="relative aspect-video w-28 flex-none overflow-hidden rounded-lg bg-surface sm:w-40">
@@ -264,8 +265,8 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
               <!-- what kind of video it is: picking one adds it -->
               <div v-if="picking === r.youtube_id" class="flex w-full flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
                 <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
-                <button v-for="k in KINDS" :key="k" type="button" class="pill-sm" @click="add(r.youtube_id, k, r)">
-                  {{ t(`videos.kinds.${k}`) }}
+                <button v-for="k in kindKeys" :key="k" type="button" class="pill-sm" @click="add(r.youtube_id, k, r)">
+                  {{ kindName(k) }}
                 </button>
               </div>
             </li>
@@ -286,8 +287,8 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
         </form>
         <div v-if="picking === 'link' && link.trim().length >= 11" class="flex flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
           <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
-          <button v-for="k in KINDS" :key="k" type="button" class="pill-sm" @click="add(link, k)">
-            {{ t(`videos.kinds.${k}`) }}
+          <button v-for="k in kindKeys" :key="k" type="button" class="pill-sm" @click="add(link, k)">
+            {{ kindName(k) }}
           </button>
         </div>
         <p v-if="error" class="text-[14px] text-danger" role="alert">{{ error }}</p>

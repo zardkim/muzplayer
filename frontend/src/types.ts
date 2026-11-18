@@ -278,8 +278,8 @@ export interface Mix {
   cover_albums: { id: number; v: number }[]
 }
 
-export type VideoKind = 'mv' | 'concert' | 'tv' | 'fan' | 'cover' | 'other'
-export const VIDEO_KINDS: VideoKind[] = ['mv', 'concert', 'tv', 'fan', 'cover', 'other']
+// a video_kinds key (videoKinds.ts): mv, concert, tv, fan, cover, other, or one an admin added
+export type VideoKind = string
 export interface Video {
   id: number
   source: 'youtube' | 'file' // a file: in library/video on the NAS

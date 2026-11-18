@@ -203,6 +203,15 @@ check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sort
 check "no linking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
 check "no similar videos of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/related")" 404
+# music video kinds: everyone sees them, an admin adds, renames, orders and removes them ("other" stays)
+check "video kinds listed, other last" "$(curl -s -b "$U" "$BASE/video-kinds" | j '[k["key"] for k in d][-1]')" other
+check "only an admin adds a video kind" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X POST "$BASE/video-kinds" -H 'content-type: application/json' -d '{"name":"x"}')" 403
+vk=$(curl -s -b "$A" -X POST "$BASE/video-kinds" -H 'content-type: application/json' -d '{"name":"smoke kind"}' | j 'd["key"]')
+check "video kind added before other" "$(curl -s -b "$A" "$BASE/video-kinds" | j '[k["key"] for k in d][-2:]')" "['$vk', 'other']"
+check "video kind renamed" "$(curl -s -b "$A" -X PATCH "$BASE/video-kinds/$vk" -H 'content-type: application/json' -d '{"name":"smoke kind 2"}' | j 'd["name"]')" "smoke kind 2"
+check "no video of a kind that isn't there" "$(curl -s -b "$A" -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"dQw4w9WgXcQ\",\"kind\":\"nosuchkind\",\"album_id\":$aid}" | j 'd["detail"]')" video_kind_unknown
+check "the other kind stays" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/video-kinds/other")" 400
+check "video kind removed" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/video-kinds/$vk")" 204
 # a song taken out of a NAS video (extract.py; no internet): into the library as "extracted", then deleted
 export XPATH="연결테스트/Banana Pancakes.mp4"
 xvid=$(curl -s -b "$A" "$BASE/videos/files" | python3 -c 'import json,os,sys; d=json.load(sys.stdin); print(next((f["video_id"] or "" for f in d["items"] if f["path"] == os.environ["XPATH"]), "none"))')

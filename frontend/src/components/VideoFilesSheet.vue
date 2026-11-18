@@ -5,7 +5,8 @@ import { ChevronDown, Film, Folder } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
-import { VIDEO_KINDS, type VideoFile, type VideoKind, type VideoListItem } from '../types'
+import { type VideoFile, type VideoKind, type VideoListItem } from '../types'
+import { firstKind, kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import BaseModal from './BaseModal.vue'
 import VideoThumb from './VideoThumb.vue'
 
@@ -19,7 +20,10 @@ const emit = defineEmits<{ close: [] }>()
 const files = ref<VideoFile[] | null>(null)
 const folder = ref(true)
 const error = ref('')
-const kind = ref<VideoKind>('mv')
+const kind = ref<VideoKind>(firstKind())
+loadVideoKinds().then(() => {
+  if (!kindKeys.value.includes(kind.value)) kind.value = firstKind()
+})
 const titles = ref<Record<string, string>>({})
 const busy = ref(false)
 const view = computed({
@@ -100,7 +104,7 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
       <p class="text-[14px] leading-relaxed text-muted">{{ t('videos.filesHint') }} {{ t('videos.autoLinkHint') }}</p>
       <div class="flex flex-wrap items-center gap-1.5" role="radiogroup" :aria-label="t('videos.kind')">
         <button
-          v-for="k in VIDEO_KINDS"
+          v-for="k in kindKeys"
           :key="k"
           type="button"
           role="radio"
@@ -108,7 +112,7 @@ const size = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.m
           class="h-9 rounded-full px-3.5 text-[14px]"
           :class="kind === k ? 'bg-ink text-on-ink' : 'bg-surface'"
           @click="kind = k"
-        >{{ t(`videos.kinds.${k}`) }}</button>
+        >{{ kindName(k) }}</button>
         <!-- all files, or by folder -->
         <div class="ml-auto flex items-center rounded-full bg-surface p-1" role="radiogroup" :aria-label="t('common.viewMode')">
           <button
