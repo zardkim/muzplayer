@@ -111,7 +111,8 @@ onUnmounted(() => document.removeEventListener('click', outside))
 <template>
   <div class="flex flex-col gap-2.5">
     <InlineVideo v-if="ui.inlineVideo === video.id" :video="video" @expand="(ui.inlineVideo = null), emit('play')" />
-    <button v-else type="button" class="group relative aspect-video overflow-hidden rounded-xl bg-surface" :aria-label="`${t('videos.play')}: ${video.title}`" @click="ui.inlineVideo = video.id">
+    <!-- content-visibility: off the screen its picture isn't drawn (a long page scrolls lighter on a phone) -->
+    <button v-else type="button" class="group relative aspect-video overflow-hidden rounded-xl bg-surface [content-visibility:auto]" :aria-label="`${t('videos.play')}: ${video.title}`" @click="ui.inlineVideo = video.id">
       <VideoThumb :video="video" :icon="40" />
       <span v-if="remaking" class="absolute inset-0 grid place-items-center bg-black/50 text-[13px] text-white">{{ t('videos.thumbMaking') }}</span>
       <span class="absolute inset-0 m-auto grid size-12 place-items-center rounded-full bg-black/55 text-white"><Play :size="20" fill="currentColor" /></span>

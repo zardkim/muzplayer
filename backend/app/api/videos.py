@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from .. import search_index, video_thumbs, youtube
+from ..cache import YEAR
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Artist, LibraryFolder, Track, TrackGenre, User, Video, VideoFavorite, VideoKind, VideoPlaylist, VideoPlaylistItem
@@ -42,6 +43,7 @@ def video_out(v: Video, user: User) -> dict:
         "youtube_id": v.youtube_id,
         "file_path": v.file_path,
         "duration": v.duration,
+        "thumb_v": video_thumbs.version(v.id) if v.file_path else None,
         "kind": v.kind,
         "title": v.title,
         "channel": v.channel,
@@ -675,8 +677,9 @@ def unlike_video(video_id: int, user: User = Depends(current_user), db: Session 
 
 
 @router.get("/videos/{video_id}/thumb")
-def video_thumb(video_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """A NAS file's thumbnail (video_thumbs.py), made the first time when it isn't there yet."""
+def video_thumb(video_id: int, v: str = Query("", max_length=40), _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A NAS file's thumbnail (video_thumbs.py), made the first time when it isn't there yet. With
+    its version in the address (?v=2-<thumb_v>) it never changes there: kept for a year."""
     video = db.get(Video, video_id)
     path = _inside(video.file_path) if video is not None and video.file_path else None
     if path is None:
@@ -685,7 +688,8 @@ def video_thumb(video_id: int, _: User = Depends(current_user), db: Session = De
     thumb = video_thumbs.ensure(video_id, path)
     if thumb is None:
         raise api_error(404, "not_found")
-    return FileResponse(thumb, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
+    versioned = re.fullmatch(r"\d+-[1-9]\d*", v) is not None
+    return FileResponse(thumb, media_type="image/jpeg", headers={"Cache-Control": YEAR if versioned else "private, max-age=86400"})
 
 
 @router.post("/videos/{video_id}/thumb", status_code=204)

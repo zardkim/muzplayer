@@ -40,6 +40,15 @@ def thumb_file(video_id: int) -> Path:
     return thumb_dir() / f"{video_id}.v{VERSION}.jpg"
 
 
+def version(video_id: int) -> int:
+    """When its thumbnail was made (0: not yet): in its address, so a browser may keep it for good
+    and a new one (Remake thumbnail, a new VERSION) is a new address."""
+    try:
+        return int(thumb_file(video_id).stat().st_mtime)
+    except OSError:
+        return 0
+
+
 def _failed_file(video_id: int) -> Path:
     return thumb_dir() / f"{video_id}.v{VERSION}.none"  # made nothing: don't try on every look
 

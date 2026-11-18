@@ -2,6 +2,10 @@
 
 muzplayer의 버전별 변경 사항입니다(개발 계획서 `music_player_plan.md`의 변경 이력에서 만듦).
 
+## 0.76.1 — 2026-11-18
+
+뮤직영상 페이지 모바일 스크롤 — **썸네일 캐시**: NAS 영상 썸네일 주소에 만든 시각(`thumb_v`, `video_thumbs.version`)을 넣어 `?v=2-<thumb_v>`면 1년 캐시(`YEAR`, 아직 안 만든 `-0`은 하루), 서비스 워커가 그 썸네일과 YouTube 썸네일(i.ytimg.com, CORS로 받아 실제 응답 저장; YouTube 자체는 2시간뿐)을 커버 캐시(`muz-covers-v1`)에 두어 다시 받지 않음. 화면 밖 카드의 썸네일은 그리지 않음(썸네일 버튼에 `content-visibility: auto`; 카드 전체에 걸면 분류·⋮ 메뉴가 잘림)
+
 ## 0.76.0 — 2026-11-18
 
 **뮤직영상 분류 관리** — 분류를 DB 표로(`video_kinds`, 마이그레이션 0041: 기본 6개 mv·concert·tv·fan·cover·other, 영상은 키를 그대로 가짐). 관리자가 뮤직영상 페이지의 '분류 관리'(`VideoKindsSheet.vue`)에서 추가('기타' 앞, 키 `k<n>`, 50개까지)·이름 변경(기본 분류는 비우면 원래 이름)·순서 변경(위/아래)·삭제(그 영상은 '기타'로, '기타'는 못 지움). API `GET/POST /video-kinds`, `PATCH/DELETE /video-kinds/{key}`, 영상 등록·변경은 있는 분류만(`video_kind_unknown`). 화면은 `videoKinds.ts`(목록·`kindName`)로 페이지 묶음·선택 목록·카드 메뉴·등록 창·통계가 같은 목록을 씀. **모바일 스크롤 끊김** — 옆으로 밀어 다음 페이지로 가는 기능(`siblingSwipe.ts`)의 막는(non-passive) touchmove를 모든 페이지의 `<main>`에 달던 것을 넘길 페이지가 있을 때만 달도록(Safari는 그 처리기를 손가락이 움직일 때마다 기다림), 영상 썸네일 `decoding="async"`. 스모크에 분류 7건

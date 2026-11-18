@@ -286,6 +286,7 @@ export interface Video {
   youtube_id: string | null
   file_path: string | null
   duration?: number | null // seconds, NAS files
+  thumb_v?: number | null // NAS files: when the thumbnail was made (0: not yet), in its address
   kind: VideoKind
   title: string
   channel: string

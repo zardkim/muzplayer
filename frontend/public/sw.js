@@ -1,7 +1,8 @@
 // muzplayer service worker: makes the app installable and opens the UI offline.
 // Music and API calls go to the server, except songs saved for offline (src/offline.ts), which
 // the player asks for with ?saved=1 and which are answered from the device. Covers with a version in the URL (?v=) never
-// change, so they are kept in their own cache and not asked for again.
+// change, so they are kept in their own cache and not asked for again; so are video thumbnails (a NAS
+// file's with its version in the URL, YouTube's), so a long page of videos scrolls without fetching.
 const CACHE = 'muz-shell-v3' // v3: the muz icons with pink notes
 const COVERS = 'muz-covers-v1' // also cleared on logout (stores/auth.ts)
 const AUDIO = 'muz-audio-v1' // songs fetched ahead by the page (src/audioCache.ts); not touched here
@@ -9,6 +10,9 @@ const OFFLINE = 'muz-offline-v1' // songs saved for offline (src/offline.ts); ne
 const SAVED_PATH = /^\/api\/v1\/tracks\/\d+\/stream$/
 const MAX_COVERS = 3000 // about 100 MB of 300px covers; the oldest go first
 const COVER_PATH = /^\/api\/v1\/((albums|books)\/\d+\/cover|artists\/\d+\/image)$/
+const THUMB_PATH = /^\/api\/v1\/videos\/\d+\/thumb$/
+const THUMB_MADE = /^\d+-[1-9]\d*$/ // ?v=<how>-<when made>; -0: not made yet, so not kept
+const YOUTUBE_THUMBS = 'i.ytimg.com'
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/logo.svg', '/icon-192.png', '/cover-placeholder.svg']
 const MAX_ASSETS = 400 // the build has about 140 files; the downloads page must stay for offline
 
@@ -37,11 +41,11 @@ async function trimCovers(cache) {
   for (const req of keys.slice(0, Math.max(0, keys.length - MAX_COVERS))) await cache.delete(req)
 }
 
-async function cover(req) {
+async function cover(req, fetchAs = req) {
   const cache = await caches.open(COVERS)
-  const hit = await cache.match(req)
+  const hit = await cache.match(req.url)
   if (hit) return hit
-  const res = await fetch(req)
+  const res = await fetch(fetchAs)
   if (res.ok) await cache.put(req, res.clone()).then(() => trimCovers(cache)).catch(() => {}) // storage full: just don't keep it
   return res
 }
@@ -68,10 +72,19 @@ async function saved(req, url) {
 self.addEventListener('fetch', (event) => {
   const req = event.request
   const url = new URL(req.url)
+  // YouTube's thumbnails (its server allows it): fetched as CORS so the cache holds a real response
+  if (req.method === 'GET' && url.hostname === YOUTUBE_THUMBS) {
+    event.respondWith(cover(req, new Request(req.url, { mode: 'cors', credentials: 'omit' })).catch(() => fetch(req)))
+    return
+  }
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
 
   // versioned covers: cache first (iOS may still empty this cache when space runs low)
   if (COVER_PATH.test(url.pathname) && url.searchParams.has('v')) {
+    event.respondWith(cover(req))
+    return
+  }
+  if (THUMB_PATH.test(url.pathname) && THUMB_MADE.test(url.searchParams.get('v') || '')) {
     event.respondWith(cover(req))
     return
   }

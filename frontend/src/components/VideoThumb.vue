@@ -7,18 +7,19 @@ import { youtubeThumb } from '../youtube'
 
 // A video's picture, filling its (positioned) box: YouTube's own, or the thumbnail the server made
 // of a NAS file (video_thumbs.py; the film icon while there is none). NAS files show their length.
-const props = withDefaults(defineProps<{ video: Pick<Video, 'id' | 'youtube_id'> & { duration?: number | null }; icon?: number; length?: boolean }>(), {
+const props = withDefaults(defineProps<{ video: Pick<Video, 'id' | 'youtube_id'> & { duration?: number | null; thumb_v?: number | null }; icon?: number; length?: boolean }>(), {
   icon: 22,
   length: true,
 })
 const ui = useUi()
 const failed = ref(false)
 watch(() => props.video.id, () => (failed.value = false))
-// ?v: the browser keeps thumbnails a day; a new version of them (video_thumbs.VERSION) is a new address
+// ?v: the way thumbnails are made (video_thumbs.VERSION) and when this one was: a new one is a new
+// address, so one seen is kept on the device (sw.js) and not fetched again while scrolling
 const src = computed(() => {
   if (props.video.youtube_id) return youtubeThumb(props.video.youtube_id)
   const bust = ui.thumbBust[props.video.id]
-  return `/api/v1/videos/${props.video.id}/thumb?v=2${bust ? `&t=${bust}` : ''}`
+  return `/api/v1/videos/${props.video.id}/thumb?v=2-${props.video.thumb_v ?? 0}${bust ? `&t=${bust}` : ''}`
 })
 watch(src, () => (failed.value = false))
 const time = computed(() => {
