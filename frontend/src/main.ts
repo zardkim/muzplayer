@@ -35,13 +35,12 @@ async function start() {
   } catch {
     /* storage unavailable */
   }
-  initLocale(config?.default_locale)
+  await initLocale(config?.default_locale)
   appConfig.audiobooks = !!config?.audiobooks
   appConfig.aiBanners = !!config?.ai_banners
   appConfig.youtubeSearch = !!config?.youtube_search
   appConfig.needsSetup = !!config?.needs_setup
   appConfig.transcode = !!config?.transcode
-  appConfig.aiPlaylists = !!config?.ai_playlists
   appConfig.signup = config?.signup === 'approval' || config?.signup === 'open' ? config.signup : 'off'
   ;(window as unknown as { __MUZ_VERSION__?: string }).__MUZ_VERSION__ = config?.version
 

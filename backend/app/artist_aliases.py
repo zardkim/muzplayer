@@ -13,22 +13,17 @@ wrong ones (api/library.py PUT /artists/{id}/aliases); a later lookup keeps both
 after STALE. A site that doesn't answer is skipped (the next scan tries again).
 """
 
-import json
 import logging
 import re
 import threading
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
 
-from . import appconf, search_index
-from .album_notes import _get as get_page
-from .config import settings
+from . import appconf, net, search_index
 from .models import Artist, Track
 
 log = logging.getLogger(__name__)
@@ -39,7 +34,6 @@ STALE = timedelta(days=90)
 MB_SEARCH = "https://musicbrainz.org/ws/2/artist/"
 WD_API = "https://www.wikidata.org/w/api.php"
 BUGS_SEARCH = "https://music.bugs.co.kr/search/artist?q={q}"
-USER_AGENT = f"muzplayer/{settings.version} (self-hosted music player; https://github.com/zardkim/muzplayer)"
 MB_PAUSE = 1.1  # MusicBrainz: one request a second
 _SCRIPT_OK = re.compile(r"^[\sA-Za-z0-9À-ɏ가-힣ㄱ-ㆎ&'’.,!?()\-+/:·]+$")
 _PAIR = re.compile(r"^(.*\S)\(([^()]+)\)$")  # "Mariah Carey(머라이어 캐리)" (not "Mariah Carey (Karaoke)")
@@ -51,11 +45,9 @@ class Unreachable(Exception):
 
 
 def _json(url: str, params: dict) -> dict:
-    req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}", headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return json.load(resp)
+            return net.get_json(f"{url}?{urllib.parse.urlencode(params)}", headers={"User-Agent": net.APP_UA})
         except urllib.error.HTTPError as exc:
             if exc.code in (429, 503) and attempt < 2:  # too fast (MusicBrainz): a moment, then again
                 time.sleep(3 * (attempt + 1))
@@ -115,7 +107,7 @@ def from_wikidata(mbid: str) -> list[str]:
 def from_bugs(name: str) -> list[str]:
     """Bugs shows "Name(Other name)": both, when only one artist there has our name."""
     try:
-        page = get_page(BUGS_SEARCH.format(q=urllib.parse.quote(name)), "https://music.bugs.co.kr/")
+        page = net.get_page(BUGS_SEARCH.format(q=urllib.parse.quote(name)), "https://music.bugs.co.kr/")
     except Exception as exc:  # noqa: BLE001
         raise Unreachable(str(exc)) from exc
     fits = []

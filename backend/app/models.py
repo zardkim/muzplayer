@@ -88,7 +88,6 @@ class Artist(Base):
     # ㅁ), and by its own name; each starts with its script's place (한글, Latin, other, digits)
     sort_name: Mapped[str] = mapped_column(String(500), default="")
     sort_own: Mapped[str] = mapped_column(String(500), default="", server_default="")
-    bio: Mapped[str | None] = mapped_column(Text)
     # where the photo came from: folder:<rel> (artist.jpg in the artist folder) | deezer:<id> | none
     # (an admin removed it: not looked up again); NULL = no photo yet
     image_path: Mapped[str | None] = mapped_column(String(500))
@@ -302,7 +301,7 @@ class Playlist(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # shared: everyone sees and plays it (charts & themes page, home); its maker or an admin edits it
     is_shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
-    chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"))  # made from it
+    chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id", ondelete="SET NULL"), index=True)  # made from it
     sort_order: Mapped[int | None] = mapped_column(Integer)  # its place in its owner's own order (none: first)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -564,7 +563,7 @@ class Video(Base):
     title: Mapped[str] = mapped_column(String(500))
     channel: Mapped[str] = mapped_column(String(200), default="")
     position: Mapped[int] = mapped_column(Integer, default=0)
-    added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    added_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 class VideoFavorite(Base):
@@ -609,7 +608,7 @@ class ExtractJob(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id", ondelete="SET NULL"), index=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     format: Mapped[str] = mapped_column(String(8), default="m4a", server_default="m4a")  # m4a | mp3
     # pending | running | done | failed; step while running: download | convert | tags | scan
     status: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
@@ -621,6 +620,6 @@ class ExtractJob(Base):
     # the album to go into instead of one of its own: {"album_id", "cover": keep | new, "title": a new name or None}
     target: Mapped[dict | None] = mapped_column(JSON)
     file_path: Mapped[str | None] = mapped_column(Text)  # relative to MUSIC_DIR
-    track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="SET NULL"))
+    track_id: Mapped[int | None] = mapped_column(ForeignKey("tracks.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

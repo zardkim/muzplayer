@@ -105,7 +105,7 @@ async function removeStation(s: RadioStation) {
     ui.notify(errorMessage(e), true)
   }
 }
-const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink'
+const field = 'field h-12 px-4'
 
 // starred stations and the ones listened to lately (any region), kept with the account
 const byId = computed(() => new Map(stations.value.map((s) => [s.id, s])))

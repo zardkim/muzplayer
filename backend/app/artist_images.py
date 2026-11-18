@@ -17,7 +17,6 @@ import time
 import unicodedata
 import urllib.error
 import urllib.parse
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -27,6 +26,7 @@ from PIL import Image, ImageOps
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from . import net
 from .config import settings
 from .db import SessionLocal
 from .models import Album, Artist, LibraryFolder, Track
@@ -37,7 +37,6 @@ SIZES = {"thumb": 300, "large": 800}
 # only artist.*: a folder.jpg at that depth is usually an album cover (album/<album>/CD1/..., compilations)
 FOLDER_NAMES = ("artist.jpg", "artist.jpeg", "artist.png", "artist.webp")
 WIKIS = ("ko", "en")
-USER_AGENT = "muzplayer/0.9 (self-hosted music player; https://github.com/zardkim/muzplayer)"
 TIMEOUT = 15
 PAUSE = 1.0  # seconds between artists: Wikimedia answers 429 to bursts
 THUMB = "500"  # one of Wikimedia's standard thumbnail widths (others are made on demand and rate-limited)
@@ -137,10 +136,8 @@ def folder_images(db: Session, root: Path) -> bool:
 def _get(url: str, headers: dict | None = None) -> bytes:
     """GET with Wikimedia's manners: a descriptive User-Agent, and on 429 wait as told and retry."""
     for attempt in range(4):
-        req = urllib.request.Request(url, headers=headers or {"User-Agent": USER_AGENT})
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as res:  # noqa: S310 - fixed hosts
-                return res.read(8_000_000)
+            return net.get(url, headers=headers or {"User-Agent": net.APP_UA}, timeout=TIMEOUT, limit=8_000_000)
         except urllib.error.HTTPError as exc:
             if exc.code != 429 or attempt == 3:
                 raise
@@ -233,8 +230,6 @@ def best_match(name: str) -> dict | None:
 
 # ---- Melon, Bugs, Apple Music ----
 
-BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-SITES = ("melon", "bugs", "apple")
 # where each source's photos may be downloaded from
 IMAGE_HOSTS = {
     "ko": ("upload.wikimedia.org", "thumb.wikimedia.org"), "en": ("upload.wikimedia.org", "thumb.wikimedia.org"),
@@ -243,8 +238,7 @@ IMAGE_HOSTS = {
 
 
 def _page(url: str, referer: str) -> BeautifulSoup:
-    data = _get(url, {"User-Agent": BROWSER_UA, "Referer": referer, "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8"})
-    return BeautifulSoup(data.decode("utf-8", errors="replace"), "html.parser")
+    return net.get_page(url, referer, timeout=TIMEOUT)
 
 
 def _text(el) -> str:
@@ -361,7 +355,7 @@ def use_page(db: Session, artist: Artist, page: dict) -> None:
         if source in WIKIS:
             data = _get(page["image"])
         else:
-            data = _get(_large(source, page["image"]), {"User-Agent": BROWSER_UA})
+            data = _get(_large(source, page["image"]), {"User-Agent": net.BROWSER_UA})
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise ImageError("image_unreachable") from exc
     _save(artist, data, f"wiki:{source}:{page['title']}" if source in WIKIS else f"{source}:{page['title']}")
@@ -387,7 +381,7 @@ def from_bugs(artist: Artist, replace: bool = False) -> bool:
     if not BUGS_PHOTO.match(url) or info.get("photo_missing"):
         return False
     try:
-        _save(artist, _get(url, {"User-Agent": BROWSER_UA, "Referer": "https://music.bugs.co.kr/"}), f"bugs:{artist.display_name or artist.name}")
+        _save(artist, _get(url, {"User-Agent": net.BROWSER_UA, "Referer": "https://music.bugs.co.kr/"}), f"bugs:{artist.display_name or artist.name}")
     except urllib.error.HTTPError:
         artist.info = {**info, "photo_missing": True}
         return False

@@ -33,7 +33,6 @@ from .config import settings
 
 log = logging.getLogger(__name__)
 
-QUALITIES = ("orig", "320", "256", "192", "128")
 RATES = (128, 192, 256, 320)
 # browsers play these as they are: only sent converted for a lower bitrate
 PLAYABLE_LOSSY = {"mp3", "m4a", "mp4", "aac", "ogg", "oga", "opus"}

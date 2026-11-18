@@ -99,14 +99,14 @@ async function create() {
       <template v-else>
         <div class="flex flex-col gap-1.5 text-[13px] text-muted">
           <label for="import-target">{{ t('importList.to') }}</label>
-          <select id="import-target" v-model="target" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink">
+          <select id="import-target" v-model="target" class="field h-12 px-4">
             <option value="new">{{ t('importList.toNew') }}</option>
             <option v-for="p in library.editablePlaylists" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
         <label v-if="target === 'new'" class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('playlists.name') }}
-          <input v-model="name" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
+          <input v-model="name" maxlength="200" class="field h-12 px-4" />
         </label>
         <p class="text-[15px]">
           {{ t('importList.summary', { total: report.total, found: report.found }) }}
@@ -119,7 +119,7 @@ async function create() {
             v-for="k in (['all', 'found', 'missing'] as const)"
             :key="k"
             type="button"
-            class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink"
+            class="pill-sm"
             :aria-pressed="show === k"
             :class="show === k ? 'border-ink bg-ink text-on-ink' : ''"
             @click="show = k"

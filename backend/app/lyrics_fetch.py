@@ -15,7 +15,6 @@ import socket
 import threading
 import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
@@ -24,6 +23,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
+from . import net
 from .lyrics import parse
 from .models import FetchedLyrics, Track
 
@@ -31,7 +31,6 @@ log = logging.getLogger(__name__)
 
 RETRY_DAYS = 30
 TIMEOUT = 5
-_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # lookups at once; a request finding none free doesn't wait (it would hold a server thread that songs
 # are streamed from): it answers without and the next play of the song tries again
 _slots = threading.BoundedSemaphore(2)
@@ -55,9 +54,7 @@ def _first_artist(artist: str) -> str:
 
 
 def _get(url: str, headers: dict | None = None, data: bytes | None = None) -> bytes:
-    req = urllib.request.Request(url, data=data, headers={"User-Agent": _UA, **(headers or {})})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        return resp.read()
+    return net.get(url, headers=headers, data=data, timeout=TIMEOUT)
 
 
 # ---- AlSong (unofficial SOAP service; eztag metadata/alsong.py) ----
@@ -77,10 +74,8 @@ _SOAP = """<?xml version="1.0" encoding="UTF-8"?>
 def _alsong(op: str, query: str) -> str | None:
     body = _SOAP.format(op=op, enc=_ENC, query=query).encode()
     headers = {"Content-Type": "application/soap+xml; charset=utf-8", "SOAPAction": f'"ALSongWebServer/{op}"', "User-Agent": "gSOAP/2.7"}
-    req = urllib.request.Request(ALSONG_URL, data=body, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            content = resp.read()
+        content = net.get(ALSONG_URL, data=body, headers=headers, timeout=TIMEOUT)
     except urllib.error.HTTPError as exc:
         if exc.code != 500:  # a SOAP fault comes as 500: nothing found
             raise
@@ -138,7 +133,9 @@ def alsong_by_name(title: str, artist: str) -> str | None:
 
 # ---- Bugs (eztag metadata/bugs_lyrics.py) ----
 BUGS_SEARCH = "https://music.bugs.co.kr/search/track?q={q}"
-BUGS_LYRICS = "http://api.bugs.co.kr/3/tracks/{id}/lyrics?&api_key=b2de0fbe3380408bace96a5d1a76f800"
+# a public app key (as in eztag), not a secret of this install
+BUGS_API_KEY = "b2de0fbe3380408bace96a5d1a76f800"
+BUGS_LYRICS = "https://api.bugs.co.kr/3/tracks/{id}/lyrics?api_key=" + BUGS_API_KEY
 
 
 def bugs(title: str, artist: str) -> str | None:
@@ -278,8 +275,7 @@ def _alsong_list(title: str, artist: str) -> list[dict]:
     body = _SOAP.format(op="GetResembleLyric2", enc=_ENC, query=query).encode()
     headers = {"Content-Type": "application/soap+xml; charset=utf-8", "SOAPAction": '"ALSongWebServer/GetResembleLyric2"', "User-Agent": "gSOAP/2.7"}
     try:
-        with urllib.request.urlopen(urllib.request.Request(ALSONG_URL, data=body, headers=headers), timeout=TIMEOUT) as resp:
-            content = resp.read()
+        content = net.get(ALSONG_URL, data=body, headers=headers, timeout=TIMEOUT)
     except urllib.error.HTTPError as exc:
         if exc.code != 500:
             raise

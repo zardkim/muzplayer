@@ -17,21 +17,17 @@ import html
 import logging
 import re
 import threading
-import json
 import time
 import urllib.parse
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 
-from bs4 import BeautifulSoup
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from . import appconf, search_index
-from .config import settings
+from . import appconf, net, search_index
 from .library_paths import library_path
 from .models import Album, Artist, Track
 from .scanner import DISC_DIR, nfc
@@ -44,7 +40,6 @@ _DESC = re.compile(r'<div class="desc-box[^"]*"[^>]*>(.*?)</div>', re.S)
 _BR = re.compile(r"<br\s*/?>", re.I)
 _TAG = re.compile(r"<[^>]+>")
 
-_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 BUGS_SEARCH = "https://music.bugs.co.kr/search/album?q={q}"
 BUGS_ALBUM = "https://music.bugs.co.kr/album/{id}"
 MELON_SEARCH = "https://www.melon.com/search/album/index.htm?q={q}"
@@ -110,15 +105,6 @@ def check_report(db: Session, album: Album, force: bool = False) -> str | None:
 
 
 # ---- Bugs and Melon ----
-def _get(url: str, referer: str) -> BeautifulSoup:
-    req = urllib.request.Request(url, headers={
-        "User-Agent": _UA, "Referer": referer, "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    })
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return BeautifulSoup(resp.read().decode("utf-8", errors="replace"), "html.parser")
-
-
 def _year(text: str) -> int | None:
     m = re.search(r"(19|20)\d{2}", text or "")
     return int(m[0]) if m else None
@@ -137,7 +123,7 @@ def _bugs_artists(links) -> str:
 
 
 def _search_bugs(q: str, limit: int) -> list[dict]:
-    soup = _get(BUGS_SEARCH.format(q=urllib.parse.quote(q)), "https://music.bugs.co.kr/")
+    soup = net.get_page(BUGS_SEARCH.format(q=urllib.parse.quote(q)), "https://music.bugs.co.kr/")
     out = []
     for li in soup.select("ul.albumList li"):
         album_id = next((m[1] for a in li.find_all("a", href=True) if (m := re.search(r"/album/(\d+)", a["href"]))), "")
@@ -160,7 +146,7 @@ def _search_bugs(q: str, limit: int) -> list[dict]:
 
 
 def _search_melon(q: str, limit: int) -> list[dict]:
-    soup = _get(MELON_SEARCH.format(q=urllib.parse.quote(q)), "https://www.melon.com/")
+    soup = net.get_page(MELON_SEARCH.format(q=urllib.parse.quote(q)), "https://www.melon.com/")
     box = soup.find("div", class_="d_album_list")
     out = []
     for li in box.find_all("li", class_="album11_li") if box else []:
@@ -203,11 +189,11 @@ def search(q: str, limit: int = 8) -> list[dict]:
 def fetch(provider: str, album_id: str) -> str | None:
     """The introduction on a Bugs or Melon album page (None when it has none)."""
     if provider == "bugs":
-        soup = _get(BUGS_ALBUM.format(id=album_id), "https://music.bugs.co.kr/")
+        soup = net.get_page(BUGS_ALBUM.format(id=album_id), "https://music.bugs.co.kr/")
         el = (soup.select_one("div.albumContents span") or soup.select_one("div.albumDesc span")
               or soup.select_one("p#albumContents span") or soup.select_one("p.albumContents span"))
     else:
-        soup = _get(MELON_ALBUM.format(id=album_id), "https://www.melon.com/")
+        soup = net.get_page(MELON_ALBUM.format(id=album_id), "https://www.melon.com/")
         el = soup.find("div", id="d_video_summary") or soup.select_one("div.dtl_albuminfo")
     text = el.get_text("\n", strip=True) if el else ""
     return text[:MAX_TEXT] or None
@@ -281,9 +267,7 @@ def find_notes(title: str, artist: str) -> tuple[str, str] | None:
 
 
 def _melon_rating(album_id: str) -> dict | None:
-    req = urllib.request.Request(MELON_GRADE.format(id=album_id), headers={"User-Agent": _UA, "Referer": MELON_ALBUM.format(id=album_id)})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        grade = json.loads(resp.read()).get("infoGrade") or {}
+    grade = net.get_json(MELON_GRADE.format(id=album_id), headers={"Referer": MELON_ALBUM.format(id=album_id)}).get("infoGrade") or {}
     count = int(grade.get("PTCPNMPRCO") or 0)
     if not count:
         return None  # nobody has rated it
@@ -291,7 +275,7 @@ def _melon_rating(album_id: str) -> dict | None:
 
 
 def _bugs_likes(album_id: str) -> dict | None:
-    el = _get(BUGS_ALBUM.format(id=album_id), "https://music.bugs.co.kr/").select_one(".likeAlbum, a.like")
+    el = net.get_page(BUGS_ALBUM.format(id=album_id), "https://music.bugs.co.kr/").select_one(".likeAlbum, a.like")
     digits = re.sub(r"\D", "", el.get_text()) if el else ""
     return {"id": album_id, "likes": int(digits)} if digits else None
 

@@ -63,7 +63,6 @@ function apply(s: Integrations) {
   provider.value = s.ai_provider
   model.value = s[`${s.ai_provider}_image_model`]
   textModel.value = s[`${s.ai_provider}_text_model`]
-  appConfig.aiPlaylists = s.ai_banners
   keys.value = { gemini_api_key: '', openai_api_key: '', youtube_api_key: '' }
   appConfig.aiBanners = s.ai_banners
   appConfig.youtubeSearch = s.youtube_search
@@ -114,7 +113,7 @@ function clear(key: Secret) {
   if (confirm(t('admin.keyClearConfirm'))) save({ [key]: '' })
 }
 
-const field = 'h-12 min-w-0 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink'
+const field = 'field h-12 min-w-0 px-4'
 </script>
 
 <template>

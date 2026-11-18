@@ -11,7 +11,7 @@ const value = defineModel<T>({ required: true })
       <span class="text-[16px]">{{ title }}</span>
       <span v-if="hint" class="text-[13px] font-light text-muted">{{ hint }}</span>
     </span>
-    <select v-model="value" :disabled="disabled" class="h-10 flex-none rounded-full border border-line-strong bg-bg px-3 text-sm">
+    <select v-model="value" :disabled="disabled" class="pill-select flex-none">
       <option v-for="o in options" :key="String(o.value)" :value="o.value">{{ o.label }}</option>
     </select>
   </label>

@@ -11,18 +11,17 @@ Seoul's stations only for KBS, SBS and MBC: the regional ones have programmes of
 Kept a minute (MBC's week an hour); a broadcaster not answering is "nothing known", never an error.
 """
 
-import json
 import logging
 import threading
 import time
-import urllib.request
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+
+from . import net
 
 log = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 TIMEOUT = 6
 KEPT = 60
 SOURCES: dict[str, tuple[str, str]] = {
@@ -37,9 +36,7 @@ _lock = threading.Lock()
 
 
 def _json(url: str):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # noqa: S310 - fixed hosts
-        return json.load(resp)
+    return net.get_json(url, timeout=TIMEOUT)
 
 
 def _hhmm(text: str | None) -> str | None:

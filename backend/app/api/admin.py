@@ -555,9 +555,9 @@ def merge_names(kind: str, body: MergeIn, _: User = Depends(admin_user), db: Ses
     try:
         return {"merged": merge.merge(db, kind, body.keep, body.ids)}
     except merge.Busy:
-        raise api_error(409, "scan_running")
+        raise api_error(409, "scan_running") from None
     except LookupError:
-        raise api_error(404, "not_found")
+        raise api_error(404, "not_found") from None
 
 
 @router.delete("/merge/{kind}", status_code=204)
@@ -569,7 +569,7 @@ def unmerge(kind: str, name: str = Query(min_length=1, max_length=500), _: User 
         if not merge.unmerge(db, kind, name):
             raise api_error(404, "not_found")
     except merge.Busy:
-        raise api_error(409, "scan_running")
+        raise api_error(409, "scan_running") from None
     start_scan(db)
 
 
@@ -676,7 +676,7 @@ def fetch_notes(album_id: int, provider: str = Query(pattern="^(bugs|melon)$"), 
     try:
         text = album_notes.fetch(provider, id)
     except Exception:  # noqa: BLE001 - the site didn't answer or changed
-        raise api_error(502, "notes_unreachable")
+        raise api_error(502, "notes_unreachable") from None
     return {"text": text or "", "source": f"{provider}:{id}"}
 
 

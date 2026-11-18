@@ -160,23 +160,11 @@ dpl=$(curl -s -b "$U" "$BASE/playlists" | j 'd["items"][0]["id"]')
 check "the default playlist can't be deleted" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/playlists/$dpl")" 400
 check "everyone has a default video playlist" "$(curl -s -b "$U" "$BASE/video-playlists" | j '[p["is_default"] for p in d["items"]]')" "[True]"
 
-# user switching: two accounts on one device; switching into an admin account asks for its password
-D="$TMP/device.txt"; cp "$U" "$D"
-sw() { curl -s -b "$D" -c "$D" -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/switch" -H 'content-type: application/json' -d "$1"; }
-curl -s -b "$D" -c "$D" -o /dev/null -X POST "$BASE/auth/login" -H 'content-type: application/json' -d "{\"username\":\"$ADMIN\",\"password\":\"$ADMIN_PW\",\"add\":true}"
-check "added account listed for switching" "$(curl -s -b "$D" -c "$D" "$BASE/auth/accounts" | j '[a["username"] for a in d]')" "['smokeuser']"
-admin_id=$(curl -s -b "$D" "$BASE/auth/me" | j 'd["id"]')
-check "switch to a user needs no password" "$(sw "{\"user_id\":$uid}")" 200
-check "switch to admin needs its password" "$(sw "{\"user_id\":$admin_id}")" 403
-check "switch to admin, wrong password" "$(sw "{\"user_id\":$admin_id,\"password\":\"wrong-password\"}")" 401
-check "switch to admin with password" "$(sw "{\"user_id\":$admin_id,\"password\":\"$ADMIN_PW\"}")" 200
-check "switched account" "$(curl -s -b "$D" "$BASE/auth/me" | j 'd["username"]')" "$ADMIN"
-check "switch to an account not on this device" "$(sw '{"user_id":999999}')" 404
-
-# AI playlists: without a key, a clear code (with one, it would cost a request)
-if [ "$(curl -s "$BASE/config" | j 'd.get("ai_playlists")')" = False ]; then
-  check "ai playlist without a key" "$(curl -s -b "$U" -X POST "$BASE/playlists/ai" -H 'content-type: application/json' -d '{"prompt":"rainy day"}' | j 'd["detail"]')" ai_not_configured
-fi
+# signing out ends the session on the server too
+D="$TMP/device.txt"; login "$D" smokeuser smokepass1 >/dev/null; cp "$D" "$TMP/device-old.txt"
+check "logout" "$(curl -s -b "$D" -c "$D" -o /dev/null -w '%{http_code}' -X POST "$BASE/auth/logout")" 204
+check "signed out session is gone" "$(curl -s -b "$TMP/device-old.txt" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 401
+check "other sessions stay" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 200
 
 # stars, likes, play counts, mixes and smart playlists are each user's own
 aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')

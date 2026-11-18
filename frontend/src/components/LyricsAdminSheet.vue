@@ -187,7 +187,7 @@ const sourceName = (s: string | null | undefined) => (s && SOURCE_NAMES[s] ? (s 
               <button type="button" class="grid size-8 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" :aria-label="t('lyricsAdmin.preview')" :aria-expanded="open === i" @click="open = open === i ? -1 : i">
                 <component :is="open === i ? ChevronUp : ChevronDown" :size="16" />
               </button>
-              <button type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="choose(c)">{{ t('lyricsAdmin.use') }}</button>
+              <button type="button" class="pill-sm flex-none" @click="choose(c)">{{ t('lyricsAdmin.use') }}</button>
             </div>
             <ol v-if="open === i" class="mt-2 flex flex-col gap-0.5 pl-1 text-[13px]">
               <li v-for="([at, words], k) in preview(c)" :key="k" class="flex gap-2"><span class="w-12 flex-none font-display text-muted">{{ stamp(at) }}</span>{{ words || '♪' }}</li>

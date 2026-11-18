@@ -104,8 +104,8 @@ function reload() {
   <div class="flex flex-col gap-5">
     <LibraryHeader v-model:search="q" :search-label="t('artists.search')" :sub="t('artists.count', total)">
       <div class="flex items-center gap-2">
-        <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" :aria-pressed="picking" :class="picking ? 'border-ink bg-ink text-on-ink' : ''" @click="picking ? stopPicking() : (picking = true)">{{ t('merge.pick') }}</button>
-        <button v-if="auth.user?.is_admin" type="button" class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="merging = true">{{ t('merge.open') }}</button>
+        <button v-if="auth.user?.is_admin" type="button" class="pill-sm flex-none" :aria-pressed="picking" :class="picking ? 'border-ink bg-ink text-on-ink' : ''" @click="picking ? stopPicking() : (picking = true)">{{ t('merge.pick') }}</button>
+        <button v-if="auth.user?.is_admin" type="button" class="pill-sm flex-none" @click="merging = true">{{ t('merge.open') }}</button>
         <ViewToggle page="artists" fallback="grid" />
       </div>
     </LibraryHeader>

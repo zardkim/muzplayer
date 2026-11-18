@@ -33,7 +33,34 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="muzplayer", version=settings.version, lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
+# on every response: no framing by other sites, no reading a file as another type than it says
+SECURITY_HEADERS = [
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"SAMEORIGIN"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+]
+
+
+class SecurityHeaders:
+    """ASGI middleware (streams pass through as they are, not buffered)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                message["headers"] = [*message.get("headers", []), *SECURITY_HEADERS]
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
 app.add_middleware(activity.AdminChanges)  # the admin's log page
+app.add_middleware(SecurityHeaders)
 
 API = "/api/v1"
 for module in (auth, library, collections, me, marks, mixes, stations, videos, admin, books, radio, news, extract_api, lyrics_admin):

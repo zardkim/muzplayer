@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session, aliased
 
 from .. import album_notes, appconf, artist_aliases, artist_images, artist_links, bugs_artists, lyrics_fetch, search_index, transcode
 from ..cache import cached, image_response, library_version, shared_json
-from ..config import settings
 from ..db import get_db
 from ..library_paths import chosen_lrc, library_path
 from ..lyrics import parse, read_lyrics, read_text
@@ -800,12 +799,12 @@ def search_suggest(
         return (not name.startswith(want), want not in name, {"artist": 0, "album": 1, "track": 2}[item[1]], len(name))
 
     out, seen = [], set()
-    for text, kind, sub in sorted(found, key=rank):
-        key = search_index.norm(text)
+    for label, kind, sub in sorted(found, key=rank):
+        key = search_index.norm(label)
         if not key or key in seen:
             continue
         seen.add(key)
-        out.append({"text": text, "kind": kind, "sub": sub})
+        out.append({"text": label, "kind": kind, "sub": sub})
         if len(out) >= limit:
             break
     return {"items": out}

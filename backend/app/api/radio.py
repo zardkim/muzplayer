@@ -48,9 +48,9 @@ async def add_custom(body: CustomIn, user: User = Depends(current_user), db: Ses
     try:
         url = await asyncio.to_thread(radio.probe, body.url)
     except radio.Unsupported:
-        raise api_error(400, "radio_unsupported")
+        raise api_error(400, "radio_unsupported") from None
     except radio.Unavailable:
-        raise api_error(400, "radio_unreachable")
+        raise api_error(400, "radio_unreachable") from None
     row = RadioCustom(user_id=user.id, name=body.name, url=url)
     db.add(row)
     db.commit()
@@ -86,7 +86,7 @@ async def stream(station_id: str, user: User = Depends(current_user), db: Sessio
     try:
         body, media_type = await radio.relay(station)
     except radio.Busy:
-        raise api_error(429, "radio_busy")
+        raise api_error(429, "radio_busy") from None
     except radio.Unavailable:
-        raise api_error(502, "radio_unavailable")
+        raise api_error(502, "radio_unavailable") from None
     return StreamingResponse(body, media_type=media_type, headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

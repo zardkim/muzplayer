@@ -264,7 +264,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
               <!-- what kind of video it is: picking one adds it -->
               <div v-if="picking === r.youtube_id" class="flex w-full flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
                 <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
-                <button v-for="k in KINDS" :key="k" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="add(r.youtube_id, k, r)">
+                <button v-for="k in KINDS" :key="k" type="button" class="pill-sm" @click="add(r.youtube_id, k, r)">
                   {{ t(`videos.kinds.${k}`) }}
                 </button>
               </div>
@@ -286,7 +286,7 @@ const thumb = (id: string | null) => (id ? `https://i.ytimg.com/vi/${id}/mqdefau
         </form>
         <div v-if="picking === 'link' && link.trim().length >= 11" class="flex flex-wrap items-center gap-1.5 rounded-xl bg-bg p-2">
           <span class="px-1 text-[13px] text-muted">{{ t('videos.pickKind') }}</span>
-          <button v-for="k in KINDS" :key="k" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="add(link, k)">
+          <button v-for="k in KINDS" :key="k" type="button" class="pill-sm" @click="add(link, k)">
             {{ t(`videos.kinds.${k}`) }}
           </button>
         </div>

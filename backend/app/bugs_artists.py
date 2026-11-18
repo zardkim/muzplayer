@@ -26,8 +26,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from . import appconf, artist_aliases, search_index
-from .album_notes import _get as get_page
+from . import appconf, artist_aliases, net, search_index
 from .models import Album, Artist, Track, TrackArtist
 
 log = logging.getLogger(__name__)
@@ -56,7 +55,7 @@ class Unreachable(Exception):
 
 def _page(url: str):
     try:
-        return get_page(url, BUGS)
+        return net.get_page(url, BUGS)
     except Exception as exc:  # noqa: BLE001 - not answering, moved, blocked: later
         raise Unreachable(str(exc)) from exc
 

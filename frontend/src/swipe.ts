@@ -2,6 +2,8 @@
 // first 10px of movement, and on release the swipe counts when it went far or fast enough.
 // Sliders (seek, volume) and anything marked data-no-swipe (the lyrics, which scroll) are left alone.
 
+import { ref } from 'vue'
+
 export type Axis = 'x' | 'y'
 export interface SwipeEnd { axis: Axis; dx: number; dy: number; fast: boolean }
 interface Options {
@@ -51,6 +53,36 @@ export function useSwipe(o: Options) {
     axis = null
   }
   return { onTouchstart, onTouchmove, onTouchend, onTouchcancel: onTouchend }
+}
+
+/** The transition while a released gesture settles (the player sliding back or away, the cover). */
+export const SETTLE = 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]'
+
+/** A full-screen player pulled down to tuck it away (the song, the station, the audiobook): dragY
+ *  follows the finger; a long or fast pull slides it out and calls close, a short one springs back.
+ *  `canStart` says whether this touch may pull (not while the page is scrolled down). `settle` also
+ *  animates the player's other gestures (the cover or logo swiped sideways). */
+export function usePullToClose(close: () => void, canStart: () => boolean = () => true) {
+  const dragY = ref(0)
+  const settling = ref(false) // animating back or away after a release
+  function settle(apply: () => void, after?: () => void) {
+    settling.value = true
+    apply()
+    window.setTimeout(() => {
+      settling.value = false
+      after?.()
+    }, 300)
+  }
+  const pull = useSwipe({
+    axes: ['y'],
+    allow: (_, __, dy) => dy > 0 && canStart(),
+    move: (_, __, dy) => (dragY.value = Math.max(0, dy)),
+    end: ({ dy, fast }) => {
+      if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), close)
+      else settle(() => (dragY.value = 0))
+    },
+  })
+  return { dragY, settling, settle, pull }
 }
 
 /** A finger held still on something for `ms` (the menu of a song, picking up a queue row). The click

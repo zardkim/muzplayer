@@ -87,6 +87,7 @@ The four in **bold** must be set.
 | `SCAN_INTERVAL_MINUTES` | `60` | Automatic rescan interval; `0` = manual only |
 | `TRANSCODE_CACHE_MB` | `2048` | Space for converted songs in `app/transcode` |
 | `SESSION_DAYS` | `60` | How long a sign-in lasts |
+| `FORWARDED_ALLOW_IPS` | private ranges | The reverse proxies whose visitor address (`X-Forwarded-For`) is believed. The default `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` covers a proxy on the same machine or the home network. Set it only when the proxy is at another public IP |
 | `FFMPEG_PATH` | (empty) | Leave empty; only to use another ffmpeg |
 
 The admin account, AI and YouTube keys and the sign-up mode are set **in the app** (admin page), not in `.env`.

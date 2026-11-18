@@ -345,7 +345,7 @@ export interface ActivityEntry {
   at: string
   user_id: number | null
   username: string
-  action: string // login | logout | switch | setup | signup | password_changed | login_failed | login_locked | admin
+  action: string // login | logout | setup | signup | password_changed | login_failed | login_locked | admin
   detail: string
   ip: string
 }

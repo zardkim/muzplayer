@@ -2,6 +2,10 @@
 
 muzplayer의 버전별 변경 사항입니다(개발 계획서 `music_player_plan.md`의 변경 이력에서 만듦).
 
+## 0.75.0 — 2026-11-18
+
+전체 점검과 정리(`docs/cleanup_plan.md`) — **사용자 전환 삭제**(0.51.0부터 화면 없음: `/auth/accounts`·`/auth/switch`, 두 번째 쿠키 `muz_others`는 로그아웃 때 지움; 로그아웃은 204, 다른 계정이 이어받지 않음), **AI 재생목록 백엔드 삭제**(0.69.1부터 화면 없음: `POST /playlists/ai`, `/config`의 `ai_playlists`; 추출 태그용 `ask_json`만 `ai_text.py`로 남김), 안 쓰는 컴포넌트(`PlayerControls.vue`)·상수·함수·번역 키 49개 삭제. 외부 사이트 요청을 `net.py` 하나로(브라우저 UA·앱 UA, `get`·`get_json`·`get_page`; 9개 모듈), 플레이어 세 개의 당겨서 닫기를 `swipe.ts`의 `usePullToClose`로, 반복되던 입력창·버튼 스타일을 `field`·`pill`·`pill-sm`·`pill-select` 유틸리티로. 보안: uvicorn이 믿는 프록시를 모두(`*`)에서 사설 대역으로(`FORWARDED_ALLOW_IPS`, 기본 `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`), 응답 헤더 `X-Content-Type-Options: nosniff`·`X-Frame-Options: SAMEORIGIN`·`Referrer-Policy`, 벅스 가사 API를 https로. 성능: 영어 번역은 쓸 때만 불러옴(첫 i18n 청크 265KB → 206KB). 마이그레이션 0040(외래키 인덱스 4개, 안 쓰던 `artists.bio` 삭제). 스모크: 사용자 전환·AI 8건 빼고 로그아웃 3건 추가
+
 ## 0.74.0 — 2026-11-16
 
 음원 추출 정리 — yt-dlp 업데이트가 '업데이트 중'에 멈춰 보이던 것(창을 다시 열면 상태를 안 따라가던 것, 추출 작업이 끝나길 말없이 기다리던 것 → 'waiting' 표시, 다음 작업보다 먼저). 작업 진행 표시(4단계 중 n단계·전체 막대), 진행 중 '중지'(다음 단계에서, ffmpeg는 즉시 종료)·대기 '취소'·'모두 중지'(`POST /extract/jobs/cancel`, 실패 `extract_cancelled`로 남아 다시 시도 가능). 추출이 끝나면 연결 안 된 영상을 새 곡에 자동 연결(곡·앨범에 연결된 영상은 그대로), 추출 파일을 지울 때 곡·앨범에 연결된 영상은 연결만 해제(CASCADE로 지워지던 것). 같은 가수의 추출 앨범에 추가: 시작 창에서 앨범 선택(`GET /videos/{id}/extract/albums`), 다음 트랙 번호(실행 때), 앨범 이름 유지·변경(모든 곡 파일), 앨범 아트 그대로·새로 만들기(곡들의 원래 표지 모자이크, `DATA_DIR/extract-covers`), 마이그레이션 0039 `extract_jobs.target`. 곡에 연결된 추출 영상을 다시 추출하면 그 앨범의 다음 번호로

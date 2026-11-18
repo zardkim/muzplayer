@@ -211,7 +211,7 @@ async function reload() {
       <form class="flex flex-col gap-4" @submit.prevent="submitName">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('playlists.name') }}
-          <input v-model="nameText" maxlength="200" autofocus class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
+          <input v-model="nameText" maxlength="200" autofocus class="field h-12 px-4" />
         </label>
         <button type="submit" class="h-12 rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="!nameText.trim()">{{ naming.mode === 'new' ? t('common.create') : t('common.save') }}</button>
       </form>

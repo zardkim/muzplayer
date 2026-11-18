@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from .. import activity, ai_banner, ai_playlist, appconf, transcode, youtube
+from .. import activity, ai_banner, appconf, transcode, youtube
 from .. import windows_app as windows_app_mod
 from ..config import SUPPORTED_LOCALES, settings
 from ..db import get_db
@@ -16,8 +16,6 @@ from ..security import (
     COOKIE_NAME,
     LOCK_MINUTES,
     MAX_FAILED_LOGINS,
-    MAX_OTHERS,
-    OTHERS_COOKIE,
     api_error,
     create_session,
     current_user,
@@ -65,7 +63,6 @@ def get_config(db: Session = Depends(get_db, scope="function")):
         "youtube_search": youtube.configured(),  # in-app video search; without it links are pasted
         "needs_setup": not has_users(db),  # a fresh install: the login page makes the first (admin) account
         "transcode": transcode.available(),  # stream quality, WMA/APE, levelling on the server
-        "ai_playlists": ai_playlist.configured(),  # the AI key an admin set for banners
         "signup": appconf.signup_mode(),  # off | approval | open (admin page)
     }
 
@@ -79,11 +76,10 @@ def windows_app(_: User = Depends(current_user)):
 class LoginIn(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=256)
-    add: bool = False  # another account on this device: the one signed in now stays (user switching)
 
 
 def check_password(db: Session, user: User, password: str, request: Request | None = None) -> None:
-    """Raises on a wrong password, counting it toward the lockout (login and switching alike)."""
+    """Raises on a wrong password, counting it toward the lockout."""
     if user.locked_until and user.locked_until > now():
         activity.record("login_locked", user, request=request)
         raise api_error(429, "account_locked")
@@ -113,13 +109,7 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
     if not user.is_active:
         activity.record("login_failed", user, detail="pending" if user.pending else "disabled", request=request)
         raise api_error(403, "pending_approval" if user.pending else "account_disabled")
-    others = others_on_device(db, request)
-    current = request.cookies.get(COOKIE_NAME)
-    signed_in = session_user(db, current) if body.add and current else None
-    if signed_in is not None:
-        others.insert(0, (current, signed_in))
     start_session(db, user, response)
-    set_others(response, [t for t, u in others if u.id != user.id])
     activity.record("login", user, request=request)
     return user_out(user)
 
@@ -141,77 +131,6 @@ def start_session(db: Session, user: User, response: Response) -> None:
     user.last_login_at = user.last_seen_at = now()  # signed in just now: not also a "visit"
     db.commit()
     _cookie(response, COOKIE_NAME, token)
-
-
-# ---- user switching ----
-# Family members on one device: accounts signed in here ("add account" on the login page) are kept
-# in a second HttpOnly cookie and switched to without signing in again. Switching into an admin
-# account asks for its password (with the login lockout), so a shared phone doesn't hand out admin.
-
-
-def others_on_device(db: Session, request: Request) -> list[tuple[str, User]]:
-    """(token, user) of the other accounts signed in on this device that are still valid: not the
-    one signed in now, one per user, at most MAX_OTHERS."""
-    current = request.cookies.get(COOKIE_NAME)
-    active = session_user(db, current) if current else None
-    seen = {active.id} if active else set()
-    found: list[tuple[str, User]] = []
-    for token in (request.cookies.get(OTHERS_COOKIE) or "").split("."):
-        if not token or len(found) >= MAX_OTHERS:
-            continue
-        user = session_user(db, token)
-        if user is not None and user.id not in seen:
-            seen.add(user.id)
-            found.append((token, user))
-    return found
-
-
-def set_others(response: Response, tokens: list[str]) -> None:
-    if tokens:
-        _cookie(response, OTHERS_COOKIE, ".".join(tokens[:MAX_OTHERS]))
-    else:
-        response.delete_cookie(OTHERS_COOKIE, path="/")
-
-
-def account_out(user: User) -> dict:
-    return {"id": user.id, "username": user.username, "display_name": user.display_name or user.username, "is_admin": user.is_admin}
-
-
-@router.get("/auth/accounts")
-def accounts(request: Request, response: Response, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """The other accounts signed in on this device (the cookie loses ones that ended)."""
-    others = others_on_device(db, request)
-    set_others(response, [t for t, _ in others])
-    return [account_out(u) for _, u in others]
-
-
-class SwitchIn(BaseModel):
-    user_id: int
-    password: str | None = Field(None, max_length=256)  # needed for an admin account
-
-
-@router.post("/auth/switch")
-def switch(body: SwitchIn, request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
-    others = others_on_device(db, request)
-    match = next(((t, u) for t, u in others if u.id == body.user_id), None)
-    if match is None:
-        raise api_error(404, "not_found")
-    token, user = match
-    if user.is_admin:
-        if not body.password:
-            raise api_error(403, "password_required")
-        check_password(db, user, body.password, request)
-        db.commit()
-    current = request.cookies.get(COOKIE_NAME)
-    rest = [t for t, u in others if u.id != user.id]
-    if current and session_user(db, current) is not None:
-        rest.insert(0, current)
-    _cookie(response, COOKIE_NAME, token)
-    set_others(response, rest)
-    user.last_seen_at = now()  # switched to just now: not also a "visit"
-    db.commit()
-    activity.record("switch", user, request=request)
-    return user_out(user)
 
 
 class SetupIn(BaseModel):
@@ -290,11 +209,8 @@ def signup(body: SignupIn, request: Request, response: Response, db: Session = D
     return user_out(user)
 
 
-@router.post("/auth/logout")
+@router.post("/auth/logout", status_code=204)
 def logout(request: Request, response: Response, db: Session = Depends(get_db, scope="function")):
-    """Signs this account out. Another account signed in on this device takes over, if there is
-    one that needs no password (not an admin): {"user": that user or null}. Admin accounts stay
-    listed for signing in again."""
     token = request.cookies.get(COOKIE_NAME)
     if token:
         leaving = session_user(db, token)
@@ -302,15 +218,8 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db, s
         db.commit()
         if leaving is not None:
             activity.record("logout", leaving, request=request)
-    others = others_on_device(db, request)
-    heir = next(((t, u) for t, u in others if not u.is_admin), None)
-    if heir is not None:
-        _cookie(response, COOKIE_NAME, heir[0])
-        set_others(response, [t for t, _ in others if t != heir[0]])
-        return {"user": user_out(heir[1])}
     response.delete_cookie(COOKIE_NAME, path="/")
-    set_others(response, [t for t, _ in others])
-    return {"user": None}
+    response.delete_cookie("muz_others", path="/")  # left by user switching (removed in 0.75.0)
 
 
 @router.get("/auth/me")

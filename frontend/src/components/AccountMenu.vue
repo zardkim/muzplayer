@@ -33,7 +33,7 @@ async function toggle() {
 
 async function logout() {
   player.reset()
-  await auth.logout() // restarts the app when another account on this device takes over
+  await auth.logout()
   router.push({ name: 'login' })
 }
 

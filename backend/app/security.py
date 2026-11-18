@@ -13,9 +13,6 @@ from .db import get_db
 from .models import User, UserSession
 
 COOKIE_NAME = "muz_session"
-# the other accounts signed in on this device (user switching): their session tokens, space-separated
-OTHERS_COOKIE = "muz_others"
-MAX_OTHERS = 5
 MAX_FAILED_LOGINS = 5
 LOCK_MINUTES = 15
 

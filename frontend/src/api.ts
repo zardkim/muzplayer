@@ -41,7 +41,6 @@ export async function api<T = unknown>(
   return data as T
 }
 
-export const streamUrl = (trackId: number) => `${BASE}/tracks/${trackId}/stream`
 // with the cover version the URL changes with the cover, so it is cached for good (and offline by sw.js)
 export const coverUrl = (albumId: number, size: 'thumb' | 'large' = 'thumb', v?: number) =>
   `${BASE}/albums/${albumId}/cover?size=${size}${v ? `&v=${v}` : ''}`

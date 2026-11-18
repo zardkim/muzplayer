@@ -10,7 +10,7 @@ import { useLibrary } from '../stores/library'
 import { useLyrics } from '../stores/lyrics'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import { useSwipe } from '../swipe'
+import { SETTLE, usePullToClose, useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 import LikeButton from './LikeButton.vue'
 import LyricsPanel from './LyricsPanel.vue'
@@ -59,29 +59,9 @@ const volumeShown = !isIos
 
 // gestures (phones): pull the player down to tuck it away (not from inside the lyrics or the queue,
 // which scroll); swipe the cover for the next or previous song
-const dragY = ref(0)
 const coverX = ref(0)
-const settling = ref(false) // animating back or away after a release
-function settle(apply: () => void, after?: () => void) {
-  settling.value = true
-  apply()
-  window.setTimeout(() => {
-    settling.value = false
-    after?.()
-  }, 300)
-}
 let fromList = false
-const pull = useSwipe({
-  axes: ['y'],
-  allow: (_, __, dy) => dy > 0 && !fromList,
-  move: (_, __, dy) => (dragY.value = Math.max(0, dy)),
-  end: ({ dy, fast }) => {
-    if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
-      ui.playerOpen = false
-    })
-    else settle(() => (dragY.value = 0))
-  },
-})
+const { dragY, settling, settle, pull } = usePullToClose(() => (ui.playerOpen = false), () => !fromList)
 function pullStart(e: TouchEvent) {
   fromList = !!(e.target as Element | null)?.closest('[data-no-pull]')
   pull.onTouchstart(e)
@@ -133,7 +113,7 @@ const repeatLabel = computed(() =>
     aria-modal="true"
     :aria-label="t('player.nowPlaying')"
     class="np fixed inset-0 z-50 overflow-hidden"
-    :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
+    :class="settling ? SETTLE : ''"
     :style="[background, dragY ? { transform: `translate3d(0,${dragY}px,0)` } : {}]"
     @touchstart="pullStart"
     @touchmove="pull.onTouchmove"
@@ -177,7 +157,7 @@ const repeatLabel = computed(() =>
           <button
             type="button"
             class="aspect-square w-[min(100cqw,100cqh)]"
-            :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
+            :class="settling ? SETTLE : ''"
             :style="coverX ? { transform: `translateX(${coverX}px)` } : undefined"
             :aria-label="t('player.showLyrics')"
             @click="coverTap"

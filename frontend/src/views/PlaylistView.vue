@@ -234,7 +234,7 @@ async function destroy() {
       <form class="flex flex-col gap-4" @submit.prevent="rename">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('playlists.name') }}
-          <input v-model="newName" maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
+          <input v-model="newName" maxlength="200" class="field h-12 px-4" />
         </label>
         <button type="submit" class="h-12 rounded-full bg-ink text-on-ink disabled:opacity-40" :disabled="!newName.trim()">{{ t('common.save') }}</button>
       </form>

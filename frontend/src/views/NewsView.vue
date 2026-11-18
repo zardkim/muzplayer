@@ -56,7 +56,7 @@ const more = (all: number | undefined, here: number) => (all && all > here ? t('
         v-for="d in SPANS"
         :key="d"
         type="button"
-        class="h-8 flex-none rounded-full border border-line-strong px-3 text-[13px] hover:border-ink"
+        class="pill-sm flex-none"
         :aria-pressed="days === d"
         :class="days === d ? 'border-ink bg-ink text-on-ink' : ''"
         @click="days = d"

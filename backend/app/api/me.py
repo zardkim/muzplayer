@@ -13,8 +13,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .. import ai_playlist, playlist_import
-from ..ai_banner import AiError
+from .. import playlist_import
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistMissing, PlaylistTrack, Track, User
@@ -225,25 +224,6 @@ def _import(db: Session, user: User, raw: bytes, name: str, create: bool, target
         db.commit()
         out |= {"playlist_id": playlist.id, "added": added, "skipped": skipped, "kept_missing": kept}
     return out
-
-
-class AiPlaylistIn(BaseModel):
-    prompt: str = Field(min_length=2, max_length=300)
-
-
-@router.post("/playlists/ai")
-def ai_playlist_draft(body: AiPlaylistIn, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
-    """A smart playlist drafted from a sentence (ai_playlist.py): {"name", "rules", "count"}; not
-    saved. 400 with a code when there is nothing usable (ai_no_rules, ai_no_songs)."""
-    try:
-        draft = ai_playlist.make(db, user.id, body.prompt.strip())
-    except AiError as exc:
-        raise api_error(503 if str(exc) in ("ai_unreachable", "ai_quota") else 400, str(exc)) from None
-    rules = Rules.model_validate(draft["rules"])
-    count = db.scalar(select(func.count()).select_from(apply_rules(track_query(user.id), rules, user.id).subquery()))
-    if not count:
-        raise api_error(400, "ai_no_songs")
-    return {**draft, "count": count}
 
 
 def smart_rules(playlist: Playlist) -> Rules | None:

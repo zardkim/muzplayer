@@ -36,7 +36,6 @@ import threading
 import time
 import unicodedata
 import urllib.parse
-import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,7 +43,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from sqlalchemy import func, select
 
-from . import ai_banner, appconf, artist_aliases, lyrics_fetch, search_index, transcode
+from . import ai_banner, appconf, artist_aliases, lyrics_fetch, net, search_index, transcode
 from .config import settings
 from .db import SessionLocal
 from .library_paths import extract_top, library_path, library_rel
@@ -56,7 +55,6 @@ FORMATS = ("m4a", "mp3")
 MP3_RATE = "320k"
 AAC_RATE = "256k"  # an m4a from a source that isn't AAC (YouTube's Opus)
 COVER_PX = 1000
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 _lock = threading.Lock()  # held while a job runs or a song's tags are edited (backup.restore waits for none)
 _stop: set[int] = set()  # jobs an admin stopped while they ran: they end at their next step (or ffmpeg is killed)
 _current: list[int | None] = [None]  # the job running now
@@ -686,7 +684,7 @@ def _ai(title: str, channel: str, description: str, length: float | None) -> dic
     """The AI's reading (None: not set up, turned off, or it failed: the title rules are used)."""
     if appconf.get("extract_ai") != "on" or not ai_banner.configured():
         return None
-    from .ai_playlist import ask_json
+    from .ai_text import ask_json
 
     prompt = f"Title: {title}\nChannel: {channel}\nLength: {int(length or 0)} s\nDescription:\n{(description or '')[:1500]}"
     try:
@@ -708,9 +706,7 @@ BUGS = "https://music.bugs.co.kr/"
 
 
 def _bugs_page(url: str) -> BeautifulSoup:
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": BUGS, "Accept-Language": "ko-KR,ko;q=0.9"})
-    with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310 - fixed host
-        return BeautifulSoup(resp.read().decode("utf-8", "replace"), "html.parser")
+    return net.get_page(url, BUGS)
 
 
 def _plain(text: str) -> str:
@@ -788,9 +784,7 @@ def _bugs_album(album_id: str, track_id: str) -> dict:
 
 def _fetch_cover(url: str) -> bytes | None:
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": BUGS})
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310 - Bugs' image host
-            return _square(resp.read(8_000_000))
+        return _square(net.get(url, headers={"Referer": BUGS}, limit=8_000_000))
     except Exception:  # noqa: BLE001
         return None
 
@@ -824,10 +818,8 @@ def _thumbnail(source: dict) -> bytes | None:
     if source["youtube_id"]:
         for size in ("maxresdefault", "sddefault", "hqdefault"):
             try:
-                req = urllib.request.Request(f"https://i.ytimg.com/vi/{source['youtube_id']}/{size}.jpg", headers={"User-Agent": UA})
-                with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310 - fixed host
-                    if (cover := _square(resp.read(5_000_000))) is not None:
-                        return cover
+                if (cover := _square(net.get(f"https://i.ytimg.com/vi/{source['youtube_id']}/{size}.jpg", limit=5_000_000))) is not None:
+                    return cover
             except Exception:  # noqa: BLE001
                 continue
         return None

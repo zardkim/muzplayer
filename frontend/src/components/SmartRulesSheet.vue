@@ -8,8 +8,7 @@ import type { Genre, Playlist, RuleField, SmartRule, SmartRules } from '../types
 import BaseModal from './BaseModal.vue'
 
 // Make or change a smart playlist: rules on the user's plays, stars and likes and the songs' tags.
-// draft: a new one drafted by AI (AiPlaylistSheet), to check before saving
-const props = defineProps<{ playlist?: Playlist; draft?: { name: string; rules: SmartRules; count: number } }>()
+const props = defineProps<{ playlist?: Playlist }>()
 const emit = defineEmits<{ close: []; saved: [playlist: Playlist] }>()
 const { t } = useI18n()
 
@@ -37,9 +36,9 @@ function fresh(field: RuleField): SmartRule {
   return { field, op: OPS[field][0], value }
 }
 
-const name = ref(props.playlist?.name ?? props.draft?.name ?? '')
+const name = ref(props.playlist?.name ?? '')
 const rules = ref<SmartRules>(
-  props.playlist?.rules || props.draft ? JSON.parse(JSON.stringify(props.playlist?.rules ?? props.draft!.rules)) : { match: 'all', rules: [fresh('rating')], sort: 'random', limit: 100 },
+  props.playlist?.rules ? JSON.parse(JSON.stringify(props.playlist.rules)) : { match: 'all', rules: [fresh('rating')], sort: 'random', limit: 100 },
 )
 const genres = ref<string[]>([])
 const busy = ref(false)
@@ -75,11 +74,10 @@ async function save() {
 <template>
   <BaseModal :title="playlist ? t('smart.edit') : t('smart.new')" @close="emit('close')">
     <form class="flex flex-col gap-4" @submit.prevent="save">
-      <p v-if="draft" class="rounded-xl bg-accent-soft px-3.5 py-2.5 text-[14px]">{{ t('ai.review', { n: draft.count }) }}</p>
-      <p v-else class="text-[14px] font-light text-muted">{{ t('smart.intro') }}</p>
+      <p class="text-[14px] font-light text-muted">{{ t('smart.intro') }}</p>
       <label class="flex flex-col gap-1.5 text-[13px] text-muted">
         {{ t('playlists.name') }}
-        <input v-model="name" required maxlength="200" class="h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
+        <input v-model="name" required maxlength="200" class="field h-12 px-4" />
       </label>
 
       <label class="flex items-center gap-2 text-[14px]">

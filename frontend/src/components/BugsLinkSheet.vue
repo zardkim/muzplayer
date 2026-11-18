@@ -70,8 +70,8 @@ async function save(body: { bugs_id?: number | null; none?: boolean }) {
         <li v-if="!items.length" class="py-2 text-[14px] text-muted">{{ t('search.noResults') }}</li>
       </ul>
       <div class="flex flex-wrap justify-end gap-2">
-        <button v-if="artist.bugs?.id" type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" :disabled="busy" @click="save({ bugs_id: null })">{{ t('bugs.unlink') }}</button>
-        <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" :disabled="busy" @click="save({ bugs_id: null, none: true })">{{ t('bugs.notOnBugs') }}</button>
+        <button v-if="artist.bugs?.id" type="button" class="pill" :disabled="busy" @click="save({ bugs_id: null })">{{ t('bugs.unlink') }}</button>
+        <button type="button" class="pill" :disabled="busy" @click="save({ bugs_id: null, none: true })">{{ t('bugs.notOnBugs') }}</button>
       </div>
     </div>
   </BaseModal>

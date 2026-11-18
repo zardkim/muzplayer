@@ -87,7 +87,7 @@ const recordHistory = computed({
     auth.updateSettings({ record_history: v }).catch((e) => ui.notify(errorMessage(e), true))
   },
 })
-const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink'
+const field = 'field h-12 px-4'
 const sections = computed(() => [
   { key: 'display', title: 'settings.display', hint: 'settings.menu_display', icon: MonitorSmartphone },
   { key: 'home', title: 'settings.homeScreen', hint: 'settings.menu_home', icon: House },
@@ -195,10 +195,10 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
             <summary class="cursor-pointer py-2 text-[15px]">{{ t('settings.playerLog') }}</summary>
             <p class="text-[13px] font-light text-muted">{{ t('settings.playerLogHelp') }}</p>
             <div class="mt-2 flex gap-2">
-              <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="copyLog">
+              <button type="button" class="pill" @click="copyLog">
                 {{ logCopied ? t('settings.playerLogCopied') : t('settings.playerLogCopy') }}
               </button>
-              <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="clearLog">{{ t('settings.playerLogClear') }}</button>
+              <button type="button" class="pill" @click="clearLog">{{ t('settings.playerLogClear') }}</button>
             </div>
             <pre class="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-surface p-3 text-[11px] leading-snug">{{ playerLog || t('settings.playerLogEmpty') }}</pre>
           </details>
@@ -236,7 +236,7 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
           </div>
           <div class="mt-2 flex items-center gap-4">
             <span class="flex-1 text-[14px] font-light text-muted">{{ t('settings.cacheUsed', { mb: mb(used) }) }}</span>
-            <button type="button" class="h-10 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="clearCache">{{ t('settings.clearCache') }}</button>
+            <button type="button" class="pill" @click="clearCache">{{ t('settings.clearCache') }}</button>
           </div>
           <RouterLink v-if="canSave()" to="/downloads" class="mt-2 flex items-center gap-4">
             <span class="flex flex-1 flex-col">
@@ -252,13 +252,13 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
           <div class="flex flex-wrap gap-4">
             <label class="flex items-center gap-2.5 text-[15px]">
               {{ t('settings.skipBack') }}
-              <select v-model.number="player.skipBack" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm">
+              <select v-model.number="player.skipBack" class="pill-select">
                 <option v-for="s in SKIPS" :key="s" :value="s">{{ t('settings.seconds', { n: s }) }}</option>
               </select>
             </label>
             <label class="flex items-center gap-2.5 text-[15px]">
               {{ t('settings.skipForward') }}
-              <select v-model.number="player.skipForward" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm">
+              <select v-model.number="player.skipForward" class="pill-select">
                 <option v-for="s in SKIPS" :key="s" :value="s">{{ t('settings.seconds', { n: s }) }}</option>
               </select>
             </label>

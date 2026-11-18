@@ -177,6 +177,3 @@ export function stopTail() {
   main.gain.gain.cancelScheduledValues(ctx.currentTime)
   main.gain.gain.setValueAtTime(dbToGain(levelDb), ctx.currentTime)
 }
-
-/** The src the tail holds (its URL must stay valid while it plays). */
-export const tailSrc = () => (tail && !tail.el.paused ? tail.el.src : '')

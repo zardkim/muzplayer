@@ -87,12 +87,12 @@ async function submit() {
             :pattern="setup || joining ? '[A-Za-z0-9._\\-]+' : undefined"
             :minlength="joining ? 3 : undefined"
             :maxlength="setup || joining ? 64 : undefined"
-            class="h-[52px] rounded-full bg-surface px-5 text-base text-ink outline-none focus:ring-2 focus:ring-ink"
+            class="field h-[52px] px-5"
           />
         </label>
         <label v-if="joining" class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('login.displayName') }}
-          <input v-model="displayName" autocomplete="nickname" maxlength="100" class="h-[52px] rounded-full bg-surface px-5 text-base text-ink outline-none focus:ring-2 focus:ring-ink" />
+          <input v-model="displayName" autocomplete="nickname" maxlength="100" class="field h-[52px] px-5" />
         </label>
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
           {{ t('login.password') }}
@@ -102,7 +102,7 @@ async function submit() {
             :autocomplete="setup || joining ? 'new-password' : 'current-password'"
             required
             :minlength="setup || joining ? 8 : undefined"
-            class="h-[52px] rounded-full bg-surface px-5 text-base text-ink outline-none focus:ring-2 focus:ring-ink"
+            class="field h-[52px] px-5"
             :class="error ? 'ring-2 ring-danger' : ''"
           />
         </label>
@@ -114,7 +114,7 @@ async function submit() {
             autocomplete="new-password"
             required
             minlength="8"
-            class="h-[52px] rounded-full bg-surface px-5 text-base text-ink outline-none focus:ring-2 focus:ring-ink"
+            class="field h-[52px] px-5"
           />
         </label>
         <p v-if="error" role="alert" class="text-[13px] text-danger">{{ error }}</p>

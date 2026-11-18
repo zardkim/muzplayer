@@ -6,7 +6,7 @@ import { ChevronDown, Radio, Square, Volume2, VolumeX } from '@lucide/vue'
 import { regionOf } from '../radio'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import { useSwipe } from '../swipe'
+import { SETTLE, usePullToClose, useSwipe } from '../swipe'
 import PlayerIcons from './PlayerIcons.vue'
 import SeekBar from './SeekBar.vue'
 import StationBadge from './StationBadge.vue'
@@ -35,28 +35,8 @@ function toList() {
 
 // gestures (phones): pull the player down to tuck it away; swipe the logo for the next/previous station
 const scroller = ref<HTMLElement | null>(null)
-const dragY = ref(0)
 const logoX = ref(0)
-const settling = ref(false)
-function settle(apply: () => void, after?: () => void) {
-  settling.value = true
-  apply()
-  window.setTimeout(() => {
-    settling.value = false
-    after?.()
-  }, 300)
-}
-const pull = useSwipe({
-  axes: ['y'],
-  allow: (_, __, dy) => dy > 0 && (scroller.value?.scrollTop ?? 0) <= 0,
-  move: (_, __, dy) => (dragY.value = Math.max(0, dy)),
-  end: ({ dy, fast }) => {
-    if (dy > 140 || (fast && dy > 40)) settle(() => (dragY.value = window.innerHeight), () => {
-      close()
-    })
-    else settle(() => (dragY.value = 0))
-  },
-})
+const { dragY, settling, settle, pull } = usePullToClose(close, () => (scroller.value?.scrollTop ?? 0) <= 0)
 const flick = useSwipe({
   axes: ['x'],
   move: (_, dx) => (logoX.value = Math.max(-80, Math.min(80, dx * 0.5))),
@@ -76,7 +56,7 @@ const flick = useSwipe({
     :aria-label="t('player.nowPlaying')"
     ref="scroller"
     class="fixed inset-0 z-50 overflow-y-auto bg-sheet text-ink"
-    :class="[dragY ? 'overflow-hidden' : '', settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : '']"
+    :class="[dragY ? 'overflow-hidden' : '', settling ? SETTLE : '']"
     :style="dragY ? { transform: `translate3d(0,${dragY}px,0)` } : undefined"
     @touchstart="pull.onTouchstart"
     @touchmove="pull.onTouchmove"
@@ -95,7 +75,7 @@ const flick = useSwipe({
 
       <div
         class="mt-6 flex justify-center"
-        :class="settling ? 'transition-transform duration-300 ease-[cubic-bezier(0.2,0.9,0.3,1)]' : ''"
+        :class="settling ? SETTLE : ''"
         :style="logoX ? { transform: `translateX(${logoX}px)` } : undefined"
         @touchstart="flick.onTouchstart"
         @touchmove="flick.onTouchmove"

@@ -56,14 +56,9 @@ export const useAuth = defineStore('auth', () => {
     user.value = await api<User>('/auth/setup', { method: 'POST', body: { username, password } })
   }
 
-  /** Signs this account out. When another account on this device takes over, the app restarts as
-   *  it; after the last one, what this device kept goes too. */
+  /** Signs this account out, and what this device kept goes too. */
   async function logout() {
-    const r = await api<{ user: User | null }>('/auth/logout', { method: 'POST' }).catch(() => ({ user: null }))
-    if (r.user) {
-      window.location.assign('/')
-      return
-    }
+    await api('/auth/logout', { method: 'POST' }).catch(() => {})
     user.value = null
     // covers kept by sw.js: the next person on this device shouldn't see what was browsed
     await globalThis.caches?.delete('muz-covers-v1').catch(() => {}) // no Cache API over plain http

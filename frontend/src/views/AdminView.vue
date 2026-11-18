@@ -381,7 +381,7 @@ function submitReset() {
 }
 
 const avatarColors = ['#3D5A80', '#2F7D6D', '#6B5B95', '#8A6516', '#A34A6E']
-const field = 'h-12 rounded-full bg-surface px-4 text-base text-ink outline-none focus:ring-2 focus:ring-ink'
+const field = 'field h-12 px-4'
 const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey import panel
 </script>
 
@@ -463,7 +463,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <ScanIssues :key="`${job?.id}-${job?.status}`" />
       <label class="flex flex-wrap items-center gap-2.5 text-sm">
         {{ t('admin.notesProvider') }}
-        <select :value="notesProvider" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setNotesProvider(($event.target as HTMLSelectElement).value as NotesProvider)">
+        <select :value="notesProvider" class="pill-select" @change="setNotesProvider(($event.target as HTMLSelectElement).value as NotesProvider)">
           <option value="bugs">{{ t('admin.notesProvider_bugs') }}</option>
           <option value="melon">{{ t('admin.notesProvider_melon') }}</option>
           <option value="off">{{ t('admin.notesProvider_off') }}</option>
@@ -482,7 +482,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <div v-if="aliasStatus" class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <label class="flex flex-wrap items-center gap-2.5">
           {{ t('admin.artistNames') }}
-          <select :value="aliasStatus.names" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setNames(($event.target as HTMLSelectElement).value as 'bugs' | 'tag')">
+          <select :value="aliasStatus.names" class="pill-select" @change="setNames(($event.target as HTMLSelectElement).value as 'bugs' | 'tag')">
             <option value="bugs">{{ t('admin.artistNames_bugs') }}</option>
             <option value="tag">{{ t('admin.artistNames_tag') }}</option>
           </select>
@@ -528,7 +528,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           <select
             v-if="!f.audiobooks"
             :id="`kind-${f.path}`"
-            class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm"
+            class="pill-select"
             :value="f.kind"
             @change="setKind(f, ($event.target as HTMLSelectElement).value as FolderKind)"
           >
@@ -611,7 +611,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
             <p class="text-[13px] text-muted">{{ t('admin.absUsersHelp') }}</p>
             <div v-for="u in absPreview.users" :key="u.id" class="flex items-center justify-between gap-3">
               <span class="truncate text-[15px]">{{ u.username }}</span>
-              <select v-model="userMap[u.id]" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" :aria-label="t('admin.absUserFor', { name: u.username })">
+              <select v-model="userMap[u.id]" class="pill-select" :aria-label="t('admin.absUserFor', { name: u.username })">
                 <option value="">{{ t('admin.absUserSkip') }}</option>
                 <option v-for="m in users" :key="m.id" :value="m.id">{{ m.display_name }} ({{ m.username }})</option>
               </select>
@@ -632,7 +632,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
       <div class="flex flex-wrap items-center gap-3">
         <label class="flex items-center gap-2.5 text-sm">
           {{ t('admin.signup') }}
-          <select :value="signupMode" class="h-10 rounded-full border border-line-strong bg-bg px-3 text-sm" @change="setSignup(($event.target as HTMLSelectElement).value as SignupMode)">
+          <select :value="signupMode" class="pill-select" @change="setSignup(($event.target as HTMLSelectElement).value as SignupMode)">
             <option value="off">{{ t('admin.signup_off') }}</option>
             <option value="approval">{{ t('admin.signup_approval') }}</option>
             <option value="open">{{ t('admin.signup_open') }}</option>

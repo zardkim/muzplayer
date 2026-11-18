@@ -140,7 +140,7 @@ const songs = (n: number) => t('common.tracks', n)
         <h3 class="font-medium">{{ t('merge.byHand') }}</h3>
         <SearchField v-model="text" large :placeholder="t('merge.search')" />
         <div v-if="choices.length" class="flex flex-wrap gap-1.5">
-          <button v-for="x in choices" :key="x.id" type="button" class="h-8 rounded-full border border-line-strong px-3 text-[13px] hover:border-ink" @click="pick(x)">
+          <button v-for="x in choices" :key="x.id" type="button" class="pill-sm" @click="pick(x)">
             {{ x.name }} <span class="text-muted">· {{ x.songs }}</span>
           </button>
         </div>

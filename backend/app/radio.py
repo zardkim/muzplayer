@@ -27,13 +27,12 @@ import threading
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
 import weakref
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import transcode
+from . import net, transcode
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +42,6 @@ BY_ID = {s["id"]: s for s in STATIONS}
 REGIONS = ("seoul", "busan", "daegu", "gwangju", "jeonbuk", "daejeon", "chungbuk", "gangwon", "jeju")
 MAX_RELAYS = 6  # listeners at once (each HLS one runs an ffmpeg)
 TIMEOUT = 10
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 _slots = threading.BoundedSemaphore(MAX_RELAYS)
 
 
@@ -87,7 +85,7 @@ def _end_ffmpeg(proc: subprocess.Popen, stop: threading.Event) -> None:
 
 
 def _open(url: str):
-    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=TIMEOUT)
+    return net.open_url(url, timeout=TIMEOUT)
 
 
 # ---- the broadcasters' own live addresses (checked 2026-11-12) ----
