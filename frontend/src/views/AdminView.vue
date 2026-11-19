@@ -46,6 +46,7 @@ const autoScan = ref(0)
 const searchReady = ref(true) // the search index is built (search_index.py)
 const users = ref<User[]>([])
 const folders = ref<LibraryFolder[]>([])
+const foldersUnreadable = ref(false) // the music folder could not be listed (not mounted)
 const aiStatus = ref<{ provider: string; model: string; configured: boolean; banners: number; without_banner: number } | null>(null)
 let poll: number | undefined
 
@@ -132,7 +133,9 @@ async function startImport() {
 }
 
 async function loadFolders() {
-  folders.value = (await api<{ items: LibraryFolder[] }>('/admin/folders')).items
+  const r = await api<{ items: LibraryFolder[]; unreadable: boolean }>('/admin/folders')
+  folders.value = r.items
+  foldersUnreadable.value = r.unreadable
 }
 
 const folderKinds: FolderKind[] = ['album', 'compilation', 'chart', 'theme', 'excluded', 'extracted']
@@ -456,6 +459,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <div class="flex flex-col gap-1 rounded-xl bg-surface px-4 py-3.5"><span class="text-[13px] text-muted">{{ t('admin.missing') }}</span><span class="font-display text-[22px] font-bold text-accent">{{ job.missing }}</span></div>
         <div class="flex flex-col gap-1 rounded-xl bg-surface px-4 py-3.5"><span class="text-[13px] text-muted">{{ t('admin.errors') }}</span><span class="font-display text-[22px] font-bold text-danger">{{ job.errors }}</span></div>
       </div>
+      <p v-if="job?.moved && job.status !== 'running'" class="text-[13px] text-muted">{{ t('admin.movedResult', { n: job.moved }) }}</p>
       <p v-if="job && appConfig.audiobooks && job.status !== 'running'" class="text-[13px] text-muted">
         {{ t('admin.bookScanResult', { added: job.books_added, updated: job.books_updated, missing: job.books_missing }) }}
       </p>
@@ -510,14 +514,15 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
         <h2 class="text-xl font-bold">{{ t('admin.folders') }}</h2>
         <p class="mt-1 text-sm font-light text-muted">{{ t('admin.foldersDesc') }}</p>
       </div>
-      <p v-if="!folders.length" class="text-sm text-muted">{{ t('admin.noFolders') }}</p>
+      <p v-if="foldersUnreadable" class="text-sm text-danger">{{ t('admin.noLibrary') }}</p>
+      <p v-else-if="!folders.length" class="text-sm text-muted">{{ t('admin.noFolders') }}</p>
       <ul v-else class="flex flex-col">
         <li v-for="f in folders" :key="f.path" class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-surface py-3 last:border-0">
           <span class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate text-[15px]" :class="f.present ? '' : 'text-muted line-through'">{{ f.path }}</span>
+            <span class="truncate text-[15px]">{{ f.path }}</span>
             <span class="text-[13px] text-muted">
               <template v-if="f.audiobooks">{{ t('admin.audiobookFolder') }}</template>
-              <template v-else>{{ f.present ? t('common.tracks', f.track_count) : t('admin.folderMissing') }}</template>
+              <template v-else>{{ t('common.tracks', f.track_count) }}</template>
               <template v-if="!f.audiobooks && f.suggested && f.suggested !== f.kind">
                 · {{ t('admin.suggested', { kind: t(`admin.folderKind_${f.suggested}`) }) }}
                 <button type="button" class="ml-1 text-accent underline" @click="setKind(f, f.suggested)">{{ t('admin.applySuggestion') }}</button>
@@ -534,7 +539,7 @@ const cardField = field.replace('bg-surface', 'bg-bg') // inputs on the grey imp
           >
             <option v-for="k in folderKinds" :key="k" :value="k">{{ t(`admin.folderKind_${k}`) }}</option>
           </select>
-          <div v-if="!f.audiobooks && f.present" class="flex gap-1.5" role="group" :aria-label="f.path">
+          <div v-if="!f.audiobooks" class="flex gap-1.5" role="group" :aria-label="f.path">
             <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] hover:bg-surface disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderScanHelp')" @click="startScan(f.path, 'scan')">{{ t('admin.folderScan') }}</button>
             <button type="button" class="h-9 rounded-full border border-line-strong px-3 text-[13px] hover:bg-surface disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderRescanHelp')" @click="startScan(f.path, 'rescan')">{{ t('admin.folderRescan') }}</button>
             <button type="button" class="h-9 rounded-full border border-danger/40 px-3 text-[13px] text-danger hover:bg-danger/5 disabled:opacity-40" :disabled="job?.status === 'running'" :title="t('admin.folderResetHelp')" @click="resetFolder(f)">{{ t('admin.folderReset') }}</button>

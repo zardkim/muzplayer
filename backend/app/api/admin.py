@@ -40,6 +40,7 @@ def job_out(job: ScanJob) -> dict:
         "added": job.added,
         "updated": job.updated,
         "missing": job.missing,
+        "moved": job.moved,
         "errors": job.errors,
         "error_summary": job.error_summary,
         "books_added": job.books_added,
@@ -188,16 +189,17 @@ def suggest_kind(name: str) -> str | None:
 
 @router.get("/folders")
 def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db, scope="function")):
-    """Top-level folders of the library with their kind and how many tracks they hold."""
+    """Top-level folders of the library with their kind and how many tracks they hold. Only those on
+    disk: the kind of one moved away stays stored, for when it comes back."""
     # (recycle bins, @eaDir and the like are never listed: scanner.system_dir)
-    kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder)) if not system_dir(f.path)}
+    kinds = {f.path: f.kind for f in db.scalars(select(LibraryFolder))}
     names: set[str] = set()
     try:
         for entry in os.scandir(settings.music_dir):
             if not system_dir(entry.name) and entry.is_dir(follow_symlinks=True):
                 names.add(nfc(entry.name))
     except OSError:
-        pass  # library not mounted: still show the stored kinds
+        return {"items": [], "unreadable": True}  # library not mounted
     if (top := extract_top()) is not None:  # the extraction folder beside the music folder lists as one of its folders
         names.discard(top)
         if settings.extract_dir.is_dir():
@@ -219,12 +221,11 @@ def list_folders(_: User = Depends(admin_user), db: Session = Depends(get_db, sc
             "kind": kinds.get(name, "album"),
             "suggested": suggest_kind(name),
             "track_count": counts.get(name, 0),
-            "present": name in names,
             "audiobooks": name == books_top,
         }
-        for name in sorted(names | set(kinds), key=str.casefold)
+        for name in sorted(names, key=str.casefold)
     ]
-    return {"items": items}
+    return {"items": items, "unreadable": False}
 
 
 class FolderKind(BaseModel):

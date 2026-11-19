@@ -8,7 +8,7 @@ import threading
 import time
 import unicodedata
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import mutagen
@@ -18,16 +18,17 @@ from mutagen.easymp4 import EasyMP4Tags
 from PIL import Image
 from sqlalchemy import delete, exists, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm import Session, aliased, defer
 
 from . import artist_links, search_index
 from .lyrics import lyrics_in_tags
 from .config import settings
-from .library_paths import extract_top, library_path, library_rel
+from .library_paths import chosen_lrc, extract_top, library_path, library_rel
 from .db import SessionLocal
 from .models import (
-    Album, AlbumFavorite, AlbumRating, Artist, Chart, Genre, LibraryFolder, LibraryState, NameAlias, ScanIssue, ScanJob,
-    Track, TrackArtist, TrackGenre, Video,
+    Album, AlbumFavorite, AlbumRating, Artist, Chart, ExtractJob, Favorite, FetchedLyrics, Genre, LibraryFolder,
+    LibraryState, NameAlias, PlayCount, PlayHistory, PlaylistTrack, ScanIssue, ScanJob, Track, TrackArtist, TrackGenre,
+    TrackRating, Video,
 )
 
 log = logging.getLogger(__name__)
@@ -793,6 +794,122 @@ def _collect(
     return files
 
 
+def _move_keys(rel: str, size: int, mtime: float) -> tuple[tuple, tuple]:
+    """What tells a moved file: its size with its name (NFC, any case), or its size with its mtime
+    (renamed too; a move on the same share keeps it)."""
+    return (size, nfc(os.path.basename(rel)).casefold()), (size, mtime)
+
+
+def _take_over(db: Session, old: int, fresh: int) -> None:
+    """Moves what users did with a song's duplicate (made by an earlier scan that did not see the move)
+    onto the song; where both have one (a like, a star), the song's own stays. The duplicate is deleted after."""
+    for model in (Favorite, TrackRating):
+        taken = select(model.user_id).where(model.track_id == old)
+        db.execute(update(model).where(model.track_id == fresh, model.user_id.not_in(taken)).values(track_id=old))
+    both = aliased(PlayCount)
+    db.execute(
+        update(PlayCount)
+        .where(PlayCount.track_id == old, both.track_id == fresh, both.user_id == PlayCount.user_id)
+        .values(plays=PlayCount.plays + both.plays, last_played_at=func.greatest(PlayCount.last_played_at, both.last_played_at))
+    )
+    taken = select(PlayCount.user_id).where(PlayCount.track_id == old)
+    db.execute(update(PlayCount).where(PlayCount.track_id == fresh, PlayCount.user_id.not_in(taken)).values(track_id=old))
+    for model in (PlaylistTrack, PlayHistory, ExtractJob):
+        db.execute(update(model).where(model.track_id == fresh).values(track_id=old))
+    taken = select(Video.youtube_id).where(Video.track_id == old, Video.youtube_id.is_not(None))
+    db.execute(
+        update(Video)
+        .where(Video.track_id == fresh, or_(Video.youtube_id.is_(None), Video.youtube_id.not_in(taken)))
+        .values(track_id=old)
+    )
+    if not db.scalar(select(exists().where(FetchedLyrics.track_id == old))):
+        db.execute(update(FetchedLyrics).where(FetchedLyrics.track_id == fresh).values(track_id=old))
+    db.execute(delete(Track).where(Track.id == fresh))
+
+
+def _follow_moves(
+    db: Session, existing: dict[str, Track], files: list[tuple[str, Path, os.stat_result]], seen: set[str],
+    reachable, scope: str | None,
+) -> int:
+    """Songs whose file is now somewhere else (a folder moved or renamed: album/아이유 -> album/artists/아이유)
+    keep their row, so likes, stars, plays and playlists stay with them: the row takes the new path.
+
+    A song gone from its path pairs with a new file of the same size and name (or size and mtime),
+    only one to one: a chart folder's copies of album files look alike and are left as they are.
+    Also mends what an earlier scan made of a move: the song marked missing and a duplicate added
+    in its new place (the duplicate's likes and plays go to the song, then it goes).
+    A per-folder scan also looks outside its folder: a folder moved from another top-level one.
+    Returns how many songs moved; existing is keyed by the new paths after.
+    """
+    lost = {p: t for p, t in existing.items() if p not in seen and reachable(p)}
+    new = [(rel, st, None) for rel, _, st in files if rel not in existing]
+    # duplicates made after their song went missing (with the paths kept so far: an earlier scan's)
+    gone = [t.missing_at for t in lost.values() if t.missing_at is not None]
+    if gone:
+        since = min(gone) - timedelta(hours=12)
+        new += [
+            (rel, st, existing[rel]) for rel, _, st in files
+            if rel in existing and existing[rel].created_at is not None and existing[rel].created_at >= since
+        ]
+    if not new:
+        return 0
+    if scope is not None:
+        # from another top-level folder: missing already, or its file is no longer there
+        sizes = list({st.st_size for _, st, _ in new})
+        for i in range(0, len(sizes), 1000):
+            for t in db.scalars(
+                select(Track).options(defer(Track.tag_json))
+                .where(~in_folder(scope), Track.file_size.in_(sizes[i : i + 1000]))
+            ):
+                if t.missing_at is not None or not os.path.exists(library_path(t.file_path)):
+                    lost[t.file_path] = t
+    if not lost:
+        return 0
+    lost_by: dict[tuple, list[Track]] = {}
+    for t in lost.values():
+        for key in _move_keys(t.file_path, t.file_size, t.file_mtime):
+            lost_by.setdefault(key, []).append(t)
+    new_by: dict[tuple, int] = {}
+    for rel, st, _ in new:
+        for key in _move_keys(rel, st.st_size, st.st_mtime):
+            new_by[key] = new_by.get(key, 0) + 1
+    pairs: list[tuple[Track, str, Track | None]] = []
+    taken: set[int] = set()
+    for rel, st, fresh in new:
+        for key in _move_keys(rel, st.st_size, st.st_mtime):
+            found = lost_by.get(key, [])
+            if len(found) != 1 or new_by[key] != 1 or found[0].id in taken:
+                continue
+            old = found[0]
+            if fresh is not None and (
+                old.missing_at is None or fresh.created_at <= old.created_at or fresh.created_at < old.missing_at - timedelta(hours=12)
+            ):
+                continue  # a duplicate only of a song already missing, made by the scan that found it gone
+            taken.add(old.id)
+            pairs.append((old, rel, fresh))
+            break
+    for old, rel, fresh in pairs:
+        if fresh is not None:
+            _take_over(db, old.id, fresh.id)
+    db.flush()  # the duplicates' paths are free now
+    for old, rel, fresh in pairs:
+        if existing.get(old.file_path) is old:
+            del existing[old.file_path]
+        db.execute(update(ExtractJob).where(ExtractJob.file_path == old.file_path).values(file_path=rel))
+        # the lyrics an admin chose are kept by the song's path
+        src, dst = chosen_lrc(old.file_path), chosen_lrc(rel)
+        if src is not None and dst is not None and src.is_file():
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(src, dst)
+            except OSError as exc:
+                log.warning("moving chosen lyrics %s: %s", src, exc)
+        old.file_path = rel
+        existing[rel] = old
+    db.flush()
+    return len(pairs)
+
+
 def _fill_tag_kinds(db: Session, scope: str | None) -> None:
     """Works out tag_kind from the stored tags where it is missing (songs scanned before it existed),
     a chunk at a time; the scan then refiles the songs whose album kind changed."""
@@ -952,6 +1069,13 @@ def _scan(job_id: int) -> None:
             raise RuntimeError(f"library_empty: no audio files found under {start or root}")
         seen = {rel for rel, _, _ in files}
 
+        def reachable(rel: str) -> bool:
+            return not any(u == "." or rel == u or rel.startswith(u + os.sep) for u in unavailable)
+
+        if job.mode != "reset":
+            job.moved = _follow_moves(db, existing, files, seen, reachable, scope)
+            commit(bool(job.moved))
+
         places: dict[str, Placement] = {}  # placement depends only on the folder: work it out once per folder
         for rel, path, st in files:
             check_cancel()
@@ -1010,9 +1134,6 @@ def _scan(job_id: int) -> None:
         if batch:
             store(batch)
 
-        def reachable(rel: str) -> bool:
-            return not any(u == "." or rel == u or rel.startswith(u + os.sep) for u in unavailable)
-
         now = datetime.now(UTC)
         gone = [
             t.id
@@ -1022,7 +1143,7 @@ def _scan(job_id: int) -> None:
         for i in range(0, len(gone), 1000):
             db.execute(update(Track).where(Track.id.in_(gone[i : i + 1000])).values(missing_at=now))
         job.missing = len(gone)
-        changed = bool(job.added or job.updated or job.missing)
+        changed = bool(job.added or job.updated or job.missing or job.moved)
         # a scan that stopped early skipped these, so the next one does them even with nothing new
         last = db.scalar(
             select(ScanJob.status)

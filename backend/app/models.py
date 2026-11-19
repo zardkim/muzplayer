@@ -392,6 +392,8 @@ class ScanJob(Base):
     added: Mapped[int] = mapped_column(Integer, default=0)
     updated: Mapped[int] = mapped_column(Integer, default=0)
     missing: Mapped[int] = mapped_column(Integer, default=0)
+    # found under a new path (a folder moved or renamed) and kept as the same songs
+    moved: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     errors: Mapped[int] = mapped_column(Integer, default=0)
     error_summary: Mapped[str | None] = mapped_column(Text)
     books_added: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

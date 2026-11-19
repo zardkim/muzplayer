@@ -83,26 +83,37 @@ def has_image(artist: Artist) -> bool:
     return bool(artist.image_path) and artist.image_path != "none"
 
 
-# ---- artist.jpg in the artist folder (album folders: <top>/<artist>/<album>/<file>) ----
+# ---- artist.jpg in the artist folder (album folders: <top>/.../<artist>/<album>/<file>) ----
 
 def folder_images(db: Session, root: Path) -> bool:
     """Picks up artist.jpg in each artist's folder (album-kind folders only: compilations have no
-    artist level). A folder photo always wins over one from Wikipedia. Returns whether a photo changed."""
+    artist level). A folder photo always wins over one from Wikipedia. Returns whether a photo changed.
+
+    The artist's folder is one of those above the album's, the nearest first: album/아이유/[2017] Palette,
+    album/artists/아이유/[2017] Palette and album/아이유/비정규/[2019] 라이브 all find album/아이유/artist.jpg.
+    """
     album_tops = [p for p, k in db.execute(select(LibraryFolder.path, LibraryFolder.kind)) if k == "album"]
     # folders that are not marked keep the default kind, album
     marked = {p for (p,) in db.execute(select(LibraryFolder.path))}
     parts = func.string_to_array(Track.file_path, "/")
     rows = db.execute(
-        select(Album.album_artist_id, func.split_part(Track.file_path, "/", 1), func.split_part(Track.file_path, "/", 2))
+        # the folder the album's folder is in
+        select(Album.album_artist_id, func.regexp_replace(Track.file_path, "/[^/]*/[^/]*$", ""))
         .join(Album, Album.id == Track.album_id)
         .where(Track.missing_at.is_(None), func.cardinality(parts) >= 4, Album.album_artist_id.is_not(None))
         .distinct()
     ).all()
     dirs: dict[int, list[str]] = {}
-    for artist_id, top, artist_dir in rows:
+    for artist_id, above in rows:
+        top = above.split("/", 1)[0]
         top_nfc = unicodedata.normalize("NFC", top)
         if top_nfc in album_tops or top_nfc not in marked:
-            dirs.setdefault(artist_id, []).append(f"{top}/{artist_dir}")
+            found = dirs.setdefault(artist_id, [])
+            levels = above.split("/")
+            for n in range(len(levels), 1, -1):  # up to the folder right below the top one
+                rel = "/".join(levels[:n])
+                if rel not in found:
+                    found.append(rel)
     changed = False
     for artist in db.scalars(select(Artist).where(Artist.id.in_(list(dirs)))):
         found = None

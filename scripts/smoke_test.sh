@@ -7,8 +7,12 @@
 set -u
 BASE="${1:?base url}/api/v1"; ADMIN="$2"; ADMIN_PW="$3"; MUSIC="$4"
 TMP=$(mktemp -d)
-MOVED=""
-cleanup() { [ -n "$MOVED" ] && [ -f "$TMP/moved.mp3" ] && mv "$TMP/moved.mp3" "$MOVED"; rm -rf "$TMP"; }
+MOVED=""; MOVED_DIR=""
+cleanup() {
+  [ -n "$MOVED" ] && [ -f "$TMP/moved.mp3" ] && mv "$TMP/moved.mp3" "$MOVED"
+  [ -n "$MOVED_DIR" ] && mv "$MOVED_TO/$(basename "$MOVED_DIR")" "$MOVED_DIR" && rmdir "$MOVED_TO"
+  rm -rf "$TMP"
+}
 trap cleanup EXIT INT TERM
 A="$TMP/admin.txt"; U="$TMP/user.txt"
 fail=0
@@ -96,7 +100,7 @@ check "artist mix needs an artist" "$(curl -s -b "$A" -o /dev/null -w '%{http_co
 check "no such station" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/stations/nope")" 404
 check "folder kinds list" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/folders")" 200
 # one folder: rescan reads every file again and keeps the songs (ids); reset is announced with what it takes
-top=$(curl -s -b "$A" "$BASE/admin/folders" | j '[f["path"] for f in d["items"] if f["present"] and f["track_count"]][0]')
+top=$(curl -s -b "$A" "$BASE/admin/folders" | j '[f["path"] for f in d["items"] if f["track_count"]][0]')
 ids_before=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')
 check "folder rescan" "$(scan "{\"folder\":\"$top\",\"mode\":\"rescan\"}")" done
 check "folder rescan keeps song ids" "$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')" "$ids_before"
@@ -341,6 +345,18 @@ mv "$TMP/moved.mp3" "$path"
 MOVED=""
 check "rescan after restore" "$(scan)" done
 check "restored track visible" "$(curl -s -b "$A" "$BASE/tracks" | j 'd["total"]')" "$total"
+
+# a moved folder: its songs keep their rows (ids, likes, playlists) at the new path, also moved back
+mdir=$(dirname "$(find "$MUSIC" -mindepth 3 -type f -name '*.mp3' -not -path '*/chart*' | head -1)")
+mtop=${mdir#"$MUSIC"/}; mtop=${mtop%%/*}  # its top-level folder
+ids_before=$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')
+MOVED_TO="$MUSIC/$mtop/smoke-moved"; mkdir -p "$MOVED_TO"; mv "$mdir" "$MOVED_TO/"
+MOVED_DIR="$mdir"
+check "scan after a folder move" "$(scan "{\"folder\":\"$mtop\"}")" done
+check "moved songs followed, none missing" "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j '(d["job"]["moved"] > 0, d["job"]["missing"], d["job"]["added"])')" "(True, 0, 0)"
+check "moved songs keep their ids" "$(curl -s -b "$A" "$BASE/tracks?limit=500" | j 'sorted(t["id"] for t in d["items"])')" "$ids_before"
+mv "$MOVED_TO/$(basename "$mdir")" "$mdir"; rmdir "$MOVED_TO"; MOVED_DIR=""
+check "moved back: followed again" "$(scan >/dev/null; curl -s -b "$A" "$BASE/admin/scan/latest" | j '(d["job"]["moved"] > 0, d["job"]["missing"], d["job"]["added"])')" "(True, 0, 0)"
 
 # backup (not restored here: that would sign this test out): made, listed, a whole file, deleted
 bname=$(curl -s -b "$A" -X POST "$BASE/admin/backups" | j 'd["name"]')

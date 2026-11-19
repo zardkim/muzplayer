@@ -167,7 +167,6 @@ export interface LibraryFolder {
   kind: FolderKind
   suggested: FolderKind | null
   track_count: number
-  present: boolean
   audiobooks: boolean // the library/audiobook folder: never scanned as music
 }
 
@@ -360,6 +359,7 @@ export interface ScanJob {
   added: number
   updated: number
   missing: number
+  moved: number
   errors: number
   error_summary: string | null
   books_added: number
