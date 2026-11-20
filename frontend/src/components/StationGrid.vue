@@ -48,7 +48,7 @@ function tap(key: Key, pick?: true) {
     return run(key, async () => {
       const r = await api<{ tracks: Track[] }>('/mixes/random')
       if (!r.tracks.length) return false
-      player.playTracks(r.tracks, 0, { shuffle: false })
+      player.playTracks(r.tracks, 0, { anywhere: true })
       return true
     })
   }

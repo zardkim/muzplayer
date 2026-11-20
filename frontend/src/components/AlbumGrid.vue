@@ -7,7 +7,7 @@ import type { Album, ViewMode } from '../types'
 import CoverArt from './CoverArt.vue'
 import NewBadge from './NewBadge.vue'
 import PlayerIcons from './PlayerIcons.vue'
-import QualityBadge from './QualityBadge.vue'
+import AlbumBadges from './AlbumBadges.vue'
 
 // mode: cover (big artwork, the default), grid (small and dense) or list (rows); row: one scrolling row
 const props = withDefaults(defineProps<{ albums: Album[]; row?: boolean; mode?: ViewMode }>(), { mode: 'cover' })
@@ -25,8 +25,7 @@ const shown = useProgressive(() => props.albums)
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="flex min-w-0 items-center gap-1.5"><NewBadge :created="a.created_at" /><span class="truncate text-[16px]">{{ a.title || t('common.unknownAlbum') }}</span></span>
           <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">
-            <span v-if="a.kind === 'unofficial' || a.kind === 'compilation' || a.kind === 'soundtrack'" class="flex-none rounded border border-line-strong px-1 text-[11px] leading-[18px]">{{ t(`albums.kind_${a.kind}`) }}</span>
-            <QualityBadge :quality="a.quality" />
+            <AlbumBadges :kind="a.kind" :quality="a.quality" :format="a.format" />
             <span class="truncate">{{ a.artist || t('common.unknownArtist') }}</span>
           </span>
         </span>
@@ -59,8 +58,7 @@ const shown = useProgressive(() => props.albums)
         <span class="flex min-w-0 flex-col">
           <span class="flex min-w-0 items-center gap-1.5"><NewBadge :created="a.created_at" /><span class="truncate text-base">{{ a.title || t('common.unknownAlbum') }}</span></span>
           <span class="flex min-w-0 items-center gap-1.5 text-sm font-light text-muted">
-            <span v-if="a.kind === 'unofficial' || a.kind === 'compilation' || a.kind === 'soundtrack'" class="flex-none rounded border border-line-strong px-1 text-[11px] leading-[18px]">{{ t(`albums.kind_${a.kind}`) }}</span>
-            <QualityBadge :quality="a.quality" />
+            <AlbumBadges :kind="a.kind" :quality="a.quality" :format="a.format" />
             <span class="truncate">{{ a.artist || t('common.unknownArtist') }}</span>
           </span>
         </span>

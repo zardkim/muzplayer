@@ -171,7 +171,7 @@ check "signed out session is gone" "$(curl -s -b "$TMP/device-old.txt" -o /dev/n
 check "other sessions stay" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 200
 
 # stars, likes, play counts, mixes and smart playlists are each user's own
-aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'd["items"][0]["album_id"]')
+aid=$(curl -s -b "$A" "$BASE/tracks?sort=title" | j 'next(x["album_id"] for x in d["items"] if x["album_id"] and x["album_kind"] != "chart")')  # an album (not a chart's or theme's)
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/tracks/$tid" -H 'content-type: application/json' -d '{"rating":5}'
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/ratings/albums/$aid" -H 'content-type: application/json' -d '{"rating":4}'
 curl -s -b "$A" -o /dev/null -X PUT "$BASE/favorites/albums/$aid"

@@ -27,6 +27,7 @@ export interface Track {
   scan_error?: string | null // the last scan could not read the file again (it plays as read before)
   damaged?: boolean // an MP3 only ffmpeg could read: played converted (server transcode)
   chart_position?: number | null // only in chart lists
+  chart_disc?: number | null // only in chart lists: its CD1 / CD2 folder
 }
 
 export type AlbumKind = 'album' | 'unofficial' | 'compilation' | 'soundtrack' | 'chart' | 'extracted'
@@ -40,6 +41,7 @@ export interface Album {
   year: number | null
   release_date?: string | null // YYYY-MM-DD when a tag has the whole date
   quality?: 'hires' | 'lossless' | null
+  format?: string | null // every song's file format (mp3, flac, m4a...), or null when they differ
   has_cover: boolean
   cover_v: number
   track_count: number

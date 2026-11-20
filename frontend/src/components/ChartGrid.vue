@@ -18,7 +18,7 @@ const list = ref<HTMLElement | null>(null)
 
 async function play(id: number) {
   const chart = await api<ChartDetail>(`/charts/${id}`)
-  player.playTracks(chart.tracks, 0, { shuffle: false })
+  player.playTracks(chart.tracks, 0, { anywhere: true })
 }
 </script>
 

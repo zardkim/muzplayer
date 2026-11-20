@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ListMusic, ListPlus, Sparkles } from '@lucide/vue'
@@ -19,6 +19,8 @@ const { t } = useI18n()
 const auth = useAuth()
 const ui = useUi()
 const chart = ref<ChartDetail | null>(null)
+// a theme in CD1 / CD2 folders: a heading before each disc's songs
+const multiDisc = computed(() => new Set(chart.value?.tracks.map((x) => x.chart_disc ?? 0)).size > 1)
 const error = ref('')
 const editing = ref(false)
 
@@ -82,7 +84,7 @@ function applied(banner: CollectionBanner | null) {
         </button>
       </div>
     </div>
-    <TrackList :tracks="chart.tracks" ranked />
+    <TrackList :tracks="chart.tracks" ranked :discs="multiDisc" />
     <BannerSheet v-if="editing" :chart="chart" @close="editing = false" @applied="applied" />
   </div>
 </template>

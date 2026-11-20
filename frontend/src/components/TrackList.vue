@@ -22,7 +22,7 @@ const props = withDefaults(
     showCover?: boolean
     showAlbum?: boolean
     numbered?: boolean // show track_no instead of the list position
-    discs?: boolean // album with more than one disc: a heading before each disc's songs
+    discs?: boolean // more than one disc (an album's, a theme's CD folders): a heading before each disc's songs
     ranked?: boolean // chart or theme: show chart_position, or the list position when some are missing or the same
     editable?: boolean // playlist mode: remove / move up / move down
     excludable?: boolean // a smart playlist made from my taste: "not in my smart playlists"
@@ -39,10 +39,13 @@ const ui = useUi()
 const isAdmin = computed(() => !!useAuth().user?.is_admin) // only an admin finds and adds videos
 // rows (i stays the index into props.tracks: play, select and the menu use the whole list)
 const shown = useProgressive(() => props.tracks)
-// the ranks are shown only when every song has its own ("1-01", "1-02", "2-01" read as 1, 1, 2 were disc numbers)
+// a song's disc: a chart's or theme's CD folder, else its tag
+const discOf = (tr: Track) => tr.chart_disc ?? tr.disc_no ?? 1
+// the ranks are shown only when every song has its own on its disc ("1-01", "1-02", "2-01" read as 1, 1, 2 were disc numbers)
 const ranks = computed(() => {
   const p = props.tracks.map((tr) => tr.chart_position)
-  return p.every((n) => n != null) && new Set(p).size === p.length
+  const keys = props.tracks.map((tr) => `${props.discs ? discOf(tr) : 0}-${tr.chart_position}`)
+  return p.every((n) => n != null) && new Set(keys).size === keys.length
 })
 // row labels looked up once per list, not several times per row (a long list spent much of its time here)
 const L = computed(() => ({
@@ -215,9 +218,9 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
     <ol class="flex flex-col" @touchstart="touchstart" @touchmove="touchmove" @touchend="touchend" @touchcancel="touchend" @click.capture="hold.onClickCapture">
       <template v-for="(track, i) in shown" :key="`${track.id}-${i}`">
         <li
-          v-if="discs && (i === 0 || (track.disc_no ?? 1) !== (shown[i - 1].disc_no ?? 1))"
+          v-if="discs && (i === 0 || discOf(track) !== discOf(shown[i - 1]))"
           class="px-2.5 pb-2 pt-5 text-[13px] font-medium text-muted"
-        >{{ t('common.discN', { n: track.disc_no ?? 1 }) }}</li>
+        >{{ t('common.discN', { n: discOf(track) }) }}</li>
         <li
           :data-i="i"
           class="group relative flex [-webkit-touch-callout:none] min-h-[68px] items-center gap-3 border-b border-surface md:px-2.5"
@@ -317,7 +320,6 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                   <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
                   <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
                   <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
-                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.startRadio(track))">{{ t('common.startRadio') }}</button>
                   <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
                 </template>
                 <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>

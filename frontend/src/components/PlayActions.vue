@@ -22,7 +22,7 @@ const repeatOn = computed(() => playingThis.value && player.repeat !== 'off')
 /** Repeat: start this list repeating; on the list already playing, step through all → one → off. */
 function repeat() {
   if (playingThis.value) return player.cycleRepeat()
-  player.playTracks(props.tracks, 0, { shuffle: false })
+  player.playTracks(props.tracks, 0, { anywhere: true })
   player.repeat = 'all'
 }
 
@@ -39,7 +39,7 @@ const icon = computed(() => (props.large ? 21 : 19))
       :disabled="empty"
       :aria-label="t('common.listenAll')"
       :title="t('common.listenAll')"
-      @click="player.playTracks(tracks, 0, { shuffle: false })"
+      @click="player.playTracks(tracks, 0, { anywhere: true })"
     >
       <PlayerIcons name="play" :size="large ? 20 : 17" :stroke="2" />
     </button>
@@ -50,7 +50,7 @@ const icon = computed(() => (props.large ? 21 : 19))
       :disabled="empty"
       :aria-label="t('common.shuffleAll')"
       :title="t('common.shuffleAll')"
-      @click="player.playTracks(tracks, 0, { shuffle: true })"
+      @click="player.playTracks(tracks, 0, { shuffle: true, anywhere: true })"
     >
       <Shuffle :size="icon" :stroke-width="1.5" />
     </button>

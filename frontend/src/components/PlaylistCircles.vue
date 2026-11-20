@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ListMusic, Users, Zap } from '@lucide/vue'
+import { ListMusic, Shuffle, Users, Zap } from '@lucide/vue'
 import { api, coverUrl } from '../api'
 import { errorMessage } from '../i18n'
 import { useLibrary } from '../stores/library'
@@ -12,7 +12,8 @@ import PlayerIcons from './PlayerIcons.vue'
 import RowArrows from './RowArrows.vue'
 
 // Home: round cards that play at a tap — this person's playlists, then everyone's shared ones
-// (marked; random 100 is with the stations). The name under a playlist opens it.
+// (marked; random 100 is with the stations); the small button beside one plays it shuffled. The name
+// under a playlist opens it.
 const { t } = useI18n()
 const library = useLibrary()
 const player = usePlayer()
@@ -20,26 +21,27 @@ const ui = useUi()
 const row = ref<HTMLElement | null>(null)
 const busy = ref<string | null>(null)
 
-async function play(key: string, load: () => Promise<Track[]>) {
+async function play(key: string, load: () => Promise<Track[]>, shuffle?: boolean) {
   if (busy.value) return
   busy.value = key
   try {
     const tracks = await load()
     if (!tracks.length) return ui.notify(t('home.emptyList'), true)
-    player.playTracks(tracks, 0, { shuffle: false })
+    player.playTracks(tracks, 0, { anywhere: true, ...(shuffle ? { shuffle } : {}) })
   } catch (e) {
     ui.notify(errorMessage(e), true)
   } finally {
     busy.value = null
   }
 }
-const playlist = (p: Playlist) => play(`p${p.id}`, async () => (await api<PlaylistDetail>(`/playlists/${p.id}`)).entries.map((e) => e.track))
+const playlist = (p: Playlist, shuffle?: boolean) =>
+  play(`p${p.id}`, async () => (await api<PlaylistDetail>(`/playlists/${p.id}`)).entries.map((e) => e.track), shuffle)
 </script>
 
 <template>
   <div class="relative">
     <div ref="row" class="-mr-5 flex gap-4 overflow-x-auto pb-1 pr-5 [scrollbar-width:none] md:mr-0 md:pr-0">
-      <div v-for="p in [...library.playlists, ...library.sharedPlaylists]" :key="p.id" class="flex w-[104px] flex-none flex-col items-center gap-2 sm:w-28">
+      <div v-for="p in [...library.playlists, ...library.sharedPlaylists]" :key="p.id" class="relative flex w-[104px] flex-none flex-col items-center gap-2 sm:w-28">
         <button type="button" class="group relative aspect-square w-full overflow-hidden rounded-full bg-surface shadow-md" :aria-label="`${t('common.play')}: ${p.name}`" @click="playlist(p)">
           <img v-if="p.cover" :src="coverUrl(p.cover.id, 'thumb', p.cover.v)" alt="" loading="lazy" class="h-full w-full object-cover" />
           <span v-else class="grid h-full w-full place-items-center bg-[linear-gradient(135deg,#2B2D42,#5C4B8A)] text-white/85">
@@ -50,6 +52,16 @@ const playlist = (p: Playlist) => play(`p${p.id}`, async () => (await api<Playli
             <PlayerIcons name="play" :size="26" :stroke="1.8" />
           </span>
           <span v-if="p.is_shared" class="absolute bottom-1.5 right-1/2 grid size-6 translate-x-1/2 place-items-center rounded-full bg-black/55 text-white" :title="t('shared.title')"><Users :size="13" :stroke-width="2" /></span>
+        </button>
+        <!-- shuffled (and shuffle kept on, as from the player) -->
+        <button
+          type="button"
+          class="absolute right-0 top-[72px] grid size-8 place-items-center rounded-full border border-line bg-bg text-ink shadow-md sm:top-[80px]"
+          :aria-label="`${t('common.shuffleAll')}: ${p.name}`"
+          :title="t('common.shuffleAll')"
+          @click="playlist(p, true)"
+        >
+          <Shuffle :size="15" :stroke-width="1.8" />
         </button>
         <RouterLink :to="{ name: 'playlist', params: { id: p.id } }" class="w-full truncate text-center text-[14px]">{{ p.name }}</RouterLink>
       </div>

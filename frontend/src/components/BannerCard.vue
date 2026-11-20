@@ -40,7 +40,7 @@ const label = computed(() =>
 
 async function play() {
   const detail = await api<ChartDetail>(`/charts/${props.chart.id}`)
-  player.playTracks(detail.tracks, 0, { shuffle: false })
+  player.playTracks(detail.tracks, 0, { anywhere: true })
 }
 </script>
 

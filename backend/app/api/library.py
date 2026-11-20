@@ -265,7 +265,8 @@ def album_list_query(conds) -> Select:
     count = func.count(Track.id)
     artist = shown_name(AlbumArtist)
     return (
-        select(Album, artist, count.label("track_count"))
+        # its songs' format: the same for all (shown on the album when it is not lossless), or none
+        select(Album, artist, count.label("track_count"), func.min(Track.format), func.max(Track.format))
         .join(Track, and_(Track.album_id == Album.id, present_tracks()))
         .outerjoin(AlbumArtist, AlbumArtist.id == Album.album_artist_id)
         .where(*conds)
@@ -274,7 +275,7 @@ def album_list_query(conds) -> Select:
 
 
 def album_out(row) -> dict:
-    album, artist_name, track_count = row
+    album, artist_name, track_count, fmt_lo, fmt_hi = row
     return {
         "id": album.id,
         "title": album.title,
@@ -284,6 +285,7 @@ def album_out(row) -> dict:
         "year": album.year,
         "release_date": album.release_date,
         "quality": album.quality,  # hires | lossless | None
+        "format": fmt_lo if fmt_lo == fmt_hi else None,  # mp3, flac, m4a...: every song's, or none when mixed
         "has_cover": bool(album.cover_path),
         "cover_v": album.cover_version if album.cover_path else 0,
         "track_count": track_count,

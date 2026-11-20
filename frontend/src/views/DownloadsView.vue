@@ -41,7 +41,7 @@ function remove(l: SavedList) {
             <template v-if="offline.progress[l.key]"> · {{ t('offline.saving', offline.progress[l.key]) }}</template>
           </span>
         </RouterLink>
-        <button type="button" class="grid size-10 flex-none place-items-center rounded-full bg-ink text-on-ink" :aria-label="t('common.listenAll')" @click="player.playTracks(l.tracks, 0, { shuffle: false })">
+        <button type="button" class="grid size-10 flex-none place-items-center rounded-full bg-ink text-on-ink" :aria-label="t('common.listenAll')" @click="player.playTracks(l.tracks, 0, { anywhere: true })">
           <PlayerIcons name="play" :size="15" :stroke="1.8" />
         </button>
         <button type="button" class="grid size-10 flex-none place-items-center rounded-full border border-line-strong" :aria-label="t('offline.showTracks')" :aria-expanded="open === l.key" @click="open = open === l.key ? null : l.key">

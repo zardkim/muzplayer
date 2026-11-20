@@ -487,12 +487,17 @@ export const usePlayer = defineStore('player', () => {
     await playAudio().catch(() => {})
   }
 
-  /** opts.position: start there (seconds) */
-  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean; position?: number } = {}) {
+  /** opts.shuffle: turn shuffle on or off (kept for next time); left out, it stays as the person set it.
+   *  opts.anywhere: a whole list played (not one song tapped): shuffled, it starts at a random song.
+   *  opts.position: start there (seconds) */
+  function playTracks(tracks: Track[], startAt = 0, opts: { shuffle?: boolean; anywhere?: boolean; position?: number } = {}) {
     const playable = tracks.filter((t) => !t.missing)
     if (!playable.length) return
-    const first = tracks[startAt] && !tracks[startAt].missing ? tracks[startAt] : playable[0]
     if (opts.shuffle !== undefined) shuffle.value = opts.shuffle
+    const first =
+      shuffle.value && opts.anywhere
+        ? playable[Math.floor(Math.random() * playable.length)]
+        : tracks[startAt] && !tracks[startAt].missing ? tracks[startAt] : playable[0]
     playStarts.value++
     radioOn = false
     homeStation = null
@@ -681,17 +686,10 @@ export const usePlayer = defineStore('player', () => {
     const r = await api<{ tracks: Track[] }>(`/stations/${kind}${query({ ...params, limit: 25 })}`)
     const tracks = r.tracks.filter((t) => !t.missing)
     if (!tracks.length) return false
-    playTracks(tracks, 0, { shuffle: false })
+    playTracks(tracks, 0, { anywhere: true })
     radioOn = true
     homeStation = { kind, params }
     return true
-  }
-
-  /** A radio from one song: it plays at once (still inside the tap, for iOS), the rest follows. */
-  function startRadio(track: Track) {
-    playTracks([track], 0, { shuffle: false })
-    radioOn = true
-    void extendQueue()
   }
 
   async function playAlbum(albumId: number) {
@@ -1396,7 +1394,6 @@ export const usePlayer = defineStore('player', () => {
     rate,
     musicRate,
     playStarts,
-    startRadio,
     startStation,
     skipBack,
     skipForward,

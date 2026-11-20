@@ -16,7 +16,7 @@ from ..cache import shared_json
 from ..config import settings
 from ..db import get_db
 from ..models import Album, Banner, Chart, Genre, Playlist, PlaylistTrack, Track, TrackGenre, User
-from ..scanner import bump_library, cover_file
+from ..scanner import DISC_DIR, bump_library, cover_file, nfc
 from ..security import admin_user, api_error, current_user
 from .library import like, listed_tracks, present_tracks, track_out, track_query
 
@@ -197,15 +197,30 @@ def get_chart_row(db: Session, chart_id: int) -> Chart:
     return chart
 
 
+def folder_disc(path: str) -> int | None:
+    """The disc of a song in a CD1 / CD2 folder of a chart or theme (by the folder, not its tags: those
+    name the disc of the album it came from)."""
+    parts = path.split("/")
+    m = DISC_DIR.match(nfc(parts[-2])) if len(parts) > 2 else None
+    return int(m.group(1)) if m else None
+
+
+def chart_order(track: Track) -> tuple:
+    """CD1's songs, then CD2's, each by its place in the chart (the numbers may start again on each disc)."""
+    pos = track.chart_position
+    return (folder_disc(track.file_path) or 0, pos is None, pos or 0, track.file_path)
+
+
 @router.get("/charts/{chart_id}")
 def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     chart = get_chart_row(db, chart_id)
-    rows = db.execute(
-        track_query(user.id)
-        .where(Track.chart_id == chart_id, present_tracks())
-        .order_by(Track.chart_position.nulls_last(), Track.file_path)
+    rows = sorted(
+        db.execute(track_query(user.id).where(Track.chart_id == chart_id, present_tracks())),
+        key=lambda r: chart_order(r[0]),
     )
-    tracks = [{**track_out(r), "chart_position": r[0].chart_position} for r in rows]
+    tracks = [
+        {**track_out(r), "chart_position": r[0].chart_position, "chart_disc": folder_disc(r[0].file_path)} for r in rows
+    ]
     if not tracks:
         raise api_error(404, "not_found")
     covers = cover_albums(db, [chart.id])
@@ -225,9 +240,8 @@ def make_shared(chart_id: int, body: SharedIn, user: User = Depends(admin_user),
     """A shared playlist of the chart's or theme's songs as they are now, in its order: everyone sees it
     on the charts & themes page and at home. {"id"} of the new list."""
     chart = get_chart_row(db, chart_id)
-    ids = list(db.scalars(
-        select(Track.id).where(Track.chart_id == chart.id, present_tracks()).order_by(Track.chart_position.nulls_last(), Track.file_path)
-    ))
+    songs = db.scalars(select(Track).where(Track.chart_id == chart.id, present_tracks()))
+    ids = [t.id for t in sorted(songs, key=chart_order)]
     if not ids:
         raise api_error(404, "not_found")
     playlist = Playlist(user_id=user.id, name=(body.name or "").strip() or chart.title[:200], is_shared=True, chart_id=chart.id)
