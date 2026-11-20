@@ -25,11 +25,12 @@ const props = withDefaults(
     discs?: boolean // album with more than one disc: a heading before each disc's songs
     ranked?: boolean // chart or theme: show chart_position, or the list position when some are missing or the same
     editable?: boolean // playlist mode: remove / move up / move down
+    excludable?: boolean // a smart playlist made from my taste: "not in my smart playlists"
     videoButtons?: boolean // album page: every song gets the YouTube button (grey: none yet, find and add)
   }>(),
   { showCover: true, showAlbum: true },
 )
-const emit = defineEmits<{ remove: [index: number]; move: [index: number, dir: -1 | 1]; transfer: [indexes: number[]] }>()
+const emit = defineEmits<{ remove: [index: number]; move: [index: number, dir: -1 | 1]; transfer: [indexes: number[]]; exclude: [index: number] }>()
 
 const { t } = useI18n()
 const player = usePlayer()
@@ -325,6 +326,10 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                   <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="truncate px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtistNamed', { name: a.name }) }}</RouterLink>
                 </template>
                 <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
+                <template v-if="excludable">
+                  <div class="my-1 border-t border-line" />
+                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => emit('exclude', i))">{{ t('smart.exclude') }}</button>
+                </template>
                 <template v-if="editable">
                   <div class="my-1 border-t border-line" />
                   <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="16" />{{ t('common.moveUp') }}</button>

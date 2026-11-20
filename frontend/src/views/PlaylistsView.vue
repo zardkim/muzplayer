@@ -13,6 +13,7 @@ import PageHeader from '../components/PageHeader.vue'
 import SelectPill from '../components/SelectPill.vue'
 import PlaylistImportSheet from '../components/PlaylistImportSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
+import SmartWizard from '../components/SmartWizard.vue'
 import BookGrid from '../components/BookGrid.vue'
 import type { Book, Playlist, VideoPlaylist } from '../types'
 import { youtubeThumb } from '../youtube'
@@ -24,11 +25,17 @@ const router = useRouter()
 const route = useRoute()
 const smartOpen = ref(false)
 const smartEdit = ref<Playlist | undefined>() // a smart playlist whose rules are being changed
+const smartAdvanced = ref(false) // the rules themselves (SmartRulesSheet) rather than the wizard
+const smartWizard = computed(() => !smartAdvanced.value && (!smartEdit.value || !!smartEdit.value.rules?.profile))
+function smartClosed() {
+  smartOpen.value = false
+  smartEdit.value = undefined
+  smartAdvanced.value = false
+}
 
 function smartSaved(p: Playlist) {
   const editing = !!smartEdit.value
-  smartOpen.value = false
-  smartEdit.value = undefined
+  smartClosed()
   library.loadPlaylists().catch(() => {})
   if (!editing) router.push({ name: 'playlist', params: { id: p.id } })
 }
@@ -206,7 +213,8 @@ async function reload() {
       </template>
     </div>
     <PlaylistImportSheet v-if="importing" :file="importing" @close="importing = null" />
-    <SmartRulesSheet v-if="smartOpen" :playlist="smartEdit" @close="(smartOpen = false), (smartEdit = undefined)" @saved="smartSaved" />
+    <SmartWizard v-if="smartOpen && smartWizard" :playlist="smartEdit" @close="smartClosed" @saved="(p) => p && smartSaved(p)" @advanced="smartAdvanced = true" />
+    <SmartRulesSheet v-else-if="smartOpen" :playlist="smartEdit" @close="smartClosed" @saved="smartSaved" />
     <BaseModal v-if="naming" :title="naming.mode === 'new' ? t(tab === 'video' ? 'videos.newPlaylist' : 'playlists.new') : t('common.rename')" @close="naming = null">
       <form class="flex flex-col gap-4" @submit.prevent="submitName">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">

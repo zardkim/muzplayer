@@ -7,7 +7,7 @@ import urllib.parse
 from fastapi import APIRouter, Depends, Query, Request, Response
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, ValidationError
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
@@ -18,8 +18,9 @@ from ..config import settings
 from ..db import get_db
 from ..models import Album, Favorite, PlayCount, PlayHistory, Playlist, PlaylistMissing, PlaylistTrack, Track, User
 from ..security import api_error, current_user
-from ..smart import Rules, apply_rules
+from ..smart import Rules
 from .library import track_out, track_query
+from .taste import forget_snapshots, load_tracks, smart_playlist_ids
 
 router = APIRouter()
 
@@ -226,13 +227,6 @@ def _import(db: Session, user: User, raw: bytes, name: str, create: bool, target
     return out
 
 
-def smart_rules(playlist: Playlist) -> Rules | None:
-    try:
-        return Rules.model_validate(playlist.rules or {})
-    except ValidationError:  # rules this version can't read: show nothing rather than fail
-        return None
-
-
 @router.get("/playlists/{playlist_id}")
 def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
     playlist = db.get(Playlist, playlist_id)
@@ -240,11 +234,10 @@ def get_playlist(playlist_id: int, user: User = Depends(current_user), db: Sessi
         raise api_error(404, "not_found")
     editable = {"can_edit": can_edit(user, playlist)}
     if playlist.kind == "smart":
-        # worked out now from the rules; entries have no entry_id (nothing to remove or move)
-        rules = smart_rules(playlist)
-        rows = db.execute(apply_rules(track_query(user.id), rules, user.id)).all() if rules else []
-        entries = [{"entry_id": None, "track": track_out(r)} for r in rows]
-        return {**playlist_out(playlist, len(entries)), **editable, "entries": entries}
+        # worked out from the rules (now, or when last refreshed); entries have no entry_id (nothing to remove or move)
+        ids, made = smart_playlist_ids(db, playlist, user)
+        entries = [{"entry_id": None, "track": t} for t in load_tracks(db, user.id, ids)]
+        return {**playlist_out(playlist, len(entries)), **editable, "entries": entries, "made_at": made}
     rows = db.execute(
         track_query(user.id)
         .add_columns(PlaylistTrack.id)
@@ -270,8 +263,7 @@ def export_playlist(playlist_id: int, user: User = Depends(current_user), db: Se
     if playlist is None or not (playlist.is_shared or playlist.user_id == user.id):
         raise api_error(404, "not_found")
     if playlist.kind == "smart":
-        rules = smart_rules(playlist)
-        ids = [r[0].id for r in db.execute(apply_rules(track_query(user.id), rules, user.id))] if rules else []
+        ids = smart_playlist_ids(db, playlist, user)[0]  # the songs on screen
     else:
         ids = list(db.scalars(select(PlaylistTrack.track_id).where(PlaylistTrack.playlist_id == playlist.id).order_by(PlaylistTrack.position, PlaylistTrack.id)))
     tracks = {t.id: t for t in db.scalars(select(Track).where(Track.id.in_(ids)))} if ids else {}
@@ -322,6 +314,8 @@ def update_playlist(
     if body.rules is not None:
         if playlist.kind != "smart":
             raise api_error(400, "not_smart")
+        if body.rules.model_dump() != playlist.rules:
+            forget_snapshots(db, [playlist.id])  # picked again by the new rules
         playlist.rules = body.rules.model_dump()
     if body.shared is not None and body.shared != playlist.is_shared:
         # a smart list's songs are worked out for whoever opens it (their likes, their plays): not shared
@@ -333,6 +327,16 @@ def update_playlist(
         return playlist_out(playlist, None)
     count = db.scalar(select(func.count()).where(PlaylistTrack.playlist_id == playlist.id))
     return playlist_out(playlist, count)
+
+
+@router.post("/playlists/{playlist_id}/refresh", status_code=204)
+def refresh_playlist(playlist_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A smart playlist's songs picked again now (one kept for a day or a week, or a random one)."""
+    playlist = own_playlist(db, user, playlist_id)
+    if playlist.kind != "smart":
+        raise api_error(400, "not_smart")
+    forget_snapshots(db, [playlist.id])
+    db.commit()
 
 
 @router.delete("/playlists/{playlist_id}", status_code=204)

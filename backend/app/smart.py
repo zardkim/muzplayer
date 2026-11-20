@@ -4,17 +4,25 @@ the library's tags, each time they are opened. Rules, not recommendations (plan 
 Rules JSON of a smart playlist:
   {"match": "all" | "any",
    "rules": [{"field": "genre", "op": "is", "value": "발라드"}, ...],
-   "sort": "random", "limit": 100}
+   "sort": "random", "limit": 100,
+   # made with the wizard (all optional; without them a list works as before):
+   "profile": true,        # its owner's taste (users.taste, Taste below) is part of the rules
+   "mix": "balanced",      # familiar songs and new ones, in a share (MIX_SHARES)
+   "minutes": 120,         # as many songs as fill this long (limit still caps the count)
+   "per_artist": 3,        # at most this many songs of one artist, never two in a row
+   "seed": 123,            # songs like this one first (the radio's score)
+   "refresh": "daily"}     # kept for a day or a week (smart_snapshots), or worked out on each open
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+import random
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 from sqlalchemy import Select, and_, case, exists, func, literal, not_, or_, select, true
 from sqlalchemy.orm import Session
 
-from .models import Album, Chart, Favorite, Genre, PlayCount, PlayHistory, Track, TrackGenre, TrackRating
+from .models import Album, Chart, Favorite, Genre, PlayCount, PlayHistory, Track, TrackArtist, TrackGenre, TrackRating
 
 MAX_LIMIT = 500
 
@@ -73,6 +81,12 @@ class Rules(BaseModel):
     rules: list[Rule] = Field(default_factory=list, max_length=20)
     sort: Literal["random", "plays", "recent", "title", "rating", "last_played"] = "random"
     limit: int = Field(100, ge=1, le=MAX_LIMIT)
+    profile: bool = False
+    mix: Literal["any", "familiar", "balanced", "new"] = "any"
+    minutes: int | None = Field(None, ge=10, le=1440)
+    per_artist: int | None = Field(None, ge=1, le=50)
+    seed: int | None = None
+    refresh: Literal["open", "daily", "weekly"] = "open"
 
 
 def _ago(days: int) -> datetime:
@@ -151,6 +165,177 @@ def apply_rules(query: Select, rules: Rules, user_id: int) -> Select:
     conds = [_condition(r, user_id) for r in rules.rules]
     where = (and_(*conds) if rules.match == "all" else or_(*conds)) if conds else true()
     return with_user_marks(query, user_id).where(listed_tracks(), where).order_by(*_order(rules.sort)).limit(rules.limit)
+
+
+# ---- taste: what a user told the wizard they like (users.taste) ----
+
+Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+DECADES_ASKED = tuple(range(1950, 2030, 10))
+
+
+class Taste(BaseModel):
+    """Liked genres or artists (either: a song of a liked genre by another artist counts), from these
+    decades, without what is left out. Empty lists ask for nothing."""
+
+    genres: list[Text] = Field(default_factory=list, max_length=50)  # by name, any case (merges rename them)
+    artists: list[int] = Field(default_factory=list, max_length=100)  # artist ids (merges move them)
+    decades: list[int] = Field(default_factory=list, max_length=len(DECADES_ASKED))
+    exclude_genres: list[Text] = Field(default_factory=list, max_length=50)
+    exclude_artists: list[int] = Field(default_factory=list, max_length=100)
+    exclude_tracks: list[int] = Field(default_factory=list, max_length=5000)  # "not in my smart playlists"
+    skip_charts: bool = False  # chart and theme songs left out
+    skip_recent_days: int = Field(0, ge=0, le=365)  # songs played in the last so many days left out
+    max_minutes: int | None = Field(None, ge=1, le=120)  # longer songs left out
+
+    @field_validator("decades")
+    @classmethod
+    def known_decades(cls, v: list[int]) -> list[int]:
+        if any(d not in DECADES_ASKED for d in v):
+            raise ValueError("unknown decade")
+        return sorted(set(v))
+
+
+def _has_genre(names: list[str]):
+    return exists().where(
+        TrackGenre.track_id == Track.id, TrackGenre.genre_id == Genre.id, func.lower(Genre.name).in_([n.lower() for n in names])
+    )
+
+
+def _by_artists(ids: list[int]):
+    return or_(Track.artist_id.in_(ids), exists().where(TrackArtist.track_id == Track.id, TrackArtist.artist_id.in_(ids)))
+
+
+def taste_conditions(taste: Taste) -> list:
+    """The taste as conditions on a track query with the album and the user's marks joined (with_user_marks)."""
+    conds = []
+    liked = ([_has_genre(taste.genres)] if taste.genres else []) + ([_by_artists(taste.artists)] if taste.artists else [])
+    if liked:
+        conds.append(or_(*liked))
+    if taste.decades:
+        conds.append(or_(*(Album.year.between(d, d + 9) for d in taste.decades)))
+    if taste.exclude_genres:
+        conds.append(not_(_has_genre(taste.exclude_genres)))
+    if taste.exclude_artists:
+        conds.append(not_(_by_artists(taste.exclude_artists)))
+    if taste.exclude_tracks:
+        conds.append(Track.id.not_in(taste.exclude_tracks))
+    if taste.skip_charts:
+        conds.append(Track.chart_id.is_(None))
+    if taste.skip_recent_days:
+        conds.append(or_(PlayCount.last_played_at.is_(None), PlayCount.last_played_at < _ago(taste.skip_recent_days)))
+    if taste.max_minutes:
+        conds.append(or_(Track.duration.is_(None), Track.duration <= taste.max_minutes * 60))
+    return conds
+
+
+# ---- smart playlists: the songs, in order ----
+
+# familiar songs : new ones
+MIX_SHARES = {"familiar": (0.8, 0.2), "balanced": (0.5, 0.5), "new": (0.2, 0.8)}
+UNKNOWN_LENGTH = 210  # seconds, for a song without one (a time limit still adds up)
+MAX_FETCH = 2000
+
+
+def _familiar(user_id: int):
+    """Songs this person knows: liked, ★4 and up, or played three times or more."""
+    liked = exists().where(Favorite.user_id == user_id, Favorite.track_id == Track.id)
+    return or_(liked, func.coalesce(TrackRating.rating, 0) >= 8, func.coalesce(PlayCount.plays, 0) >= 3)
+
+
+def _new(user_id: int):
+    """The rest: songs this person does not know as well."""
+    return not_(_familiar(user_id))
+
+
+def smart_where(rules: Rules, user_id: int, taste: Taste | None) -> list:
+    """Every condition of a smart playlist (its rules, its owner's taste), on a track query with
+    the album and the user's marks joined; listed songs only."""
+    from .api.library import listed_tracks
+
+    conds = [_condition(r, user_id) for r in rules.rules]
+    where = [listed_tracks(), (and_(*conds) if rules.match == "all" else or_(*conds)) if conds else true()]
+    if rules.profile and taste is not None:
+        where += taste_conditions(taste)
+    return where
+
+
+def _base(user_id: int) -> Select:
+    query = select(Track.id, Track.artist_id, Track.duration).outerjoin(Album, Album.id == Track.album_id)
+    return with_user_marks(query, user_id)
+
+
+def matching_count(db: Session, rules: Rules, user_id: int, taste: Taste | None) -> int:
+    """How many songs the conditions let in, before the share, the limits and the order."""
+    query = _base(user_id).where(*smart_where(rules, user_id, taste))
+    return db.scalar(select(func.count()).select_from(query.subquery())) or 0
+
+
+def smart_ids(db: Session, rules: Rules, user_id: int, taste: Taste | None) -> list[int]:
+    """The ids of a smart playlist's songs, in order."""
+    where = smart_where(rules, user_id, taste)
+    seed = db.get(Track, rules.seed) if rules.seed else None
+    if seed is not None:
+        seed_year = db.scalar(select(Album.year).where(Album.id == seed.album_id)) if seed.album_id else None
+        order = [_similarity(seed, seed_year, user_id).desc()]
+        where = [*where, Track.id != seed.id]
+    else:
+        order = _order(rules.sort)
+    shaped = rules.mix != "any" or rules.per_artist or rules.minutes
+    fetch = min(MAX_FETCH, rules.limit * 4) if shaped else rules.limit
+    if rules.mix == "any":
+        pools = [db.execute(_base(user_id).where(*where).order_by(*order).limit(fetch)).all()]
+        shares: tuple[float, ...] = (1.0,)
+    else:
+        pools = [
+            db.execute(_base(user_id).where(*where, part).order_by(*order).limit(fetch)).all()
+            for part in (_familiar(user_id), _new(user_id))
+        ]
+        shares = MIX_SHARES[rules.mix]
+    picked = _pick(pools, shares, rules)
+    if rules.mix != "any" and seed is None and rules.sort == "random":
+        random.shuffle(picked)  # (taken in turns from the two pools: not in a pattern)
+    if rules.per_artist:
+        picked = _spread(picked)
+    return [row.id for row in picked]
+
+
+def _pick(pools: list[list], shares: tuple[float, ...], rules: Rules) -> list:
+    """Takes from each pool in its share (a pool that runs out leaves its place to the others),
+    up to the limit, the time and the songs per artist."""
+    taken: list = []
+    counts = [0] * len(pools)
+    places = [0] * len(pools)
+    per_artist: dict[int | None, int] = {}
+    seen: set[int] = set()
+    seconds = 0.0
+    while len(taken) < rules.limit and (rules.minutes is None or seconds < rules.minutes * 60):
+        open_pools = [i for i in range(len(pools)) if places[i] < len(pools[i])]
+        if not open_pools:
+            break
+        i = min(open_pools, key=lambda k: counts[k] / shares[k] if shares[k] else float("inf"))
+        row = pools[i][places[i]]
+        places[i] += 1
+        if row.id in seen:
+            continue
+        if rules.per_artist and row.artist_id is not None and per_artist.get(row.artist_id, 0) >= rules.per_artist:
+            continue
+        seen.add(row.id)
+        per_artist[row.artist_id] = per_artist.get(row.artist_id, 0) + 1
+        counts[i] += 1
+        taken.append(row)
+        seconds += row.duration or UNKNOWN_LENGTH
+    return taken
+
+
+def _spread(rows: list) -> list:
+    """The same order, but no artist twice in a row where another song can go between."""
+    rows = list(rows)
+    for i in range(1, len(rows)):
+        if rows[i].artist_id is not None and rows[i].artist_id == rows[i - 1].artist_id:
+            j = next((k for k in range(i + 1, len(rows)) if rows[k].artist_id != rows[i - 1].artist_id), None)
+            if j is not None:
+                rows[i], rows[j] = rows[j], rows[i]
+    return rows
 
 
 # ---- mixes: ready-made lists every user has ----
@@ -238,6 +423,25 @@ def mix_preview(db: Session, key: str, user_id: int) -> tuple[int, list[dict]]:
 
 # ---- radio: songs like a seed song, for "radio" and for playing on when the queue runs out ----
 
+def _shares_genre(seed: Track):
+    genre_ids = select(TrackGenre.genre_id).where(TrackGenre.track_id == seed.id).scalar_subquery()
+    return exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id.in_(genre_ids))
+
+
+def _similarity(seed: Track, seed_year: int | None, user_id: int):
+    """How like the seed a song is (higher: more): same artist, a shared genre, a year within five,
+    this user's likes and stars, and some randomness. Needs the album and the user's marks joined."""
+    liked = exists().where(Favorite.user_id == user_id, Favorite.track_id == Track.id)
+    return (
+        (case((Track.artist_id == seed.artist_id, 2), else_=0) if seed.artist_id is not None else literal(0))
+        + case((_shares_genre(seed), 3), else_=0)
+        + (case((func.abs(Album.year - seed_year) <= 5, 1), else_=0) if seed_year else literal(0))
+        + case((TrackRating.rating >= 8, 1), else_=0)
+        + case((liked, 1), else_=0)
+        + func.random() * 4
+    )
+
+
 def radio_ids(
     seed: Track, seed_year: int | None, user_id: int, exclude: list[int], limit: int, related: bool = True
 ) -> Select:
@@ -248,21 +452,11 @@ def radio_ids(
     (the caller asks again without it when that finds nothing, e.g. an untagged seed)."""
     from .api.library import listed_tracks
 
-    genre_ids = select(TrackGenre.genre_id).where(TrackGenre.track_id == seed.id).scalar_subquery()
-    shares_genre = exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id.in_(genre_ids))
-    liked = exists().where(Favorite.user_id == user_id, Favorite.track_id == Track.id)
-    links = [shares_genre]
+    links = [_shares_genre(seed)]
     if seed.artist_id is not None:
         links.append(Track.artist_id == seed.artist_id)
     # (the year only adds to the score: as a link it would let in most of the library and be slow)
-    score = (
-        (case((Track.artist_id == seed.artist_id, 2), else_=0) if seed.artist_id is not None else literal(0))
-        + case((shares_genre, 3), else_=0)
-        + (case((func.abs(Album.year - seed_year) <= 5, 1), else_=0) if seed_year else literal(0))
-        + case((TrackRating.rating >= 8, 1), else_=0)
-        + case((liked, 1), else_=0)
-        + func.random() * 4
-    )
+    score = _similarity(seed, seed_year, user_id)
     conds = [listed_tracks(), Track.id != seed.id] + ([or_(*links)] if related else [])
     if exclude:
         conds.append(Track.id.not_in(exclude))

@@ -194,6 +194,29 @@ check "random mix" "$(curl -s -b "$A" "$BASE/mixes/random" | j 'len(d["tracks"])
 sid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke smart","rules":{"match":"all","rules":[{"field":"rating","op":"gte","value":5}],"sort":"title","limit":50}}' | j 'd["id"]')
 check "smart playlist follows its rules" "$(curl -s -b "$A" "$BASE/playlists/$sid" | j "$tid in [e['track']['id'] for e in d['entries']]")" True
 check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$sid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}")" 400
+# the smart playlist wizard: each user's taste, lists made from it, kept for a day, songs left out
+curl -s -b "$U" -o /dev/null -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{}'
+check "taste saved" "$(curl -s -b "$A" -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{"decades":[2010,2020],"skip_recent_days":0}' | j 'd["taste"]["decades"]')" "[2010, 2020]"
+check "other user's taste separate" "$(curl -s -b "$U" "$BASE/taste" | j 'd["taste"]["decades"]')" "[]"
+check "unknown decade refused" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{"decades":[1940]}')" 422
+check "wizard suggestions" "$(curl -s -b "$A" "$BASE/taste/suggest" | j 'sorted(d)')" "['artists', 'genres']"
+check "wizard preview counts" "$(curl -s -b "$A" -X POST "$BASE/smart/preview" -H 'content-type: application/json' -d '{"rules":{"profile":true,"limit":5},"taste":{}}' | j 'd["matching"] > 0 and 0 < d["count"] <= 5')" True
+check "preview: one song per artist" "$(curl -s -b "$A" -X POST "$BASE/smart/preview" -H 'content-type: application/json' -d '{"rules":{"profile":true,"limit":8,"per_artist":1},"taste":{}}' | j '(lambda a: len(set(a)) == len(a) > 0)([t["artist_id"] for t in d["tracks"] if t["artist_id"]])')" True
+check "preview: familiar and new mixed" "$(curl -s -b "$A" -X POST "$BASE/smart/preview" -H 'content-type: application/json' -d '{"rules":{"profile":true,"limit":10,"mix":"familiar"},"taste":{}}' | j 'd["count"] > 0')" True
+wid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke wizard","rules":{"profile":true,"limit":5,"refresh":"daily"}}' | j 'd["id"]')
+w1=$(curl -s -b "$A" "$BASE/playlists/$wid" | j '([e["track"]["id"] for e in d["entries"]], d["made_at"])')
+check "kept for a day: same songs when opened again" "$(curl -s -b "$A" "$BASE/playlists/$wid" | j '([e["track"]["id"] for e in d["entries"]], d["made_at"])')" "$w1"
+curl -s -b "$A" -o /dev/null -X POST "$BASE/playlists/$wid/refresh"
+check "picked again after refresh" "$([ "$(curl -s -b "$A" "$BASE/playlists/$wid" | j '([e["track"]["id"] for e in d["entries"]], d["made_at"])')" != "$w1" ] && echo picked)" picked
+check "taste applies (decades)" "$(curl -s -b "$A" "$BASE/playlists/$wid" | j 'len(d["entries"]) > 0 and all((e["track"]["year"] or 0) >= 2010 for e in d["entries"])')" True
+wt=$(curl -s -b "$A" "$BASE/playlists/$wid" | j 'd["entries"][0]["track"]["id"]')
+w2=$(curl -s -b "$A" "$BASE/playlists/$wid" | j '([e["track"]["id"] for e in d["entries"] if e["track"]["id"] != '"$wt"'], d["made_at"])')
+check "song left out of my smart playlists" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/taste/exclude/$wt")/$(curl -s -b "$A" "$BASE/playlists/$wid" | j "$wt in [e['track']['id'] for e in d['entries']]")" "204/False"
+check "the rest of a kept list stays" "$(curl -s -b "$A" "$BASE/playlists/$wid" | j '([e["track"]["id"] for e in d["entries"]], d["made_at"])')" "$w2"
+check "left-out song listed, then back" "$(curl -s -b "$A" "$BASE/taste" | j "[t['id'] for t in d['tracks']]")/$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/taste/exclude/$wt")/$(curl -s -b "$A" "$BASE/taste" | j 'd["tracks"]')" "[$wt]/204/[]"
+check "other user can't open my smart playlist" "$(curl -s -b "$U" -o /dev/null -w '%{http_code}' "$BASE/playlists/$wid")" 404
+check "rules-only smart playlist unchanged" "$(curl -s -b "$A" "$BASE/playlists/$sid" | j '(d["made_at"], '"$tid"' in [e["track"]["id"] for e in d["entries"]])')" "(None, True)"
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$wid"
 check "video needs a YouTube link" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos" -H 'content-type: application/json' -d "{\"video\":\"not a youtube link\",\"kind\":\"mv\",\"album_id\":$aid}")" 400
 check "music videos page lists videos" "$(curl -s -b "$A" "$BASE/videos?kind=mv" | j 'sorted(d)')" "['items', 'total']"
 check "music videos can be searched" "$(curl -s -b "$A" "$BASE/videos?q=nothing-matches-this&kind=concert" | j 'd["total"]')" 0

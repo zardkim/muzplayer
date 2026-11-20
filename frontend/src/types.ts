@@ -256,6 +256,7 @@ export interface PlaylistDetail extends Playlist {
   entries: { entry_id: number | null; track: Track }[] // no entry_id in a smart playlist
   can_edit: boolean // its maker (or, a shared one, an admin); others only listen
   missing?: { id: number; path: string; label: string }[] // an imported file's songs not found (yet)
+  made_at?: string | null // a smart playlist kept for a day or a week: when its songs were picked
 }
 
 export type RuleField = 'genre' | 'artist' | 'year' | 'rating' | 'favorite' | 'plays' | 'last_played' | 'added' | 'folder' | 'duration'
@@ -269,6 +270,32 @@ export interface SmartRules {
   rules: SmartRule[]
   sort: 'random' | 'plays' | 'recent' | 'title' | 'rating' | 'last_played'
   limit: number
+  // made with the wizard (smart.py): the owner's taste is part of it, familiar/new share, a time
+  // limit (minutes), songs per artist, songs like a seed song, kept for a day or a week
+  profile?: boolean
+  mix?: 'any' | 'familiar' | 'balanced' | 'new'
+  minutes?: number | null
+  per_artist?: number | null
+  seed?: number | null
+  refresh?: 'open' | 'daily' | 'weekly'
+}
+
+// what a user told the wizard they like (users.taste)
+export interface Taste {
+  genres: string[]
+  artists: number[]
+  decades: number[]
+  exclude_genres: string[]
+  exclude_artists: number[]
+  exclude_tracks: number[]
+  skip_charts: boolean
+  skip_recent_days: number
+  max_minutes: number | null
+}
+export interface TasteOut {
+  taste: Taste | null
+  artists: { id: number; name: string }[] // names of the artists it keeps by id
+  tracks: { id: number; title: string; artist: string | null }[] // the songs left out
 }
 
 export interface Mix {

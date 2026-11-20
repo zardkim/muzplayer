@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, aliased
 
 from . import search_index
-from .models import Album, Artist, Genre, MergeNotSame, NameAlias, Playlist, Track, TrackArtist, TrackGenre
+from .models import Album, Artist, Genre, MergeNotSame, NameAlias, Playlist, Track, TrackArtist, TrackGenre, User
 from .scanner import (
     bump_library, carry_album_marks, prune_orphans, remove_covers, scan_lock, update_album_quality,
 )
@@ -268,6 +268,26 @@ def _rewrite_rules(db: Session, field: str, names: list[str], target: str) -> No
             playlist.rules = rules
 
 
+def _rewrite_tastes(db: Session, kind: str, names: list[str], ids: list[int], keep) -> None:
+    """Users' tastes (smart.Taste) that named a duplicate: genres by name, artists by id."""
+    lowered = {n.lower() for n in names}
+    fields = ("genres", "exclude_genres") if kind == "genre" else ("artists", "exclude_artists")
+    for user in db.scalars(select(User).where(User.taste.is_not(None))):
+        taste = json.loads(json.dumps(user.taste))
+        changed = False
+        for field in fields:
+            values = taste.get(field) or []
+            if kind == "genre":
+                new = [keep.name if isinstance(v, str) and v.lower() in lowered else v for v in values]
+            else:
+                new = [keep.id if v in ids else v for v in values]
+            new = list(dict.fromkeys(new))
+            if new != values:
+                taste[field], changed = new, True
+        if changed:
+            user.taste = taste
+
+
 def merge(db: Session, kind: str, keep_id: int, ids: list[int]) -> int:
     """Merges the artists or genres `ids` into `keep_id`. Returns how many were merged.
     Raises Busy while a scan runs, LookupError for an unknown id."""
@@ -290,6 +310,7 @@ def merge(db: Session, kind: str, keep_id: int, ids: list[int]) -> int:
         else:
             _merge_genres(db, keep, others)
         _rewrite_rules(db, kind, names, keep.name)
+        _rewrite_tastes(db, kind, names, [o.id for o in others], keep)
         search_index.index_albums_artists(db)
         update_album_quality(db)
         bump_library(db)

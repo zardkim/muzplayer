@@ -15,6 +15,8 @@ import PlayActions from '../components/PlayActions.vue'
 import PlaylistTransferSheet from '../components/PlaylistTransferSheet.vue'
 import SearchAddSheet from '../components/SearchAddSheet.vue'
 import SmartRulesSheet from '../components/SmartRulesSheet.vue'
+import SmartWizard from '../components/SmartWizard.vue'
+import { ago } from '../format'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
@@ -29,6 +31,8 @@ const newName = ref('')
 const editingRules = ref(false)
 const adding = ref(false) // the search-and-add sheet
 const smart = computed(() => playlist.value?.kind === 'smart')
+const fromTaste = computed(() => smart.value && !!playlist.value?.rules?.profile) // made with the wizard
+const advanced = ref(false) // its rules themselves (SmartRulesSheet) rather than the wizard
 // songs copied or moved into another of my playlists: those picked in the list, else all (ticked in the sheet)
 const transfer = ref<number[] | null>(null)
 
@@ -78,10 +82,30 @@ function rename() {
   run(() => api(`/playlists/${props.id}`, { method: 'PATCH', body: { name } }))
 }
 
-function rulesSaved(_p: Playlist) {
+function rulesSaved(_p: Playlist | null) {
   editingRules.value = false
+  advanced.value = false
   load()
   library.loadPlaylists().catch(() => {})
+}
+
+// a smart playlist's songs picked again (one kept for a day or a week; a random one anew)
+const refreshing = ref(false)
+async function refresh() {
+  refreshing.value = true
+  await run(() => api(`/playlists/${props.id}/refresh`, { method: 'POST' }))
+  refreshing.value = false
+}
+// a song never again in the lists made from my taste (undone in settings → my taste)
+async function exclude(i: number) {
+  const track = tracks.value[i]
+  try {
+    await api(`/taste/exclude/${track.id}`, { method: 'POST' })
+    playlist.value!.entries.splice(i, 1)
+    ui.notify(t('smart.excluded', { title: track.title }))
+  } catch (e) {
+    ui.notify(errorMessage(e), true)
+  }
 }
 
 // a smart playlist's songs as they are now, kept as an ordinary playlist
@@ -138,7 +162,7 @@ async function destroy() {
 <template>
   <p v-if="error" class="font-light text-muted">{{ error }}</p>
   <div v-else-if="playlist" class="flex flex-col gap-5">
-    <PageHeader :title="playlist.name" :icon="smart ? Zap : ListMusic" :sub="[playlist.is_shared ? t('shared.badge') : '', smart ? t('smart.badge') : '', t('common.tracks', playlist.entries.length)].filter(Boolean).join(' · ')" />
+    <PageHeader :title="playlist.name" :icon="smart ? Zap : ListMusic" :sub="[playlist.is_shared ? t('shared.badge') : '', smart ? t('smart.badge') : '', t('common.tracks', playlist.entries.length), playlist.made_at ? t('smart.picked', { ago: ago(playlist.made_at) }) : ''].filter(Boolean).join(' · ')" />
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="tracks" :add="false" />
       <!-- someone else's shared list: listen, or copy it into one's own -->
@@ -148,6 +172,9 @@ async function destroy() {
       </button>
       <button v-if="smart && playlist.can_edit" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="editingRules = true">
         <SlidersHorizontal :size="15" :stroke-width="1.5" />{{ t('smart.edit') }}
+      </button>
+      <button v-if="smart && playlist.can_edit" type="button" class="grid size-[38px] place-items-center rounded-full border border-line-strong disabled:opacity-40" :disabled="refreshing" :aria-label="t('smart.refresh')" :title="t('smart.refresh')" @click="refresh">
+        <RefreshCw :size="16" :stroke-width="1.5" :class="refreshing ? 'animate-spin' : ''" />
       </button>
       <button v-if="!smart && playlist.can_edit && tracks.length" type="button" class="flex h-[38px] items-center gap-1.5 rounded-full border border-line-strong px-4 text-[15px]" @click="transfer = []">
         <ArrowLeftRight :size="15" :stroke-width="1.6" />{{ t('transfer.title') }}
@@ -184,7 +211,7 @@ async function destroy() {
       </button>
     </div>
     <p v-if="!tracks.length" class="font-light text-muted">{{ smart ? t('common.empty') : t('playlists.emptyTracks') }}</p>
-    <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" @remove="remove" @move="move" @transfer="(ix) => (transfer = ix.map((i) => playlist!.entries[i].entry_id!))" />
+    <TrackList :tracks="tracks" :editable="!smart && playlist.can_edit" :excludable="fromTaste && playlist.can_edit" @exclude="exclude" @remove="remove" @move="move" @transfer="(ix) => (transfer = ix.map((i) => playlist!.entries[i].entry_id!))" />
     <!-- an imported file's songs not in the library (yet) -->
     <section v-if="playlist.can_edit && playlist.missing?.length" class="flex flex-col gap-2 rounded-2xl border border-line p-4">
       <div class="flex flex-wrap items-center gap-2">
@@ -228,7 +255,8 @@ async function destroy() {
       @added="load(), library.loadPlaylists().catch(() => {})"
       @close="adding = false"
     />
-    <SmartRulesSheet v-if="editingRules" :playlist="playlist" @close="editingRules = false" @saved="rulesSaved" />
+    <SmartWizard v-if="editingRules && fromTaste && !advanced" :playlist="playlist" @close="editingRules = false" @saved="rulesSaved" @advanced="advanced = true" />
+    <SmartRulesSheet v-else-if="editingRules" :playlist="playlist" @close="(editingRules = false), (advanced = false)" @saved="rulesSaved" />
 
     <BaseModal v-if="renaming" :title="t('common.rename')" @close="renaming = false">
       <form class="flex flex-col gap-4" @submit.prevent="rename">

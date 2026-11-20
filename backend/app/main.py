@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import activity, artist_links, extract, search_index
-from .api import admin, auth, books, collections, extract as extract_api, library, lyrics_admin, marks, me, mixes, news, radio, stations, videos
+from .api import admin, auth, books, collections, extract as extract_api, library, lyrics_admin, marks, me, mixes, news, radio, stations, taste, videos
 from .config import settings
 from .db import SessionLocal
 from .scanner import mark_interrupted_jobs, start_auto_scan
@@ -63,7 +63,7 @@ app.add_middleware(activity.AdminChanges)  # the admin's log page
 app.add_middleware(SecurityHeaders)
 
 API = "/api/v1"
-for module in (auth, library, collections, me, marks, mixes, stations, videos, admin, books, radio, news, extract_api, lyrics_admin):
+for module in (auth, library, collections, me, taste, marks, mixes, stations, videos, admin, books, radio, news, extract_api, lyrics_admin):
     app.include_router(module.router, prefix=API)
 
 

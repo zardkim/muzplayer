@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AudioLines, BookHeadphones, Check, ChevronRight, Download, HardDrive, House, MonitorSmartphone, Play, Radio, Smartphone, User } from '@lucide/vue'
+import { AudioLines, BookHeadphones, Check, ChevronRight, Download, HardDrive, House, MonitorSmartphone, Play, Radio, Smartphone, Sparkles, User } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
@@ -17,6 +17,7 @@ import { clearPlayerLog, readPlayerLog } from '../playerLog'
 import EqualizerEditor from '../components/EqualizerEditor.vue'
 import HomeSectionsEditor from '../components/HomeSectionsEditor.vue'
 import LanguageSwitch from '../components/LanguageSwitch.vue'
+import TasteCard from '../components/TasteCard.vue'
 import ThemeSwitch from '../components/ThemeSwitch.vue'
 import SelectRow from '../components/SelectRow.vue'
 import ToggleRow from '../components/ToggleRow.vue'
@@ -94,6 +95,7 @@ const sections = computed(() => [
   { key: 'player', title: 'settings.player', hint: 'settings.menu_player', icon: Play },
   { key: 'sound', title: 'settings.sound', hint: 'settings.menu_sound', icon: AudioLines },
   { key: 'autoplay', title: 'settings.autoplay', hint: 'settings.menu_autoplay', icon: Radio },
+  { key: 'taste', title: 'settings.taste', hint: 'settings.menu_taste', icon: Sparkles },
   { key: 'storage', title: 'settings.storage', hint: 'settings.menu_storage', icon: HardDrive },
   ...(appConfig.audiobooks ? [{ key: 'audiobooks', title: 'settings.audiobooks', hint: 'settings.menu_audiobooks', icon: BookHeadphones }] : []),
   { key: 'install', title: 'settings.installTitle', hint: 'settings.menu_install', icon: Smartphone },
@@ -174,6 +176,11 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
             <ToggleRow v-model="ui.playerPrefs.showPopular" :title="t('settings.showPopular')" :hint="t('settings.showPopularHelp')" />
             <div class="hidden md:block"><ToggleRow v-model="ui.playerPrefs.showVolume" :title="t('settings.showVolume')" :hint="t('settings.showVolumeHelp')" /></div>
           </div>
+        </section>
+
+        <section v-if="shown === 'taste'" class="flex flex-col gap-3">
+          <h2 class="hidden text-[22px] font-bold md:block">{{ t('settings.taste') }}</h2>
+          <TasteCard />
         </section>
 
         <section v-if="shown === 'home'" class="flex flex-col gap-1">
