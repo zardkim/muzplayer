@@ -399,6 +399,29 @@ check "backup holds the database" "$(tar xzf "$TMP/backup.tgz" -O manifest.json 
 check "bad backup refused" "$(head -c 2000 "$TMP/backup.tgz" | curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/restore" -H 'content-type: application/octet-stream' --data-binary @-)" 400
 check "backup deleted" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X DELETE "$BASE/admin/backups/$bname")" 204
 
+# backup and restore, round trip: what changed after the backup is undone (everyone signs in again),
+# the newer data along (a taste, a smart playlist kept for a day, a music video kind)
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{"decades":[1980]}'
+rpid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke restore","rules":{"profile":true,"limit":3,"refresh":"daily"}}' | j 'd["id"]')
+curl -s -b "$A" -o /dev/null "$BASE/playlists/$rpid"  # (its songs kept for a day)
+rkind=$(curl -s -b "$A" -X POST "$BASE/video-kinds" -H 'content-type: application/json' -d '{"name":"smoke restore kind"}' | j 'd["key"]')
+rname=$(curl -s -b "$A" -X POST "$BASE/admin/backups" | j 'd["name"]')
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{"decades":[1990]}'
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/video-kinds/$rkind"
+check "restore started" "$(curl -s -b "$A" -X POST "$BASE/admin/backups/$rname/restore" | j 'd["state"]')" running
+for _ in $(seq 1 120); do [ "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/admin/restore")" = 200 ] && [ "$(curl -s -b "$A" "$BASE/admin/restore" | j 'd["state"]')" = running ] || break; sleep 1; done
+check "signed out by the restore" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/auth/me")" 401
+login "$A" "$ADMIN" "$ADMIN_PW" >/dev/null
+check "restore done" "$(curl -s -b "$A" "$BASE/admin/restore" | j 'd["state"]')" done
+check "restored: taste as backed up" "$(curl -s -b "$A" "$BASE/taste" | j 'd["taste"]["decades"]')" "[1980]"
+check "restored: smart playlist and its kept songs" "$(curl -s -b "$A" "$BASE/playlists/$rpid" | j '(d["rules"]["refresh"], d["made_at"] is not None)')" "('daily', True)"
+check "restored: music video kind" "$(curl -s -b "$A" "$BASE/video-kinds" | j "'$rkind' in [k['key'] for k in d]")" True
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/video-kinds/$rkind"
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$rpid"
+curl -s -b "$A" -o /dev/null -X PUT "$BASE/taste" -H 'content-type: application/json' -d '{}'
+curl -s -b "$A" -o /dev/null -X DELETE "$BASE/admin/backups/$rname"
+for _ in $(seq 1 60); do [ "$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["status"]')" = running ] || break; sleep 1; done  # (covers made again after it)
+
 # cleanup
 curl -s -b "$A" -o /dev/null -X DELETE "$BASE/playlists/$pid"
 curl -s -b "$A" -o /dev/null -X PATCH "$BASE/admin/users/$uid" -H 'content-type: application/json' -d '{"is_active":false}'
