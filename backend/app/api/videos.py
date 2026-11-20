@@ -4,7 +4,9 @@ video playlists."""
 
 import os
 import re
+import subprocess
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -702,6 +704,83 @@ def remake_video_thumb(video_id: int, user: User = Depends(current_user), db: Se
     db.close()
     if not video_thumbs.remake(video_id, path):
         raise api_error(503, "thumb_failed")
+
+
+# ffmpeg's description of a file (there is no ffprobe in the image): its container, overall bitrate and streams
+_INPUT = re.compile(r"^Input #0, ([^,]+(?:,[^,]+)*?), from", re.M)
+_BITRATE = re.compile(r"bitrate: (\d+) kb/s")
+_STREAM = re.compile(r"Stream #0:\d+(?:\[[^\]]*\])?(?:\(([^)]*)\))?: (Video|Audio|Subtitle|Data): ([^\s,(]+)(.*)$", re.M)
+
+
+def _probe(path: Path) -> dict:
+    from ..transcode import ffmpeg
+
+    exe = ffmpeg()
+    if exe is None:
+        return {}
+    try:
+        err = subprocess.run([exe, "-hide_banner", "-nostdin", "-i", str(path)], capture_output=True, text=True, timeout=30).stderr
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    container = _INPUT.search(err)
+    rate = _BITRATE.search(err)
+    return {
+        "container": container.group(1) if container else None,
+        "bitrate": int(rate.group(1)) if rate else None,  # kbps
+        "streams": [_stream(kind.lower(), codec, lang, rest) for lang, kind, codec, rest in _STREAM.findall(err)],
+    }
+
+
+def _stream(kind: str, codec: str, lang: str, rest: str) -> dict:
+    """One stream, its main facts picked out of ffmpeg's line (the whole line kept too)."""
+    profile = re.match(r"\s*\(([^)/]+)\)", rest)
+    size = re.search(r"(\d{2,5})x(\d{2,5})", rest)
+    fps = re.search(r"([\d.]+) fps", rest)
+    hz = re.search(r"(\d+) Hz, ([^,]+)", rest)
+    kbps = re.search(r"(\d+) kb/s", rest)
+    return {
+        "type": kind,
+        "codec": codec,
+        "profile": profile.group(1) if profile else None,
+        "language": lang if lang and lang != "und" else None,
+        "resolution": f"{size.group(1)}×{size.group(2)}" if kind == "video" and size else None,
+        "fps": float(fps.group(1)) if fps else None,
+        "sample_rate": int(hz.group(1)) if hz else None,
+        "channels": hz.group(2).strip() if hz else None,
+        "bitrate": int(kbps.group(1)) if kbps else None,
+        "details": rest.strip(" ,"),
+    }
+
+
+@router.get("/videos/{video_id}/info")
+def video_info(video_id: int, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A music video's details (its ⋮ menu): where it is (the NAS file, or its YouTube link), how a file
+    is encoded (ffmpeg, read now), its song or album, who added it and when."""
+    v = db.get(Video, video_id)
+    if v is None:
+        raise api_error(404, "not_found")
+    track = db.get(Track, v.track_id) if v.track_id else None
+    album = db.get(Album, v.album_id or (track.album_id if track else None)) if (v.album_id or track) else None
+    out: dict = {
+        **video_out(v, user),
+        "added_by": db.scalar(select(User.username).where(User.id == v.added_by)) if v.added_by else None,
+        "likes": db.scalar(select(func.count()).where(VideoFavorite.video_id == v.id)),
+        "track": {"id": track.id, "title": track.title, "artist": track.artist_text} if track else None,
+        "album": {"id": album.id, "title": album.title} if album else None,
+    }
+    if v.youtube_id:
+        out["url"] = f"https://www.youtube.com/watch?v={v.youtube_id}"
+        return out
+    path = _inside(v.file_path or "")
+    folder = Path(v.file_path).parent.as_posix() if v.file_path else None
+    out["folder"] = "" if folder == "." else folder  # in the video folder (library/video)
+    out["file"] = Path(v.file_path).name if v.file_path else None
+    out["exists"] = path is not None
+    if path is not None:
+        st = path.stat()
+        out["size"], out["modified"] = st.st_size, datetime.fromtimestamp(st.st_mtime, UTC)
+        out["probe"] = _probe(path)
+    return out
 
 
 @router.get("/videos/{video_id}/file")

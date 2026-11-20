@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDown, ArrowUp, EllipsisVertical, Flame, Heart, MicVocal, Star, TriangleAlert } from '@lucide/vue'
+import { ArrowDown, ArrowUp, Ban, Clapperboard, Disc3, EllipsisVertical, Flame, Heart, Info, ListEnd, ListPlus, ListStart, MicVocal, Star, Trash2, TriangleAlert } from '@lucide/vue'
 import { errorMessage } from '../i18n'
 import { duration } from '../format'
 import { openPlayer } from '../playerNav'
@@ -319,27 +319,27 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                 <template v-if="!track.missing">
                   <StarRating :value="library.rating(track)" :size="18" class="px-2.5" @rate="(n) => rate(track, n)" />
                   <div class="my-1 border-t border-line" />
-                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))">{{ t('common.playNext') }}</button>
-                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))">{{ t('common.addToQueue') }}</button>
-                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
-                  <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="action(() => player.playNext([track]))"><ListStart :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.playNext') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="action(() => player.addToQueue([track]))"><ListEnd :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.addToQueue') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))"><ListPlus :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.addToPlaylist') }}</button>
+                  <button v-if="track.has_video || isAdmin" type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="videos(track)"><Clapperboard :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.watchVideos') }}</button>
                 </template>
-                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (infoOf = track))">{{ t('trackInfo.menu') }}</button>
-                <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
+                <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="action(() => (infoOf = track))"><Info :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('trackInfo.menu') }}</button>
+                <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="menuOpen = null"><Disc3 :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.goToAlbum') }}</RouterLink>
                 <!-- each of its artists (feat. too); one: just "go to artist" -->
                 <template v-if="(track.artists?.length ?? 0) > 1">
-                  <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="truncate px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtistNamed', { name: a.name }) }}</RouterLink>
+                  <RouterLink v-for="a in track.artists" :key="a.id" :to="{ name: 'artist', params: { id: a.id } }" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="menuOpen = null"><MicVocal :size="17" :stroke-width="1.6" class="flex-none text-muted" /><span class="truncate">{{ t('common.goToArtistNamed', { name: a.name }) }}</span></RouterLink>
                 </template>
-                <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToArtist') }}</RouterLink>
+                <RouterLink v-else-if="track.artist_id" :to="{ name: 'artist', params: { id: track.artist_id } }" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="menuOpen = null"><MicVocal :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.goToArtist') }}</RouterLink>
                 <template v-if="excludable">
                   <div class="my-1 border-t border-line" />
-                  <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => emit('exclude', i))">{{ t('smart.exclude') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface" @click="action(() => emit('exclude', i))"><Ban :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('smart.exclude') }}</button>
                 </template>
                 <template v-if="editable">
                   <div class="my-1 border-t border-line" />
-                  <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="16" />{{ t('common.moveUp') }}</button>
-                  <button type="button" class="flex items-center gap-2 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === tracks.length - 1" @click="action(() => emit('move', i, 1))"><ArrowDown :size="16" />{{ t('common.moveDown') }}</button>
-                  <button type="button" class="px-4 py-3 text-left text-danger hover:bg-surface" @click="action(() => emit('remove', i))">{{ t('common.remove') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === 0" @click="action(() => emit('move', i, -1))"><ArrowUp :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.moveUp') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface disabled:opacity-40" :disabled="i === tracks.length - 1" @click="action(() => emit('move', i, 1))"><ArrowDown :size="17" :stroke-width="1.6" class="flex-none text-muted" />{{ t('common.moveDown') }}</button>
+                  <button type="button" class="flex items-center gap-3 px-4 py-3 text-left hover:bg-surface text-danger" @click="action(() => emit('remove', i))"><Trash2 :size="17" :stroke-width="1.6" class="flex-none" />{{ t('common.remove') }}</button>
                 </template>
               </div>
             </span>

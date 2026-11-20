@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, EllipsisVertical, Heart, ListPlus, Play, Tag } from '@lucide/vue'
+import { AudioLines, ChevronDown, Disc3, EllipsisVertical, Heart, ImagePlus, Info, ListPlus, Music2, Pencil, Play, Tag, Trash2, Unlink } from '@lucide/vue'
 import { api } from '../api'
 import { errorMessage } from '../i18n'
 import { useUi } from '../stores/ui'
@@ -9,6 +9,7 @@ import { type VideoKind, type VideoListItem } from '../types'
 import { kindKeys, kindName, loadVideoKinds } from '../videoKinds'
 import CoverArt from './CoverArt.vue'
 import InlineVideo from './InlineVideo.vue'
+import VideoInfoSheet from './VideoInfoSheet.vue'
 import VideoThumb from './VideoThumb.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
@@ -20,6 +21,7 @@ const emit = defineEmits<{ play: []; changed: []; liked: [boolean]; extract: [] 
 const { t } = useI18n()
 const ui = useUi()
 const menu = ref(false)
+const infoOpen = ref(false) // its details (VideoInfoSheet)
 loadVideoKinds()
 const kindMenu = ref(false)
 const liked = ref(!!props.video.is_favorite)
@@ -122,25 +124,30 @@ onUnmounted(() => document.removeEventListener('click', outside))
     </button>
     <div class="flex items-start gap-1">
       <span class="line-clamp-2 min-w-0 flex-1 text-[15px] leading-snug">{{ video.title }}</span>
-      <span v-if="video.can_edit" class="relative -mr-2 -mt-1.5" data-video-menu>
+      <span class="relative -mr-2 -mt-1.5" data-video-menu>
         <button type="button" class="grid size-9 place-items-center text-muted hover:text-ink" :aria-label="t('common.moreActions')" :aria-expanded="menu" @click="toggleMenu">
           <EllipsisVertical :size="18" :stroke-width="1.4" />
         </button>
-        <div v-if="menu" class="absolute right-0 z-30 flex w-52 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[14px] shadow-xl" :class="menuUp ? 'bottom-9' : 'top-9'">
-          <!-- NAS files: their title, thumbnail and song are ours to change -->
-          <template v-if="video.file_path">
-            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="rename">{{ t('videos.renameVideo') }}</button>
-            <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb">{{ t('videos.remakeThumb') }}</button>
+        <div v-if="menu" class="absolute right-0 z-30 flex w-56 flex-col overflow-hidden rounded-2xl border border-line bg-bg py-1.5 text-[14px] shadow-xl" :class="menuUp ? 'bottom-9' : 'top-9'">
+          <!-- its details: everyone -->
+          <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), (infoOpen = true)"><Info :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videoInfo.menu') }}</button>
+          <template v-if="video.can_edit">
+            <div class="my-1 border-t border-line" />
+            <!-- NAS files: their title, thumbnail and song are ours to change -->
+            <template v-if="video.file_path">
+              <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="rename"><Pencil :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videos.renameVideo') }}</button>
+              <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" :disabled="remaking" @click="remakeThumb"><ImagePlus :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videos.remakeThumb') }}</button>
+            </template>
+            <!-- its song or album -->
+            <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('track')"><Music2 :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videos.linkSong') }}</button>
+            <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('album')"><Disc3 :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videos.linkAlbum') }}</button>
+            <button v-if="video.track_id || video.album_id" type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="unlink"><Unlink :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('videos.unlink') }}</button>
+            <div class="my-1 border-t border-line" />
+            <!-- its sound as a song (extract.py) -->
+            <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), emit('extract')"><AudioLines :size="16" :stroke-width="1.6" class="flex-none text-muted" />{{ t('extract.menu') }}</button>
+            <div class="my-1 border-t border-line" />
+            <button type="button" class="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface text-danger" @click="remove"><Trash2 :size="16" :stroke-width="1.6" class="flex-none" />{{ t('videos.remove') }}</button>
           </template>
-          <!-- its song or album -->
-          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('track')">{{ t('videos.linkSong') }}</button>
-          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="pickLink('album')">{{ t('videos.linkAlbum') }}</button>
-          <button v-if="video.track_id || video.album_id" type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="unlink">{{ t('videos.unlink') }}</button>
-          <div class="my-1 border-t border-line" />
-          <!-- its sound as a song (extract.py) -->
-          <button type="button" class="px-4 py-2.5 text-left hover:bg-surface" @click="(menu = false), emit('extract')">{{ t('extract.menu') }}</button>
-          <div class="my-1 border-t border-line" />
-          <button type="button" class="px-4 py-2.5 text-left text-danger hover:bg-surface" @click="remove">{{ t('videos.remove') }}</button>
         </div>
       </span>
     </div>
@@ -197,5 +204,6 @@ onUnmounted(() => document.removeEventListener('click', outside))
       </span>
     </RouterLink>
     <span v-else-if="video.file_path" class="truncate text-[13px] text-muted">{{ video.file_path }}</span>
+    <VideoInfoSheet v-if="infoOpen" :video="video" @close="infoOpen = false" />
   </div>
 </template>

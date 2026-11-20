@@ -1,0 +1,65 @@
+import type { Component } from 'vue'
+import {
+  Armchair, AudioWaveform, Baby, Church, Clapperboard, CloudRain, CloudSun, Coffee, Crown, Disc3, Drum, Dumbbell, Feather,
+  Flame, Gamepad2, Gift, Glasses, Globe, Guitar, Heart, HeartHandshake, Lamp, Laugh, Leaf, MapPin, Martini, Mic, MicVocal,
+  Moon, Mountain, Music, Orbit, PartyPopper, Piano, Radio, Rainbow, Skull, Snowflake, Sparkles, Star, Sun, TreePalm, Turntable,
+  Tv, UtensilsCrossed, Waves, Zap,
+} from '@lucide/vue'
+
+// A genre's picture on its tile (the genres page): matched by words in its name, Korean or English,
+// any case; the first rule that fits wins (so "K-Pop" before "Pop", "Hip-Hop" before "Pop").
+const RULES: [RegExp, Component][] = [
+  [/k-?pop|케이팝|아이돌|idol/, MicVocal],
+  [/hip.?hop|rap|힙합|랩/, Radio],
+  [/r&b|rnb|r ?n ?b|알앤비|알엔비/, Glasses],
+  [/soul|소울/, Sparkles],
+  [/funk|펑크|훵크/, Star],
+  [/punk|펑크록/, Zap],
+  [/metal|메탈/, Skull],
+  [/rock|록|락/, Guitar],
+  [/indie|인디/, Feather],
+  [/folk|acoustic|포크|어쿠스틱|통기타/, Guitar],
+  [/jazz|재즈|swing|스윙/, Martini],
+  [/blues|블루스/, CloudRain],
+  [/classic|클래식|오케스트라|orchestra|opera|오페라|baroque|바로크/, Piano],
+  [/house|techno|trance|edm|electro|일렉|전자/, AudioWaveform],
+  [/disco|디스코|dance|댄스|club|클럽/, PartyPopper],
+  [/\bdj\b|turntable|scratch/, Turntable],
+  [/ballad|발라드|love|러브|romance|로맨스|사랑/, Heart],
+  [/trot|트로트|성인가요|엔카|enka/, Crown],
+  [/\bost\b|soundtrack|사운드트랙|영화|movie|film|score/, Clapperboard],
+  [/드라마|drama|\btv\b|예능/, Tv],
+  [/동요|kids|children|child|어린이|키즈|lullaby|자장가/, Baby],
+  [/ccm|gospel|가스펠|찬양|찬송|종교|christian|worship|hymn/, Church],
+  [/christmas|크리스마스|캐롤|carol|holiday/, Gift],
+  [/winter|겨울|snow/, Snowflake],
+  [/new.?age|뉴에이지|ambient|앰비언트|meditation|명상/, Waves],
+  [/lo.?fi|로파이|chill|칠|lounge|라운지/, Armchair],
+  [/cafe|카페|coffee|커피|bossa|보사노바/, Coffee],
+  [/reggae|레게|tropical|트로피컬|island/, TreePalm],
+  [/latin|라틴|salsa|살사|samba|삼바|tango|탱고/, Sun],
+  [/country|컨트리|bluegrass/, Mountain],
+  [/world|월드|ethnic|민속/, Globe],
+  [/국악|traditional|percussion|drum/, Drum],
+  [/sleep|수면|잠|night|밤/, Moon],
+  [/workout|운동|fitness|피트니스|gym/, Dumbbell],
+  [/focus|집중|study|공부/, Lamp],
+  [/party|파티/, PartyPopper],
+  [/mood|무드|감성|weather|날씨/, CloudSun],
+  [/dinner|저녁|식사|cooking|요리/, UtensilsCrossed],
+  [/travel|여행|drive|드라이브|road/, MapPin],
+  [/game|게임|gaming|vgm/, Gamepad2],
+  [/comedy|코미디|funny|유머/, Laugh],
+  [/pride|rainbow|무지개/, Rainbow],
+  [/nature|자연|healing|힐링|forest|숲/, Leaf],
+  [/\bhot\b|hits|히트|인기|trending|\btop\b/, Flame],
+  [/romantic|wedding|웨딩|결혼/, HeartHandshake],
+  [/alternative|얼터|experimental|실험|psychedelic|사이키/, Orbit],
+  [/vintage|retro|레트로|oldies|올디스|vinyl/, Disc3],
+  [/pop|팝|가요|vocal|보컬|singer|싱어/, Mic],
+]
+
+export function genreIcon(name: string): Component {
+  const n = name.toLowerCase()
+  return RULES.find(([re]) => re.test(n))?.[1] ?? Music
+}

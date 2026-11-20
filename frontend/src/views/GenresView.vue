@@ -11,11 +11,12 @@ import MergeSheet from '../components/MergeSheet.vue'
 import PickBar from '../components/PickBar.vue'
 import PickedMergeSheet from '../components/PickedMergeSheet.vue'
 import { matches, useListSearch } from '../listSearch'
+import { genreIcon } from '../genreIcons'
 import { vLongPress } from '../longPress'
 import SelectPill from '../components/SelectPill.vue'
 
-// Genres as pastel tiles: each genre keeps its own colour (from its name), washed see-through, with the covers of
-// its biggest albums fanned out in the corner. The largest genres get wide tiles up top.
+// Genres as square tiles: the cover of the genre's biggest album, darkened, with a white picture of the genre
+// (genreIcons.ts, by its name) and its name over it; a genre without covers gets a dark wash of its own colour.
 const { t } = useI18n()
 const auth = useAuth()
 const merging = ref(false) // admin: the duplicates sheet
@@ -76,20 +77,10 @@ function hash(name: string) {
 function colour(name: string) {
   return PALETTE[hash(name) % PALETTE.length]
 }
-// a see-through pastel of the genre's colour flowing into a second one (picked by the name too),
-// with a soft glow in the top corner; dark text on it (light and dark themes alike)
-function tint(name: string) {
+// no cover: the genre's colour, deep, flowing into black (white text and icon on it)
+function wash(name: string) {
   const c = colour(name)
-  const vivid = PALETTE.filter((x) => x !== '#777777' && x !== c) // (grey would dull it)
-  const c2 = vivid[(hash(name) >>> 3) % vivid.length]
-  const mix = (col: string, n: number) => `color-mix(in oklab, ${col} ${n}%, transparent)`
-  return {
-    background: [
-      `radial-gradient(110% 85% at 0% 0%, ${mix(c, 50)} 0%, transparent 65%)`,
-      `linear-gradient(in oklch 135deg, ${mix(c, 32)} 0%, ${mix(c2, 30)} 100%)`,
-    ].join(', '),
-    borderColor: mix(c, 35),
-  }
+  return { background: `linear-gradient(135deg, color-mix(in oklab, ${c} 75%, black) 0%, color-mix(in oklab, ${c} 30%, black) 100%)` }
 }
 
 const q = useListSearch()
@@ -117,11 +108,6 @@ onMounted(() => {
   }, { immediate: true })
 })
 onUnmounted(() => observer?.disconnect())
-// wide tiles for the four biggest genres (only when sorted by size and there are enough)
-const wide = computed(() => (sort.value === 'size' && !q.value.trim() && items.value.length >= 8 ? 4 : 0))
-// fanned covers: back to front
-const FAN = ['rotate-[-14deg] translate-x-[-58%]', 'rotate-[-2deg] translate-x-[-28%]', 'rotate-[16deg]']
-const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]', 'group-hover:rotate-[-4deg] group-hover:translate-x-[-34%]', 'group-hover:rotate-[22deg] group-hover:translate-x-[6%]']
 </script>
 
 <template>
@@ -139,37 +125,34 @@ const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]',
     <PickBar v-if="picking" :count="picked.length" @cancel="stopPicking" @merge="choosing = true" />
     <PickedMergeSheet v-if="choosing" kind="genre" :picked="picked.map((g) => ({ id: g.id, name: g.name, songs: g.track_count }))" @close="choosing = false" @merged="afterMerge" />
 
-    <ul class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
+    <ul class="grid grid-cols-3 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-3">
       <!-- off-screen tiles are neither drawn nor painted (content-visibility): smooth scrolling on phones -->
-      <li v-for="(g, i) in shown" :key="g.id" class="[contain-intrinsic-size:auto_150px] [content-visibility:auto]" :class="i < wide ? 'col-span-2' : ''">
+      <li v-for="g in shown" :key="g.id" class="[contain-intrinsic-size:auto_160px] [content-visibility:auto]">
         <component
           :is="picking ? 'button' : RouterLink"
           v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(g) } : { to: { name: 'tracks', query: { genre: g.id } } }"
-          class="group relative block w-full select-none overflow-hidden rounded-2xl border [-webkit-touch-callout:none] text-left text-ink shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
-          :class="[i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]', picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : '']"
+          class="group relative block aspect-square w-full select-none overflow-hidden rounded-lg [-webkit-touch-callout:none] text-white focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+          :class="picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : ''"
           v-long-press="auth.user?.is_admin ? () => pressPick(g) : null"
           @click="picking && pickOne(g)"
-          :style="tint(g.name)"
+          :style="g.covers?.length ? undefined : wash(g.name)"
         >
-          <span class="relative z-10 flex flex-col p-4" :class="i < wide ? 'md:p-5' : ''">
-            <span class="font-bold leading-tight [text-wrap:balance]" :class="i < wide ? 'text-[26px] md:text-[30px]' : 'text-[20px]'">{{ g.name }}</span>
-            <span class="mt-1 text-[13px] font-medium text-muted">{{ t('common.tracks', g.track_count) }}</span>
+          <!-- the genre's biggest album, darkened under the picture -->
+          <img
+            v-if="g.covers?.length"
+            :src="coverUrl(g.covers[0].id, 'thumb', g.covers[0].v)"
+            alt=""
+            loading="lazy"
+            decoding="async"
+            class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <span class="absolute inset-0 bg-black/60 transition-colors group-hover:bg-black/50" aria-hidden="true" />
+          <span class="relative flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2">
+            <component :is="genreIcon(g.name)" class="size-9 sm:size-12" :stroke-width="1.5" aria-hidden="true" />
+            <span class="line-clamp-2 text-[13px] font-semibold leading-tight [text-wrap:balance] sm:text-[15px]">{{ g.name }}</span>
+            <span class="text-[11px] text-white/70 sm:text-[12px]">{{ t('common.tracks', g.track_count) }}</span>
           </span>
-          <!-- the genre's biggest albums, fanned out in the corner -->
-          <span v-if="g.covers?.length" class="absolute bottom-[-12%] right-[-6%] h-[62%] w-[42%]" aria-hidden="true">
-            <img
-              v-for="(c, k) in g.covers.slice(0, 3)"
-              :key="c.id"
-              :src="coverUrl(c.id, 'thumb', c.v)"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              class="absolute bottom-0 right-0 aspect-square h-full rounded-lg object-cover shadow-[0_3px_8px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out"
-              :class="[FAN[k + 3 - Math.min(3, g.covers.length)], FAN_HOVER[k + 3 - Math.min(3, g.covers.length)]]"
-            />
-          </span>
-          <span v-else class="absolute bottom-3 right-4 text-[64px] font-black leading-none text-ink/10" aria-hidden="true">#</span>
-          <span v-if="picking" class="absolute right-2.5 top-2.5 z-20 grid size-7 place-items-center rounded-full border-2" :class="isPicked(g) ? 'border-white bg-accent text-white' : 'border-white bg-black/25'"><Check v-if="isPicked(g)" :size="16" :stroke-width="2.5" /></span>
+          <span v-if="picking" class="absolute right-2 top-2 z-20 grid size-7 place-items-center rounded-full border-2" :class="isPicked(g) ? 'border-white bg-accent text-white' : 'border-white bg-black/25'"><Check v-if="isPicked(g)" :size="16" :stroke-width="2.5" /></span>
         </component>
       </li>
     </ul>

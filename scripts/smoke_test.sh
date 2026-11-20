@@ -236,6 +236,9 @@ check "only an admin registers NAS videos" "$(curl -s -b "$U" -o /dev/null -w '%
 check "NAS video files answer" "$(curl -s -b "$A" "$BASE/videos/files" | j 'sorted(d)')" "['folder', 'items']"
 check "no linking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/videos/999999/link" -H 'content-type: application/json' -d '{"auto":true}')" 404
 check "liking a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X PUT "$BASE/videos/999999/favorite")" 404
+vfile=$(curl -s -b "$A" "$BASE/videos?limit=200" | j 'next((v["id"] for v in d["items"] if v["file_path"]), "")')
+[ -n "$vfile" ] && check "video info: path and codec" "$(curl -s -b "$U" "$BASE/videos/$vfile/info" | j '(d["file"] != "", d["exists"], len(d.get("probe", {}).get("streams", [])) > 0)')" "(True, True, True)"
+check "no info of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/info")" 404
 check "no similar videos of a video that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/videos/999999/related")" 404
 # music video kinds: everyone sees them, an admin adds, renames, orders and removes them ("other" stays)
 check "video kinds listed, other last" "$(curl -s -b "$U" "$BASE/video-kinds" | j '[k["key"] for k in d][-1]')" other
