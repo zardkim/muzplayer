@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -910,6 +911,55 @@ def _follow_moves(
     return len(pairs)
 
 
+def _unite_folder_albums(db: Session, cache: _Cache, scope: str | None) -> int:
+    """One folder, one album: songs in the same folder (CD1 / CD2 merged) under the same album title are
+    one album, whatever their artist tags say. Without an album artist tag a compilation's songs were each
+    filed under their own artist, one album per singer.
+
+    The artist most of them are filed under, when that is more than half; else Various Artists, as a
+    compilation. The songs' tag_kind is set to the album's kind, so later scans leave them there (a song
+    read again is filed by its tags first, then united again here). Returns how many songs moved.
+    """
+    query = (
+        select(Track.id, Track.file_path, Track.album_id, Album.kind, Album.title, Album.album_artist_id, Album.year)
+        .join(Album, Album.id == Track.album_id)
+        .where(Track.missing_at.is_(None), Track.chart_id.is_(None), Album.kind.not_in(("chart", "extracted")))
+    )
+    if scope is not None:
+        query = query.where(in_folder(scope))
+    groups: dict[tuple[str, str], list] = {}
+    for row in db.execute(query):
+        rel = Path(row.file_path)
+        folder = rel.parent.parent if DISC_DIR.match(nfc(rel.parent.name)) and len(rel.parts) > 2 else rel.parent
+        groups.setdefault((str(folder), nfc(row.title).casefold()), []).append(row)
+    moved = 0
+    for rows in groups.values():
+        if len({r.album_id for r in rows}) < 2:
+            continue
+        artist, n = Counter(r.album_artist_id for r in rows).most_common(1)[0]
+        kinds = {r.kind for r in rows}
+        if n * 2 > len(rows) and artist is not None:
+            kind = next((k for k in ("soundtrack", "compilation") if k in kinds), Counter(r.kind for r in rows).most_common(1)[0][0])
+        else:
+            artist = cache.artist(VARIOUS_ARTISTS)
+            kind = "soundtrack" if "soundtrack" in kinds else "compilation"
+        title = Counter(r.title for r in rows).most_common(1)[0][0]
+        years = [r.year for r in rows if r.year]
+        album = cache.album(kind, title, artist, min(years) if years else None)
+        ids = [r.id for r in rows if r.album_id != album.id]
+        for r in rows:
+            if r.album_id != album.id:
+                cache.moves.setdefault(r.album_id, album.id)  # its stars, likes and videos follow
+        if ids:
+            db.execute(update(Track).where(Track.id.in_(ids)).values(album_id=album.id))
+            moved += len(ids)
+        db.execute(
+            update(Track).where(Track.id.in_([r.id for r in rows]))
+            .values(tag_kind=kind if kind in ("compilation", "soundtrack", "unofficial") else "")
+        )
+    return moved
+
+
 def _fill_tag_kinds(db: Session, scope: str | None) -> None:
     """Works out tag_kind from the stored tags where it is missing (songs scanned before it existed),
     a chunk at a time; the scan then refiles the songs whose album kind changed."""
@@ -1156,6 +1206,9 @@ def _scan(job_id: int) -> None:
             from . import bugs_artists
 
             bugs_artists.drop_group_names(db)  # (LINKS_VERSION 2)
+        united = _unite_folder_albums(db, cache, scope)
+        job.updated += united
+        changed = changed or bool(united)
         if changed or last != "done" or scope is not None or relinks:
             _link_chart_duplicates(db)
             artist_links.relink(db)  # every song's artists (feat., collaborations), before pruning the unused

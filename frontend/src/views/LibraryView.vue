@@ -10,7 +10,7 @@ import { useAuth } from '../stores/auth'
 import { useLibrary } from '../stores/library'
 import { usePlayer } from '../stores/player'
 import { useUi } from '../stores/ui'
-import type { Mix, Track, VideoPlaylist } from '../types'
+import type { Mix, Playlist, Track, VideoPlaylist } from '../types'
 import VideoRow from '../components/VideoRow.vue'
 import { youtubeThumb } from '../youtube'
 import BaseModal from '../components/BaseModal.vue'
@@ -18,6 +18,8 @@ import CoverArt from '../components/CoverArt.vue'
 import MixCards from '../components/MixCards.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PlaylistImportSheet from '../components/PlaylistImportSheet.vue'
+import SmartRulesSheet from '../components/SmartRulesSheet.vue'
+import SmartWizard from '../components/SmartWizard.vue'
 import SelectPill from '../components/SelectPill.vue'
 import SectionTitle from '../components/SectionTitle.vue'
 
@@ -52,6 +54,13 @@ function pickImport(e: Event) {
   const input = e.target as HTMLInputElement
   importing.value = input.files?.[0] ?? null
   input.value = ''
+}
+// a smart playlist: the wizard, or (asked from it) the rules themselves
+const smart = ref<'wizard' | 'rules' | null>(null)
+function smartSaved(p: Playlist | null) {
+  smart.value = null
+  library.loadPlaylists().catch(() => {})
+  if (p) router.push({ name: 'playlist', params: { id: p.id } })
 }
 // the order of my playlists (library store), as on the playlists page
 const SORTS = ['recent', 'name', 'manual'] as const
@@ -94,11 +103,15 @@ async function create() {
         </RouterLink>
       </div>
       <div class="-mr-5 flex items-center gap-2 overflow-x-auto pr-5 [scrollbar-width:none]">
-        <button type="button" class="flex h-[38px] flex-none items-center gap-1 rounded-full bg-ink px-3.5 text-sm text-on-ink" @click="(newName = ''), (creating = 'songs')">
-          <Plus :size="16" :stroke-width="1.8" />{{ t('playlists.toolNew') }}
+        <!-- new, smart, import: icons (each named for screen readers and on hover) -->
+        <button type="button" class="grid size-[38px] flex-none place-items-center rounded-full bg-ink text-on-ink" :aria-label="t('playlists.toolNew')" :title="t('playlists.toolNew')" @click="(newName = ''), (creating = 'songs')">
+          <Plus :size="18" :stroke-width="1.8" />
         </button>
-        <button type="button" class="flex h-[38px] flex-none items-center gap-1 rounded-full border border-line-strong px-3.5 text-sm" :title="t('importList.title')" @click="importInput?.click()">
-          <FileUp :size="16" :stroke-width="1.6" />{{ t('importList.button') }}
+        <button type="button" class="grid size-[38px] flex-none place-items-center rounded-full border border-line-strong" :aria-label="t('smart.new')" :title="t('smart.new')" @click="smart = 'wizard'">
+          <Zap :size="17" :stroke-width="1.6" />
+        </button>
+        <button type="button" class="grid size-[38px] flex-none place-items-center rounded-full border border-line-strong" :aria-label="t('importList.title')" :title="t('importList.title')" @click="importInput?.click()">
+          <FileUp :size="17" :stroke-width="1.6" />
         </button>
         <input ref="importInput" type="file" accept=".m3u,.m3u8,.pls,audio/x-mpegurl,audio/mpegurl,audio/x-scpls" class="hidden" @change="pickImport" />
         <SelectPill v-if="library.playlists.length > 1" v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="SORTS.map((k) => ({ value: k, label: t(`playlists.sort_${k}`) }))" />
@@ -201,6 +214,8 @@ async function create() {
 
 
     <PlaylistImportSheet v-if="importing" :file="importing" @close="importing = null" />
+    <SmartWizard v-if="smart === 'wizard'" @close="smart = null" @saved="smartSaved" @advanced="smart = 'rules'" />
+    <SmartRulesSheet v-else-if="smart === 'rules'" @close="smart = null" @saved="smartSaved" />
     <BaseModal v-if="creating" :title="creating === 'videos' ? t('videos.newPlaylist') : t('playlists.new')" @close="creating = null">
       <form class="flex flex-col gap-4" @submit.prevent="create">
         <label class="flex flex-col gap-1.5 text-[13px] text-muted">
