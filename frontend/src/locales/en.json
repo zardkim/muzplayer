@@ -511,6 +511,9 @@
     "photoCredit": "Photo: Wikipedia '{title}'"
   },
   "genres": {
+    "style": "Look",
+    "style_icon": "Icons",
+    "style_cover": "Colour tiles with covers",
     "search": "Search genres",
     "empty": "No songs have genre tags.",
     "count": "{n} genres",

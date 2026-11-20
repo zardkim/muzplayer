@@ -511,6 +511,9 @@
     "photoCredit": "사진: 위키백과 '{title}'"
   },
   "genres": {
+    "style": "표시 방식",
+    "style_icon": "아이콘",
+    "style_cover": "색 타일과 커버",
     "search": "장르 검색",
     "empty": "장르 태그가 있는 곡이 없습니다.",
     "count": "장르 {n}개",

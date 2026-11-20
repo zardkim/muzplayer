@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownUp, Check } from '@lucide/vue'
+import { ArrowDownUp, Check, GalleryHorizontalEnd, Shapes } from '@lucide/vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, coverUrl } from '../api'
 import type { Genre } from '../types'
 import { useAuth } from '../stores/auth'
+import { useUi } from '../stores/ui'
 import LibraryHeader from '../components/LibraryHeader.vue'
 import MergeSheet from '../components/MergeSheet.vue'
 import PickBar from '../components/PickBar.vue'
@@ -15,10 +16,14 @@ import { genreIcon } from '../genreIcons'
 import { vLongPress } from '../longPress'
 import SelectPill from '../components/SelectPill.vue'
 
-// Genres as square tiles: the cover of the genre's biggest album, darkened, with a white picture of the genre
-// (genreIcons.ts, by its name) and its name over it; a genre without covers gets a dark wash of its own colour.
+// Genres in one of two looks, the person's pick (kept with the other page views):
+// - icon: square tiles, the cover of the genre's biggest album darkened, with a white picture of the genre
+//   (genreIcons.ts, by its name) and its name over it; a genre without covers gets a dark wash of its colour
+// - cover: pastel tiles, each genre in its own colour (from its name) washed see-through, the covers of its
+//   biggest albums fanned out in the corner; the largest genres get wide tiles up top
 const { t } = useI18n()
 const auth = useAuth()
+const ui = useUi()
 const merging = ref(false) // admin: the duplicates sheet
 // admin: genres picked by hand to make one (tapping a tile picks it rather than opening it)
 const picking = ref(false)
@@ -77,6 +82,22 @@ function hash(name: string) {
 function colour(name: string) {
   return PALETTE[hash(name) % PALETTE.length]
 }
+// a see-through pastel of the genre's colour flowing into a second one (picked by the name too),
+// with a soft glow in the top corner; dark text on it (light and dark themes alike)
+function tint(name: string) {
+  const c = colour(name)
+  const vivid = PALETTE.filter((x) => x !== '#777777' && x !== c) // (grey would dull it)
+  const c2 = vivid[(hash(name) >>> 3) % vivid.length]
+  const mix = (col: string, n: number) => `color-mix(in oklab, ${col} ${n}%, transparent)`
+  return {
+    background: [
+      `radial-gradient(110% 85% at 0% 0%, ${mix(c, 50)} 0%, transparent 65%)`,
+      `linear-gradient(in oklch 135deg, ${mix(c, 32)} 0%, ${mix(c2, 30)} 100%)`,
+    ].join(', '),
+    borderColor: mix(c, 35),
+  }
+}
+
 // no cover: the genre's colour, deep, flowing into black (white text and icon on it)
 function wash(name: string) {
   const c = colour(name)
@@ -108,6 +129,20 @@ onMounted(() => {
   }, { immediate: true })
 })
 onUnmounted(() => observer?.disconnect())
+// wide tiles for the four biggest genres (only when sorted by size and there are enough)
+const wide = computed(() => (sort.value === 'size' && !q.value.trim() && items.value.length >= 8 ? 4 : 0))
+// fanned covers: back to front
+const FAN = ['rotate-[-14deg] translate-x-[-58%]', 'rotate-[-2deg] translate-x-[-28%]', 'rotate-[16deg]']
+const FAN_HOVER = ['group-hover:rotate-[-20deg] group-hover:translate-x-[-72%]', 'group-hover:rotate-[-4deg] group-hover:translate-x-[-34%]', 'group-hover:rotate-[22deg] group-hover:translate-x-[6%]']
+// which look (icon by default)
+const STYLES = [
+  { key: 'icon' as const, icon: Shapes },
+  { key: 'cover' as const, icon: GalleryHorizontalEnd },
+]
+const style = computed({
+  get: () => (ui.views.genreStyle === 'cover' ? 'cover' : 'icon'),
+  set: (v: 'icon' | 'cover') => (ui.views = { ...ui.views, genreStyle: v }),
+})
 </script>
 
 <template>
@@ -116,6 +151,23 @@ onUnmounted(() => observer?.disconnect())
       <div class="flex items-center gap-1 text-[14px]">
         <button v-if="auth.user?.is_admin" type="button" class="pill-sm flex-none" :aria-pressed="picking" :class="picking ? 'border-ink bg-ink text-on-ink' : ''" @click="picking ? stopPicking() : (picking = true)">{{ t('merge.pick') }}</button>
         <button v-if="auth.user?.is_admin" type="button" class="pill-sm flex-none" @click="merging = true">{{ t('merge.open') }}</button>
+        <!-- the look: icons or coloured tiles with covers -->
+        <div class="flex flex-none items-center rounded-full bg-surface p-1" role="radiogroup" :aria-label="t('genres.style')">
+          <button
+            v-for="m in STYLES"
+            :key="m.key"
+            type="button"
+            role="radio"
+            class="grid size-8 place-items-center rounded-full transition-colors"
+            :class="style === m.key ? 'bg-bg text-ink shadow-sm' : 'text-muted hover:text-ink'"
+            :aria-checked="style === m.key"
+            :aria-label="t(`genres.style_${m.key}`)"
+            :title="t(`genres.style_${m.key}`)"
+            @click="style = m.key"
+          >
+            <component :is="m.icon" :size="16" :stroke-width="1.6" />
+          </button>
+        </div>
         <SelectPill v-model="sort" :label="t('common.sort')" :icon="ArrowDownUp" :options="(['size', 'name'] as const).map((s) => ({ value: s, label: t(`genres.sort_${s}`) }))" />
       </div>
     </LibraryHeader>
@@ -125,7 +177,41 @@ onUnmounted(() => observer?.disconnect())
     <PickBar v-if="picking" :count="picked.length" @cancel="stopPicking" @merge="choosing = true" />
     <PickedMergeSheet v-if="choosing" kind="genre" :picked="picked.map((g) => ({ id: g.id, name: g.name, songs: g.track_count }))" @close="choosing = false" @merged="afterMerge" />
 
-    <ul class="grid grid-cols-3 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-3">
+    <ul v-if="style === 'cover'" class="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-4">
+      <!-- off-screen tiles are neither drawn nor painted (content-visibility): smooth scrolling on phones -->
+      <li v-for="(g, i) in shown" :key="g.id" class="[contain-intrinsic-size:auto_150px] [content-visibility:auto]" :class="i < wide ? 'col-span-2' : ''">
+        <component
+          :is="picking ? 'button' : RouterLink"
+          v-bind="picking ? { type: 'button', 'aria-pressed': isPicked(g) } : { to: { name: 'tracks', query: { genre: g.id } } }"
+          class="group relative block w-full select-none overflow-hidden rounded-2xl border [-webkit-touch-callout:none] text-left text-ink shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+          :class="[i < wide ? 'aspect-[2.1/1]' : 'aspect-[1.35/1]', picking && isPicked(g) ? 'ring-[3px] ring-accent ring-offset-2 ring-offset-bg' : '']"
+          v-long-press="auth.user?.is_admin ? () => pressPick(g) : null"
+          @click="picking && pickOne(g)"
+          :style="tint(g.name)"
+        >
+          <span class="relative z-10 flex flex-col p-4" :class="i < wide ? 'md:p-5' : ''">
+            <span class="font-bold leading-tight [text-wrap:balance]" :class="i < wide ? 'text-[26px] md:text-[30px]' : 'text-[20px]'">{{ g.name }}</span>
+            <span class="mt-1 text-[13px] font-medium text-muted">{{ t('common.tracks', g.track_count) }}</span>
+          </span>
+          <!-- the genre's biggest albums, fanned out in the corner -->
+          <span v-if="g.covers?.length" class="absolute bottom-[-12%] right-[-6%] h-[62%] w-[42%]" aria-hidden="true">
+            <img
+              v-for="(c, k) in g.covers.slice(0, 3)"
+              :key="c.id"
+              :src="coverUrl(c.id, 'thumb', c.v)"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="absolute bottom-0 right-0 aspect-square h-full rounded-lg object-cover shadow-[0_3px_8px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out"
+              :class="[FAN[k + 3 - Math.min(3, g.covers.length)], FAN_HOVER[k + 3 - Math.min(3, g.covers.length)]]"
+            />
+          </span>
+          <span v-else class="absolute bottom-3 right-4 text-[64px] font-black leading-none text-ink/10" aria-hidden="true">#</span>
+          <span v-if="picking" class="absolute right-2.5 top-2.5 z-20 grid size-7 place-items-center rounded-full border-2" :class="isPicked(g) ? 'border-white bg-accent text-white' : 'border-white bg-black/25'"><Check v-if="isPicked(g)" :size="16" :stroke-width="2.5" /></span>
+        </component>
+      </li>
+    </ul>
+    <ul v-else class="grid grid-cols-3 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-3">
       <!-- off-screen tiles are neither drawn nor painted (content-visibility): smooth scrolling on phones -->
       <li v-for="g in shown" :key="g.id" class="[contain-intrinsic-size:auto_160px] [content-visibility:auto]">
         <component
