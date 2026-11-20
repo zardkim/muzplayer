@@ -21,7 +21,7 @@ import { connectNative } from './native'
 import { startPrefsSync } from './prefsSync'
 import { startNews } from './news'
 import NewsBell from './components/NewsBell.vue'
-import { useUi } from './stores/ui'
+import { SIDEBAR_MAX, SIDEBAR_MIN, useUi } from './stores/ui'
 import AccountMenu from './components/AccountMenu.vue'
 import AppLogo from './components/AppLogo.vue'
 import BookPlayer from './components/BookPlayer.vue'
@@ -291,6 +291,33 @@ function fold(label: string) {
   else views[`side:${label}`] = 'folded'
   ui.views = views
 }
+// the open sidebar's width: its right edge dragged (or arrow keys on it), from as it was to half again as wide;
+// a double click puts it back
+const resizing = ref(false)
+const clampWidth = (w: number) => Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w)))
+function startResize(e: PointerEvent) {
+  const handle = e.currentTarget as HTMLElement
+  const from = e.clientX
+  const was = ui.sidebarWidth
+  resizing.value = true
+  handle.setPointerCapture(e.pointerId)
+  const move = (ev: PointerEvent) => (ui.sidebarWidth = clampWidth(was + ev.clientX - from))
+  const end = () => {
+    resizing.value = false
+    handle.removeEventListener('pointermove', move)
+    handle.removeEventListener('pointerup', end)
+    handle.removeEventListener('pointercancel', end)
+  }
+  handle.addEventListener('pointermove', move)
+  handle.addEventListener('pointerup', end)
+  handle.addEventListener('pointercancel', end)
+}
+function resizeKey(e: KeyboardEvent) {
+  const step = e.key === 'ArrowRight' ? 16 : e.key === 'ArrowLeft' ? -16 : 0
+  if (!step) return
+  e.preventDefault()
+  ui.sidebarWidth = clampWidth(ui.sidebarWidth + step)
+}
 // the PC player page keeps the bar (it holds the controls)
 const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
 </script>
@@ -302,8 +329,9 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
     <!-- desktop sidebar -->
     <nav
       :aria-label="t('nav.mainMenu')"
-      class="hidden flex-none flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line py-7 transition-[width] duration-200 md:flex"
-      :class="ui.sidebarCollapsed ? 'w-[76px] px-3' : 'w-60 px-4'"
+      class="hidden flex-none flex-col gap-0.5 overflow-y-auto overflow-x-hidden border-r border-line py-7 md:flex"
+      :class="[ui.sidebarCollapsed ? 'w-[76px] px-3' : 'px-4', resizing ? '' : 'transition-[width] duration-200']"
+      :style="ui.sidebarCollapsed ? undefined : { width: `${ui.sidebarWidth}px` }"
     >
       <div class="mb-6 flex items-center" :class="ui.sidebarCollapsed ? 'flex-col gap-3' : 'justify-between pl-2.5'">
         <RouterLink to="/"><AppLogo :size="32" :wordmark="!ui.sidebarCollapsed" /></RouterLink>
@@ -400,6 +428,24 @@ const barHidden = computed(() => ui.barHidden && route.name !== 'playing')
       <!-- the person: switch accounts, devices, settings, sign out -->
       <AccountMenu variant="sidebar" :collapsed="ui.sidebarCollapsed" class="mt-1 flex-none" />
     </nav>
+    <!-- the open sidebar's edge: drag to widen it (up to half again as wide) -->
+    <div
+      v-if="!ui.sidebarCollapsed"
+      role="separator"
+      aria-orientation="vertical"
+      tabindex="0"
+      :aria-label="t('nav.resizeMenu')"
+      :title="t('nav.resizeMenu')"
+      :aria-valuenow="ui.sidebarWidth"
+      :aria-valuemin="SIDEBAR_MIN"
+      :aria-valuemax="SIDEBAR_MAX"
+      class="group relative z-20 -ml-1.5 hidden w-3 flex-none cursor-col-resize touch-none outline-none md:block"
+      @pointerdown.prevent="startResize"
+      @dblclick="ui.sidebarWidth = SIDEBAR_MIN"
+      @keydown="resizeKey"
+    >
+      <span class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors group-hover:bg-line-strong group-focus-visible:bg-ink" :class="resizing ? 'bg-ink' : ''" />
+    </div>
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- desktop top bar -->

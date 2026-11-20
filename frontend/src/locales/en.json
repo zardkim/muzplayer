@@ -23,6 +23,7 @@
     "charts": "Charts & Themes",
     "audiobooks": "Audiobooks",
     "expandMenu": "Expand menu",
+    "resizeMenu": "Resize the menu (drag; double-click to reset)",
     "collapseMenu": "Collapse menu",
     "libraryMenu": "Library",
     "folders": "Folders",

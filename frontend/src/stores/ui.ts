@@ -53,7 +53,10 @@ const PLAYER_PREFS: PlayerPrefs = {
   quality: 'orig', qualityCellular: 'orig', lyricsSize: 2,
 }
 
-function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; views?: Record<string, string>; theme?: string; appIcon?: string; player?: Partial<PlayerPrefs>; radio?: RadioMarks } {
+export const SIDEBAR_MIN = 240 // px: the sidebar as it always was
+export const SIDEBAR_MAX = SIDEBAR_MIN * 1.5
+
+function loadPrefs(): { barHidden?: boolean; sidebarCollapsed?: boolean; sidebarWidth?: number; views?: Record<string, string>; theme?: string; appIcon?: string; player?: Partial<PlayerPrefs>; radio?: RadioMarks } {
   try {
     return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
   } catch {
@@ -116,6 +119,8 @@ export const useUi = defineStore('ui', () => {
   const prefs = loadPrefs()
   const barHidden = ref(!!prefs.barHidden || !!prefs.player?.startMinimized) // Settings → start minimized
   const sidebarCollapsed = ref(!!prefs.sidebarCollapsed)
+  // its width when open, dragged by its edge (this device's): SIDEBAR_MIN up to half again as wide
+  const sidebarWidth = ref(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Number(prefs.sidebarWidth) || SIDEBAR_MIN)))
   const views = ref<Record<string, string>>(prefs.views ?? {})
   // colour theme; index.html applies the stored one before the first paint, this keeps it in step
   const playerPrefs = ref<PlayerPrefs>({ ...PLAYER_PREFS, ...prefs.player })
@@ -144,10 +149,10 @@ export const useUi = defineStore('ui', () => {
     { immediate: true },
   )
   watch(
-    [barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, radio],
+    [barHidden, sidebarCollapsed, sidebarWidth, views, theme, appIcon, playerPrefs, radio],
     () => {
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, views: views.value, theme: theme.value, appIcon: appIcon.value, player: playerPrefs.value, radio: radio.value }))
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ barHidden: barHidden.value, sidebarCollapsed: sidebarCollapsed.value, sidebarWidth: sidebarWidth.value, views: views.value, theme: theme.value, appIcon: appIcon.value, player: playerPrefs.value, radio: radio.value }))
       } catch {
         /* not kept */
       }
@@ -167,6 +172,6 @@ export const useUi = defineStore('ui', () => {
 
   return {
     radio, toast, notify, playerOpen, queueOpen, playlistPicker, lyricsOpen, libraryCheckedAt, videoTarget, lyricsTarget, lyricsAdmin, videoChanged, videoQueue, videoPick, thumbBust, inlineVideo, videoLink, videoLinkTab, videoLinked,
-    barHidden, sidebarCollapsed, views, theme, appIcon, playerPrefs, wide, playerTab,
+    barHidden, sidebarCollapsed, sidebarWidth, views, theme, appIcon, playerPrefs, wide, playerTab,
   }
 })

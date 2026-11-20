@@ -23,6 +23,7 @@
     "charts": "차트·테마",
     "audiobooks": "오디오북",
     "expandMenu": "메뉴 펼치기",
+    "resizeMenu": "메뉴 폭 조절 (끌어서 조절, 두 번 클릭하면 원래대로)",
     "collapseMenu": "메뉴 접기",
     "libraryMenu": "라이브러리",
     "folders": "폴더",
