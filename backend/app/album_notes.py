@@ -27,7 +27,7 @@ from pathlib import Path
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from . import appconf, net, search_index
+from . import appconf, background, net, search_index
 from .library_paths import library_path
 from .models import Album, Artist, Track
 from .scanner import DISC_DIR, nfc
@@ -324,6 +324,8 @@ def _lookup() -> None:
                 .limit(LOOKUP_PER_RUN)
             ))
             for album_id in ids:
+                if background.stop.is_set():
+                    return  # a restore is waiting (the rest next time)
                 album = db.get(Album, album_id)
                 if album is None or album.description is not None:
                     continue
@@ -360,6 +362,8 @@ def _lookup_ratings(db: Session) -> None:
         .limit(LOOKUP_PER_RUN)
     ))
     for album_id in ids:
+        if background.stop.is_set():
+            return  # a restore is waiting
         album = db.get(Album, album_id)
         if album is None:
             continue

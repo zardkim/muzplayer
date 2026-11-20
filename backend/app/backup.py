@@ -34,7 +34,7 @@ from alembic.script import ScriptDirectory
 from alembic.util import CommandError
 from sqlalchemy import text
 
-from . import appconf, cache
+from . import appconf, background, cache
 from .config import settings
 from .db import Base, engine
 
@@ -193,11 +193,22 @@ def check(path: Path) -> dict:
 
 
 def _busy_locks() -> list[threading.Lock]:
-    """Everything that writes the library in the background: none may run during a restore."""
-    from . import album_notes, artist_aliases, artist_images, artist_links, extract, search_index
+    """What writes the library in the background and is left to finish: a restore waits for none of it
+    (a running scan is stopped from the admin page)."""
+    from . import artist_links, extract, search_index
     from .scanner import scan_lock
 
-    return [scan_lock(), artist_aliases._lock, album_notes._lookup_lock, artist_images._lock, artist_links._lock, search_index._rebuild_lock, extract._lock]
+    return [scan_lock(), artist_links._lock, search_index._rebuild_lock, extract._lock]
+
+
+def _lookup_locks() -> list[threading.Lock]:
+    """The site lookups that run after a scan: asked to stop (background.stop), a restore waits for them."""
+    from . import album_notes, artist_aliases, artist_images
+
+    return [album_notes._lookup_lock, artist_aliases._lock, artist_images._lock]
+
+
+LOOKUP_WAIT = 60  # seconds: one site request still answering (with its retries)
 
 
 # ---- a restore runs in the background (a large library takes a while; a proxy may cut a long
@@ -239,6 +250,13 @@ def restore(path: Path) -> dict:
         held.callback(_running.release)
         for lock in _busy_locks():
             if not lock.acquire(blocking=False):
+                raise BackupError("backup_busy_scan")
+            held.callback(lock.release)
+        # the lookups on the sites stop where they are (they go on after the next scan)
+        background.stop.set()
+        held.callback(background.stop.clear)
+        for lock in _lookup_locks():
+            if not lock.acquire(timeout=LOOKUP_WAIT):
                 raise BackupError("backup_busy_scan")
             held.callback(lock.release)
         try:

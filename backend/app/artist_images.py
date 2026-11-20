@@ -26,7 +26,7 @@ from PIL import Image, ImageOps
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from . import net
+from . import background, net
 from .config import settings
 from .db import SessionLocal
 from .models import Album, Artist, LibraryFolder, Track
@@ -432,6 +432,8 @@ def _lookup() -> None:
             ))
             status["total"] = len(ids)
             for artist_id in ids:
+                if background.stop.is_set():
+                    break  # a restore is waiting (the rest next time)
                 artist = db.get(Artist, artist_id)
                 if artist is None or artist.image_path is not None:
                     status["done"] += 1

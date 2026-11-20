@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
 
-from . import appconf, net, search_index
+from . import appconf, background, net, search_index
 from .models import Artist, Track
 
 log = logging.getLogger(__name__)
@@ -197,6 +197,8 @@ def _lookup() -> None:
                 .limit(PER_RUN)
             ))
             for artist_id in ids:
+                if background.stop.is_set():
+                    break  # a restore is waiting (the rest next time)
                 artist = db.get(Artist, artist_id)
                 if artist is None:
                     continue
