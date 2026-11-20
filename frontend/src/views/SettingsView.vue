@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { AudioLines, BookHeadphones, Check, ChevronRight, Download, HardDrive, House, MonitorSmartphone, Play, Radio, Smartphone, Sparkles, User } from '@lucide/vue'
+import { AudioLines, BookHeadphones, Check, ChevronRight, Download, ExternalLink, HardDrive, House, Info, MonitorSmartphone, Play, Radio, Smartphone, Sparkles, User } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
@@ -22,6 +22,7 @@ import ThemeSwitch from '../components/ThemeSwitch.vue'
 import SelectRow from '../components/SelectRow.vue'
 import ToggleRow from '../components/ToggleRow.vue'
 import PageHeader from '../components/PageHeader.vue'
+import AppLogo from '../components/AppLogo.vue'
 
 // Settings: a menu of its parts, each on its own screen (/settings/<part>). Wide screens show the
 // menu beside the open part (the first one when none is picked).
@@ -100,6 +101,7 @@ const sections = computed(() => [
   ...(appConfig.audiobooks ? [{ key: 'audiobooks', title: 'settings.audiobooks', hint: 'settings.menu_audiobooks', icon: BookHeadphones }] : []),
   { key: 'install', title: 'settings.installTitle', hint: 'settings.menu_install', icon: Smartphone },
   { key: 'account', title: 'settings.account', hint: 'settings.menu_account', icon: User },
+  { key: 'about', title: 'settings.about', hint: 'settings.menu_about', icon: Info },
 ])
 const open = computed(() => sections.value.find((x) => x.key === props.section) ?? null)
 
@@ -133,6 +135,16 @@ async function updateApp() {
 const phone = isIos || isAndroid
 const iconFile = (v: string) => (v === 'auto' || v === 'light' ? '/icon-180.png' : `/icon-${v}-180.png`)
 const shown = computed(() => open.value?.key ?? 'display') // the part a wide screen shows
+// about: where the source, its licence and the releases are
+const REPO = 'https://github.com/zardkim/muzplayer'
+const aboutLinks = [
+  { label: 'settings.aboutSource', href: REPO },
+  { label: 'settings.aboutReleases', href: `${REPO}/releases` },
+  { label: 'settings.aboutLicense', href: `${REPO}/blob/main/LICENSE` },
+  { label: 'settings.aboutNotices', href: `${REPO}/blob/main/THIRD_PARTY_NOTICES.md` },
+  { label: 'settings.aboutIssues', href: `${REPO}/issues` },
+  { label: 'settings.aboutDocker', href: 'https://hub.docker.com/r/zardkim/muzplayer' },
+]
 </script>
 
 <template>
@@ -335,6 +347,35 @@ const shown = computed(() => open.value?.key ?? 'display') // the part a wide sc
             </div>
             <p class="text-[13px] font-light leading-relaxed text-muted">{{ isIos ? t('settings.appIconIos') : t('settings.appIconAndroid') }}</p>
           </div>
+        </section>
+
+        <section v-if="shown === 'about'" class="flex flex-col gap-5">
+          <h2 class="hidden text-[22px] font-bold md:block">{{ t('settings.about') }}</h2>
+          <div class="flex items-center gap-4">
+            <AppLogo :size="48" :wordmark="false" />
+            <div class="flex flex-col">
+              <span class="text-[20px] font-bold">muzplayer</span>
+              <span class="font-display text-[14px] text-muted">{{ version ? t('settings.version', { v: version }) : '' }}</span>
+              <span v-if="native" class="text-[13px] text-muted">{{ t('settings.inWindowsApp', { v: native.version }) }}</span>
+            </div>
+          </div>
+          <p class="text-[14px] font-light leading-relaxed text-soft">{{ t('settings.aboutText') }}</p>
+          <div class="flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3.5 text-[14px]">
+            <span class="text-[13px] text-muted">{{ t('settings.aboutLicenseTitle') }}</span>
+            <span>GNU General Public License v3.0 or later (GPL-3.0-or-later)</span>
+            <span class="text-[13px] font-light text-muted">{{ t('settings.aboutLicenseText') }}</span>
+          </div>
+          <ul class="flex flex-col divide-y divide-line">
+            <li v-for="l in aboutLinks" :key="l.href">
+              <a :href="l.href" target="_blank" rel="noopener" class="flex min-h-[52px] items-center gap-3 py-2 hover:text-accent">
+                <span class="flex min-w-0 flex-1 flex-col">
+                  <span class="text-[15px]">{{ t(l.label) }}</span>
+                  <span class="truncate text-[12px] font-light text-muted">{{ l.href.replace('https://', '') }}</span>
+                </span>
+                <ExternalLink :size="16" :stroke-width="1.6" class="flex-none text-muted" />
+              </a>
+            </li>
+          </ul>
         </section>
 
         <section v-if="shown === 'account'" class="flex flex-col gap-3">
