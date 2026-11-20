@@ -1191,6 +1191,40 @@
       "decade": "Songs from {decade} albums"
     }
   },
+  "trackInfo": {
+    "menu": "Info",
+    "title": "Song info",
+    "fileTitle": "File",
+    "encodingTitle": "Encoding",
+    "tagsTitle": "Tags",
+    "folder": "Path",
+    "file": "File name",
+    "size": "Size",
+    "modified": "Modified",
+    "added": "Added to the library",
+    "state": "State",
+    "format": "Format",
+    "codec": "Codec",
+    "length": "Length",
+    "sampleRate": "Sample rate",
+    "bitDepth": "Bit depth",
+    "bitrate": "Bitrate",
+    "channels": "Channels",
+    "encoder": "Encoder",
+    "encoderSettings": "Encoder settings",
+    "rgTrack": "ReplayGain (track)",
+    "rgAlbum": "ReplayGain (album)",
+    "lyrics": "Lyrics",
+    "lyricsTags": "in the tags",
+    "lyricsFile": ".lrc file",
+    "none": "None"
+  },
+  "metadata": {
+    "refresh": "Refresh metadata",
+    "running": "Reading again…",
+    "help": "Reads this folder's tags and file details again (only this folder is scanned). Stars and plays stay.",
+    "done": "Metadata read again."
+  },
   "smartWizard": {
     "defaultName": "{name}'s Smart Playlist",
     "tasteTitle": "My taste",

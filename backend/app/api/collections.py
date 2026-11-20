@@ -228,7 +228,7 @@ def get_chart(chart_id: int, user: User = Depends(current_user), db: Session = D
     shared = db.scalar(
         select(Playlist.id).where(Playlist.chart_id == chart.id, Playlist.is_shared.is_(True)).order_by(Playlist.id.desc()).limit(1)
     )
-    return {**item_out(chart, len(tracks), covers, load_banners(db)), "tracks": tracks, "shared_playlist_id": shared}
+    return {**item_out(chart, len(tracks), covers, load_banners(db)), "folder": chart.folder_path, "tracks": tracks, "shared_playlist_id": shared}
 
 
 class SharedIn(BaseModel):

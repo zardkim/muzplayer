@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ListMusic, ListPlus, Sparkles } from '@lucide/vue'
+import { FolderOpen, ListMusic, ListPlus, Sparkles } from '@lucide/vue'
 import { api } from '../api'
 import { appConfig } from '../config'
 import { errorMessage } from '../i18n'
@@ -12,6 +12,7 @@ import type { ChartDetail, CollectionBanner } from '../types'
 import BannerCard from '../components/BannerCard.vue'
 import BannerSheet from '../components/BannerSheet.vue'
 import PlayActions from '../components/PlayActions.vue'
+import MetadataRefresh from '../components/MetadataRefresh.vue'
 import TrackList from '../components/TrackList.vue'
 
 const props = defineProps<{ id: string }>()
@@ -69,6 +70,10 @@ function applied(banner: CollectionBanner | null) {
       </button>
     </BannerCard>
     <h1 class="sr-only">{{ chart.title }}</h1>
+    <!-- where it is in the library -->
+    <p class="-mt-2 flex select-text items-start gap-1.5 break-all text-[13px] font-light text-muted" :title="t('trackInfo.folder')">
+      <FolderOpen :size="14" :stroke-width="1.6" class="mt-0.5 flex-none" />{{ chart.folder.normalize('NFC') }}
+    </p>
     <div class="flex flex-wrap gap-2">
       <PlayActions :tracks="chart.tracks" />
       <!-- into my playlist · the shared one: side by side on one line, a phone's too -->
@@ -84,6 +89,7 @@ function applied(banner: CollectionBanner | null) {
         </button>
       </div>
     </div>
+    <MetadataRefresh v-if="auth.user?.is_admin" :folders="[chart.folder]" class="-mt-2 self-start" @done="api<ChartDetail>(`/charts/${props.id}`).then((c) => (chart = c), () => {})" />
     <TrackList :tracks="chart.tracks" ranked :discs="multiDisc" />
     <BannerSheet v-if="editing" :chart="chart" @close="editing = false" @applied="applied" />
   </div>

@@ -192,6 +192,13 @@ curl -s -b "$A" -o /dev/null -X POST "$BASE/history" -H 'content-type: applicati
 check "play counted in most played mix" "$(curl -s -b "$A" "$BASE/mixes/top" | j "$tid in [t['id'] for t in d['tracks']]")" True
 check "random mix" "$(curl -s -b "$A" "$BASE/mixes/random" | j 'len(d["tracks"]) > 0')" True
 sid=$(curl -s -b "$A" -X POST "$BASE/playlists" -H 'content-type: application/json' -d '{"name":"smoke smart","rules":{"match":"all","rules":[{"field":"rating","op":"gte","value":5}],"sort":"title","limit":50}}' | j 'd["id"]')
+check "album shows its folder" "$(curl -s -b "$A" "$BASE/albums/$aid" | j 'len(d["folders"]) > 0 and all("/" in f for f in d["folders"])')" True
+check "song info: file, encoding, tags" "$(curl -s -b "$A" "$BASE/tracks/$tid/info" | j '(d["file"] != "", d["size"] > 0, "sample_rate" in d["stream"], isinstance(d["tags"], dict))')" "(True, True, True, True)"
+afolder=$(curl -s -b "$A" "$BASE/albums/$aid" | j 'd["folders"][0]')
+check "an album's metadata refreshed (its folder only)" "$(scan "$(python3 -c 'import json,sys; print(json.dumps({"folder": sys.argv[1], "mode": "rescan"}))' "$afolder")")/$(curl -s -b "$A" "$BASE/admin/scan/latest" | j 'd["job"]["folder"] == '"$(python3 -c 'import json,sys,unicodedata; print(json.dumps(unicodedata.normalize("NFC", sys.argv[1])))' "$afolder")")" "done/True"
+check "no folder outside the library" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/scan" -H 'content-type: application/json' -d '{"folder":"album/../x","mode":"rescan"}')" 400
+check "no reset of a folder inside one" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/scan" -H 'content-type: application/json' -d '{"folder":"album/x","mode":"reset"}')" 400
+check "no info of a song that isn't there" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' "$BASE/tracks/999999/info")" 404
 check "smart playlist follows its rules" "$(curl -s -b "$A" "$BASE/playlists/$sid" | j "$tid in [e['track']['id'] for e in d['entries']]")" True
 check "songs can't be put in a smart playlist" "$(curl -s -b "$A" -o /dev/null -w '%{http_code}' -X POST "$BASE/playlists/$sid/tracks" -H 'content-type: application/json' -d "{\"track_ids\":[$tid]}")" 400
 # the smart playlist wizard: each user's taste, lists made from it, kept for a day, songs left out

@@ -14,6 +14,7 @@ import type { Track } from '../types'
 import { useLongPress, useSwipe } from '../swipe'
 import CoverArt from './CoverArt.vue'
 import StarRating from './StarRating.vue'
+import TrackInfoSheet from './TrackInfoSheet.vue'
 import YoutubeIcon from './YoutubeIcon.vue'
 
 const props = withDefaults(
@@ -54,6 +55,7 @@ const L = computed(() => ({
   favAdd: t('common.favoriteAdd'), popular: t('common.popular'), favRemove: t('common.favoriteRemove'), more: t('common.moreActions'),
 }))
 const menuOpen = ref<number | null>(null)
+const infoOf = ref<Track | null>(null) // the song menu's "info": its file, encoding and tags
 const menuUp = ref(false) // rows low on the screen open their menu upwards, clear of the player bar
 
 // ---- multi-select (checkbox column on wider screens) ----
@@ -322,6 +324,7 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
                   <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (ui.playlistPicker = [track]))">{{ t('common.addToPlaylist') }}</button>
                   <button v-if="track.has_video || isAdmin" type="button" class="px-4 py-3 text-left hover:bg-surface" @click="videos(track)">{{ t('common.watchVideos') }}</button>
                 </template>
+                <button type="button" class="px-4 py-3 text-left hover:bg-surface" @click="action(() => (infoOf = track))">{{ t('trackInfo.menu') }}</button>
                 <RouterLink v-if="track.album_id && track.album_kind !== 'chart'" :to="{ name: 'album', params: { id: track.album_id } }" class="px-4 py-3 hover:bg-surface" @click="menuOpen = null">{{ t('common.goToAlbum') }}</RouterLink>
                 <!-- each of its artists (feat. too); one: just "go to artist" -->
                 <template v-if="(track.artists?.length ?? 0) > 1">
@@ -344,5 +347,6 @@ onUnmounted(() => document.removeEventListener('click', closeMenu))
         </li>
       </template>
     </ol>
+    <TrackInfoSheet v-if="infoOf" :track="infoOf" @close="infoOf = null" />
   </div>
 </template>

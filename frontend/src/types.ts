@@ -58,6 +58,7 @@ export interface AlbumDetail extends Album {
   description_source: string | null // eztag | bugs:<id> | melon:<id> | manual
   // how listeners rate it on the sites, looked up after a scan (Bugs has likes, no stars)
   site_ratings: { melon?: { id: string; score: number; count: number }; bugs?: { id: string; likes: number } } | null
+  folders: string[] // where its songs are in the library (its CD1 / CD2 folders count as one)
 }
 
 export interface Artist {
@@ -149,6 +150,7 @@ export interface Chart {
 }
 
 export interface ChartDetail extends Chart {
+  folder: string // where it is in the library
   tracks: Track[]
   shared_playlist_id: number | null // the shared playlist made from it (the newest)
 }

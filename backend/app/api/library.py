@@ -21,7 +21,7 @@ from ..models import (
     Album, AlbumFavorite, AlbumRating, Artist, Favorite, FetchedLyrics, Genre, PlayCount, Track, TrackArtist, TrackGenre,
     TrackRating, User, Video,
 )
-from ..scanner import COVER_SIZES, DAMAGED, bump_library, cover_file
+from ..scanner import COVER_SIZES, DAMAGED, DISC_DIR, LOSSLESS_EXTS, bump_library, cover_file
 from ..security import admin_user, api_error, current_user
 
 router = APIRouter()
@@ -380,12 +380,12 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
     row = db.execute(album_list_query([Album.id == album_id])).first()
     if row is None:
         raise api_error(404, "not_found")
-    tracks = db.execute(
+    rows = db.execute(
         track_query(user.id)
         .where(Track.album_id == album_id, present_tracks())
         .order_by(Track.disc_no.nulls_first(), Track.track_no.nulls_last(), Track.file_path)
-    )
-    tracks = [track_out(t) for t in tracks]
+    ).all()
+    tracks = [track_out(t) for t in rows]
     rated = [t["rating"] for t in tracks if t["rating"]]
     mark_popular(db, tracks)
     album = db.get(Album, album_id)
@@ -401,8 +401,20 @@ def get_album(album_id: int, user: User = Depends(current_user), db: Session = D
         "description": album.description,
         "description_source": album.description_source if album.description else None,
         "site_ratings": album.site_ratings or None,
+        "folders": album_folders([r[0].file_path for r in rows]),
         "tracks": tracks,
     }
+
+
+def album_folders(paths: list[str]) -> list[str]:
+    """Where an album's songs are in the library (CD1 / CD2 count as their album's folder), in order."""
+    out: dict[str, None] = {}
+    for rel in paths:
+        folder = Path(rel).parent
+        if DISC_DIR.match(unicodedata.normalize("NFC", folder.name)) and len(folder.parts) > 1:
+            folder = folder.parent
+        out[folder.as_posix()] = None
+    return list(out)
 
 
 @router.get("/albums/{album_id}/cover")
@@ -736,6 +748,68 @@ def serve_track(db: Session, track_id: int, request: Request, quality: str, leve
     if res is None:
         raise api_error(503, "transcode_failed")
     return res
+
+
+# what the file header says, as mutagen names it (each kept only when the format has it)
+STREAM_INFO = ("codec", "codec_description", "channels", "sample_rate", "bits_per_sample", "bitrate", "encoder_info", "encoder_settings")
+MP3_MODES = {0: "stereo", 1: "joint stereo", 2: "dual channel", 3: "mono"}
+
+
+@router.get("/tracks/{track_id}/info")
+def track_info(track_id: int, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function")):
+    """A song's file: where it is, its size and dates, how it is encoded (read from the file now) and
+    every tag the scan read (lyrics shortened)."""
+    track = db.get(Track, track_id)
+    if track is None:
+        raise api_error(404, "not_found")
+    path = library_path(track.file_path)
+    stream: dict[str, object] = {}
+    try:
+        st = path.stat()
+        size, modified = st.st_size, datetime.fromtimestamp(st.st_mtime, UTC)
+    except OSError:
+        size, modified = track.file_size, datetime.fromtimestamp(track.file_mtime, UTC)
+    try:
+        import mutagen
+
+        info = mutagen.File(path).info
+        for key in STREAM_INFO:
+            value = getattr(info, key, None)
+            if value not in (None, "", 0):
+                stream[key] = value if isinstance(value, (int, float)) else str(value)
+        if hasattr(info, "layer") and hasattr(info, "bitrate_mode"):  # MP3
+            stream["codec"] = f"MPEG-{info.version:g} Layer {info.layer}"
+            stream["bitrate_mode"] = str(info.bitrate_mode).rsplit(".", 1)[-1]  # BitrateMode.VBR -> VBR
+            if info.mode in MP3_MODES:
+                stream["mode"] = MP3_MODES[info.mode]
+    except Exception:  # unreadable now: what the scan stored is shown
+        pass
+    tags = {
+        k: (v if k != "lyrics" else [f"({sum(len(x) for x in v)})"])
+        for k, v in sorted((track.tag_json or {}).items())
+        if not k.startswith("_")
+    }
+    return {
+        "path": track.file_path,
+        "album_id": track.album_id,
+        "folder": Path(track.file_path).parent.as_posix(),
+        "file": Path(track.file_path).name,
+        "size": size,
+        "modified": modified,
+        "added": track.created_at,
+        "missing": track.missing_at is not None,
+        "scan_error": track.scan_error,
+        "format": track.format,
+        "duration": track.duration,
+        "sample_rate": track.sample_rate or None,
+        "bit_depth": track.bit_depth or None,
+        "bitrate": track.bitrate or None,
+        "lossless": Path(track.file_path).suffix.lower() in LOSSLESS_EXTS or stream.get("codec") == "alac",
+        "replaygain": {k: getattr(track, k) for k in ("rg_track_gain", "rg_track_peak", "rg_album_gain", "rg_album_peak") if getattr(track, k) is not None},
+        "lyrics": {"tags": bool(track.lrc_tag), "file": track.lrc_file},
+        "stream": stream,
+        "tags": tags,
+    }
 
 
 @router.get("/tracks/{track_id}/lyrics")

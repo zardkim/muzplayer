@@ -61,6 +61,13 @@ def scan(body: ScanIn | None = None, _: User = Depends(admin_user), db: Session 
     body = body or ScanIn()
     if body.mode != "scan" and body.folder is None:
         raise api_error(400, "folder_required")  # rescan/reset of everything: not offered
+    if body.folder is not None:
+        parts = body.folder.strip("/").split("/")
+        if any(p in ("", ".", "..") for p in parts) or "\\" in body.folder:
+            raise api_error(400, "invalid_folder")
+        if len(parts) > 1 and body.mode == "reset":
+            raise api_error(400, "invalid_folder")  # a reset is for a top-level folder (admin → library folders)
+        body.folder = "/".join(parts)
     job = start_scan(db, nfc(body.folder) if body.folder else None, body.mode)
     if job is None:
         raise api_error(409, "scan_running")

@@ -998,19 +998,23 @@ def _scan(job_id: int) -> None:
         if not root.is_dir():
             raise RuntimeError(f"music_dir_not_found: {root}")
         kinds = folder_kinds(db)
-        scope = job.folder  # one top-level folder (NFC), or None for the whole library
+        # one top-level folder, or a folder inside one (an album's or chart's metadata refreshed; NFC),
+        # or None for the whole library
+        scope = job.folder
+        scope_top = scope.split("/", 1)[0] if scope is not None else None
+        inner = scope.split("/")[1:] if scope is not None else []  # the folders under the top-level one
         start = None
         top = extract_top()  # the extraction folder beside the music folder, listed as one of its folders
-        if scope is not None and scope == top:
-            start = settings.extract_dir if settings.extract_dir.is_dir() else None
+        if scope is not None and scope_top == top:
+            start = _find_dir(settings.extract_dir, inner) if settings.extract_dir.is_dir() else None
             if start is None:
                 raise RuntimeError(f"folder_not_found: {scope}")
         elif scope is not None:
             # stored names are NFC; on disk the folder may be spelled NFD (made on a Mac)
-            start = next((root / e.name for e in os.scandir(root) if e.is_dir() and nfc(e.name) == scope), None)
+            start = _find_dir(root, scope.split("/"))
             if start is None:
                 raise RuntimeError(f"folder_not_found: {scope}")
-            if job.mode == "reset":
+            if job.mode == "reset" and not inner:
                 # forget the folder's songs (and with them their stars, likes, plays and playlist places)
                 ids = list(db.scalars(select(Track.id).where(in_folder(scope))))
                 for i in range(0, len(ids), 1000):
@@ -1105,16 +1109,16 @@ def _scan(job_id: int) -> None:
         skip_paths = frozenset([os.path.normpath(books_dir)]) if books_dir else frozenset()
         excluded = {p for p, k in kinds.items() if k == "excluded"}
         lrc_files: set[str] = set()
-        if scope in excluded:
+        if scope_top in excluded:
             files = []
-        elif start is not None and scope == top:
-            files = _collect(start, existing, on_error, set(), skip_paths, None, lrc_files)
+        elif start is not None and scope_top == top:
+            files = _collect(settings.extract_dir, existing, on_error, set(), skip_paths, start, lrc_files)
         else:
             # a folder of the music library named like the extraction folder is left out (the extraction folder is that name)
             files = _collect(root, existing, on_error, excluded | ({top} if top else set()), skip_paths, start, lrc_files)
             if scope is None and top and top not in excluded and settings.extract_dir.is_dir():
                 files += _collect(settings.extract_dir, existing, on_error, set(), skip_paths, None, lrc_files)
-        if not files and scope not in excluded and any(t.missing_at is None for t in existing.values()):
+        if not files and not inner and scope_top not in excluded and any(t.missing_at is None for t in existing.values()):
             # an empty library is almost always an unmounted folder; don't hide everything
             raise RuntimeError(f"library_empty: no audio files found under {start or root}")
         seen = {rel for rel, _, _ in files}
@@ -1408,9 +1412,24 @@ def bump_library(db: Session) -> None:
 
 
 def in_folder(folder: str):
-    """Tracks under one top-level folder, whatever Unicode form the path is stored in."""
+    """Tracks under one top-level folder, or a folder inside one ("album/아이유/[2017] Palette": an album's
+    or a chart's metadata refreshed), whatever Unicode form the path is stored in."""
+    if "/" in folder:
+        return func.starts_with(func.normalize(Track.file_path, text("NFC")), folder + "/")
     top = func.split_part(Track.file_path, "/", 1)
     return func.normalize(top, text("NFC")) == folder
+
+
+def _find_dir(base: Path, parts: list[str]) -> Path | None:
+    """The folder under base named by these parts (NFC), as it is spelled on disk (maybe NFD)."""
+    for part in parts:
+        try:
+            base = next((base / e.name for e in os.scandir(base) if e.is_dir() and nfc(e.name) == part), None)
+        except OSError:
+            return None
+        if base is None:
+            return None
+    return base
 
 
 def start_scan(db: Session, folder: str | None = None, mode: str = "scan") -> ScanJob | None:

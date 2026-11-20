@@ -1191,6 +1191,40 @@
       "decade": "{decade} 앨범의 곡"
     }
   },
+  "trackInfo": {
+    "menu": "정보",
+    "title": "곡 정보",
+    "fileTitle": "파일",
+    "encodingTitle": "인코딩",
+    "tagsTitle": "태그",
+    "folder": "경로",
+    "file": "파일 이름",
+    "size": "크기",
+    "modified": "수정한 날",
+    "added": "라이브러리에 추가된 날",
+    "state": "상태",
+    "format": "형식",
+    "codec": "코덱",
+    "length": "길이",
+    "sampleRate": "샘플레이트",
+    "bitDepth": "비트 심도",
+    "bitrate": "비트레이트",
+    "channels": "채널",
+    "encoder": "인코더",
+    "encoderSettings": "인코더 설정",
+    "rgTrack": "ReplayGain (곡)",
+    "rgAlbum": "ReplayGain (앨범)",
+    "lyrics": "가사",
+    "lyricsTags": "태그 안",
+    "lyricsFile": ".lrc 파일",
+    "none": "없음"
+  },
+  "metadata": {
+    "refresh": "메타데이터 새로고침",
+    "running": "다시 읽는 중…",
+    "help": "이 폴더의 태그와 파일 정보를 다시 읽습니다 (전체가 아닌 이 폴더만 스캔). 별점·재생 기록은 그대로입니다.",
+    "done": "메타데이터를 다시 읽었습니다."
+  },
   "smartWizard": {
     "defaultName": "{name}의 스마트 재생목록",
     "tasteTitle": "내 취향",

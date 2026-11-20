@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, Heart, PenLine, Star, Tag } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, FolderOpen, Heart, PenLine, Star, Tag } from '@lucide/vue'
 import { api } from '../api'
 import { neighbours } from '../albumNav'
 import { useSwipe } from '../swipe'
@@ -16,6 +16,7 @@ import ExtractTagSheet from '../components/ExtractTagSheet.vue'
 import CoverArt from '../components/CoverArt.vue'
 import DownloadButton from '../components/DownloadButton.vue'
 import PlayActions from '../components/PlayActions.vue'
+import MetadataRefresh from '../components/MetadataRefresh.vue'
 import AlbumBadges from '../components/AlbumBadges.vue'
 import StarRating from '../components/StarRating.vue'
 import VideoRow from '../components/VideoRow.vue'
@@ -106,6 +107,16 @@ function tagsSaved(r: { album_id: number | null }) {
   if (r.album_id && r.album_id !== album.value?.id) void router.replace({ name: 'album', params: { id: r.album_id } })
   else api<AlbumDetail>(`/albums/${props.id}`).then((a) => (album.value = a), () => {})
 }
+// admins: its folders read again (MetadataRefresh); its songs may be in another album after (tags changed)
+async function refreshed() {
+  const first = album.value?.tracks[0]?.id
+  try {
+    album.value = await api<AlbumDetail>(`/albums/${props.id}`)
+  } catch {
+    const info = first ? await api<{ album_id: number | null }>(`/tracks/${first}/info`).catch(() => null) : null
+    if (info?.album_id) void router.replace({ name: 'album', params: { id: info.album_id } })
+  }
+}
 const notesFull = ref(false)
 const longNotes = computed(() => (album.value?.description ?? '').length > 160 || (album.value?.description ?? '').split('\n').length > 3)
 function notesSaved(text: string | null, source: string | null) {
@@ -144,6 +155,10 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
         <Marquee as="h1" :text="album.title || t('common.unknownAlbum')" class="text-[30px] font-extrabold leading-tight tracking-tight md:text-[40px]" />
         <RouterLink v-if="album.artist_id" :to="{ name: 'artist', params: { id: album.artist_id } }" class="flex items-center text-lg font-medium">{{ album.artist }}<ChevronRight :size="18" :stroke-width="1.6" /></RouterLink>
         <span v-else class="text-lg text-muted">{{ t('common.unknownArtist') }}</span>
+        <!-- where it is in the library (each folder, when its songs are in more than one) -->
+        <p v-for="f in album.folders" :key="f" class="flex select-text items-start gap-1.5 break-all text-[13px] font-light text-muted" :title="t('trackInfo.folder')">
+          <FolderOpen :size="14" :stroke-width="1.6" class="mt-0.5 flex-none" />{{ f.normalize('NFC') }}
+        </p>
         <!-- the introduction: three lines under the title, the rest behind "more" -->
         <div v-if="album.description" class="flex max-w-2xl flex-col items-start gap-1">
           <p class="whitespace-pre-line text-[14px] font-light leading-relaxed text-soft" :class="notesFull ? '' : 'line-clamp-3'">{{ album.description }}</p>
@@ -208,6 +223,7 @@ const multiDisc = computed(() => new Set(album.value?.tracks.map((x) => x.disc_n
             <Heart :size="19" :stroke-width="1.4" :fill="album.is_favorite ? 'currentColor' : 'none'" />
           </button>
           <DownloadButton class="h-11" :list="saveAs" />
+          <MetadataRefresh v-if="auth.user?.is_admin" :folders="album.folders" large @done="refreshed" />
           <button v-if="auth.user?.is_admin && album.kind === 'extracted'" type="button" class="flex h-11 items-center gap-1.5 rounded-full border border-line-strong px-4 text-[14px] hover:border-ink" @click="tagsOpen = true">
             <Tag :size="16" :stroke-width="1.6" />{{ t('extractTags.edit') }}
           </button>
