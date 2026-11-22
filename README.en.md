@@ -26,9 +26,9 @@ muzplayer reads your NAS music folder as it is and shows it like a streaming app
 ## Features
 
 - **Library:** albums, artists, songs, covers, genres and folders; search (Korean initial-consonant search too); albums sorted into regular, unofficial, compilation and soundtrack; Hi-Res and Lossless badges
-- **Player:** synced lyrics (.lrc or tags; otherwise looked up on AlSong, Bugs and LRCLIB), an admin lyrics manager, gapless preloading, crossfade, ReplayGain, 10-band EQ, streaming quality, offline downloads
+- **Player:** synced lyrics (.lrc or tags; otherwise looked up through external integrations), an admin lyrics manager, gapless preloading, crossfade, ReplayGain, 10-band EQ, streaming quality, offline downloads
 - **For you:** mixes, stations and radio (similar songs keep playing), smart playlists, likes and star ratings, copy or move between playlists
-- **Charts & themes:** weekly chart folders (Melon, Bugs) and themed collections shown as banners (optional AI banners)
+- **Charts & themes:** weekly chart folders and themed collections shown as banners (optional AI banners)
 - **Radio:** Korean radio stations relayed live, with a frequency-dial tuner
 - **Music videos:** YouTube and NAS video files; extract the audio as m4a/mp3 with tags, cover and lyrics filled in
 - **Audiobooks:** chapters, speed, sleep timer, resume on any device, import from Audiobookshelf
@@ -182,7 +182,7 @@ Database migrations run by themselves when the app starts.
 
 ## External services and trademarks
 
-- Album details, ratings, artist names and lyrics come from Bugs, Melon, AlSong, LRCLIB, MusicBrainz, Wikidata and others; some of these are **unofficial integrations** that may stop working and are subject to each service's terms. Use them for personal, non-commercial purposes.
+- Album details, ratings, artist names and lyrics come from external integrations (LRCLIB, MusicBrainz, Wikidata and others); some of these are **unofficial integrations** that may stop working and are subject to each service's terms. Use them for personal, non-commercial purposes.
 - Broadcaster and chart logos are trademarks of their owners, shown only to identify them; muzplayer is not affiliated with them.
 - Extracting audio from YouTube is off by default; use it only for videos you have the rights to.
 
