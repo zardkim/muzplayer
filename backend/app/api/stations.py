@@ -7,16 +7,20 @@ ones already in the queue (exclude), so the player asks again whenever the queue
 - randomalbum: a whole album at random, in its order
 - artist / album: an artist's (an album's) songs, then songs like them
 - genre / decade: songs of one genre, of one decade
+
+The ones that pick from the whole library (library, hidden, timetravel, randomalbum, decade) leave
+out kids music and CCM (smart.everyday); the others play what was picked, and after it songs like
+it that are not kids music or CCM either (unless what was picked is).
 """
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy import and_, case, exists, func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Album, Favorite, PlayCount, Track, TrackGenre, TrackRating, User
 from ..security import api_error, current_user
-from ..smart import radio_ids, with_user_marks
+from ..smart import everyday, radio_ids, with_user_marks
 from .library import listed_tracks, track_out, track_query
 
 router = APIRouter()
@@ -47,6 +51,8 @@ def station(
     base = select(Track.id).outerjoin(Album, Album.id == Track.album_id).where(listed_tracks())
     if skip:
         base = base.where(Track.id.not_in(skip))
+    if kind in ("library", "hidden", "timetravel", "decade"):
+        base = base.where(everyday())
 
     ids: list[int] = []
     if kind == "library":
@@ -62,7 +68,7 @@ def station(
         # songs from across the years, then put in order of their year
         rows = db.execute(
             select(Track.id, Album.year).outerjoin(Album, Album.id == Track.album_id)
-            .where(listed_tracks(), Album.year.is_not(None), *( [Track.id.not_in(skip)] if skip else []))
+            .where(listed_tracks(), everyday(), Album.year.is_not(None), *( [Track.id.not_in(skip)] if skip else []))
             .order_by(func.random()).limit(limit)
         ).all()
         ids = [i for i, _ in sorted(rows, key=lambda r: r[1])]
@@ -71,7 +77,8 @@ def station(
         played = select(Track.album_id).where(Track.id.in_(skip or [-1])).scalar_subquery()
         album = db.scalar(
             select(Album.id).where(Album.kind != "chart", Album.id.not_in(played),
-                                   exists().where(Track.album_id == Album.id, listed_tracks()))
+                                   exists().where(Track.album_id == Album.id, listed_tracks()),
+                                   ~exists().where(Track.album_id == Album.id, not_(everyday())))
             .order_by(func.random()).limit(1)
         )
         if album:
@@ -88,9 +95,12 @@ def station(
             seed = db.scalar(select(Track).outerjoin(Album, Album.id == Track.album_id).where(own, listed_tracks()).order_by(func.random()).limit(1))
             if seed is not None:
                 seed_year = db.scalar(select(Album.year).where(Album.id == seed.album_id)) if seed.album_id else None
-                ids += _ids(db, radio_ids(seed, seed_year, user.id, skip + ids, limit - len(ids)))
+                # an everyday seed is followed by everyday songs only (no kids music or CCM after a pop album)
+                plain = db.scalar(select(everyday()).where(Track.id == seed.id))
+                like = lambda q: q.where(everyday()) if plain else q  # noqa: E731
+                ids += _ids(db, like(radio_ids(seed, seed_year, user.id, skip + ids, limit - len(ids))))
                 if len(ids) < limit:  # nothing in common with anything (untagged): any songs, still scored
-                    ids += _ids(db, radio_ids(seed, seed_year, user.id, skip + ids, limit - len(ids), related=False))
+                    ids += _ids(db, like(radio_ids(seed, seed_year, user.id, skip + ids, limit - len(ids), related=False)))
     elif kind == "genre":
         if genre_id is None:
             raise api_error(400, "missing_seed")

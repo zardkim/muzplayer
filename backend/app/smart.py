@@ -346,6 +346,24 @@ MIX_KEYS = ("random", "on-repeat", "top", "rewind", "top-rated", "unplayed", "re
 )
 
 
+# kept out of the random mix and the home stations that pick from the whole library (a listener
+# asks for these on their own): kids music and CCM, by genre, by theme (its category or title) or
+# by a folder named after them
+NOT_EVERYDAY = r"kids|children|동요|어린이|키즈|ccm|hillsong|힐송|찬양|찬송|워십|worship|gospel|가스펠"
+NOT_EVERYDAY_DIR = r"(^|/)(kids( music)?|children'?s? music|동요|어린이 ?동요|키즈|ccm|hillsong|힐송|찬양|찬송가?|워십|worship)/"
+
+
+def everyday():
+    """Songs fit for any mix: not kids music, not CCM."""
+    return and_(
+        not_(Track.file_path.op("~*")(NOT_EVERYDAY_DIR)),
+        not_(exists().where(TrackGenre.track_id == Track.id, TrackGenre.genre_id == Genre.id,
+                            Genre.name.op("~*")(NOT_EVERYDAY))),
+        not_(exists().where(Chart.id == Track.chart_id, Chart.kind == "theme",
+                            or_(Chart.source.op("~*")(NOT_EVERYDAY), Chart.title.op("~*")(NOT_EVERYDAY)))),
+    )
+
+
 def mix_rules(key: str) -> Rules | None:
     """Most mixes are smart playlists with fixed rules; on-repeat counts recent plays instead."""
     match key:
@@ -393,7 +411,10 @@ def mix_query(key: str, query: Select, user_id: int) -> Select | None:
     if key == "on-repeat":
         return on_repeat(query, user_id)
     rules = mix_rules(key)
-    return apply_rules(query, rules, user_id) if rules else None
+    if rules is None:
+        return None
+    query = apply_rules(query, rules, user_id)
+    return query.where(everyday()) if key == "random" else query
 
 
 def mix_preview(db: Session, key: str, user_id: int) -> tuple[int, list[dict]]:
@@ -411,6 +432,8 @@ def mix_preview(db: Session, key: str, user_id: int) -> tuple[int, list[dict]]:
         if rules.sort == "random":
             rules = rules.model_copy(update={"sort": "recent"})  # a stable, index-backed order for the card
         q = apply_rules(base, rules, user_id)
+        if key == "random":
+            q = q.where(everyday())
     rows = db.execute(q).all()
     covers: list[dict] = []
     for _, album_id, cover_path, version in rows:
